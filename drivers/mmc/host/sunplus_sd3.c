@@ -24,6 +24,7 @@
 #include "../core/host.h"
 #include "../core/core.h"
 #include "sunplus_sd3.h"
+#include <linux/iopoll.h>
 
 enum loglevel {
 	SPSDC_LOG_OFF,
@@ -405,9 +406,9 @@ static void spsdc_sw_reset(struct spsdc_host *host)
 	value = bitfield_replace(value, SPSDC_HW_DMA_RST_w01, 1, 1);
 	writel(value, &host->base->hw_dma_ctrl);
 	writel(0x7, &host->base->sd_rst);
-	while (readl(&host->base->sd_hw_state) & BIT(6))
-		;
-	spsdc_pr(DEBUG, "sw reset done\n");
+	readl_poll_timeout_atomic(&host->base->sd_hw_state, value,
+		!(value & BIT(6)), 1, SPMMC_TIMEOUT_US);
+	spsdc_pr(host->mode, DEBUG, "sw reset done\n");
 
 }
 
@@ -629,9 +630,7 @@ static int spsdc_check_error(struct spsdc_host *host, struct mmc_request *mrq)
 			else
 				cmd->retries = SPSDC_MAX_RETRIES; /* retry it */
 		}
-
 		spsdc_sw_reset(host);
-		mdelay(100);
 
 		if (host->tuning_info.enable_tuning) {
 			writel(timing.val, &host->base->sd_timing_config0);
