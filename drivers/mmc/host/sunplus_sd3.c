@@ -920,8 +920,8 @@ int spsdc_get_cd(struct mmc_host *mmc)
 		ret = 0;
 	}
 
-    //return 1;  // for zebu test
-	return ret;
+    return 1;  // for zebu test
+	//return ret;
 }
 
 #ifdef SPMMC_SUPPORT_VOLTAGE_1V8
