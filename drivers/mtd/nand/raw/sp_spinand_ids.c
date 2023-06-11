@@ -28,7 +28,7 @@ struct nand_flash_dev sp_spinand_ids[] = {
 	/*
 	 * NAND_ID(           name,  mid,  did,  pgsz,  oobsz, bksz,    chipsz, drvopt)
 	 */
-	NAND_ID("MT29F4G01-ZEBU", 0x2c, 0x32, SZ_2K, SZ_64, SZ_128K, SZ_512, SPINAND_OPT_HAS_TWO_PLANE|SPINAND_OPT_NO_4BIT_PROGRAM),
+	NAND_ID("MT29F4G01-ZEBU", 0x2c, 0x32, SZ_2K, SZ_64, SZ_128K, SZ_64, SPINAND_OPT_HAS_TWO_PLANE|SPINAND_OPT_NO_4BIT_PROGRAM),
 
 	/* Micron */
 	NAND_ID("MT29F1G01ABADD", 0x2c, 0x14, SZ_2K, SZ_64, SZ_128K, SZ_128, 0),

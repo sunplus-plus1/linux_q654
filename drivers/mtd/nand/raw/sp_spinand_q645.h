@@ -17,7 +17,7 @@
  */
 #define CONFIG_SPINAND_READ_BITMODE     SPINAND_4BIT_MODE
 #define CONFIG_SPINAND_WRITE_BITMODE    SPINAND_4BIT_MODE
-#if ZEBU_SIM
+#if 1//ZEBU_SIM
 #define CONFIG_SPINAND_READ_TIMING_SEL  0
 #define CONFIG_SPINAND_CS_DISACTIVE_CYC 0 /* 20ns = 0 x 1.6ns + 20ns */
 #define CONFIG_SPINAND_AUTOBCH_DECSRC   0 /* BCH decode data source. 0:spi-nand ctrl, 1:system memory */
