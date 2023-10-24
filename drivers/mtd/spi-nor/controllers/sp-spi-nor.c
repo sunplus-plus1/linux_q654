@@ -263,7 +263,7 @@ static int sp_spi_nor_init(struct sp_spi_nor *pspi)
 		value = A_CHIP;
 	else
 		value = B_CHIP;
-
+#if defined (CONFIG_SOC_SP7350)
 	if (pspi->clk_rate >= 100000000) {
 		if (pre_pllh != 614285714) {
 			clk_set_rate(pspi->ctrl_clk, 614285714);
@@ -289,7 +289,7 @@ static int sp_spi_nor_init(struct sp_spi_nor *pspi)
 		else
 			value |= SPI_CLK_D_32;
 	}
-
+#endif
 	spi_reg = (struct SPI_NOR_REG *) pspi->io_base;
 	writel(value, &spi_reg->spi_ctrl);
 
@@ -486,8 +486,9 @@ static int sp_spi_nor_xfer_dmawrite(struct spi_nor *nor, u8 opcode, u32 addr, u8
 		//dev_dbg(pspi->dev, "w remain len  0x%x\n", len);
 		if (temp_len > 0)
 			memcpy(pspi->buff.virt, data_in, temp_len); // copy data to dma
-
+#if defined(CONFIG_SOC_SP7350)
 		value =  (readl(&spi_reg->spi_cfg0) & CLEAR_DATA64_LEN) | temp_len | (1<<19);
+#endif
 		writel(value, &spi_reg->spi_cfg0);
 
 		writel(pspi->buff.phys, &spi_reg->spi_mem_data_addr);
