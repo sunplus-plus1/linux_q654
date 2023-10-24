@@ -76,11 +76,8 @@ void __iomem *ohci_res_moon0;
 s32 get_td_retry_time = 24;
 
 static struct clk *ohci_clk[USB_PORT_NUM];
-
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 static struct reset_control *ohci_rstc[USB_PORT_NUM];
 static struct phy *uphy[USB_PORT_NUM];
-#endif
 
 static int ohci_platform_reset(struct usb_hcd *hcd)
 {
@@ -221,25 +218,6 @@ static int ohci_reset_thread(void *arg)
 				i = SP_IRQ_OHCI_USB1;
 
 			if (sp_ohci->flag & RESET_UPHY_SIGN) {
-#if defined (CONFIG_SOC_SP7021)
-				writel(RF_MASK_V_SET(1 << (13 + (pdev->id - 1))),
-							ohci_res_moon0 + USB_RESET_OFFSET);
-				writel(RF_MASK_V_CLR(1 << (13 + (pdev->id - 1))),
-							ohci_res_moon0 + USB_RESET_OFFSET);
-				writel(RF_MASK_V_SET(1 << (10 + (pdev->id - 1))),
-							ohci_res_moon0 + USB_RESET_OFFSET);
-				writel(RF_MASK_V_CLR(1 << (10 + (pdev->id - 1))),
-							ohci_res_moon0 + USB_RESET_OFFSET);
-#elif defined (CONFIG_SOC_Q645)
-				writel(RF_MASK_V_SET(1 << (8 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
-				writel(RF_MASK_V_CLR(1 << (8 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
-				writel(RF_MASK_V_SET(1 << (13 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
-				writel(RF_MASK_V_CLR(1 << (13 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
-#elif defined (CONFIG_SOC_SP7350)
 				writel(RF_MASK_V_SET(1 << (12 + (pdev->id - 1))),
 							ohci_res_moon0 + USBC0_RESET_OFFSET);
 				writel(RF_MASK_V_CLR(1 << (12 + (pdev->id - 1))),
@@ -248,7 +226,7 @@ static int ohci_reset_thread(void *arg)
 							ohci_res_moon0 + USBC0_RESET_OFFSET);
 				writel(RF_MASK_V_CLR(1 << (15 + (pdev->id - 1))),
 							ohci_res_moon0 + USBC0_RESET_OFFSET);
-#endif
+
 				sp_ohci->flag = RESET_SENDER;
 			} else {
 				sp_ohci->flag = 0;
@@ -363,10 +341,8 @@ static ssize_t get_td_retry_time_store(struct device *dev,
 
 	return count;
 }
-
 static DEVICE_ATTR_RW(get_td_retry_time);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 static int sp_ohci_platform_power_on(struct platform_device *pdev)
 {
 	int ret;
@@ -398,21 +374,16 @@ static void sp_ohci_platform_power_off(struct platform_device *pdev)
 	phy_power_off(uphy[pdev->id - 1]);
 	phy_exit(uphy[pdev->id - 1]);
 }
-#endif
 
 static struct usb_ohci_pdata usb_ohci_pdata = {
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	.power_on = sp_ohci_platform_power_on,
 	.power_suspend = sp_ohci_platform_power_off,
 	.power_off = sp_ohci_platform_power_off,
-#endif
 };
 
 int ohci_sunplus_probe(struct platform_device *pdev)
 {
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	struct usb_ohci_pdata *pdata = &usb_ohci_pdata;
-#endif
 	struct usb_hcd *hcd;
 	struct resource *res_mem;
 	int irq;
@@ -427,16 +398,6 @@ int ohci_sunplus_probe(struct platform_device *pdev)
 
 	pdev->dev.platform_data = &usb_ohci_pdata;
 
-#ifdef CONFIG_SOC_SP7021
-	/* enable usb controller clock */
-	ohci_clk[pdev->id - 1] = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(ohci_clk[pdev->id - 1])) {
-		pr_err("not found clk source\n");
-		return PTR_ERR(ohci_clk[pdev->id - 1]);
-	}
-	clk_prepare(ohci_clk[pdev->id - 1]);
-	clk_enable(ohci_clk[pdev->id - 1]);
-#elif defined(CONFIG_SOC_Q645) ||defined (CONFIG_SOC_SP7350)
 	/* phy */
 	if ((pdev->id - 1) == USB_PORT0_ID) {
 		uphy[pdev->id - 1] = devm_phy_get(&pdev->dev, "uphy");
@@ -472,7 +433,6 @@ int ohci_sunplus_probe(struct platform_device *pdev)
 		if (err)
 			return err;
 	}
-#endif
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -568,9 +528,7 @@ err_put_hcd:
 	usb_put_hcd(hcd);
 err_power:
 	clk_disable_unprepare(ohci_clk[pdev->id - 1]);
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	reset_control_assert(ohci_rstc[pdev->id - 1]);
-#endif
 
 	return err;
 }
@@ -579,9 +537,7 @@ EXPORT_SYMBOL_GPL(ohci_sunplus_probe);
 int ohci_sunplus_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	struct usb_ohci_pdata *pdata = pdev->dev.platform_data;
-#endif
 #if defined(CONFIG_USB_HOST_RESET) || defined(CONFIG_USB_SP_UDC_HOST)
 	struct ohci_hcd_sp *ohci_sp = (struct ohci_hcd_sp *)hcd_to_ohci(hcd);
 #endif
@@ -606,13 +562,8 @@ int ohci_sunplus_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 	platform_set_drvdata(pdev, NULL);
 
-#ifdef CONFIG_SOC_SP7021
-	/* disable usb controller clock */
-	clk_disable_unprepare(ohci_clk[pdev->id - 1]);
-#elif defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	if (pdata->power_off)
 		pdata->power_off(pdev);
-#endif
 
 	return 0;
 }
@@ -622,9 +573,7 @@ EXPORT_SYMBOL_GPL(ohci_sunplus_remove);
 static int ohci_sunplus_drv_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	struct usb_ohci_pdata *pdata = pdev->dev.platform_data;
-	#endif
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
 	bool do_wakeup = device_may_wakeup(dev);
 	int rc;
@@ -635,13 +584,8 @@ static int ohci_sunplus_drv_suspend(struct device *dev)
 	if (rc)
 		return rc;
 
-	#ifdef CONFIG_SOC_SP7021
-	/* disable usb controller clock */
-	clk_disable_unprepare(ohci_clk[pdev->id - 1]);
-	#elif defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	if (pdata->power_suspend)
 		pdata->power_suspend(pdev);
-	#endif
 
 	return 0;
 }
@@ -650,24 +594,16 @@ static int ohci_sunplus_drv_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
-	#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	struct usb_ohci_pdata *pdata = pdev->dev.platform_data;
 	int err;
-	#endif
 
 	pr_debug("%s.%d\n", __func__, __LINE__);
 
-	#ifdef CONFIG_SOC_SP7021
-	/* enable usb controller clock */
-	clk_prepare(ohci_clk[pdev->id - 1]);
-	clk_enable(ohci_clk[pdev->id - 1]);
-	#elif defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	if (pdata->power_on) {
 		err = pdata->power_on(pdev);
 		if (err)
 			return err;
 	}
-	#endif
 
 	ohci_resume(hcd, false);
 

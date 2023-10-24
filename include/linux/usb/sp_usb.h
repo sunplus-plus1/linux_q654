@@ -32,9 +32,9 @@
 #define SDP_MODE_VALUE				2
 #define UPHY1_OTP_DISC_LEVEL_OFFSET		5
 #define OTP_DISC_LEVEL_TEMP			0x16
-#define DISC_LEVEL_DEFAULT			0x0B
-#define OTP_DISC_LEVEL_BIT			0x1F
-#define GET_BC_MODE				0xFF00
+#define DISC_LEVEL_DEFAULT			0x0b
+#define OTP_DISC_LEVEL_BIT			0x1f
+#define GET_BC_MODE				0xff00
 #define APHY_PROBE_CTRL				0x38
 
 #define POWER_SAVING_SET			(1 << 5)
@@ -42,22 +42,16 @@
 #define	UPHY_DISC_0				(1 << 2)
 #define APHY_PROBE_CTRL_MASK			0x38
 
-#define USB_RESET_OFFSET			0x5C
-#define PIN_MUX_CTRL				0x8C
+#define USB_RESET_OFFSET			0x5c
+#define PIN_MUX_CTRL				0x8c
 
-#ifdef CONFIG_SOC_SP7021
-#define USBC_CTL_OFFSET				0x44
-#elif defined (CONFIG_SOC_Q645)
-#define USBC_CTL_OFFSET				0x58
-#elif defined (CONFIG_SOC_SP7350)
 #define USBC_CTL_OFFSET				0x28
-#endif
 #define UPHY0_CTL0_OFFSET			0x48
-#define UPHY0_CTL1_OFFSET			0x4C
+#define UPHY0_CTL1_OFFSET			0x4c
 #define UPHY0_CTL2_OFFSET			0x50
 #define UPHY0_CTL3_OFFSET			0x54
 #define UPHY1_CTL0_OFFSET			0x58
-#define UPHY1_CTL1_OFFSET			0x5C
+#define UPHY1_CTL1_OFFSET			0x5c
 #define UPHY1_CTL2_OFFSET			0x60
 #define UPHY1_CTL3_OFFSET			0x64
 
@@ -78,19 +72,13 @@
 #define	UPHY_DEBUG_SIGNAL_REG_OFFSET		0x30
 #define UPHY_INTER_SIGNAL_REG_OFFSET		0xc
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 // MOON0
-	#if defined(CONFIG_SOC_Q645)
-#define USBC0_RESET_OFFSET			0x60
-	#elif defined(CONFIG_SOC_SP7350)
 #define USBC0_RESET_OFFSET			0x18
-	#endif
 
 // UPHY0
 #define GLO_CTRL0_OFFSET			0x70
 #define GLO_CTRL1_OFFSET			0x74
 #define GLO_CTRL2_OFFSET			0x78
-#endif
 
 #define PORT_OWNERSHIP				0x00002000
 #define CURRENT_CONNECT_STATUS			0x00000001
@@ -182,7 +170,7 @@ static inline int get_uphy_swing(int port)
 
 	val = readl(uphy_ctl2_addr);
 
-	return (val >> 8) & 0xFF;
+	return (val >> 8) & 0xff;
 }
 
 static inline int set_uphy_swing(u32 swing, int port)
@@ -190,8 +178,8 @@ static inline int set_uphy_swing(u32 swing, int port)
 	void __iomem *uphy_ctl2_addr = port ? (uphy1_res_moon4 + UPHY1_CTL2_OFFSET)
 						: (uphy0_res_moon4 + UPHY0_CTL2_OFFSET);
 
-	writel(RF_MASK_V_CLR(0x3F << 8), uphy_ctl2_addr);
-	writel(RF_MASK_V_SET((swing & 0x3F) << 8), uphy_ctl2_addr);
+	writel(RF_MASK_V_CLR(0x3f << 8), uphy_ctl2_addr);
+	writel(RF_MASK_V_SET((swing & 0x3f) << 8), uphy_ctl2_addr);
 	writel(RF_MASK_V_SET(1 << 15), uphy_ctl2_addr);
 
 	return 0;
@@ -208,7 +196,7 @@ static inline int get_disconnect_level(int port)
 	reg_addr = port ? uphy1_base_addr : uphy0_base_addr;
 	val = readl(reg_addr + DISC_LEVEL_OFFSET);
 
-	return val & 0x1F;
+	return val & 0x1f;
 }
 
 static inline int set_disconnect_level(u32 disc_level, int port)
@@ -221,7 +209,7 @@ static inline int set_disconnect_level(u32 disc_level, int port)
 
 	reg_addr = port ? uphy1_base_addr : uphy0_base_addr;
 	val = readl(reg_addr + DISC_LEVEL_OFFSET);
-	val = (val & ~0x1F) | disc_level;
+	val = (val & ~0x1f) | disc_level;
 	writel(val, reg_addr + DISC_LEVEL_OFFSET);
 
 	return 0;
