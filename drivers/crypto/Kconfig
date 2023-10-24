@@ -15,7 +15,7 @@ source "drivers/crypto/allwinner/Kconfig"
 
 config CRYPTO_DEV_SP
 	tristate "Support for Sunplus Crypto Engine"
-	depends on SOC_SP7021 || SOC_SP7350
+	depends on SOC_SP7350
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_SKCIPHER2
 	select CRYPTO_GCM
