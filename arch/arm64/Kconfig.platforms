@@ -326,17 +326,6 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
-config SOC_Q645
-	bool "Sunplus Q645 Soc"
-	select COMMON_CLK
-	select COMMON_CLK_Q645
-	select RESET_CONTROLLER
-	select RESET_SUNPLUS
-	select SERIAL_SUNPLUS
-	select SERIAL_SUNPLUS_CONSOLE
-	help
-	  This enables support of Sunplus Q645 Soc
-
 config SOC_SP7350
 	bool "Sunplus SP7350 Soc"
 	select COMMON_CLK
