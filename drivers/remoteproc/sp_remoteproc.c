@@ -39,10 +39,8 @@
 /* Maximum on chip memories used by the driver*/
 #define MAX_ON_CHIP_MEMS        32
 
-#ifdef CONFIG_SOC_SP7350
 #define MAILBOX_CM4_TO_CA55_SUSPEND      0xaabb1234
 #define FIRMWARE_WARMBOOT_NAME           "warmboot"
-#endif
 
 /* Structure for IPIs */
 struct ipi_info {
@@ -65,15 +63,10 @@ struct sp_rproc_pdata {
 	struct list_head fw_mems;
 	u32 __iomem *mbox0to2;
 	u32 __iomem *boot;
-#if defined(CONFIG_SOC_Q645)
-	u32 __iomem *mbox2to0; // read to clear intr
-	struct reset_control *rstc; // FIXME: RST_A926 not worked
-#elif defined(CONFIG_SOC_SP7350)
 	u64 bootaddr;
 	u32 __iomem *mbox2to0; // read to clear intr
 	struct reset_control *rstc; // FIXME: RST_A926 not worked
 	struct work_struct suspend_work;
-#endif
 #ifdef CONFIG_SUNPLUS_MBOX_TEST
 	struct mbox_client cl;
 	struct mbox_chan *chan;
@@ -115,7 +108,6 @@ static void mbox_tx_test(u32 arg)
 }
 #endif
 
-#ifdef CONFIG_SOC_SP7350
 void suspend_work_func(struct work_struct *work)
 {
 	pm_suspend(PM_SUSPEND_MEM);
@@ -127,6 +119,7 @@ static void sp7350_request_firmware_callback(const struct firmware *fw, void *co
 	rproc_elf_load_segments(rproc,fw);
 	release_firmware(fw);
 }
+
 static int sp7350_load_warmboot_firmware(struct rproc *rproc)
 {
 	int ret;
@@ -138,6 +131,7 @@ static int sp7350_load_warmboot_firmware(struct rproc *rproc)
 		dev_err(&rproc->dev, "request_firmware_nowait err: %d\n", ret);
 	return ret;
 }
+
 static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct device *dev = &rproc->dev;
@@ -173,7 +167,7 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 		}
 
 		/* grab the kernel address for this device address */
-		if(da > local->bootaddr)
+		if (da > local->bootaddr)
 			ptr = rproc_da_to_va(rproc, da, memsz);
 		else
 			ptr = rproc_da_to_va(rproc, local->bootaddr + (da & 0xFFFFF), memsz);
@@ -189,8 +183,6 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 	}
 	return ret;
 }
-
-#endif
 
 static void handle_event(struct work_struct *work)
 {
@@ -238,18 +230,11 @@ static int sp_rproc_start(struct rproc *rproc)
 	kick_pending_ipi(rproc);
 
 	// set remote start addr to boot register,
-#if defined(CONFIG_SOC_Q645)
-	writel(0xFF0000|(rproc->bootaddr >> 24), local->boot);
-	reset_control_deassert(local->rstc);
-#elif defined (CONFIG_SOC_SP7350)
 	writel(0xFFFF0000|(local->bootaddr >> 16), local->boot);
 	reset_control_deassert(local->rstc);
 	/* for (echo mem) into deepsleep. load warmboot firmware to dram first. */
 	sp7350_load_warmboot_firmware(rproc);
 	INIT_WORK(&local->suspend_work,suspend_work_func);
-#else
-	writel(rproc->bootaddr, local->boot);
-#endif
 
 	return 0;
 }
@@ -294,12 +279,7 @@ static int sp_rproc_stop(struct rproc *rproc)
 	mbox_tx_test(0x00000000);
 	mbox_tx_test(0xdeadc0de);
 #endif
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	reset_control_assert(local->rstc);
-#else
-	// send remote reset signal
-	writel(0xDEADC0DE, local->mbox0to2);
-#endif
 
 	return 0;
 }
@@ -314,6 +294,7 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 	num_mems = of_count_phandle_with_args(np, "memory-region", NULL);
 	if (num_mems <= 0)
 		return 0;
+
 	for (i = 0; i < num_mems; i++) {
 		struct device_node *node;
 		struct reserved_mem *rmem;
@@ -353,7 +334,6 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 				return -ENOMEM;
 			}
 			rproc_add_carveout(rproc, mem);
-#ifdef CONFIG_SOC_SP7350
 		} else if (strstr(node->name, "cm4runaddr") ) {
 			struct sp_rproc_pdata *local = rproc->priv;
 			mem = rproc_of_resm_mem_entry_init(dev, i,
@@ -369,7 +349,6 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 			if (!mem->va)
 				return -ENOMEM;
 			rproc_add_carveout(rproc, mem);
-#endif
 		} else {
 			mem = rproc_of_resm_mem_entry_init(dev, i,
 							rmem->size,
@@ -400,30 +379,17 @@ static struct rproc_ops sp_rproc_ops = {
 	.find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table,
 	.get_boot_addr	= rproc_elf_get_boot_addr,
 	.kick		= sp_rproc_kick,
-#ifdef CONFIG_SOC_SP7350
 	.load		= sp_rproc_load,
-#else
-	.load		= rproc_elf_load_segments,
-#endif
 };
 
 static irqreturn_t sp_remoteproc_interrupt(int irq, void *dev_id)
 {
 	struct sp_rproc_pdata *local = rproc->priv;
 
-#if defined(CONFIG_SOC_Q645)
-	readl(local->mbox2to0); // read to clear intr
-
-#elif defined(CONFIG_SOC_SP7350)
-
-	if(readl(local->mbox2to0) == MAILBOX_CM4_TO_CA55_SUSPEND)  // read to clear intr
-	{
+	if(readl(local->mbox2to0) == MAILBOX_CM4_TO_CA55_SUSPEND) { // read to clear intr
 		dev_info(&rproc->dev, "Ca55 in suspend start \n");
 		schedule_work(&local->suspend_work);
-	}
-	else
-#endif
-	{
+	} else {
 		ipi_kick();
 	}
 
@@ -495,7 +461,6 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 		goto probe_failed;
 	}
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	local->mbox2to0 = devm_platform_ioremap_resource(pdev, 2);
 	if (IS_ERR((void *)local->mbox2to0)) {
 		ret = PTR_ERR((void *)local->mbox2to0);
@@ -509,7 +474,6 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 		dev_err(dev, "missing reset controller\n");
 		goto probe_failed;
 	}
-#endif
 
 	rproc->auto_boot = autoboot;
 
@@ -561,6 +525,6 @@ module_param_named(autoboot, autoboot, bool, 0444);
 MODULE_PARM_DESC(autoboot,
 		 "enable | disable autoboot. (default: false)");
 
-MODULE_AUTHOR("qinjian@cqplus1.com");
+MODULE_AUTHOR("qinjian@sunmedia.com.cn");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Sunplus remote processor control driver");
