@@ -5,12 +5,7 @@
 
 #include <linux/usb/phy.h>
 
-#ifdef CONFIG_SOC_SP7021
-#define otg_debug(fmt, args...)		pr_debug("#@#OTG: "fmt, ##args)
-#endif
-
 //#define OTG_TEST
-#define CONFIG_ADP_TIMER
 
 #define USB_PORT_NUM			3
 
@@ -62,7 +57,7 @@
 
 #define ENABLE_OTG_INT(x)		iowrite32(0x3ff, x)
 
-/* Q628 fsm state */
+/* fsm state */
 enum sp_otg_state {
 	SP_OTG_STATE_A_IDLE = 0,
 	SP_OTG_STATE_A_WAIT_VRISE,

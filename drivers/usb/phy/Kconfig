@@ -199,7 +199,7 @@ config JZ4770_PHY
 	  This driver provides PHY support for the USB controller found
 	  on the JZ-series and X-series SoCs from Ingenic.
 
-config USB_SUNPLUS_SP7350_OTG
+config USB_SUNPLUS_OTG
 	bool "Sunplus USB OTG Transceive driver"
 #	depends on USB_GADGET_SUNPLUS && GEMINI_USB
 	depends on USB_EHCI_HCD || USB_GADGET_SUNPLUS

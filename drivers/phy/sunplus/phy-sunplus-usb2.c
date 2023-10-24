@@ -65,13 +65,8 @@
 #define PLL_PD_SEL				BIT(7)
 #define PLL_PD					BIT(3)
 
-#ifdef CONFIG_SOC_Q645
-/* GROUP MOON3 */
-#define M3_SCFG_22				0x58
-#elif defined(CONFIG_SOC_SP7350)
 /* GROUP MOON4 */
 #define M4_SCFG_10				0x28
-#endif
 #define MO1_USBC0_USB0_TYPE			BIT(2)
 #define MASK_MO1_USBC0_USB0_TYPE		BIT(2 + 16)
 #define MO1_USBC0_USB0_SEL			BIT(1)
@@ -84,7 +79,6 @@
 #define MASK_USB_HOST_DEVICE_MODE		(MASK_MO1_USBC0_USB0_TYPE| MASK_MO1_USBC0_USB0_SEL | \
 										MASK_MO1_USBC0_USB0_CTRL)
 
-#ifdef CONFIG_USB_PORT0
 void __iomem *uphy0_regs;
 EXPORT_SYMBOL_GPL(uphy0_regs);
 
@@ -95,34 +89,15 @@ static void sp_get_port0_state(void)
 {
 	sp_port0_enabled |= PORT0_ENABLED;
 }
-#endif
-
-#ifdef CONFIG_USB_PORT1
-u8 sp_port1_enabled;
-EXPORT_SYMBOL_GPL(sp_port1_enabled);
-
-static void sp_get_port1_state(void)
-{
-	sp_port1_enabled |= PORT1_ENABLED;
-}
-#endif
 
 struct sp_usbphy {
 	struct device *dev;
 	struct resource *phy_res_mem;
-#ifdef CONFIG_SOC_Q645
-	struct resource *moon3_res_mem;
-#elif defined(CONFIG_SOC_SP7350)
 	struct resource *moon4_res_mem;
-#endif
 	struct reset_control *rstc;
 	struct clk *phy_clk;
 	void __iomem *phy_regs;
-#ifdef CONFIG_SOC_Q645
-	void __iomem *moon3_regs;
-#elif defined(CONFIG_SOC_SP7350)
 	void __iomem *moon4_regs;
-#endif
 	u32 port_num;
 	u32 disc_vol_addr_off;
 };
@@ -197,32 +172,19 @@ static int sp_uphy_init(struct phy *phy)
 	writel(J_FORCE_DISC_ON | J_DEBUG_CTRL_ADDR_MACRO, usbphy->phy_regs + CONFIG3);
 
 	/* enable vbus if host (sw control) */
-#ifdef CONFIG_SOC_Q645
-	val = readl(usbphy->moon3_regs + M3_SCFG_22);
-
-	#if defined(CONFIG_USB_EHCI_SUNPLUS) || defined(CONFIG_USB_OHCI_SUNPLUS)
-	writel(val | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE,
-							usbphy->moon3_regs + M3_SCFG_22);
-	#else
-	writel((val & (~MO1_USBC0_USB0_TYPE) & (~MO1_USBC0_USB0_SEL))
-						| USB_DEVICE_MODE | MASK_USB_HOST_DEVICE_MODE,
-							usbphy->moon3_regs + M3_SCFG_22);
-	#endif
-#elif defined(CONFIG_SOC_SP7350)
 	val = readl(usbphy->moon4_regs + M4_SCFG_10);
 
-	#if defined(CONFIG_USB_EHCI_SUNPLUS) || defined(CONFIG_USB_OHCI_SUNPLUS)
+#if defined(CONFIG_USB_EHCI_SUNPLUS) || defined(CONFIG_USB_OHCI_SUNPLUS)
 	writel(val | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE,
 							usbphy->moon4_regs + M4_SCFG_10);
-	#else
+#else
 	writel((val & (~MO1_USBC0_USB0_TYPE) & (~MO1_USBC0_USB0_SEL))
 						| USB_DEVICE_MODE | MASK_USB_HOST_DEVICE_MODE,
 							usbphy->moon4_regs + M4_SCFG_10);
-	#endif
 #endif
 
 	/* OTG control host and device */
-#ifdef CONFIG_USB_SUNPLUS_SP7350_OTG
+#ifdef CONFIG_USB_SUNPLUS_OTG
 	val = readl(usbphy->moon4_regs + M4_SCFG_10);
 	writel((val & (~MO1_USBC0_USB0_CTRL)) | MASK_MO1_USBC0_USB0_CTRL,
 							usbphy->moon4_regs + M4_SCFG_10);
@@ -318,7 +280,6 @@ static const struct phy_ops sp_uphy_ops = {
 };
 
 static const struct of_device_id sp_uphy_dt_ids[] = {
-	{.compatible = "sunplus,q645-usb2-phy", },
 	{.compatible = "sunplus,sp7350-usb2-phy", },
 	{ }
 };
@@ -344,16 +305,6 @@ static int sp_usb_phy_probe(struct platform_device *pdev)
 
 	uphy0_regs = usbphy->phy_regs;
 
-#ifdef CONFIG_SOC_Q645
-	usbphy->moon3_res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "moon3");
-	if (!usbphy->moon3_res_mem)
-		return -EINVAL;
-
-	usbphy->moon3_regs = devm_ioremap(&pdev->dev, usbphy->moon3_res_mem->start,
-						resource_size(usbphy->moon3_res_mem));
-	if (!usbphy->moon3_regs)
-		return -ENOMEM;
-#elif defined(CONFIG_SOC_SP7350)
 	usbphy->moon4_res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "moon4");
 	if (!usbphy->moon4_res_mem)
 		return -EINVAL;
@@ -362,7 +313,7 @@ static int sp_usb_phy_probe(struct platform_device *pdev)
 						resource_size(usbphy->moon4_res_mem));
 	if (!usbphy->moon4_regs)
 		return -ENOMEM;
-#endif
+
 	usbphy->rstc = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(usbphy->rstc))
 		return PTR_ERR(usbphy->rstc);
@@ -371,16 +322,9 @@ static int sp_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(usbphy->phy_clk))
 		return PTR_ERR(usbphy->phy_clk);
 
-#ifdef CONFIG_USB_PORT0
 	if (usbphy->port_num == USB_PORT0_ID) {
 		sp_get_port0_state();
 	}
-#endif
-
-#ifdef CONFIG_USB_PORT1
-	if (usbphy->port_num == USB_PORT1_ID)
-		sp_get_port1_state();
-#endif
 
 	of_property_read_u32(pdev->dev.of_node, "sunplus,disc-vol-addr-off",
 			     &usbphy->disc_vol_addr_off);
