@@ -27,11 +27,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
-#if IS_ENABLED(CONFIG_SND_SOC_AUD628)
-#include "spsoc_util.h"
-#elif IS_ENABLED(CONFIG_SND_SOC_AUD645)
 #include "spsoc_util-645.h"
-#endif
 
 //========================================================================
 //		F U N C T I O N    D E	C L A R	A T I O	N S
@@ -96,19 +92,6 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 	//pr_info("start=%zx end=%zx\n", res->start, res->end);
 	dev_dbg(&pdev->dev, "audio_base=%p\n", spauddata->audio_base);
 	//clock	enable
-#if IS_ENABLED(CONFIG_SND_SOC_AUD628)
-	spauddata->peri0_clocken = devm_clk_get(&pdev->dev, "peri0");
-	if (IS_ERR(spauddata->peri0_clocken)) {
-		dev_err(&pdev->dev, "get clock from devicetree node 1.\n");
-		return PTR_ERR(spauddata->peri0_clocken);
-	}
-	err = clk_prepare_enable(spauddata->peri0_clocken);
-	if (err) {
-		dev_err(&pdev->dev, "enable clock 1 false.\n");
-		return err;
-	}
-#endif
-	//clock	enable
 	spauddata->aud_clocken = devm_clk_get(&pdev->dev, "aud");
 	if (IS_ERR(spauddata->aud_clocken)) {
 		dev_err(&pdev->dev, "get clock from devicetree node 0.\n");
@@ -119,7 +102,7 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "enable clock 0 false.\n");
 		return err;
 	}
-#if IS_ENABLED(CONFIG_SND_SOC_AUD645)
+
 	//reset
 	spauddata->clk_rst = devm_reset_control_get(&pdev->dev,	NULL);
 	if (IS_ERR(spauddata->clk_rst))	{
@@ -133,7 +116,7 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 	err = reset_control_deassert(spauddata->clk_rst);
 	if (err)
 		dev_err(&pdev->dev, "reset deassert fail\n");
-#endif
+
 	//plla setting
 	spauddata->plla_clocken	= devm_clk_get(&pdev->dev, "pll_a");
 	if (IS_ERR(spauddata->plla_clocken)) {
@@ -155,9 +138,7 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, spauddata);
 	sunplus_i2s_register(&pdev->dev);
 	sunplus_tdm_register(&pdev->dev);
-#if IS_ENABLED(CONFIG_SND_SOC_AUD628)
-	sunplus_pdm_register(&pdev->dev);
-#endif
+
 	return 0;
 }
 
@@ -168,9 +149,6 @@ static int sunplus_audio_remove(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "%s	IN\n", __func__);
 	//audio_base = NULL;
 	snd_soc_unregister_component(&pdev->dev);
-#if IS_ENABLED(CONFIG_SND_SOC_AUD628)
-	clk_disable(spauddata->peri0_clocken);
-#endif
 	clk_disable(spauddata->aud_clocken);
 	clk_disable(spauddata->plla_clocken);
 	return 0;
