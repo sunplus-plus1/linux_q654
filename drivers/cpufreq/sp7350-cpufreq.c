@@ -97,19 +97,25 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 			}
 		}
 	}
-	if (old_freq < freq_hz)
+	if (old_freq < freq_hz) {
 		sp_clkc_ca55_memctl((freq_hz < 1000000000) ? MEMCTL_SLOW :
 				   ((freq_hz < 1900000000) ? MEMCTL_DEFAULT : MEMCTL_FAST));
 
-	/* Set the cpu_clk to target rate. */
-	//pr_debug(">>> cpu_clk set_rate to %lu\n", freq_hz);
-	ret = clk_set_rate(cpu_clk, freq_hz);
+		/* Set the cpu_clk to target rate. */
+		ret = clk_set_rate(cpu_clk, freq_hz);
+	}
+
 	/* Also set l3_clk */
 	ret = clk_set_rate(info->l3_clk, freq_hz * 4 / 5);
 
-	if (freq_hz < old_freq)
+	if (freq_hz < old_freq) {
+		/* Set the cpu_clk to target rate. */
+		ret = clk_set_rate(cpu_clk, freq_hz);
+
 		sp_clkc_ca55_memctl((freq_hz < 1000000000) ? MEMCTL_SLOW :
 				   ((freq_hz < 1900000000) ? MEMCTL_DEFAULT : MEMCTL_FAST));
+	}
+
 	if (info->proc_reg) {
 		/*
 		* If the new voltage is lower than the current voltage,
