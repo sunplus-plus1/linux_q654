@@ -52,16 +52,10 @@ struct sunplus_rtc {
 	struct clk *rtcclk;
 	struct reset_control *rstc;
 	unsigned long set_alarm_again;
-#ifdef CONFIG_SOC_SP7021
-	u32 charging_mode;
-#endif
-
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	u32 __iomem * mbox_base;
 	u32 rtc_irq;
 	u32 rtc_back_ctrl;
 	u32 rtc_back_ontime_set;
-#endif
 };
 
 struct sunplus_rtc sp_rtc;
@@ -71,42 +65,6 @@ struct sunplus_rtc sp_rtc;
 #define MBOX_RTC_SUSPEND_IN      (0x11225566)
 #define MBOX_RTC_SUSPEND_OUT     (0x33447788)
 
-#if defined(CONFIG_SOC_SP7021)
-struct sp_rtc_reg {
-	unsigned int rsv00;
-	unsigned int rsv01;
-	unsigned int rsv02;
-	unsigned int rsv03;
-	unsigned int rsv04;
-	unsigned int rsv05;
-	unsigned int rsv06;
-	unsigned int rsv07;
-	unsigned int rsv08;
-	unsigned int rsv09;
-	unsigned int rsv10;
-	unsigned int rsv11;
-	unsigned int rsv12;
-	unsigned int rsv13;
-	unsigned int rsv14;
-	unsigned int rsv15;
-	unsigned int rtc_ctrl;
-	unsigned int rtc_timer_out;
-	unsigned int rtc_divider;
-	unsigned int rtc_timer_set;
-	unsigned int rtc_alarm_set;
-	unsigned int rtc_user_data;
-	unsigned int rtc_reset_record;
-	unsigned int rtc_battery_ctrl;
-	unsigned int rtc_trim_ctrl;
-	unsigned int rsv25;
-	unsigned int rsv26;
-	unsigned int rsv27;
-	unsigned int rsv28;
-	unsigned int rsv29;
-	unsigned int rsv30;
-	unsigned int rsv31;
-};
-#elif defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 #define INT_STATUS_MASK		0x1
 #define INT_STATUS_UPDATE	0x0
 #define INT_STATUS_ALARM	0x1
@@ -145,20 +103,8 @@ struct sp_rtc_reg {
 	unsigned int rsv30;
 	unsigned int rsv31;
 };
-#endif
 static struct sp_rtc_reg *rtc_reg_ptr;
 
-#if defined(CONFIG_SOC_SP7021)
-static void sp_get_seconds(unsigned long *secs)
-{
-	*secs = (unsigned long)readl(&rtc_reg_ptr->rtc_timer_out);
-}
-
-static void sp_set_seconds(unsigned long secs)
-{
-	writel((u32)secs, &rtc_reg_ptr->rtc_timer_set);
-}
-#elif defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 static void sp_get_seconds(unsigned long *secs)
 {
 	*secs = (unsigned long)readl(&rtc_reg_ptr->rtc_timer);
@@ -168,7 +114,6 @@ static void sp_set_seconds(unsigned long secs)
 {
 	writel((u32)secs, &rtc_reg_ptr->rtc_clock_set);
 }
-#endif
 
 static int sp_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
@@ -192,11 +137,12 @@ int sp_rtc_get_time(struct rtc_time *tm)
 	return 0;
 }
 EXPORT_SYMBOL(sp_rtc_get_time);
+
 static int sp_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	FUNC_DEBUG();
+
 	// Keep RTC from system reset
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	writel(MBOX_RTC_SUSPEND_IN, sp_rtc.mbox_base); // tell CM4 in suspend by mailbox
 	//backup rtc value, maybe clear by cm4 rtc wakeup
 	sp_rtc.rtc_back_ctrl = readl(&rtc_reg_ptr->rtc_ctrl);
@@ -214,7 +160,7 @@ static int sp_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 			disable_irq_wake(sp_rtc.rtc_irq);
 		}
 	}
-#endif
+
 	return 0;
 }
 
@@ -225,7 +171,7 @@ static int sp_rtc_resume(struct platform_device *pdev)
 	/* there is nothing to do here.			*/
 	/*						*/
 	FUNC_DEBUG();
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
+
 	writel(MBOX_RTC_SUSPEND_OUT, sp_rtc.mbox_base); // tell CM4 out suspend by mailbox
 
 	writel(sp_rtc.rtc_back_ctrl,&rtc_reg_ptr->rtc_ctrl);
@@ -236,7 +182,7 @@ static int sp_rtc_resume(struct platform_device *pdev)
 			disable_irq_wake(sp_rtc.rtc_irq);
 		}
 	}
-#endif
+
 	return 0;
 }
 
@@ -251,58 +197,6 @@ static int sp_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	return 0;
 }
 
-#if defined(CONFIG_SOC_SP7021)
-static int sp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
-{
-	struct rtc_device *rtc = dev_get_drvdata(dev);
-	unsigned long alarm_time;
-
-	alarm_time = rtc_tm_to_time64(&alrm->time);
-	RTC_DEBUG("%s, alarm_time: %u\n", __func__, (u32)(alarm_time));
-
-	if (alarm_time > 0xFFFFFFFF)
-		return -EINVAL;
-
-	if ((rtc->aie_timer.enabled) && (rtc->aie_timer.node.expires == ktime_set(alarm_time, 0))) {
-		if (rtc->uie_rtctimer.enabled)
-			sp_rtc.set_alarm_again = 1;
-	}
-
-	writel((u32)alarm_time, &rtc_reg_ptr->rtc_alarm_set);
-	wmb();			// make sure settings are effective.
-
-	// enable alarm for update irq
-	if (rtc->uie_rtctimer.enabled)
-		writel((0x003F << 16) | 0x17, &rtc_reg_ptr->rtc_ctrl);
-	else if (!rtc->aie_timer.enabled)
-		writel((0x0007 << 16) | 0x0, &rtc_reg_ptr->rtc_ctrl);
-
-	return 0;
-}
-
-static int sp_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
-{
-	unsigned int alarm_time;
-
-	alarm_time = readl(&rtc_reg_ptr->rtc_alarm_set);
-	RTC_DEBUG("%s, alarm_time: %u\n", __func__, alarm_time);
-	rtc_time64_to_tm((unsigned long)(alarm_time), &alrm->time);
-
-	return 0;
-}
-
-static int sp_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
-{
-	struct rtc_device *rtc = dev_get_drvdata(dev);
-
-	if (enabled)
-		writel((0x003F << 16) | 0x17, &rtc_reg_ptr->rtc_ctrl);
-	else if (!rtc->uie_rtctimer.enabled)
-		writel((0x0007 << 16) | 0x0, &rtc_reg_ptr->rtc_ctrl);
-
-	return 0;
-}
-#elif defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 static int sp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_device *rtc = dev_get_drvdata(dev);
@@ -356,7 +250,6 @@ static int sp_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 
 	return 0;
 }
-#endif
 
 static const struct rtc_class_ops sp_rtc_ops = {
 	.read_time =		sp_rtc_read_time,
@@ -371,9 +264,7 @@ static irqreturn_t rtc_irq_handler(int irq, void *dev_id)
 	struct platform_device *plat_dev = dev_id;
 	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	if ((readl(&rtc_reg_ptr->rtc_int_status) & INT_STATUS_MASK) == INT_STATUS_ALARM) {
-#endif
 		if (rtc->uie_rtctimer.enabled) {
 			rtc_update_irq(rtc, 1, RTC_IRQF | RTC_UF);
 			RTC_DEBUG("[RTC] update irq\n");
@@ -387,34 +278,10 @@ static irqreturn_t rtc_irq_handler(int irq, void *dev_id)
 			rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
 			RTC_DEBUG("[RTC] alarm irq\n");
 		}
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	}
-#endif
 
 	return IRQ_HANDLED;
 }
-
-#ifdef CONFIG_SOC_SP7021
-/* ---------------------------------------------------------------------------------------------- */
-/* mode   bat_charge_rsel   bat_charge_dsel   bat_charge_en     Remarks				  */
-/* 0xE            x              x                 0            Disable				  */
-/* 0x1            0              0                 1            0.86mA (2K Ohm with diode)	  */
-/* 0x5            1              0                 1            1.81mA (250 Ohm with diode)	  */
-/* 0x9            2              0                 1            2.07mA (50 Ohm with diode)	  */
-/* 0xD            3              0                 1            16.0mA (0 Ohm with diode)	  */
-/* 0x3            0              1                 1            1.36mA (2K Ohm without diode)	  */
-/* 0x7            1              1                 1            3.99mA (250 Ohm without diode)	  */
-/* 0xB            2              1                 1            4.41mA (50 Ohm without diode)	  */
-/* 0xF            3              1                 1            16.0mA (0 Ohm without diode)	  */
-/* ---------------------------------------------------------------------------------------------- */
-static void sp_rtc_set_batt_charge_ctrl(u32 _mode)
-{
-	u8 m = _mode & 0x000F;
-
-	RTC_DEBUG("battery charge mode: 0x%X\n", m);
-	writel((0x000F << 16) | m, &rtc_reg_ptr->rtc_battery_ctrl);
-}
-#endif
 
 static int sp_rtc_probe(struct platform_device *plat_dev)
 {
@@ -430,11 +297,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 
 	// find and map our resources
 	res = platform_get_resource_byname(plat_dev, IORESOURCE_MEM, RTC_REG_NAME);
-#if defined(CONFIG_SOC_SP7021)
-	RTC_DEBUG("res = 0x%x\n", res->start);
-#elif defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	RTC_DEBUG("res = 0x%llx\n", res->start);
-#endif
 
 	if (res) {
 		reg_base = devm_ioremap_resource(&plat_dev->dev, res);
@@ -443,7 +306,6 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 	}
 	RTC_DEBUG("reg_base = 0x%lx\n", (unsigned long)reg_base);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	res = platform_get_resource_byname(plat_dev, IORESOURCE_MEM, MBOX_REG_NAME);
 	RTC_DEBUG("res = 0x%llx\n", res->start);
 
@@ -453,7 +315,6 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 			RTC_ERR("%s devm_ioremap_resource fail\n", MBOX_REG_NAME);
 	}
 	RTC_DEBUG("mailbox_base = 0x%lx\n", (unsigned long)sp_rtc.mbox_base);
-#endif
 
 	// clk
 	sp_rtc.rtcclk = devm_clk_get(&plat_dev->dev, NULL);
@@ -494,42 +355,17 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 		goto free_reset_assert;
 	}
 
-#ifdef CONFIG_SOC_SP7021
-	// Get charging-mode.
-	ret = of_property_read_u32(plat_dev->dev.of_node, "charging-mode", &sp_rtc.charging_mode);
-	if (ret) {
-		RTC_ERR("Failed to retrieve \'charging-mode\'!\n");
-		goto free_reset_assert;
-	}
-	sp_rtc_set_batt_charge_ctrl(sp_rtc.charging_mode);
-#endif
-
 	device_init_wakeup(&plat_dev->dev, 1);
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	sp_rtc.rtc_irq = irq;
-#endif
 
-#if defined(CONFIG_SOC_SP7021)
-	rtc = devm_rtc_device_register(&plat_dev->dev, "sp7021-rtc", &sp_rtc_ops, THIS_MODULE);
-#elif defined(CONFIG_SOC_Q645)
-	rtc = devm_rtc_device_register(&plat_dev->dev, "q645-rtc", &sp_rtc_ops, THIS_MODULE);
-#elif defined(CONFIG_SOC_SP7350)
 	rtc = devm_rtc_device_register(&plat_dev->dev, "sp7350-rtc", &sp_rtc_ops, THIS_MODULE);
-#endif
 	if (IS_ERR(rtc)) {
 		ret = PTR_ERR(rtc);
 		goto free_reset_assert;
 	}
 
 	platform_set_drvdata(plat_dev, rtc);
-
-#if defined(CONFIG_SOC_SP7021)
-	RTC_INFO("sp7021-rtc loaded\n");
-#elif defined(CONFIG_SOC_Q645)
-	RTC_INFO("q645-rtc loaded\n");
-#elif defined(CONFIG_SOC_SP7350)
 	RTC_INFO("sp7350-rtc loaded\n");
-#endif
 
 	return 0;
 
@@ -549,13 +385,7 @@ static int sp_rtc_remove(struct platform_device *plat_dev)
 }
 
 static const struct of_device_id sp_rtc_of_match[] = {
-#if defined(CONFIG_SOC_SP7021)
-	{ .compatible = "sunplus,sp7021-rtc" },
-#elif defined(CONFIG_SOC_Q645)
-	{ .compatible = "sunplus,q645-rtc" },
-#elif defined(CONFIG_SOC_SP7350)
 	{ .compatible = "sunplus,sp7350-rtc" },
-#endif
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sp_rtc_of_match);
@@ -566,13 +396,7 @@ static struct platform_driver sp_rtc_driver = {
 	.suspend = sp_rtc_suspend,
 	.resume  = sp_rtc_resume,
 	.driver  = {
-#if defined(CONFIG_SOC_SP7021)
-		.name = "sp7021-rtc",
-#elif defined(CONFIG_SOC_Q645)
-		.name = "q645-rtc",
-#elif defined(CONFIG_SOC_SP7350)
 		.name = "sp7350-rtc",
-#endif
 		.owner = THIS_MODULE,
 		.of_match_table = sp_rtc_of_match,
 	},
