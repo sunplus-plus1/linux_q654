@@ -102,7 +102,7 @@ struct sp_otp_key_reg {
 #define PIO_MODE                        0x07
 
 // otp_prog_addr
-#define PROG_OTP_ADDR                   0x1FFF
+#define PROG_OTP_ADDR                   0x1fff
 
 // otp_prog_pgenb
 #define PIO_PGENB                       0x01
@@ -111,24 +111,24 @@ struct sp_otp_key_reg {
 #define PIO_WR                          0x01
 
 // otp_prog_reg25
-#define PROGRAM_OTP_DATA                0xFF00
+#define PROGRAM_OTP_DATA                0xff00
 #define PROGRAM_OTP_DATA_SHIFT          8
 #define REG25_PD_MODE_SEL               0x10
 #define REG25_POWER_SOURCE_SEL          0x02
 #define OTP2REG_PD_N_P                  0x01
 
 // otp_prog_state
-#define OTPRSV_CMD3                     0xE0
+#define OTPRSV_CMD3                     0xe0
 #define OTPRSV_CMD3_SHIFT               5
-#define TSMC_OTP_STATE                  0x1F
+#define TSMC_OTP_STATE                  0x1f
 
 // otp_ctrl
-#define PROG_OTP_PERIOD                 0xFFE0
+#define PROG_OTP_PERIOD                 0xffe0
 #define PROG_OTP_PERIOD_SHIFT           5
 #define OTP_EN_R                        0x01
 
 // otp_cmd
-#define OTP_RD_PERIOD                   0xFF00
+#define OTP_RD_PERIOD                   0xff00
 #define OTP_RD_PERIOD_SHIFT             8
 #define OTP_READ                        0x04
 
@@ -136,7 +136,7 @@ struct sp_otp_key_reg {
 #define OTP_READ_DONE                   0x10
 
 // otp_addr
-#define RD_OTP_ADDRESS                  0x1FFF
+#define RD_OTP_ADDRESS                  0x1fff
 
 extern int sp_ocotp_probe(struct platform_device *pdev);
 extern int sp_ocotp_remove(struct platform_device *pdev);
@@ -144,6 +144,5 @@ extern int sp_ocotp_remove(struct platform_device *pdev);
 struct sp_otp_vX_t {
 	int size;
 };
-
 #endif /* __SP_OCOTP_FW_H_ */
 
