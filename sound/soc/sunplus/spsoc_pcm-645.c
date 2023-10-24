@@ -200,7 +200,6 @@ static int spsoc_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_AUD645)
 void hw_test(void)
 {
 	unsigned int pcmdata[96], regtemp, regtemp1, regtemp2, regtemp3, regtemp4;
@@ -442,7 +441,6 @@ void hw_test(void)
 	regs0->aud_a10_length = 0;
 	regs0->aud_a16_length = 0;
 }
-#endif
 
 static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_substream *substream)
 {
@@ -451,10 +449,10 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 	int ret = 0;
 
 	pr_debug("%s IN, stream device num: %d\n", __func__, substream->pcm->device);
-#if IS_ENABLED(CONFIG_SND_SOC_AUD645)
+
 	if ((substream->pcm->device == 4) && (substream->stream == 1))
 		hw_test();
-#endif
+
 	if (substream->pcm->device > SP_OTHER) {
 		pr_err("wrong device num: %d\n", substream->pcm->device);
 		goto out;
