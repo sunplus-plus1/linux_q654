@@ -22,9 +22,7 @@
 #include <linux/crypto.h>
 #include <linux/delay.h>
 #include <crypto/aes.h>
-#ifdef CONFIG_SOC_SP7350
 #include <crypto/chacha.h>
-#endif
 #include "sp-crypto.h"
 
 // max supported keysize == AES_KEYSIZE_256 (32 bytes)
@@ -72,12 +70,10 @@ static int sp_cra_aes_ctr_init(struct crypto_tfm *tfm)
 	return sp_cra_aes_init(tfm, M_AES_CTR | (128 << 24)); // CTR M = 128
 }
 
-#ifdef CONFIG_SOC_SP7350
 static int sp_cra_chacha20_init(struct crypto_tfm *tfm)
 {
 	return sp_cra_aes_init(tfm, M_CHACHA20);
 }
-#endif
 
 static void sp_cra_aes_exit(struct crypto_tfm *tfm)
 {
@@ -86,56 +82,6 @@ static void sp_cra_aes_exit(struct crypto_tfm *tfm)
 	dma_free_coherent(SP_CRYPTO_DEV, WORKBUF_SIZE(ctx), ctx->va, ctx->pa);
 	crypto_ctx_exit(crypto_tfm_ctx(tfm));
 }
-
-#ifndef CONFIG_SOC_SP7350
-/*
- * counter = counter + 1
- * counter: small endian
- */
-static void ctr_inc1(u8 *counter, u32 len)
-{
-	u32 n = 0;
-	u8 c;
-
-	do {
-		c = counter[n];
-		++c;
-		counter[n] = c;
-		if (c)
-			return;
-		++n;
-	} while (n < len);
-}
-
-
-/*
- * counter = counter + inc
- * counter: small endian
- */
-static void ctr_inc(u8 *counter, u32 len, u32 inc)
-{
-	u32 c, c1;
-	u32 *p = (u32 *)counter;
-
-	c =  __le32_to_cpu(*p);
-	c1 = c;
-	c += inc;
-	*p = __cpu_to_le32(c);
-
-	if ((c >= inc) && (c >= c1))
-		return;
-
-	ctr_inc1(counter + sizeof(u32), len - sizeof(u32));
-}
-
-static void reverse_iv(u8 *dst, u8 *src)
-{
-	int i = AES_BLOCK_SIZE;
-
-	while (i--)
-		dst[i] = *(src++);
-}
-#endif
 
 static void dump_sglist(struct scatterlist *sglist, int count)
 {
@@ -205,12 +151,6 @@ static int sp_blk_aes_crypt(struct skcipher_request *req, u32 enc)
 		ctx->iv = ctx->va + ctx->bsize;
 		memcpy(ctx->iv, req->iv, ctx->ivlen);
 	}
-#ifdef CONFIG_SOC_SP7021
-	if (mode == M_AES_CTR) {
-		// reverse iv byte-order for HW
-		reverse_iv(ctx->iv, req->iv);
-	} else
-#endif
 	if (mode == M_AES_CBC && enc == M_DEC) {
 		scatterwalk_map_and_copy(req->iv, src,
 			nbytes - ctx->ivlen, ctx->ivlen, 0);
@@ -368,12 +308,6 @@ out:
 	}
 
 	// update iv for return
-#ifdef CONFIG_SOC_SP7021
-	if (mode == M_AES_CTR) {
-		ctr_inc(ctx->iv, ctx->ivlen, nbytes / ctx->bsize);
-		reverse_iv(req->iv, ctx->iv);
-	} else
-#endif
 	if (mode == M_AES_CBC && enc == M_ENC) {
 		scatterwalk_map_and_copy(req->iv, dst,
 			nbytes - ctx->ivlen, ctx->ivlen, 0);
@@ -455,7 +389,6 @@ struct skcipher_alg sp_aes_alg[] = {
 		.encrypt		= sp_blk_aes_encrypt,
 		.decrypt		= sp_blk_aes_decrypt,
 	},
-#ifdef CONFIG_SOC_SP7350
 	{
 		.base.cra_name		= "chacha20",
 		.base.cra_driver_name	= "sp-chacha20",
@@ -474,7 +407,6 @@ struct skcipher_alg sp_aes_alg[] = {
 		.encrypt		= sp_blk_aes_encrypt,
 		.decrypt		= sp_blk_aes_decrypt,
 	},
-#endif
 };
 
 int sp_aes_finit(void)
@@ -495,7 +427,7 @@ EXPORT_SYMBOL(sp_aes_init);
 void sp_aes_irq(void *devid, u32 flag)
 {
 	struct sp_crypto_dev *dev = devid;
-	struct sp_crypto_reg *reg = dev->reg;
+	struct sp_crypto_reg *reg __maybe_unused = dev->reg;
 	struct trb_ring_s *ring = AES_RING(dev);
 
 #ifdef TRACE_WAIT_ORDER

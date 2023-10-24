@@ -625,7 +625,6 @@ static int sp_crypto_resume(struct platform_device *pdev)
 #endif
 
 static const struct of_device_id sp_crypto_of_match[] = {
-	{ .compatible = "sunplus,sp7021-crypto" },
 	{ .compatible = "sunplus,sp7350-crypto" },
 	{ /* sentinel */ }
 };
@@ -707,6 +706,6 @@ static void __exit sp_crypto_module_exit(void)
 module_init(sp_crypto_module_init);
 module_exit(sp_crypto_module_exit);
 
-MODULE_AUTHOR("Qin Jian <qinjian@cqplus1.com>");
-MODULE_DESCRIPTION("Sunplus SP7021 Crypto Engine Driver");
+MODULE_AUTHOR("Qin Jian <qinjian@sunmedia.com.cn>");
+MODULE_DESCRIPTION("Sunplus SP7350 Crypto Engine Driver");
 MODULE_LICENSE("GPL v2");
