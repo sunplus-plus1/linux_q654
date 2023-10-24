@@ -1,11 +1,7 @@
 #ifndef __AUD_HW_H__
 #define __AUD_HW_H__
 
-#if IS_ENABLED(CONFIG_SND_SOC_AUD628)
-#include "spsoc_util.h"
-#elif defined(CONFIG_SND_SOC_AUD645)
 #include "spsoc_util-645.h"
-#endif
 
 #define PLLA_FRE 147456000
 #define DPLL_FRE 45158400
