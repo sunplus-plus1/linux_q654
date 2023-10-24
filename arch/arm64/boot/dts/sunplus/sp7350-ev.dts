@@ -458,6 +458,7 @@
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>; /* CPU2_TO_0_DIRECT_INT7 */
 		resets = <&rstc RST_CM4>;
 		memory-region = <&rproc_0_reserved>, <&rproc0runaddr>,<&vdev0buffer>, <&vdev0vring0>, <&vdev0vring1>;
+		mboxes = <&mbox 0>; // for SUNPLUS_MBOX_TEST
 	};
 
 	npu_core_0v8: npu_0p8v {
@@ -3321,30 +3322,13 @@
 			<GIC_SPI 189 IRQ_TYPE_EDGE_RISING>;/* STC_AV4_INTERRUPT_TIMER3B */
 	};
 
-	ipc_test: ipc_test@f8008100 {
-		compatible = "sunplus,sp7350-ipc-test";
-		reg = <0x0 0xf8008100 0x0 0x7C>, <0x0 0xf8008180 0x0 0x7C>; /* G258 ~ G259 */
-		reg-names = "cpu0_to_cpu2", "cpu2_to_cpu0";
+	mbox: mbox@f8008100 {
+		compatible = "sunplus,sunplus-mbox";
+		reg = <0x0 0xf8008100 0x0 0x60>, <0x0 0xf8008180 0x0 0x60>; /* G258 ~ G259 */
+		reg-names = "mbox_0_to_2", "mbox_2_to_0";
 		interrupt-parent = <&gic>;
-		interrupts =
-			<GIC_SPI 9 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT0 */
-			<GIC_SPI 10 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT1 */
-			<GIC_SPI 13 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT2 */
-			<GIC_SPI 14 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT3 */
-			<GIC_SPI 25 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT4 */
-			<GIC_SPI 26 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT5 */
-			<GIC_SPI 78 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT6 */
-			/*<GIC_SPI 79 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CM4 CPU2_DIRECT_INT7 */
-			<GIC_SPI 118 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT0 */
-			<GIC_SPI 119 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT1 */
-			<GIC_SPI 120 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT2 */
-			<GIC_SPI 121 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT3 */
-			<GIC_SPI 122 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT4 */
-			<GIC_SPI 123 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT5 */
-			<GIC_SPI 124 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT6 */
-			/*<GIC_SPI 125 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_DIRECT_INT7 */
-			<GIC_SPI 126 IRQ_TYPE_EDGE_RISING>, /* MAILBOX_to_CA55 CPU0_INT */
-			<GIC_SPI 127 IRQ_TYPE_EDGE_RISING>; /* MAILBOX_to_CM4 CPU1_INT */
+		interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>; /* CPU2_TO_0_INT */
+		#mbox-cells = <1>;
 	};
 
 	pctl: pinctrl@f8800080 {

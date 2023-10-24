@@ -14,7 +14,6 @@
  * Copyright (C) 2011 Texas Instruments, Inc.
  * Copyright (C) 2011 Google, Inc.
  */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -29,6 +28,7 @@
 #include <linux/firmware.h>
 #include <linux/elf.h>
 #include <linux/suspend.h>
+#include <linux/mailbox_client.h>
 
 #include "remoteproc_internal.h"
 #include "remoteproc_elf_helpers.h"
@@ -72,6 +72,10 @@ struct sp_rproc_pdata {
 	u32 __iomem *mbox2to0; // read to clear intr
 	struct reset_control *rstc; // FIXME: RST_A926 not worked
 #endif
+#ifdef CONFIG_SUNPLUS_MBOX_TEST
+	struct mbox_client cl;
+	struct mbox_chan *chan;
+#endif
 };
 
 static bool autoboot __read_mostly;
@@ -79,6 +83,35 @@ static bool autoboot __read_mostly;
 /* Store rproc for IPI handler */
 static struct rproc *rproc;
 static struct work_struct workqueue;
+
+#ifdef CONFIG_SUNPLUS_MBOX_TEST
+#define MBOX_DATA_SIZE	20
+
+static void mbox_rx_callback(struct mbox_client *cl, void *data)
+{
+	u32 *msg = (u32 *)data;
+	int i;
+
+	for (i = 0; i < MBOX_DATA_SIZE; i++)
+		dev_info(cl->dev, "RX[%02d] %08x\n", i, msg[i]);
+}
+
+static void mbox_tx_test(u32 arg)
+{
+	struct sp_rproc_pdata *local = rproc->priv;
+	struct mbox_client *cl = &local->cl;
+	u32 msg[MBOX_DATA_SIZE];
+	int i, ret;
+
+	for (i = 0; i < MBOX_DATA_SIZE; i++) {
+		msg[i] = arg + i;
+		dev_info(cl->dev, "TX[%02d] %08x\n", i, msg[i]);
+	}
+	ret = mbox_send_message(local->chan, &msg);
+	if (ret < 0)
+		dev_err(cl->dev, "mbox_send_message returned %d\n", ret);
+}
+#endif
 
 static void handle_event(struct work_struct *work)
 {
@@ -175,6 +208,10 @@ static int sp_rproc_stop(struct rproc *rproc)
 	struct device *dev = rproc->dev.parent;
 
 	dev_dbg(dev, "%s\n", __func__);
+#ifdef CONFIG_SUNPLUS_MBOX_TEST
+	mbox_tx_test(0x00000000);
+	mbox_tx_test(0xdeadc0de);
+#endif
 #if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	reset_control_assert(local->rstc);
 #else
@@ -392,25 +429,26 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct sp_rproc_pdata *local;
+	struct device *dev = &pdev->dev;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "missing mbox irq\n");
+		dev_err(dev, "missing mbox irq\n");
 		return ret;
 	}
 
-	ret = devm_request_irq(&pdev->dev, ret, sp_remoteproc_interrupt,
-							IRQF_TRIGGER_NONE, dev_name(&pdev->dev), NULL);
+	ret = devm_request_irq(dev, ret, sp_remoteproc_interrupt,
+							IRQF_TRIGGER_NONE, dev_name(dev), NULL);
 	if (ret) {
-		dev_err(&pdev->dev, "request rproc irq failed: %d\n", ret);
+		dev_err(dev, "request rproc irq failed: %d\n", ret);
 		return ret;
 	}
 
-	rproc = rproc_alloc(&pdev->dev, dev_name(&pdev->dev),
+	rproc = rproc_alloc(dev, dev_name(dev),
 			    &sp_rproc_ops, NULL,
 		sizeof(struct sp_rproc_pdata));
 	if (!rproc) {
-		dev_err(&pdev->dev, "rproc allocation failed\n");
+		dev_err(dev, "rproc allocation failed\n");
 		return -ENOMEM;
 	}
 	local = rproc->priv;
@@ -418,23 +456,37 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rproc);
 
-	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+#ifdef CONFIG_SUNPLUS_MBOX_TEST
+	local->cl.dev = dev;
+	local->cl.rx_callback = mbox_rx_callback;
+	local->cl.tx_block = true;
+
+	local->chan = mbox_request_channel(&local->cl, 0);
+	if (IS_ERR(local->chan)) {
+		int ret = PTR_ERR(local->chan);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Failed to get mbox channel: %d\n", ret);
+		return ret;
+	}
+#endif
+
+	ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	if (ret) {
-		dev_err(&pdev->dev, "dma_set_coherent_mask: %d\n", ret);
+		dev_err(dev, "dma_set_coherent_mask: %d\n", ret);
 		goto probe_failed;
 	}
 
 	local->mbox0to2 = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR((void *)local->mbox0to2)) {
 		ret = PTR_ERR((void *)local->mbox0to2);
-		dev_err(&pdev->dev, "ioremap mbox0to2 reg failed: %d\n", ret);
+		dev_err(dev, "ioremap mbox0to2 reg failed: %d\n", ret);
 		goto probe_failed;
 	}
 
 	local->boot = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR((void *)local->boot)) {
 		ret = PTR_ERR((void *)local->boot);
-		dev_err(&pdev->dev, "ioremap boot reg failed: %d\n", ret);
+		dev_err(dev, "ioremap boot reg failed: %d\n", ret);
 		goto probe_failed;
 	}
 
@@ -442,14 +494,14 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 	local->mbox2to0 = devm_platform_ioremap_resource(pdev, 2);
 	if (IS_ERR((void *)local->mbox2to0)) {
 		ret = PTR_ERR((void *)local->mbox2to0);
-		dev_err(&pdev->dev, "ioremap mbox2to0 reg failed: %d\n", ret);
+		dev_err(dev, "ioremap mbox2to0 reg failed: %d\n", ret);
 		goto probe_failed;
 	}
 
-	local->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	local->rstc = devm_reset_control_get(dev, NULL);
 	if (IS_ERR(local->rstc)) {
 		ret = PTR_ERR(local->rstc);
-		dev_err(&pdev->dev, "missing reset controller\n");
+		dev_err(dev, "missing reset controller\n");
 		goto probe_failed;
 	}
 #endif
@@ -458,7 +510,7 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 
 	ret = rproc_add(local->rproc);
 	if (ret) {
-		dev_err(&pdev->dev, "rproc registration failed: %d\n", ret);
+		dev_err(dev, "rproc registration failed: %d\n", ret);
 		goto probe_failed;
 	}
 
@@ -473,11 +525,12 @@ probe_failed:
 static int sp_remoteproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
 
-	dev_info(&pdev->dev, "%s\n", __func__);
+	dev_info(dev, "%s\n", __func__);
 
 	rproc_del(rproc);
-	of_reserved_mem_device_release(&pdev->dev);
+	of_reserved_mem_device_release(dev);
 	rproc_free(rproc);
 
 	return 0;
