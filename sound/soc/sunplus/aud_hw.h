@@ -1,7 +1,9 @@
 #ifndef __AUD_HW_H__
 #define __AUD_HW_H__
 
+#if defined(CONFIG_SND_SOC_AUD_Q654)
 #include "spsoc_util-645.h"
+#endif
 
 #define PLLA_FRE 147456000
 #define DPLL_FRE 45158400
