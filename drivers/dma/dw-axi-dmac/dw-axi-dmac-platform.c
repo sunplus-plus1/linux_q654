@@ -1242,7 +1242,7 @@ static int dma_chan_resume(struct dma_chan *dchan)
 	return 0;
 }
 
-static int axi_dma_suspend(struct axi_dma_chip *chip)
+static int axi_dma_suspend(struct axi_dma_chip *chip, bool rst)
 {
 	axi_dma_irq_disable(chip);
 	axi_dma_disable(chip);
@@ -1253,21 +1253,24 @@ static int axi_dma_suspend(struct axi_dma_chip *chip)
 #endif
 
 #ifdef SUPPORT_RESET_CONTROL
-	if (reset_control_assert(chip->core_rstc))
-		dev_err(chip->dev, "reset assert fail\n");
+	if (rst) {
+		if (reset_control_assert(chip->core_rstc))
+			dev_err(chip->dev, "reset assert fail\n");
+	}
 #endif
 
 	return 0;
 }
 
-static int axi_dma_resume(struct axi_dma_chip *chip)
+static int axi_dma_resume(struct axi_dma_chip *chip, bool rst)
 {
 	int ret;
 
 #ifdef SUPPORT_RESET_CONTROL
-	ret = reset_control_deassert(chip->core_rstc);
-	if (ret)
-		dev_err(chip->dev, "reset deassert fail\n");
+	if (rst) {
+		if (reset_control_deassert(chip->core_rstc))
+			dev_err(chip->dev, "reset deassert fail\n");
+	}
 #endif
 
 #ifdef SUPPORT_CFGR_CLK
@@ -1305,28 +1308,28 @@ static int __maybe_unused dw_pm_suspend(struct device *dev)
 		return -EBUSY;
 	}
 
-	return axi_dma_suspend(chip);
+	return axi_dma_suspend(chip, 1);
 }
 
 static int __maybe_unused dw_pm_resume(struct device *dev)
 {
 	struct axi_dma_chip *chip = dev_get_drvdata(dev);
 
-	return axi_dma_resume(chip);
+	return axi_dma_resume(chip, 1);
 }
 
 static int __maybe_unused dw_pm_runtime_suspend(struct device *dev)
 {
 	struct axi_dma_chip *chip = dev_get_drvdata(dev);
 
-	return axi_dma_suspend(chip);
+	return axi_dma_suspend(chip, 0);
 }
 
 static int __maybe_unused dw_pm_runtime_resume(struct device *dev)
 {
 	struct axi_dma_chip *chip = dev_get_drvdata(dev);
 
-	return axi_dma_resume(chip);
+	return axi_dma_resume(chip, 0);
 }
 
 #else
@@ -1334,14 +1337,14 @@ static int __maybe_unused axi_dma_runtime_suspend(struct device *dev)
 {
 	struct axi_dma_chip *chip = dev_get_drvdata(dev);
 
-	return axi_dma_suspend(chip);
+	return axi_dma_suspend(chip, 0);
 }
 
 static int __maybe_unused axi_dma_runtime_resume(struct device *dev)
 {
 	struct axi_dma_chip *chip = dev_get_drvdata(dev);
 
-	return axi_dma_resume(chip);
+	return axi_dma_resume(chip, 0);
 }
 #endif
 
@@ -1562,7 +1565,7 @@ static int dw_probe(struct platform_device *pdev)
 	 * driver to work also without Runtime PM.
 	 */
 	pm_runtime_get_noresume(chip->dev);
-	ret = axi_dma_resume(chip);
+	ret = axi_dma_resume(chip, 1);
 	if (ret < 0)
 		goto err_pm_disable;
 
@@ -1612,7 +1615,7 @@ static int dw_remove(struct platform_device *pdev)
 	axi_dma_disable(chip);
 
 	pm_runtime_disable(chip->dev);
-	axi_dma_suspend(chip);
+	axi_dma_suspend(chip, 1);
 
 	devm_free_irq(chip->dev, chip->irq, chip);
 
