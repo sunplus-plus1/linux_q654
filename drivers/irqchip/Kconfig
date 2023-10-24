@@ -597,10 +597,4 @@ config MST_IRQ
 	help
 	  Support MStar Interrupt Controller.
 
-config SUNPLUS_SP7021_INTC
-	bool "Sunplus SP7021 interrupt controller"
-	help
-          Say yes here to enable Sunplus SP7021 interrupt controller
-          driver.
-
 endmenu
