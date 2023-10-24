@@ -1,28 +1,22 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * Sunplus SoC UART driver header file
+ * Sunplus SP7350 SoC UART driver header file
  */
 
 #ifndef __SP_UART_H__
 #define __SP_UART_H__
 
-#ifdef CONFIG_DEBUG_SP_UART
-#include <mach/io_map.h>
-
-#define LL_UART_PADDR		PA_IOB_ADDR(18 * 32 * 4)
-#define LL_UART_VADDR		VA_IOB_ADDR(18 * 32 * 4)
-#define LOGI_ADDR_UART0_REG	VA_IOB_ADDR(18 * 32 * 4)
-#endif
-
 /* uart register map */
-#define SP_UART_DATA	0x00
+#define SP_UART_DATA		0x00
 #define SP_UART_LSR		0x04
 #define SP_UART_MSR		0x08
 #define SP_UART_LCR		0x0C
 #define SP_UART_MCR		0x10
-#define SP_UART_DIV_L	0x14
-#define SP_UART_DIV_H	0x18
+#define SP_UART_DIV_L		0x14
+#define SP_UART_DIV_H		0x18
 #define SP_UART_ISC		0x1C
+#define SP_UART_TX_RESIDUE	0x20
+#define SP_UART_RX_RESIDUE	0x24
 
 /* lsr
  * 1: trasmit fifo is empty
@@ -84,19 +78,19 @@
 #define SP_UART_MCR_DTS		(1 << 0)
 
 /* DMA-RX, dma_enable_sel */
-#define DMA_INT				(1 << 31)
+#define DMA_INT			(1 << 31)
 #define DMA_MSI_ID_SHIFT	12
 #define DMA_MSI_ID_MASK		(0x7F << DMA_MSI_ID_SHIFT)
 #define DMA_SEL_UARTX_SHIFT	8
-#define DMA_SEL_UARTX_MASK	(0x07 << DMA_SEL_UARTX_SHIFT)
+#define DMA_SEL_UARTX_MASK	(0x0F << DMA_SEL_UARTX_SHIFT)
 #define DMA_SW_RST_B		(1 << 7)
-#define DMA_INIT			(1 << 6)
-#define DMA_GO				(1 << 5)
+#define DMA_INIT		(1 << 6)
+#define DMA_GO			(1 << 5)
 #define DMA_AUTO_ENABLE		(1 << 4)
 #define DMA_TIMEOUT_INT_EN	(1 << 3)
 #define DMA_P_SAFE_DISABLE	(1 << 2)
 #define DMA_PBUS_DATA_SWAP	(1 << 1)
-#define DMA_ENABLE			(1 << 0)
+#define DMA_ENABLE		(1 << 0)
 
 #if !defined(__ASSEMBLY__)
 #define UART_SZ			0x80
@@ -116,16 +110,16 @@ struct regs_uart {
 };
 
 struct regs_uarxdma {
-	u32 rxdma_enable_sel;
+	u32 rxdma_enable;
+	u32 rxdma_sel;
 	u32 rxdma_start_addr;
-	u32 rxdma_timeout_set;
-	u32 rxdma_reserved;
+	u32 rxdma_end_addr;
 	u32 rxdma_wr_adr;
 	u32 rxdma_rd_adr;
-	u32 rxdma_length_thr;
-	u32 rxdma_end_addr;
-	u32 rxdma_databytes;
-	u32 rxdma_debug_info;
+	u32 rxdma_status;
+	u32 rxdma_tmr_unit;
+	u32 rxdma_tmr_cnt;
+	u32 rxdma_rst_done;
 };
 
 struct regs_uatxdma {
