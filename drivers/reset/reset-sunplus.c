@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * SP7021 reset driver
+ * Sunplus reset driver
  *
  * Copyright (C) Sunplus Technology Co., Ltd.
  *       All rights reserved.
@@ -24,14 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/reboot.h>
-
-#if defined(CONFIG_SOC_SP7021)
-#include <dt-bindings/reset/sp-sp7021.h>
-#elif defined(CONFIG_SOC_Q645)
-#include <dt-bindings/reset/sp-q645.h>
-#elif defined(CONFIG_SOC_SP7350)
 #include <dt-bindings/reset/sp-sp7350.h>
-#endif
 
 #define BITASSERT(id, val)          ((1 << (16 + id)) | (val << id))
 
@@ -111,8 +104,6 @@ static const struct reset_control_ops sp_reset_ops = {
 };
 
 static const struct of_device_id sp_reset_dt_ids[] = {
-	{ .compatible = "sunplus,sp7021-reset", },
-	{ .compatible = "sunplus,q645-reset", },
 	{ .compatible = "sunplus,sp7350-reset", },
 	{ /* sentinel */ },
 };
