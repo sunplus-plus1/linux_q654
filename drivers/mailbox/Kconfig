@@ -219,7 +219,7 @@ config MTK_CMDQ_MBOX
 
 config SUNPLUS_MBOX
 	tristate "Sunplus Mailbox"
-	depends on ARCH_SUNPLUS || SOC_SP7350 || COMPILE_TEST
+	depends on SOC_SP7350 || COMPILE_TEST
 	depends on OF
 	help
 	  An implementation of the Sunplus mailbox. It is used to send message
