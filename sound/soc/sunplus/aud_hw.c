@@ -5,8 +5,10 @@
 //
 #include <linux/device.h>
 #include "aud_hw.h"
+#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
 #include "spsoc_pcm-645.h"
 #include "spsoc_util-645.h"
+#endif
 
 #ifdef __LOG_NAME__
 #undef __LOG_NAME__
@@ -16,7 +18,7 @@
 #define	ONEHOT_B10 0x00000400
 #define	ONEHOT_B11 0x00000800
 #define	ONEHOT_B12 0x00001000
-#if IS_MODULE(CONFIG_SND_SOC_AUD645)
+#if IS_MODULE(CONFIG_SND_SOC_AUD_Q654)
 auddrv_param aud_param;
 #endif
 
@@ -68,9 +70,9 @@ void AUDHW_Cfg_AdcIn(void *auddrvdata)
 
 	regs0->adcp_ch_enable	= 0x0;		//adcp_ch_enable
 	regs0->adcp_fubypass	= 0x7777;	//adcp_fubypass
-
+#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
 	regs0->adcp_mode_ctrl	|= 0x300;	//enable ch2/3
-
+#endif
 	regs0->adcp_risc_gain	= 0x1111;	//adcp_risc_gain, all gains are	1x
 	regs0->G069_reserved_00	= 0x3;		//adcprc A16~18
 	val			= 0x650100;	//steplen0=0, Eth_off=0x65, Eth_on=0x100, steplen0=0
@@ -143,10 +145,10 @@ void AUDHW_SystemInit(void *auddrvdata)
 	// config playback timer //
 	regs0->aud_apt_mode	= 1;		// aud_apt_mode, reset mode
 	regs0->aud_apt_data	= 0x00f0001e;	// aud_apt_parameter, parameter	for 48khz
-
+#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
 	regs0->adcp_ch_enable	= 0xf;		//adcp_ch_enable, Only enable ADCP ch2&3
 	regs0->G067_reserved_30	|= 0x03;
-
+#endif
 	regs0->aud_apt_mode	= 0;		//clear	reset of PTimer	before enable FIFO
 
 	regs0->aud_fifo_enable	= 0x0;		//aud_fifo_enable
@@ -185,10 +187,11 @@ void snd_aud_config(void *auddrvdata)
 	regs0->aud_a5_base	= dma_initial;
 	regs0->aud_a6_base	= dma_initial;
 	regs0->aud_a20_base	= dma_initial;
+#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
 	regs0->aud_a19_base	= dma_initial;
 	regs0->aud_a26_base	= dma_initial;
 	regs0->aud_a27_base	= dma_initial;
-
+#endif
 	dma_initial = DRAM_PCM_BUF_LENGTH * (NUM_FIFO -	1);
 	regs0->aud_a13_base	= dma_initial;
 	regs0->aud_a16_base	= dma_initial;
@@ -199,9 +202,11 @@ void snd_aud_config(void *auddrvdata)
 	regs0->aud_a23_base	= dma_initial;
 	regs0->aud_a24_base	= dma_initial;
 	regs0->aud_a25_base	= dma_initial;
+#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
 	regs0->aud_a10_base	= dma_initial;
 	regs0->aud_a11_base	= dma_initial;
 	regs0->aud_a14_base	= dma_initial;
+#endif
 }
 EXPORT_SYMBOL_GPL(snd_aud_config);
 
