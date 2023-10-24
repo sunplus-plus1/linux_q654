@@ -10,8 +10,9 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
+#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
 #include "spsoc_util-645.h"
-
+#endif
 //#define SYNCHRONIZE_IO		__asm__ __volatile__ ("dmb" : : : "memory")
 #define SYNCHRONIZE_IO	(__asm__ __volatile__ ("" : : : "memory"))
 
