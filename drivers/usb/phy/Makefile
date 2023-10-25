@@ -3,7 +3,7 @@
 # Makefile for physical layer USB drivers
 #
 
-obj-$(CONFIG_USB_SUNPLUS_OTG)			+= otg-sp7350-sunplus.o otg0-sunplus.o
+obj-$(CONFIG_USB_SUNPLUS_OTG)			+= otg-sunplus.o otg0-sunplus.o
 obj-$(CONFIG_SUNPLUS_SYNOPSYS_USB3_PHY)         += synopsysu3phy-sunplus.o
 
 obj-$(CONFIG_USB_PHY)			+= phy.o
