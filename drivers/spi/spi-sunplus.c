@@ -1114,19 +1114,13 @@ static const struct dev_pm_ops sunplus_spi_pm_ops = {
 				sunplus_spi_controller_resume)
 };
 
-static const struct sunplus_spi_compatible q645_compat = {
+static const struct sunplus_spi_compatible sunplus_compat = {
 	.ver = 2,
 	.fifo_len = 64,
 };
 
-static const struct sunplus_spi_compatible sp7021_compat = {
-	.ver = 1,
-	.fifo_len = 16,
-};
-
 static const struct of_device_id sunplus_spi_controller_ids[] = {
-	{ .compatible = "sunplus,q645-spi-controller", (void *)&q645_compat },
-	{ .compatible = "sunplus,sp7021-spi", (void *)&sp7021_compat },
+	{ .compatible = "sunplus,spi-controller", (void *)&sunplus_compat },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sunplus_spi_controller_ids);
