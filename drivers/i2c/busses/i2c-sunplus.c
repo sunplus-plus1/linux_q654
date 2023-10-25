@@ -1185,11 +1185,6 @@ static struct i2c_algorithm sp_algorithm = {
 	.functionality	= sp_functionality,
 };
 
-static const struct i2c_compatible i2c_7021_compat = {
-	.mode = SP_I2C_DMA_POW_SW,
-	.total_port = 4,
-};
-
 static const struct i2c_compatible i2c_645_compat = {
 	.mode = SP_I2C_DMA_POW_NO_SW,
 	.total_port = 6,
@@ -1197,8 +1192,6 @@ static const struct i2c_compatible i2c_645_compat = {
 };
 
 static const struct of_device_id sp_i2c_of_match[] = {
-	{	.compatible = "sunplus,sp7021-i2cm",
-		.data = &i2c_7021_compat, },
 	{	.compatible = "sunplus,q645-i2cm",
 		.data = &i2c_645_compat, },
 	{ /* sentinel */ }
