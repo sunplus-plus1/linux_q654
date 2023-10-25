@@ -206,6 +206,7 @@ config USB_SUNPLUS_OTG
 	depends on SOC_SP7350
 #	select USB_OTG
 	select USB_OTG_UTILS
+	select PHY_SUNPLUS_USB
 	help
 	  Support Sunplus USB OTG Transceive driver.
 

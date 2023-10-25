@@ -161,6 +161,7 @@ config USB_SP_UDC2
  	tristate "Sunplus USB Device Controller ver2.0"
  	depends on SOC_SP7350
  	select USB_GADGET_DUALSPEED
+ 	select PHY_SUNPLUS_USB
  	help
 	   This option selects the USB device controller ver2.0.
 
