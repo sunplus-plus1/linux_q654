@@ -512,7 +512,7 @@ config KHADAS_MCU_FAN_THERMAL
 
 config SUNPLUS_THERMAL
 	tristate "Sunplus thermal drivers"
-	depends on SOC_SP7350 ||SOC_SP7021 || COMPILE_TEST
+	depends on SOC_SP7350 || COMPILE_TEST
 	help
 	  This enable the Sunplus thermal driver, which supports the primitive
 	  temperature sensor embedded in Sunplu SoC.
