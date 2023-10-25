@@ -36,14 +36,7 @@ struct sp_ipc_test_dev {
 	void __iomem *mailbox2_cpu2_to_cpu0;
 };
 
-#if defined(CONFIG_SOC_Q645)
-	#define NUM_IRQ 17
-#elif defined(CONFIG_SOC_SP7350)
-	#define NUM_IRQ 16
-#else
-	#define NUM_IRQ 18
-#endif
-
+#define NUM_IRQ 16
 #define IPC_TEST_FUNC_DEBUG
 #ifdef IPC_TEST_FUNC_DEBUG
 #define DBG_INFO(fmt, args ...)	pr_info("K_IPC_TEST: " fmt, ## args)
@@ -111,12 +104,7 @@ static const struct kernel_param_ops test_ops = {
 module_param_cb(test, &test_ops, NULL, 0600);
 
 static const struct of_device_id sp_ipc_test_of_match[] = {
-	#ifdef CONFIG_SOC_Q645
-	{ .compatible = "sunplus,q645-ipc-test" },
-	#endif
-	#ifdef CONFIG_SOC_SP7350
 	{ .compatible = "sunplus,sp7350-ipc-test" },
-	#endif
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sp_ipc_test_of_match);
@@ -174,12 +162,7 @@ static int sp_ipc_test_probe(struct platform_device *pdev)
 static struct platform_driver sp_ipc_test_driver = {
 	.probe		= sp_ipc_test_probe,
 	.driver		= {
-		#ifdef CONFIG_SOC_Q645
-		.name	= "q645_ipc_test",
-		#endif
-		#ifdef CONFIG_SOC_SP7350
 		.name	= "sp7350_ipc_test",
-		#endif
 		.owner	= THIS_MODULE,
 		.of_match_table = of_match_ptr(sp_ipc_test_of_match),
 	},
