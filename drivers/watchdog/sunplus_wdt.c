@@ -18,7 +18,6 @@
 #define WDT_CTRL		0x00
 #define WDT_CNT			0x04
 
-#ifdef CONFIG_SOC_SP7350
 #define RBUS_WDT_RST		BIT(0)
 #define STC_WDT_RST		BIT(4)
 #define MASK_SET(mask)		((mask) | (mask << 16))
@@ -26,7 +25,6 @@
 #define WDT_MODE_INTR		0x0
 #define WDT_MODE_RST		0x2
 #define WDT_MODE_INTR_RST	0x3
-#endif
 
 #define WDT_STOP		0x3877
 #define WDT_RESUME		0x4A4B
@@ -35,19 +33,10 @@
 #define WDT_LOCK		0xAB01
 #define WDT_CONMAX		0xDEAF
 
-#ifdef CONFIG_SOC_SP7350
 #define STC_CLK			1000000
-//#define ZEBU_TEMP		500//zebu 3200MHz ---> 1.5MHz
-//#define STC_CLK		ZEBU_TEMP
 /* HW_TIMEOUT_MAX = 0xffffffff/1MHz = 4294 */
 #define SP_WDT_MAX_TIMEOUT	4294U
 #define SP_WDT_DEFAULT_TIMEOUT	10
-#else
-#define STC_CLK			90000
-/* HW_TIMEOUT_MAX = 0xffff0/90kHz =11.65 */
-#define SP_WDT_MAX_TIMEOUT	11U
-#define SP_WDT_DEFAULT_TIMEOUT	10
-#endif
 
 #define DEVICE_NAME		"sunplus-wdt"
 
@@ -65,12 +54,10 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 struct sp_wdt_priv {
 	struct watchdog_device wdev;
 	void __iomem *base;
-#ifdef CONFIG_SOC_SP7350
 	void __iomem *base_pt;
 	void __iomem *rst_en;
 	void __iomem *prescaler;
 	int irqn;
-#endif
 	struct clk *clk;
 	struct reset_control *rstc;
 	u32 mode;
@@ -81,15 +68,13 @@ static int sp_wdt_restart(struct watchdog_device *wdev,
 {
 	struct sp_wdt_priv *priv = watchdog_get_drvdata(wdev);
 	void __iomem *base = priv->base;
-#ifdef CONFIG_SOC_SP7350
 	void __iomem *base_pt = priv->base_pt;
-#endif
+	
 	writel(WDT_STOP, base + WDT_CTRL);
 	writel(WDT_UNLOCK, base + WDT_CTRL);
 	writel(0x1, base + WDT_CNT);
-#ifdef CONFIG_SOC_SP7350
 	writel(0x1, base_pt + WDT_CNT);
-#endif
+	
 	writel(WDT_LOCK, base + WDT_CTRL);
 	writel(WDT_RESUME, base + WDT_CTRL);
 
@@ -100,7 +85,6 @@ static int sp_wdt_ping(struct watchdog_device *wdev)
 {
 	struct sp_wdt_priv *priv = watchdog_get_drvdata(wdev);
 	void __iomem *base = priv->base;
-#ifdef CONFIG_SOC_SP7350
 	void __iomem *base_pt = priv->base_pt;
 	u32 count_f;
 	u32 count_b;
@@ -113,30 +97,17 @@ static int sp_wdt_ping(struct watchdog_device *wdev)
 
 	count_f = time_f * STC_CLK;
 	count_b = time_b * STC_CLK;
-#else
-	u32 count;
-#endif
+
 	if (wdev->timeout > SP_WDT_MAX_TIMEOUT) {
 		/* WDT_CONMAX sets the count to the maximum (down-counting). */
 		writel(WDT_CONMAX, base + WDT_CTRL);
 	} else {
 		writel(WDT_UNLOCK, base + WDT_CTRL);
-#ifdef CONFIG_SOC_SP7350
 		writel(count_f, base + WDT_CNT);
 		writel(count_b, base_pt + WDT_CNT);
-#else
-
-		/*
-		 * Watchdog timer is a 20-bit down-counting based on STC_CLK.
-		 * This register bits[16:0] is from bit[19:4] of the watchdog
-		 * timer counter.
-		 */
-		count = (wdev->timeout * STC_CLK) >> 4;
-		writel(count, base + WDT_CNT);
-#endif
 		writel(WDT_LOCK, base + WDT_CTRL);
 	}
-#ifdef CONFIG_SOC_SP7350
+
 	/* Solution for WARNING unbalanced enable irq */
 	if(!irqflag)
 		disable_irq(irqn);
@@ -149,7 +120,7 @@ static int sp_wdt_ping(struct watchdog_device *wdev)
 	 */
 	writel(WDT_CLRIRQ, base + WDT_CTRL);
 	enable_irq(irqn);
-#endif
+
 	return 0;
 }
 
@@ -178,7 +149,7 @@ static unsigned int sp_wdt_get_timeleft(struct watchdog_device *wdev)
 	struct sp_wdt_priv *priv = watchdog_get_drvdata(wdev);
 	void __iomem *base = priv->base;
 	u32 val;
-#ifdef CONFIG_SOC_SP7350
+
 	void __iomem *base_pt = priv->base_pt;
 	u32 count_f;
 	u32 count_b;
@@ -193,15 +164,10 @@ static unsigned int sp_wdt_get_timeleft(struct watchdog_device *wdev)
 		val = count_f + count_b;
 	else
 		val = count_b;
-#else
-	val = readl(base + WDT_CNT);
-	val &= 0xffff;
-	val = val << 4;
-#endif
+
 	return val;
 }
 
-#ifdef CONFIG_SOC_SP7350
 static int sp_wdt_set_mode(struct watchdog_device *wdev)
 {
 	struct sp_wdt_priv *priv = watchdog_get_drvdata(wdev);
@@ -260,14 +226,14 @@ static irqreturn_t sp_wdt_isr(int irq, void *arg)
 
 	return IRQ_HANDLED;
 }
-#endif
+
 static const struct watchdog_info sp_wdt_info = {
 	.identity	= DEVICE_NAME,
 	.options	= WDIOF_SETTIMEOUT |
 			  WDIOF_MAGICCLOSE |
 			  WDIOF_KEEPALIVEPING,
 };
-#ifdef CONFIG_SOC_SP7350
+
 static const struct watchdog_info sp_wdt_pt_info = {
 	.identity	= DEVICE_NAME,
 	.options	= WDIOF_SETTIMEOUT |
@@ -275,7 +241,7 @@ static const struct watchdog_info sp_wdt_pt_info = {
 			  WDIOF_MAGICCLOSE |
 			  WDIOF_KEEPALIVEPING,
 };
-#endif
+
 static const struct watchdog_ops sp_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= sp_wdt_start,
@@ -301,9 +267,8 @@ static int sp_wdt_probe(struct platform_device *pdev)
 	struct sp_wdt_priv *priv;
 	struct watchdog_device *wdd;
 	int ret;
-#ifdef CONFIG_SOC_SP7350
 	int irq;
-#endif
+
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -338,7 +303,6 @@ static int sp_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-#ifdef CONFIG_SOC_SP7350
 	priv->base_pt = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->base_pt))
 		return PTR_ERR(priv->base_pt);
@@ -369,9 +333,7 @@ static int sp_wdt_probe(struct platform_device *pdev)
 		priv->wdev.info = &sp_wdt_info;
 		priv->mode = WDT_MODE_RST;
 	}
-#else
-	priv->wdev.info = &sp_wdt_info;
-#endif
+
 	priv->wdev.ops = &sp_wdt_ops;
 	priv->wdev.timeout = SP_WDT_DEFAULT_TIMEOUT;
 	priv->wdev.max_hw_heartbeat_ms = SP_WDT_MAX_TIMEOUT * 1000;
@@ -379,10 +341,10 @@ static int sp_wdt_probe(struct platform_device *pdev)
 	priv->wdev.parent = dev;
 
 	watchdog_set_drvdata(&priv->wdev, priv);
-#ifdef CONFIG_SOC_SP7350
+
 	sp_wdt_set_mode(&priv->wdev);
 	sp_wdt_hw_init(&priv->wdev);
-#endif
+
 	watchdog_init_timeout(&priv->wdev, timeout, dev);
 	watchdog_set_nowayout(&priv->wdev, nowayout);
 	watchdog_stop_on_reboot(&priv->wdev);
@@ -447,8 +409,6 @@ static int sp_wdt_resume(struct device *dev)
 #endif
 
 static const struct of_device_id sp_wdt_of_match[] = {
-	{.compatible = "sunplus,sp7021-wdt", },
-	{.compatible = "sunplus,q645-wdt", },
 	{.compatible = "sunplus,sp7350-wdt", },
 	{ /* sentinel */ }
 };
