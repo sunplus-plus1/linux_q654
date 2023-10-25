@@ -13,13 +13,13 @@
 
 #include <linux/usb/sp_usb.h>
 #include "otg-sunplus.h"
-#ifdef CONFIG_USB_SP_UDC2
+#ifdef CONFIG_USB_SP_UDC
 #include "../core/otg_productlist.h"
 #endif
 
 #define DRIVER_NAME	"sp-otg"
 
-#ifdef CONFIG_USB_SP_UDC2
+#ifdef CONFIG_USB_SP_UDC
 extern void detech_start(void);
 extern void device_run_stop_ctrl(int);
 
@@ -103,7 +103,7 @@ void dump_debug_register(struct usb_otg *otg)
 }
 EXPORT_SYMBOL(dump_debug_register);
 
-#ifdef CONFIG_USB_SP_UDC2
+#ifdef CONFIG_USB_SP_UDC
 void sp_accept_b_hnp_en_feature(struct usb_otg *otg)
 {
 	u32 val;
@@ -198,7 +198,7 @@ int sp_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
-#ifdef CONFIG_USB_SP_UDC2
+#ifdef CONFIG_USB_SP_UDC
 int sp_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 {
 	otg->gadget = gadget;
@@ -224,7 +224,7 @@ struct usb_phy_io_ops sp_phy_ios = {
 	.write = sp_phy_write,
 };
 
-#ifdef CONFIG_USB_SP_UDC2
+#ifdef CONFIG_USB_SP_UDC
 int hnp_polling_watchdog(void *arg)
 {
 	struct sp_otg *otg_host = (struct sp_otg *)arg;
@@ -608,7 +608,7 @@ static irqreturn_t otg_irq(int irq, void *dev_priv)
 		val |= A_BUS_DROP_BIT;
 		writel(val, &otg_host->regs_otg->otg_device_ctrl);
 
-#if defined(CONFIG_USB_SP_UDC2)
+#if defined(CONFIG_USB_SP_UDC)
 		device_run_stop_ctrl(0);
 #endif
 
@@ -643,14 +643,14 @@ static irqreturn_t otg_irq(int irq, void *dev_priv)
 			val |= A_BUS_REQ_BIT;
 			writel(val, &otg_host->regs_otg->otg_device_ctrl);
 
-#if defined(CONFIG_USB_SP_UDC2)
+#if defined(CONFIG_USB_SP_UDC)
 			otg_id_pin = 0;
 			device_run_stop_ctrl(0);
 #endif
 		} else {
 			writel(~OTG_SIM & (OTG_SRP | OTG_20),
 				  			&otg_host->regs_otg->mode_select);
-#if defined(CONFIG_USB_SP_UDC2)
+#if defined(CONFIG_USB_SP_UDC)
 			otg_id_pin = 1;
 			device_run_stop_ctrl(1);
 #endif
@@ -799,7 +799,7 @@ int sp_otg_probe(struct platform_device *pdev)
 
 	otg_host->otg.otg->set_host = sp_set_host;
 	otg_host->otg.otg->set_vbus = sp_set_vbus;
-#ifdef CONFIG_USB_SP_UDC2
+#ifdef CONFIG_USB_SP_UDC
 	otg_host->otg.otg->set_peripheral = sp_set_peripheral;
 	otg_host->otg.otg->start_hnp = sp_start_hnp;
 	otg_host->otg.otg->start_srp = sp_start_srp;

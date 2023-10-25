@@ -1,5 +1,5 @@
 /*
- * linux/drivers/usb/gadget/sunplus_udc2.h
+ * linux/kernel/drivers/usb/gadget/sunplus_udc.h
  * Sunplus on-chip full/high speed USB device controllers
  *
  * Copyright (C) 2004-2007 Herbert Pötzl - Arnaud Patard
@@ -11,8 +11,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _SUNPLUS_UDC2_H
-#define _SUNPLUS_UDC2_H
+#ifndef _SUNPLUS_UDC_H
+#define _SUNPLUS_UDC_H
 
 #include <linux/interrupt.h>
 #include <linux/usb/gadget.h>
