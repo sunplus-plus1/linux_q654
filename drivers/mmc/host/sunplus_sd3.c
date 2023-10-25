@@ -1177,21 +1177,6 @@ static int spmmc_select_drive_strength(
 	return *drv_type;
 }
 
-static const struct spsdc_compatible sp_sd_645_compat = {
-	.source_clk = SPSDC_CLK_360M,
-	.vol_mode = SPSDC_SWITCH_MODE,
-	.delay_val = 0x666330,
-};
-static const struct spsdc_compatible sp_sdio_645_compat = {
-	.source_clk = SPSDC_CLK_360M,
-	.vol_mode = SPSDC_SWITCH_MODE,
-	.delay_val = 0x666330,
-};
-static const struct spsdc_compatible sp_sdio_1v8_645_compat = {
-	.source_clk = SPSDC_CLK_360M,
-	.vol_mode = SPSDC_1V8_MODE,
-	.delay_val = 0x666330,
-};
 static const struct spsdc_compatible sp_sd_654_compat = {
 	.source_clk = SPSDC_CLK_800M,
 	.vol_mode = SPSDC_SWITCH_MODE,
@@ -1210,18 +1195,6 @@ static const struct spsdc_compatible sp_sdio_1v8_654_compat = {
 
 static const struct of_device_id spsdc_of_table[] = {
 	{
-		.compatible = "sunplus,q645-card",
-		.data = &sp_sd_645_compat,
-	},
-	{
-		.compatible = "sunplus,q645-sdio",
-		.data = &sp_sdio_645_compat,
-	},
-	{
-		.compatible = "sunplus,q645-1v8-sdio",
-		.data = &sp_sdio_1v8_645_compat,
-	},
-	{
 		.compatible = "sunplus,sp7350-sd",
 		.data = &sp_sd_654_compat,
 	},
@@ -1236,8 +1209,6 @@ static const struct of_device_id spsdc_of_table[] = {
 	{/* sentinel */}
 };
 MODULE_DEVICE_TABLE(of, spsdc_of_table);
-
-
 
 static const struct mmc_host_ops spsdc_ops = {
 	.request = spsdc_request,
@@ -1461,6 +1432,10 @@ static int spsdc_pm_resume(struct device *dev)
 	if (ret)
 		return ret;
 	spsdc_controller_init(host);
+	if (host->mmc->pm_flags & MMC_PM_KEEP_POWER){
+		spsdc_set_ios(host->mmc, &host->mmc->ios);
+		spmmc_start_signal_voltage_switch(host->mmc, &host->mmc->ios);
+	}
 	pm_runtime_force_resume(dev);
 	return ret;
 }
