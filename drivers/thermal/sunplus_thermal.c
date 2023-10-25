@@ -156,7 +156,7 @@ static int sp_thermal_register_sensor(struct platform_device *pdev,
 	return 0;
 }
 
-static int sp7021_thermal_probe(struct platform_device *pdev)
+static int sp_thermal_probe(struct platform_device *pdev)
 {
 	struct sp_thermal_data *sp_data;
 	struct resource *res;
@@ -206,7 +206,7 @@ static int sp7021_thermal_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sp7021_thermal_remove(struct platform_device *pdev)
+static int sp_thermal_remove(struct platform_device *pdev)
 {
 	struct sp_thermal_data *sp_data = platform_get_drvdata(pdev);
 
@@ -281,33 +281,23 @@ static const struct sunplus_thermal_compatible sp7350_compat = {
 	.temp_otp_shift = 2,
 };
 
-static const struct sunplus_thermal_compatible sp7021_compat = {
-	.ver = 1,
-	.temp_base = 3500,
-	.temp_otp_base = 1518,
-	.temp_rate =608,
-	.temp_otp_shift = 0,
-
-};
-
-static const struct of_device_id of_sp7021_thermal_ids[] = {
+static const struct of_device_id of_sp_thermal_ids[] = {
 	{ .compatible = "sunplus,sp7350-thermal", (void *)&sp7350_compat },
-	{ .compatible = "sunplus,sp7021-thermal", (void *)&sp7021_compat },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, of_sp7021_thermal_ids);
+MODULE_DEVICE_TABLE(of, of_sp_thermal_ids);
 
-static struct platform_driver sp7021_thermal_driver = {
-	.probe	= sp7021_thermal_probe,
-	.remove	= sp7021_thermal_remove,
+static struct platform_driver sunplus_thermal_driver = {
+	.probe	= sp_thermal_probe,
+	.remove	= sp_thermal_remove,
 	.driver	= {
-		.name	= "sp7021-thermal",
-		.of_match_table = of_match_ptr(of_sp7021_thermal_ids),
+		.name	= "sunplus-thermal",
+		.of_match_table = of_match_ptr(of_sp_thermal_ids),
 		.pm     = sp_pm_ops,
 		},
 };
-module_platform_driver(sp7021_thermal_driver);
+module_platform_driver(sunplus_thermal_driver);
 
 MODULE_AUTHOR("Li-hao Kuo <lhjeff911@gmail.com>");
-MODULE_DESCRIPTION("Thermal driver for SP7021 SoC");
+MODULE_DESCRIPTION("Thermal driver for sunplus SoC");
 MODULE_LICENSE("GPL");
