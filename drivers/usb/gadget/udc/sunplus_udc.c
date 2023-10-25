@@ -13,7 +13,7 @@
 #include <asm/unaligned.h>
 #include <linux/usb/otg.h>
 
-#include "sunplus_udc2.h"
+#include "sunplus_udc.h"
 #ifdef CONFIG_USB_SUNPLUS_OTG
 #include "../../phy/otg-sunplus.h"
 
