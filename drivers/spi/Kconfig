@@ -820,17 +820,6 @@ config SPI_SUN6I
 	help
 	  This enables using the SPI controller on the Allwinner A31 SoCs.
 
-config SPI_SUNPLUS
-	tristate "Sunplus SPI controller"
-	depends on COMPILE_TEST
-	help
-	  This enable Sunplus SoCs spi controller driver on the Sunplus  SoCs.
-	  This driver can also be built as a module. If so, the module will be
-	  called as spi-sunplus.
-
-	  If you have a  Sunplus platform say Y here.
-	  If unsure, say N.
-
 config SPI_SYNQUACER
 	tristate "Socionext's SynQuacer HighSpeed SPI controller"
 	depends on ARCH_SYNQUACER || COMPILE_TEST
