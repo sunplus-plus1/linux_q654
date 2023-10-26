@@ -20,31 +20,16 @@
 //#define MEASUREMENT_SIGNAL //timing measurement
 //#define SPMMC_SOFTPAD
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 #define SPMMC_SUPPORT_VOLTAGE_1V8
 #define SPMMC_EMMC_VCCQ_1V8
-#endif
-#ifdef CONFIG_SOC_SP7350
 #define HS400
-#endif
 
 #define SPMMC_MIN_CLK	400000
-#if defined(CONFIG_SOC_SP7021) || defined(CONFIG_SOC_I143)
-#define SPMMC_MAX_CLK	52000000
-#elif defined(CONFIG_SOC_Q645)
-#define SPMMC_MAX_CLK	200000000
-#elif defined(CONFIG_SOC_SP7350)
 #define SPMMC_MAX_CLK	400000000
-#endif
 
 #define SPMMC_MAX_BLK_COUNT 65536
 #define SPMMC_MAX_TUNABLE_DLY 7
-#ifdef CONFIG_SOC_I143
-#define SPMMC_SYS_CLK	270000000
-#endif
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 #define SPMMC_SYS_CLK	360000000
-#endif
 #define __rsvd_regs(l) __append_suffix(l, __COUNTER__)
 #define __append_suffix(l, s) _append_suffix(l, s)
 #define _append_suffix(l, s) (reserved##s[l])
@@ -197,19 +182,6 @@ union spmmc_reg_config0 {
 	} bits;
 };
 
-#ifdef CONFIG_SOC_Q645
-union spmmc_softpad_config {
-	u32 val;
-#define SPMMC_MAX_SOFTPAD_LEVEL 5
-	struct {
-		u32 rd_rsp_level	: 2;
-		u32 resv1		: 2;
-		u32 rd_dat_level	: 2;
-		u32 resv2		: 2;
-	} bits;
-};
-#endif
-#ifdef CONFIG_SOC_SP7350
 union spmmc_softpad_config {
 	u32 val;
 	struct {
@@ -220,8 +192,6 @@ union spmmc_softpad_config {
 		u32 resv3		: 2;
 	} bits;
 };
-#endif
-
 
 struct spmmc_tuning_info {
 	int enable_tuning;
@@ -254,22 +224,9 @@ struct pad_ctl_regs {
 	unsigned int reserved_29[3];       // 101.29 - 101.31
 };
 
-#ifdef CONFIG_SOC_Q645
-struct pad_soft_regs {
-	unsigned int emmc_sftpad_ctl[3];  // 102.0 - 102.2
-	unsigned int sdind_sftpad_ctl[2]; // 102.3 - 102.4
-	unsigned int sd_sftpad_ctl[2]; // 102.5 - 102.6
-	unsigned int sdio_sftpad_ctl[2]; // 102.7 - 102.8
-	unsigned int reserved_29[23];       // 102.9 - 102.31
-};
-#endif
-
-#ifdef CONFIG_SOC_SP7350
 struct pad_ctl2_regs {
 	unsigned int emmc_sftpad_ctl[3];	// 102.21 - 102.23
 };
-#endif
-
 #else
 struct spmmc_tuning_info {
 	int enable_tuning;
@@ -289,12 +246,7 @@ struct spmmc_host {
 	struct spmmc_regs *base;
 #ifdef MEASUREMENT_SIGNAL
 	struct pad_ctl_regs *pad_base;
-#ifdef CONFIG_SOC_Q645
-	struct pad_soft_regs *soft_base;
-#endif
-#ifdef CONFIG_SOC_SP7350
 	struct pad_ctl2_regs *pad_ctl2_base;
-#endif
 #endif
 
 	struct clk *clk;
