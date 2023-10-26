@@ -36,9 +36,7 @@ enum loglevel {
 	SPMMC_LOG_MAX
 };
 static int loglevel = SPMMC_LOG_WARNING;
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 static int CMD23_RECEIVED = 0;
-#endif
 /**
  * we do not need `SPMMC_LOG_' prefix here, when specify @level.
  */
@@ -142,115 +140,6 @@ static void spmmc_dump_regs(struct spmmc_host *host, int start_group, int start_
 #endif /* ifdef SPMMC_DEBUG */
 
 #ifdef SPMMC_SOFTPAD
-#ifdef CONFIG_SOC_Q645
-static inline void spmmc_softpad_get(
-	struct spmmc_host *host,
-	union spmmc_softpad_config *config)
-{
-	u32 value;
-
-	switch (host->mode) {
-	case SPMMC_MODE_EMMC:
-		value = readl(&host->soft_base->emmc_sftpad_ctl[0]);
-		break;
-	case SPMMC_MODE_SDIO:
-		value = readl(&host->soft_base->sdio_sftpad_ctl[0]);
-		break;
-	case SPMMC_MODE_SD:
-	default:
-		value = readl(&host->soft_base->sd_sftpad_ctl[0]);
-		break;
-
-	}
-	config->bits.rd_rsp_level = bitfield_extract(value, 16, 2);
-	config->bits.rd_dat_level = bitfield_extract(value, 18, 2);
-}
-
-static inline void spmmc_softpad_set(
-	struct spmmc_host *host,
-	union spmmc_softpad_config *config)
-{
-	u32 value,i;
-
-
-	return;
-	spmmc_pr(DEBUG, "softpad_set  host->mode %d\n", host->mode);
-
-	switch (host->mode) {
-	case SPMMC_MODE_EMMC:
-		value = readl(&host->soft_base->emmc_sftpad_ctl[0]);
-		break;
-	case SPMMC_MODE_SDIO:
-		value = readl(&host->soft_base->sdio_sftpad_ctl[0]);
-		break;
-	case SPMMC_MODE_SD:
-	default:
-		value = readl(&host->soft_base->sd_sftpad_ctl[0]);
-		break;
-	}
-
-	value = bitfield_replace(value, 16, 2,
-			config->bits.rd_rsp_level);
-	/* Dat 0~3 set the same level */
-	for (i = 0; i < 4; i++)
-		value = bitfield_replace(value, 18 + 2 * i, 2,
-				config->bits.rd_dat_level);
-
-	switch (host->mode) {
-	case SPMMC_MODE_EMMC:
-		writel(value, &host->soft_base->emmc_sftpad_ctl[0]);
-		break;
-	case SPMMC_MODE_SDIO:
-		writel(value, &host->soft_base->sdio_sftpad_ctl[0]);
-		break;
-	case SPMMC_MODE_SD:
-	default:
-		writel(value, &host->soft_base->sd_sftpad_ctl[0]);
-		break;
-	}
-}
-
-static inline void spmmc_softpad_en(struct spmmc_host *host, u8 en)
-{
-	u32 value;
-
-	return;
-	switch (host->mode) {
-	case SPMMC_MODE_EMMC:
-		value = readl(&host->soft_base->emmc_sftpad_ctl[1]);
-		break;
-	case SPMMC_MODE_SDIO:
-		value = readl(&host->soft_base->sdio_sftpad_ctl[1]);
-		break;
-	case SPMMC_MODE_SD:
-	default:
-		value = readl(&host->soft_base->sd_sftpad_ctl[1]);
-		break;
-	}
-
-	if (en) {
-		value = bitfield_replace(value, 0, 1, 0);
-		value = bitfield_replace(value, 1, 5, 0x1F);
-	} else {
-		value = bitfield_replace(value, 0, 1, 1);
-		value = bitfield_replace(value, 1, 5, 0);
-	}
-	switch (host->mode) {
-	case SPMMC_MODE_EMMC:
-		writel(value, &host->soft_base->emmc_sftpad_ctl[1]);
-		break;
-	case SPMMC_MODE_SDIO:
-		writel(value, &host->soft_base->sdio_sftpad_ctl[1]);
-		break;
-	case SPMMC_MODE_SD:
-	default:
-		writel(value, &host->soft_base->sd_sftpad_ctl[1]);
-		break;
-	}
-
-}
-#endif
-#ifdef CONFIG_SOC_SP7350
 static inline void spmmc_softpad_gpio_bypass_en(struct spmmc_host *host, u8 en)
 {
 	u32 value;
@@ -368,7 +257,6 @@ static inline void spmmc_softpad_data_in_set(
 	spmmc_pr(DEBUG, "%s : 0x%08x\n", __func__, value);
 }
 #endif
-#endif
 
 /**
  * wait for transaction done, return -1 if error.
@@ -450,24 +338,14 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 	if (clk > f_max)
 		clk = f_max;
 
-	#ifdef CONFIG_SOC_SP7350
 	//clk_set_rate(host->clk, 800000000);
-	#endif
 	//spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
 	spmmc_pr(INFO, "set bus clock to %d\n", clk);
-	#ifdef CONFIG_SOC_I143
-	clkdiv = (SPMMC_SYS_CLK/clk)-1;
-	#endif
-	#if defined(CONFIG_SOC_SP7021)
-	clkdiv = (clk_get_rate(host->clk)+clk)/clk-1;
-	#endif
 
-	#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	if(clk_get_rate(host->clk) < SPMMC_SYS_CLK)
 		clkdiv = (clk_get_rate(host->clk)+clk)/clk-1;
 	else
 		clkdiv = clk_get_rate(host->clk)/clk-1;
-	#endif
 
 	spmmc_pr(INFO, "clkdiv= %d\n", clkdiv);
 	//spmmc_pr(INFO, "bus clock = %d / %d\n", clk_get_rate(host->clk), (clkdiv + 1));
@@ -570,21 +448,6 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 		value = bitfield_replace(value, 1, 1, 0);
 		writel(value, &host->base->sd_config0);
 	}
-
-#ifdef SPMMC_SOFTPAD
-#ifdef CONFIG_SOC_Q645
-	/* Softpad setting */
-	if (hs_en) {
-		host->tuning_info.softpad_tuning = 1;
-		host->tuning_info.tuning_finish = 0;
-		spmmc_softpad_en(host, 1);
-		spmmc_softpad_set(host, &softpad);
-	} else {
-		host->tuning_info.softpad_tuning = 0;
-		spmmc_softpad_en(host, 0);
-	}
-#endif
-#endif
 
 	spmmc_pr(INFO, "set bus timing to %s\n", timing_name);
 }
@@ -884,7 +747,6 @@ static int spmmc_check_error(struct spmmc_host *host, struct mmc_request *mrq)
 	}
 	host->tuning_info.need_tuning = ret;
 
-	#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	if ((cmd->opcode == MMC_READ_MULTIPLE_BLOCK)
 		|| (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)) {
 		if(CMD23_RECEIVED == 0){
@@ -897,13 +759,6 @@ static int spmmc_check_error(struct spmmc_host *host, struct mmc_request *mrq)
 			CMD23_RECEIVED = 0;
 		}
 	}
-	#else
-	if (cmd->opcode == MMC_READ_MULTIPLE_BLOCK ||
-	    cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK) {
-		__send_stop_cmd(host);
-		spmmc_sw_reset(host);
-	}
-	#endif
 	return ret;
 }
 
@@ -1103,7 +958,6 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 	data = mrq->data;
 
-	#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	if(mrq->sbc){
 		/* Finished CMD23 */
 		u32 value;
@@ -1121,7 +975,6 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mrq->sbc = NULL;
 		CMD23_RECEIVED = 1;
 	}
-	#endif
 
 	cmd = mrq->cmd;
 	spmmc_pr(VERBOSE, "%s > cmd:%d, arg:0x%08x, data len:%d\n", __func__,
@@ -1566,15 +1419,9 @@ void spmmc_init_driving(struct spmmc_host *host, u8 level)
 			spmmc_set_pad_driving_strength(host, i, level);
 		break;
 	case SPMMC_MODE_EMMC:
-		#ifdef CONFIG_SOC_SP7350
 		spmmc_set_pad_driving_strength(host, 20, level);
 		for (i = 28; i <= 36; i++)
 			spmmc_set_pad_driving_strength(host, i, level);
-		#endif
-		#ifdef CONFIG_SOC_Q645
-		for (i = 12; i <= 21; i++)
-			spmmc_set_pad_driving_strength(host, i, level);
-		#endif
 		break;
 	case SPMMC_MODE_SD:
 	default:
@@ -1883,7 +1730,6 @@ static int config_timing_param_store(struct spmmc_host *host, const char *arg)
 	return SPMMC_CFG_SUCCESS;
 }
 
-#ifdef CONFIG_SOC_SP7350
 static int config_gpio_bypass_en_show(struct spmmc_host *host, char *buf)
 {
 	u32 value;
@@ -2019,7 +1865,6 @@ static int config_softpad_data_in_store(struct spmmc_host *host, const char *arg
 	return SPMMC_CFG_SUCCESS;
 }
 #endif
-#endif
 
 static struct spmmc_config spmmc_configs[] = {
 	{
@@ -2092,8 +1937,6 @@ static struct spmmc_config spmmc_configs[] = {
 		.show = config_timing_param_show,
 		.store = config_timing_param_store
 	},
-
-#ifdef CONFIG_SOC_SP7350
 	{
 		.name = "gpio_bypass_en",
 		.show = config_gpio_bypass_en_show,
@@ -2119,7 +1962,6 @@ static struct spmmc_config spmmc_configs[] = {
 		.show = config_softpad_data_in_show,
 		.store = config_softpad_data_in_store
 	},
-#endif
 #endif
 	{} /* sentinel */
 };
@@ -2265,12 +2107,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	struct resource *resource;
 	#ifdef MEASUREMENT_SIGNAL
 	struct resource *res_driving;
-	#ifdef CONFIG_SOC_Q645
-	struct resource *res_soft;
-	#endif
-	#ifdef CONFIG_SOC_SP7350
 	struct resource *res_pad_ctl2;
-	#endif
 	#endif
 
 	struct spmmc_host *host;
@@ -2325,22 +2162,12 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 		ret = PTR_ERR(res_driving);
 		goto probe_free_host;
 	}
-#ifdef CONFIG_SOC_Q645
-	res_soft = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	if (IS_ERR(res_soft)) {
-		spmmc_pr(ERROR, "get sd register res_soft fail\n");
-		ret = PTR_ERR(res_soft);
-		goto probe_free_host;
-	}
-#endif
-#ifdef CONFIG_SOC_SP7350
 	res_pad_ctl2 = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (IS_ERR(res_pad_ctl2)) {
 		spmmc_pr(ERROR, "get sd register res_driving fail\n");
 		ret = PTR_ERR(res_pad_ctl2);
 		goto probe_free_host;
 	}
-#endif
 #endif
 
 	if ((resource->end - resource->start + 1) < sizeof(*host->base)) {
@@ -2364,18 +2191,6 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 		goto probe_free_host;
 	}
 
-#ifdef CONFIG_SOC_Q645
-	host->soft_base = devm_ioremap(&pdev->dev, res_soft->start, resource_size(res_soft));
-	if (IS_ERR((void *)host->soft_base)) {
-		spmmc_pr(ERROR, "devm_ioremap_resource soft fail\n");
-		ret = PTR_ERR((void *)host->soft_base);
-		goto probe_free_host;
-	}
-	//spmmc_pr(INFO, "SPMMC [host->base] 0x%x  resource 0x%x" , host->base, resource->start);
-	//spmmc_pr(INFO, "SPMMC [host->pad_base] 0x%x  resource 0x%x" , host->pad_base, (unsigned int)res_driving->start);
-	//spmmc_pr(INFO, "SPMMC [host->soft_base] 0x%x  resource 0x%x" , host->soft_base, (unsigned int)res_soft->start);
-#endif
-#ifdef CONFIG_SOC_SP7350
 	host->pad_ctl2_base = devm_ioremap(&pdev->dev, res_pad_ctl2->start, resource_size(res_pad_ctl2));
 	if (IS_ERR((void *)host->pad_ctl2_base)) {
 		spmmc_pr(ERROR, "devm_ioremap_resource pad fail\n");
@@ -2383,7 +2198,6 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 		goto probe_free_host;
 	}
 	//spmmc_pr(INFO, "SPMMC [host->pad_ctl2_base] 0x%x  resource 0x%x" , host->pad_ctl2_base, (unsigned int)res_pad_ctl2->start);
-#endif
 #endif
 
 	host->irq = platform_get_irq(pdev, 0);
@@ -2443,9 +2257,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	writel(x, &host->base->card_mediatype_srcdst);
 	#endif
 
-	#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	mmc->caps |= MMC_CAP_CMD23;
-	#endif
 
 	return 0;
 
