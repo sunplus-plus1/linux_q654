@@ -1062,7 +1062,6 @@ int spmmc_get_cd(struct mmc_host *mmc)
 static int spmmc_card_busy(struct mmc_host *mmc)
 {
 	struct spmmc_host *host = mmc_priv(mmc);
-
 	return !(readl(&host->base->sd_status) & SPMMC_SDSTATUS_DAT0_PIN_STATUS);
 }
 #endif
@@ -2354,18 +2353,6 @@ static const struct dev_pm_ops spmmc_pm_ops = {
 #endif /* ifdef CONFIG_PM */
 
 static const struct of_device_id spmmc_of_table[] = {
-	{
-		.compatible = "sunplus,sp7021-emmc",
-		.data = (void *)SPMMC_MODE_EMMC,
-	},
-	{
-		.compatible = "sunplus,i143-emmc",
-		.data = (void *)SPMMC_MODE_EMMC,
-	},
-	{
-		.compatible = "sunplus,q645-emmc",
-		.data = (void *)SPMMC_MODE_EMMC,
-	},
 	{
 		.compatible = "sunplus,sp7350-emmc",
 		.data = (void *)SPMMC_MODE_EMMC,
