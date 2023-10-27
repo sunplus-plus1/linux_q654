@@ -82,7 +82,6 @@ obj-$(CONFIG_VIDEO_QCOM_VENUS)		+= qcom/venus/
 obj-y					+= sunxi/
 
 obj-$(CONFIG_VIDEO_SP7350_DISP)		+= sunplus/display/sp7350/
-obj-y					+= sunplus/video/
 obj-y					+= sunplus/mipicsi/
 obj-$(CONFIG_ETHOS_N_NPU_DRIVERS)	+= sunplus/ethos-n78/
 obj-$(CONFIG_VIDEO_HWCODEC_DRIVERS)	+= sunplus/videocodec/
