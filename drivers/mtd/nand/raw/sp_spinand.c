@@ -15,13 +15,8 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
-#include "sp_bch_q645.h"
-#include "sp_spinand_q645.h"
-#else
 #include "sp_bch.h"
 #include "sp_spinand.h"
-#endif
 
 /**************************************************************************
  *                             M A C R O S                                *
@@ -309,11 +304,7 @@ int spi_nand_reset(struct sp_spinand_info *info)
 	writel(value, &regs->spi_ctrl);
 
 	value = SPINAND_CS_DISACTIVE_CYC(CONFIG_SPINAND_CS_DISACTIVE_CYC)
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 		| SPINAND_READ_TIMING(info->rts);
-#else
-		| SPINAND_READ_TIMING(CONFIG_SPINAND_READ_TIMING_SEL);
-#endif
 	writel(value, &regs->spi_timing);
 
 	value = SPINAND_LITTLE_ENDIAN
@@ -422,7 +413,6 @@ static int spi_nand_select_die(struct sp_spinand_info *info, u32 id)
 	return wait_spi_idle(info);
 }
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 static int spi_nand_wait_dev_idle(struct sp_spinand_info *info)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(CONFIG_SPINAND_TIMEOUT);
@@ -436,7 +426,6 @@ static int spi_nand_wait_dev_idle(struct sp_spinand_info *info)
 	} while (time_before(jiffies, timeout));
 	return status;
 }
-#endif
 
 int spi_nand_blkerase(struct sp_spinand_info *info, u32 row)
 {
@@ -543,11 +532,7 @@ int spi_nand_write_by_dma(struct sp_spinand_info *info, u32 io_mode,
 	u32 plane_sel_mode = info->plane_sel_mode;
 	u32 page_size = info->page_size;
 	int cmd = get_iomode_writecmd(io_mode);
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	int cfg = get_iomode_cfg(io_mode, 1);
-#else
-	int cfg = get_iomode_cfg(io_mode, 0);
-#endif
 	u32 value = 0;
 	int ret;
 
@@ -648,9 +633,7 @@ int spi_nand_pageread_autobch(struct sp_spinand_info *info, u32 io_mode,
 	}
 	writel(value, &regs->spi_col_addr);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	writel(page_size, &regs->device_parity_addr);
-#endif
 
 	value = SPINAND_SPARE_SIZE(info->oob_size)
 		| SPINAND_PAGE_SIZE((page_size >> 10) - 1);
@@ -660,9 +643,7 @@ int spi_nand_pageread_autobch(struct sp_spinand_info *info, u32 io_mode,
 	writel((u32)((ulong)buf+info->page_size), &regs->mem_parity_addr);
 
 	value = SPINAND_BCH_DATA_LEN(info->parity_sector_size)
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 		| SPINAND_BCH_DECSRC(info->bch_dec_src)
-#endif
 		| SPINAND_BCH_BLOCKS(info->nand.ecc.steps - 1)
 		| SPINAND_BCH_AUTO_EN;
 	value |= (info->parity_sector_size & 31) ?
@@ -675,11 +656,7 @@ int spi_nand_pageread_autobch(struct sp_spinand_info *info, u32 io_mode,
 		| SPINAND_USR_READCACHE_EN;
 	writel(value, &regs->spi_auto_cfg);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	sp_autobch_config(info->mtd, buf, buf+info->page_size, 0, info->bch_dec_src);
-#else
-	sp_autobch_config(info->mtd, buf, buf+info->page_size, 0);
-#endif
 
 	ret = spi_nand_trigger_and_wait_dma(info);
 
@@ -698,11 +675,7 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 	u32 plane_sel_mode = info->plane_sel_mode;
 	u32 page_size = info->page_size;
 	int cmd = get_iomode_writecmd(io_mode);
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	int cfg = get_iomode_cfg(io_mode, 1);
-#else
-	int cfg = get_iomode_cfg(io_mode, 0);
-#endif
 	u32 value = 0;
 	int ret = 0;
 
@@ -741,9 +714,7 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 	}
 	writel(value, &regs->spi_col_addr);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	writel(page_size, &regs->device_parity_addr);
-#endif
 
 	value = SPINAND_SPARE_SIZE(info->oob_size)
 		| SPINAND_PAGE_SIZE((page_size >> 10) - 1);
@@ -753,9 +724,7 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 	writel((u32)((ulong)buf+info->page_size), &regs->mem_parity_addr);
 
 	value = SPINAND_BCH_DATA_LEN(info->parity_sector_size)
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 		| SPINAND_BCH_DECSRC(info->bch_dec_src)
-#endif
 		| SPINAND_BCH_BLOCKS(info->nand.ecc.steps - 1)
 		| SPINAND_BCH_AUTO_EN;
 	value |= (info->parity_sector_size & 31) ?
@@ -770,15 +739,10 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 		| SPINAND_AUTOWEL_BF_PRGMLOAD;
 	writel(value, &regs->spi_auto_cfg);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	sp_autobch_config(info->mtd, buf, buf+info->page_size, 1, info->bch_dec_src);
-#else
-	sp_autobch_config(info->mtd, buf, buf+info->page_size, 1);
-#endif
 
 	ret = spi_nand_trigger_and_wait_dma(info);
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	writel(0, &regs->spi_bch);
 
 	if (!ret) {
@@ -790,14 +754,9 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 			ret = (value & DEVICE_STATUS_PFAIL_MSK) ? (-1) : 0;
 		}
 	}
-#endif
 
 	if (!ret)
 		ret = sp_autobch_result(info->mtd);
-
-#ifdef CONFIG_SOC_SP7021
-	writel(0, &regs->spi_bch);
-#endif
 
 	return ret;
 }
@@ -1118,9 +1077,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	int i;
 	u32 value;
 	u32 id;
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	u32 rts;
-#endif
 	u32 clk_freq, max_freq;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
@@ -1223,7 +1180,6 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		SPINAND_LOGW("default SPI max frequency: %d Hz\n", max_freq);
 	}
 
-#if defined(CONFIG_SOC_SP7350)
 	if (max_freq > 100000000) {
 		clk_set_rate(info->clk, 614000000);
 
@@ -1235,7 +1191,6 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		}
 		SPINAND_LOGI("source clock frequency: %d Hz\n", clk_freq);
 	}
-#endif
 
     // Calculate SPI interface clock frequency
 	// SCK_MODE : 1    2    3    4    5     6     7
@@ -1257,7 +1212,6 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	info->spi_clk_div = i;
 	SPINAND_LOGI("SPI clock frequency: %d Hz\n", (clk_freq/value));
 
-#if defined(CONFIG_SOC_Q654) || defined(CONFIG_SOC_SP7350)
 	ret = of_property_read_u32(node, "read-timing-selection", &rts);
 	if (ret < 0) {
 		rts = CONFIG_SPINAND_READ_TIMING_SEL;
@@ -1265,7 +1219,6 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	}
 	info->rts = (u8)rts;
 	SPINAND_LOGI("read timing selection: %d\n", info->rts);
-#endif
 
 	if (spi_nand_reset(info) < 0) {
 		SPINAND_LOGE("reset device fail\n");
@@ -1314,9 +1267,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	info->bch_dec_src = CONFIG_SPINAND_AUTOBCH_DECSRC;
-#endif
 	info->trs_mode = CONFIG_SPINAND_TRSMODE;
 	info->raw_trs_mode = CONFIG_SPINAND_TRSMODE_RAW;
 
@@ -1381,17 +1332,10 @@ static int sp_spinand_probe(struct platform_device *pdev)
 
 	SPINAND_LOGI("====Sunplus SPI-NAND Driver====\n");
 	SPINAND_LOGI("==spi nand driver info==\n");
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	SPINAND_LOGI("regs = 0x%p@0x%08llx, size = %lld\n",
 		info->regs, res_mem->start, res_mem->end-res_mem->start);
 	SPINAND_LOGI("buffer = 0x%p@0x%08llx, size = %d\n",
 		info->buff.virt, info->buff.phys, info->buff.size);
-#else
-	SPINAND_LOGI("regs = 0x%p@0x%08x, size = %d\n",
-		info->regs, res_mem->start, res_mem->end-res_mem->start);
-	SPINAND_LOGI("buffer = 0x%p@0x%08x, size = %d\n",
-		info->buff.virt, info->buff.phys, info->buff.size);
-#endif
 	SPINAND_LOGI("irq = %d\n", info->irq);
 	SPINAND_LOGI("==spi nand device info==\n");
 	SPINAND_LOGI("device name : %s\n", info->mtd->name);
@@ -1485,13 +1429,7 @@ int sp_spinand_resume(struct platform_device *pdev)
 }
 
 static const struct of_device_id sunplus_nand_of_match[] = {
-#if defined(CONFIG_SOC_Q645)
-	{ .compatible = "sunplus,q645-spi-nand" },
-#elif defined(CONFIG_SOC_SP7350)
 	{ .compatible = "sunplus,sp7350-spi-nand" },
-#else
-	{ .compatible = "sunplus,sp7021-spinand" },
-#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, sunplus_nand_of_match);

@@ -3,10 +3,15 @@
 #define __SP_BCH_H
 #include <linux/clk.h>
 
-#define SP_BCH_REG           0x9c101000
-#define SP_BCH_IRQ           58
+#define SP_BCH_REG           0xF8101000
+#define SP_BCH_IRQ           24
 
 #define CONFIG_SPBCH_DEV_IN_DTS     /* open if the dev is describled in dts */
+
+/* Open it to support ioctl.
+ * If open it, you should close CONFIG_SPINAND_PSW in sp_spinand.h,
+ * because the bch and spi-nand controller share the same dma clock.
+ */
 #define CONFIG_SPBCH_SUPPORT_IOCTL  /* open to support ioctl */
 
 struct sp_bch_regs {
@@ -32,6 +37,7 @@ struct sp_bch_regs {
 #define CR0_AUTOSTART              BIT(1)
 #define CR0_ENCODE                 0
 #define CR0_DECODE                 BIT(4)
+#define CR0_DECSRC(n)             (((n) == 0) << 2)
 #define CR0_CMODE_1024x60         (0 << 8)
 #define CR0_CMODE_1024x40         (1 << 8)
 #define CR0_CMODE_1024x24         (2 << 8)
@@ -96,7 +102,7 @@ struct sp_bch_req {
 int sp_bch_init(struct mtd_info *mtd, int *parity_sector_sz);
 int sp_bch_encode(struct mtd_info *mtd, dma_addr_t buf, dma_addr_t ecc);
 int sp_bch_decode(struct mtd_info *mtd, dma_addr_t buf, dma_addr_t ecc);
-int sp_autobch_config(struct mtd_info *mtd, void *buf, void *ecc, int enc);
+int sp_autobch_config(struct mtd_info *mtd, void *buf, void *ecc, int enc, int dec_src);
 int sp_autobch_result(struct mtd_info *mtd);
 
 
