@@ -1160,10 +1160,8 @@ static int sp_cbdma_reset(struct sp_dma_chan *chan)
 	dma_write(chan, SP_DMA_INT_FLAG, reg_val);
 
 	/* Set accessible DRAM size for DMA access */
-#if defined(CONFIG_SOC_SP7350)
 	reg_val = 0xF0000000;		/* Accessible DRAM size is 3.75G */
 	dma_write(chan, SP_DMA_SDRAM_SIZE_CONFIG, reg_val);
-#endif
 
 	chan->err = false;
 
@@ -2008,20 +2006,8 @@ static int sp_cbdma_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "reset deassert fail\n");
 
 	/* The SRAM buffer of CB-DMA */
-#if defined(CONFIG_SOC_Q645) || defined(CONFIG_SOC_SP7350)
 	xdev->sram_addr = 0xFA200000;
 	xdev->sram_size = 256 << 10;
-#else
-	if (((u32)(io->start)) == 0x9C000D00) {
-		/* CBDMA0 */
-		xdev->sram_addr = 0x9E800000;
-		xdev->sram_size = 40 << 10;
-	} else {
-		/* CBDMA1 */
-		xdev->sram_addr = 0x9E820000;
-		xdev->sram_size = 4 << 10;
-	}
-#endif
 	dev_info(xdev->dev, "SRAM:%d bytes@0x%x\n", xdev->sram_size, xdev->sram_addr);
 
 	/* Retrieve the DMA engine properties from the device tree */
