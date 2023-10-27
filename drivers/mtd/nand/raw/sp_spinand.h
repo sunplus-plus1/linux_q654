@@ -6,20 +6,30 @@
 /*
  *  spi nand platform related configs
  */
-//#define CONFIG_SPINAND_USE_SRAM
+#define CONFIG_SPINAND_USE_SRAM
 #ifdef CONFIG_SPINAND_USE_SRAM
-#define CONFIG_SPINAND_SRAM_ADDR  (0x9e800000)
+#define CONFIG_SPINAND_SRAM_ADDR  (0xFA200000)
 #endif
+#define ZEBU_SIM                  0             // For zebu_sim
 
 /*
  *  spi nand functional related configs
  */
 #define CONFIG_SPINAND_READ_BITMODE     SPINAND_4BIT_MODE
 #define CONFIG_SPINAND_WRITE_BITMODE    SPINAND_4BIT_MODE
-#define CONFIG_SPINAND_READ_TIMING_SEL  2
+#if ZEBU_SIM
+#define CONFIG_SPINAND_READ_TIMING_SEL  0
 #define CONFIG_SPINAND_CS_DISACTIVE_CYC 0 /* 20ns = 0 x 1.6ns + 20ns */
-#define CONFIG_SPINAND_TRSMODE          SPINAND_TRS_DMA
+#define CONFIG_SPINAND_AUTOBCH_DECSRC   0 /* BCH decode data source. 0:spi-nand ctrl, 1:system memory */
+#define CONFIG_SPINAND_TRSMODE          SPINAND_TRS_DMA_AUTOBCH
 #define CONFIG_SPINAND_TRSMODE_RAW      SPINAND_TRS_DMA
+#else
+#define CONFIG_SPINAND_READ_TIMING_SEL  2
+#define CONFIG_SPINAND_CS_DISACTIVE_CYC 22 /* 55ns = 22 x 1.6ns + 20ns */
+#define CONFIG_SPINAND_AUTOBCH_DECSRC   0 /* BCH decode data source. 0:spi-nand ctrl, 1:system memory */
+#define CONFIG_SPINAND_TRSMODE          SPINAND_TRS_DMA_AUTOBCH
+#define CONFIG_SPINAND_TRSMODE_RAW      SPINAND_TRS_DMA
+#endif
 #define CONFIG_SPINAND_BUF_SZ           (8 << 10)
 #define CONFIG_SPINAND_TIMEOUT          (100)  /* unit: ms */
 
@@ -229,6 +239,7 @@
  *  macros for spi_bch register
  */
 #define SPINAND_BCH_DATA_LEN(x)      (((x)&0xff)<<8)
+#define SPINAND_BCH_DECSRC(x)        (((x) & 0x01) << 7) //0:spi-nand ctrl, 1:memory
 #define SPINAND_BCH_1K_MODE          (1<<6)
 #define SPINAND_BCH_512B_MODE        (0<<6)
 #define SPINAND_BCH_ALIGN_32B        (0<<5)
@@ -267,47 +278,55 @@ enum SPINAND_BIT_MODE {
 };
 
 /* block erase status */
-#define ERASE_STATUS		  0x04
+#define ERASE_STATUS		            0x04
 
 /* page program status */
-#define PROGRAM_STATUS            0x08
+#define PROGRAM_STATUS                  0x08
 
 /* protect status */
-#define PROTECT_STATUS	          0x38
+#define PROTECT_STATUS                  0x38
+
+#define DEVICE_STATUS_PFAIL_MSK         (1<<3)
+#define DEVICE_STATUS_EFAIL_MSK         (1<<2)
+#define DEVICE_STATUS_WEL_MSK           (1<<1)
+#define DEVICE_STATUS_OIP_MSK           (1<<0)
+
+#define DEVICE_STATUS_WEL               (DEVICE_STATUS_WEL_MSK)
 
 /* data mode & ecc mode */
-#define DEVICE_PROTECTION_ADDR	  0xA0
-#define DEVICE_FEATURE_ADDR	  0xB0
-#define DEVICE_STATUS_ADDR	  0xC0
+#define DEVICE_PROTECTION_ADDR          0xA0
+#define DEVICE_FEATURE_ADDR             0xB0
+#define DEVICE_STATUS_ADDR              0xC0
 
 /* read map addr */
-#define SPI_NAND_READ_ADDR        0x94000000
-#define SPI_NAND_READ_MXIC_ADDR   0x94001000
+#define SPI_NAND_READ_ADDR              0x94000000
+#define SPI_NAND_READ_MXIC_ADDR         0x94001000
 
-#define SPI_NAND_READ_FAIL	0x1
-#define SPI_NAND_WRITE_FAIL	0x2
-#define SPI_NAND_ERASE_FAIL	0x4
+#define SPI_NAND_READ_FAIL              0x1
+#define SPI_NAND_WRITE_FAIL             0x2
+#define SPI_NAND_ERASE_FAIL             0x4
 
 /* spi nand registers */
 struct sp_spinand_regs {
-	unsigned int spi_ctrl;       // 87.0
-	unsigned int spi_timing;     // 87.1
-	unsigned int spi_page_addr;  // 87.2
-	unsigned int spi_data;       // 87.3
-	unsigned int spi_status;     // 87.4
-	unsigned int spi_auto_cfg;   // 87.5
-	unsigned int spi_cfg[3];     // 87.6
-	unsigned int spi_data_64;    // 87.9
-	unsigned int spi_buf_addr;   // 87.10
-	unsigned int spi_statu_2;    // 87.11
-	unsigned int spi_err_status; // 87.12
-	unsigned int mem_data_addr;  // 87.13
-	unsigned int mem_parity_addr;// 87.14
-	unsigned int spi_col_addr;   // 87.15
-	unsigned int spi_bch;        // 87.16
-	unsigned int spi_intr_msk;   // 87.17
-	unsigned int spi_intr_sts;   // 87.18
-	unsigned int spi_page_size;  // 87.19
+	unsigned int spi_ctrl;           // 87.0
+	unsigned int spi_timing;         // 87.1
+	unsigned int spi_page_addr;      // 87.2
+	unsigned int spi_data;           // 87.3
+	unsigned int spi_status;         // 87.4
+	unsigned int spi_auto_cfg;       // 87.5
+	unsigned int spi_cfg[3];         // 87.6
+	unsigned int spi_data_64;        // 87.9
+	unsigned int spi_buf_addr;       // 87.10
+	unsigned int spi_statu_2;        // 87.11
+	unsigned int spi_err_status;     // 87.12
+	unsigned int mem_data_addr;      // 87.13
+	unsigned int mem_parity_addr;    // 87.14
+	unsigned int spi_col_addr;       // 87.15
+	unsigned int spi_bch;            // 87.16
+	unsigned int spi_intr_msk;       // 87.17
+	unsigned int spi_intr_sts;       // 87.18
+	unsigned int spi_page_size;      // 87.19
+	unsigned int device_parity_addr; // 87.20
 };
 
 struct sp_spinand_info {
@@ -331,17 +350,19 @@ struct sp_spinand_info {
 
 	u32 parity_sector_size;
 	u32 plane_sel_mode;
-	u32 cmd;           /* current command code */
-	u32 row;           /* row address of current command */
-	u32 col;           /* column address of current command*/
-	u32 page_size;     /* device page size*/
-	u32 oob_size;      /* device oob size*/
-	u8 spi_clk_div;    /* used as the parameter of SPINAND_SCK_DIV */
-	u8 read_bitmode;    /* bit mode in read case, refer to SPINAND_BIT_MODE*/
-	u8 write_bitmode;   /* bit mode in write case, refer to SPINAND_BIT_MODE*/
-	u8 trs_mode;       /*used in data access with ecc,refer to SPINAND_TRSMODE*/
-	u8 raw_trs_mode;   /*used in raw data access,refer to SPINAND_TRSMODE*/
-	u8 dev_protection; /*protection value by reading feature(0xA0)*/
+	u32 cmd;                /* current command code */
+	u32 row;                /* row address of current command */
+	u32 col;                /* column address of current command */
+	u32 page_size;          /* device page size */
+	u32 oob_size;           /* device oob size */
+	u8 spi_clk_div;         /* used as the parameter of SPINAND_SCK_DIV */
+	u8 read_bitmode;        /* bit mode in read case, refer to SPINAND_BIT_MODE */
+	u8 write_bitmode;       /* bit mode in write case, refer to SPINAND_BIT_MODE */
+	u8 trs_mode;            /* used in data access with ecc,refer to SPINAND_TRSMODE */
+	u8 raw_trs_mode;        /* used in raw data access,refer to SPINAND_TRSMODE */
+	u8 dev_protection;      /* protection value by reading feature(0xA0) */
+	u8 bch_dec_src;         /* BCH decode data source. 0:spi-nand controller, 1:system memory */
+	u8 rts;                 /* Read timing selection */
 };
 
 /**************************************************************************

@@ -26,7 +26,7 @@
 
 struct nand_chip;
 
-#if defined (CONFIG_MTD_NAND_SUNPLUS) || defined (CONFIG_MTD_NAND_SUNPLUS_Q645)
+#if defined (CONFIG_MTD_NAND_SUNPLUS)
 struct nand_flash_dev;
 
 /*
@@ -1155,7 +1155,7 @@ struct nand_chip {
 	struct nand_controller *controller;
 	struct nand_ecc_ctrl ecc;
 	void *priv;
-#if defined (CONFIG_MTD_NAND_SUNPLUS) || defined (CONFIG_MTD_NAND_SUNPLUS_Q645)
+#if defined (CONFIG_MTD_NAND_SUNPLUS)
 	unsigned int drv_options; // Sunplus additional variable
 #endif
 };
@@ -1285,7 +1285,7 @@ struct nand_flash_dev {
 		uint16_t strength_ds;
 		uint16_t step_ds;
 	} ecc;
-#if defined (CONFIG_MTD_NAND_SUNPLUS) || defined (CONFIG_MTD_NAND_SUNPLUS_Q645)
+#if defined (CONFIG_MTD_NAND_SUNPLUS)
 	unsigned int drv_options; // Sunplus additional variable
 #endif
 };
