@@ -21,12 +21,6 @@
 #include "sppctl.h"
 
 
-struct sppctl_sdata_t {
-	uint8_t i;
-	uint8_t ridx;
-	struct sppctl_pdata_t *pdata;
-};
-
 void sppctl_sysfs_init(struct platform_device *_pdev);
 void sppctl_sysfs_clean(struct platform_device *_pdev);
 

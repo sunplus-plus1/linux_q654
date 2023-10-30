@@ -26,7 +26,6 @@
 #define M_ORG "Sunplus/Tibbo Tech."
 #define M_CPR "(C) 2020"
 
-#define FW_DEFNAME NULL
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -89,9 +88,7 @@
 #include "sppctl_gpio.h"
 
 struct sppctl_pdata_t {
-	char name[SPPCTL_MAX_NAM];
 	uint8_t debug;
-	char fwname[SPPCTL_MAX_NAM];
 	void *sysfs_sdp;
 	void __iomem *base0;    // MASTER , OE , OUT , IN
 	void __iomem *base2;    // GPIO_FIRST

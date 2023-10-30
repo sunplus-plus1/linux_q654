@@ -93,48 +93,6 @@ uint8_t sppctl_fun_get(struct sppctl_pdata_t *_p,  uint8_t _fun)
 	return 0;
 }
 
-static void sppctl_fwload_cb(const struct firmware *_fw, void *_ctx)
-{
-	int i = -1, j = 0;
-	struct sppctl_pdata_t *p = (struct sppctl_pdata_t *)_ctx;
-
-	if (!_fw) {
-		KERR(p->pcdp->dev, "Firmware not found\n");
-		return;
-	}
-	if (_fw->size < list_funcsSZ-2) {
-		KERR(p->pcdp->dev, " fw size %zd < %zd\n", _fw->size, list_funcsSZ);
-		goto out;
-	}
-
-	for (i = 0; i < list_funcsSZ && i < _fw->size; i++) {
-		if (list_funcs[i].freg != fOFF_M)
-			continue;
-		sppctl_pin_set(p, _fw->data[i], i);
-		j++;
-	}
-
-out:
-	release_firmware(_fw);
-}
-
-void sppctl_loadfw(struct device *_dev, const char *_fwname)
-{
-	int ret;
-	struct sppctl_pdata_t *p = (struct sppctl_pdata_t *)_dev->platform_data;
-
-	if (!_fwname)
-		return;
-	if (strlen(_fwname) < 1)
-		return;
-	KINF(_dev, "fw:%s", _fwname);
-
-	ret = request_firmware_nowait(THIS_MODULE, true, _fwname, _dev, GFP_KERNEL, p,
-				      sppctl_fwload_cb);
-	if (ret)
-		KERR(_dev, "Can't load '%s'\n", _fwname);
-}
-
 int sppctl_pctl_resmap(struct platform_device *_pd, struct sppctl_pdata_t *_pc)
 {
 	struct resource *rp;
@@ -216,7 +174,6 @@ static int sppctl_dnew(struct platform_device *_pd)
 	int ret = -ENODEV;
 	struct device_node *np = _pd->dev.of_node;
 	struct sppctl_pdata_t *p = NULL;
-	const char *fwfname = FW_DEFNAME;
 
 	if (!np) {
 		KERR(&(_pd->dev), "Invalid dtb node\n");
@@ -232,12 +189,6 @@ static int sppctl_dnew(struct platform_device *_pd)
 	p = devm_kzalloc(&(_pd->dev), sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
-	memset(p->name, 0, SPPCTL_MAX_NAM);
-	if (np)
-		strcpy(p->name, np->name);
-	else
-		strcpy(p->name, MNAME);
-	dev_set_name(&(_pd->dev), "%s", p->name);
 
 	ret = sppctl_pctl_resmap(_pd, p);
 	if (ret != 0)
@@ -246,10 +197,6 @@ static int sppctl_dnew(struct platform_device *_pd)
 	// set gpio_chip
 	_pd->dev.platform_data = p;
 	sppctl_sysfs_init(_pd);
-	of_property_read_string(np, "fwname", &fwfname);
-	if (fwfname)
-		strcpy(p->fwname, fwfname);
-	sppctl_loadfw(&(_pd->dev), p->fwname);
 
 	ret = sppctl_gpio_new(_pd, p);
 	if (ret != 0)
