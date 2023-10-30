@@ -37,44 +37,6 @@
 
 #include "sppctl.h"
 
-#ifndef SPPCTL_H
-
-#define MNAME "sp7350_gpio"
-#define M_NAM "SP7350 GPIO"
-#define M_LIC "GPL v2"
-#define M_AUT1 "Dvorkin Dmitry <dvorkin@tibbo.com>"
-#define M_AUT2 "Wells Lu <wells.lu@sunplus.com>"
-
-#define M_ORG "Sunplus/Tibbo Tech."
-#define M_CPR "(C) 2020"
-
-#define KINF(pd, fmt, args...) \
-	do { \
-		if ((pd) != NULL) \
-			dev_info((pd), fmt, ##args); \
-		else \
-			pr_info(MNAME ": " fmt, ##args); \
-	} while (0)
-#define KERR(pd, fmt, args...) \
-	do { \
-		if ((pd) != NULL) \
-			dev_info((pd), fmt, ##args); \
-		else \
-			pr_err(MNAME ": " fmt, ##args); \
-	} while (0)
-#ifdef CONFIG_DEBUG_GPIO
-#define KDBG(pd, fmt, args...) \
-	do { \
-		if ((pd) != NULL) \
-			dev_info((pd), fmt, ##args); \
-		else \
-			pr_debug(MNAME ": " fmt, ##args); \
-	} while (0)
-#else
-#define KDBG(pd, fmt, args...)
-#endif
-
-#endif // SPPCTL_H
 
 struct sppctlgpio_chip_t {
 	spinlock_t lock;

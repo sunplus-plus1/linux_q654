@@ -41,19 +41,8 @@ void sppctlgpio_u_soinv(struct gpio_chip *_c, unsigned int _n);
 int sppctlgpio_u_isodr(struct gpio_chip *_c, unsigned int _n);
 void sppctlgpio_u_seodr(struct gpio_chip *_c, unsigned int _n, unsigned int _v);
 
-#ifdef SPPCTL_H
 int sppctlgpio_f_request(struct gpio_chip *_c, unsigned int _n);
 void sppctlgpio_f_free(struct gpio_chip *_c, unsigned int _n);
-
-#else
-// take pin (export/open for ex.): set GPIO_FIRST=1,GPIO_MASTER=1
-// FIX: how to prevent gpio to take over the mux if mux is the default?
-// FIX: idea: save state of MASTER/FIRST and return back after _fre?
-int sppctlgpio_f_req(struct gpio_chip *_c, unsigned int _n);
-
-// gave pin back: set GPIO_MASTER=0,GPIO_FIRST=0
-void sppctlgpio_f_fre(struct gpio_chip *_c, unsigned int _n);
-#endif // SPPCTL_H
 
 // get dir: 0=out, 1=in, -E =err (-EINVAL for ex): OE inverted on ret
 int sppctlgpio_f_gdi(struct gpio_chip *_c, unsigned int _n);

@@ -415,11 +415,7 @@ int stpctl_o_n2map(struct pinctrl_dev *_pd, struct device_node *_dn, struct pinc
 		p_p = SPPCTL_PCTLD_P(dt_pin);
 		p_g = SPPCTL_PCTLD_G(dt_pin);
 
-		if ((p_p >= sppctlpins_allSZ)
-#ifndef SUPPORT_PINMUX
-			|| (p_g == SPPCTL_PCTL_G_PMUX)
-#endif
-		) {
+		if ((p_p >= sppctlpins_allSZ) || (p_g == SPPCTL_PCTL_G_PMUX)) {
 			KDBG(_pd->dev, "Invalid \'sunplus,pins\' property at index %d (0x%08x)\n", i, dt_pin);
 			return -EINVAL;
 		}
