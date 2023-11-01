@@ -1041,6 +1041,37 @@ static int sp_spinand_write_page(struct nand_chip *chip, const u8 *buf,
 	return ret;
 }
 
+static int sp_spinand_feature_cfg(struct sp_spinand_info *info)
+{
+	int i;
+	u32 value;
+
+	for (i = 0; i < nanddev_ntargets(&info->nand.base); i++) {
+		sp_spinand_select_chip(&info->nand, i);
+		if (info->nand.drv_options & SPINAND_OPT_ECCEN_IN_F90_4) {
+			value = spi_nand_getfeatures(info, 0x90);
+			value &= ~0x01;
+			spi_nand_setfeatures(info, 0x90, value);
+		}
+
+		value = spi_nand_getfeatures(info, DEVICE_FEATURE_ADDR);
+		value &= ~0x10; 	/* disable internal ECC */
+		if (info->nand.drv_options & SPINAND_OPT_HAS_BUF_BIT)
+			value |= 0x08;	/* use buffer read mode */
+		if (info->nand.drv_options & SPINAND_OPT_HAS_CONTI_RD)
+			value &= ~0x01; /* disable continuous read mode */
+		if (info->nand.drv_options & SPINAND_OPT_HAS_QE_BIT)
+			value |= 0x01;	/* enable quad io */
+		spi_nand_setfeatures(info, DEVICE_FEATURE_ADDR, value);
+
+		/* close write protection */
+		spi_nand_setfeatures(info, DEVICE_PROTECTION_ADDR, 0x0);
+		info->dev_protection = spi_nand_getfeatures(info, DEVICE_PROTECTION_ADDR);
+	}
+
+	return 0;
+}
+
 static int sunplus_parse_cfg_partitions(struct mtd_info *master,
 					const struct mtd_partition **pparts,
 					struct mtd_part_parser_data *data)
@@ -1290,28 +1321,8 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		info->mtd->size = info->chip_num * nanddev_target_size(&info->nand.base);
 	}
 
-	for (i = 0; i < nanddev_ntargets(&info->nand.base); i++) {
-		sp_spinand_select_chip(&info->nand, i);
-		if (info->nand.drv_options & SPINAND_OPT_ECCEN_IN_F90_4) {
-			value = spi_nand_getfeatures(info, 0x90);
-			value &= ~0x01;
-			spi_nand_setfeatures(info, 0x90, value);
-		}
-
-		value = spi_nand_getfeatures(info, DEVICE_FEATURE_ADDR);
-		value &= ~0x10;     /* disable internal ECC */
-		if (info->nand.drv_options & SPINAND_OPT_HAS_BUF_BIT)
-			value |= 0x08;  /* use buffer read mode */
-		if (info->nand.drv_options & SPINAND_OPT_HAS_CONTI_RD)
-			value &= ~0x01; /* disable continuous read mode */
-		if (info->nand.drv_options & SPINAND_OPT_HAS_QE_BIT)
-			value |= 0x01;  /* enable quad io */
-		spi_nand_setfeatures(info, DEVICE_FEATURE_ADDR, value);
-
-		/* close write protection */
-		spi_nand_setfeatures(info, DEVICE_PROTECTION_ADDR, 0x0);
-		info->dev_protection = spi_nand_getfeatures(info, DEVICE_PROTECTION_ADDR);
-	}
+	/* Configure the feature registers of SPI-NAND devices */
+	sp_spinand_feature_cfg(info);
 
 	if (sp_bch_init(info->mtd, &info->parity_sector_size) < 0) {
 		ret = -ENXIO;
@@ -1380,7 +1391,7 @@ err1:
 	return ret;
 }
 
-int sp_spinand_remove(struct platform_device *pdev)
+static int sp_spinand_remove(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct sp_spinand_info *info = platform_get_drvdata(pdev);
@@ -1415,18 +1426,35 @@ int sp_spinand_remove(struct platform_device *pdev)
 	return ret;
 }
 
-int sp_spinand_suspend(struct platform_device *pdev, pm_message_t state)
+static int sp_spinand_suspend(struct device *dev)
 {
-	//struct sp_spinand_info *info = platform_get_drvdata(pdev);
+	struct sp_spinand_info *info = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(info->clk);
+
 	return 0;
 
 }
 
-int sp_spinand_resume(struct platform_device *pdev)
+static int sp_spinand_resume(struct device *dev)
 {
-	//struct sp_spinand_info *info = platform_get_drvdata(pdev);
+	struct sp_spinand_info *info = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(info->clk);
+	if (ret < 0)
+		return ret;
+
+	/* Configure the feature registers of SPI-NAND devices */
+	sp_spinand_feature_cfg(info);
+
 	return 0;
 }
+
+static const struct dev_pm_ops sp_spinand_pm_ops = {
+	.suspend	= sp_spinand_suspend,
+	.resume		= sp_spinand_resume,
+};
 
 static const struct of_device_id sunplus_nand_of_match[] = {
 	{ .compatible = "sunplus,sp7350-spi-nand" },
@@ -1437,12 +1465,11 @@ MODULE_DEVICE_TABLE(of, sunplus_nand_of_match);
 static struct platform_driver sp_spinand_driver = {
 	.probe = sp_spinand_probe,
 	.remove = sp_spinand_remove,
-	.suspend = sp_spinand_suspend,
-	.resume = sp_spinand_resume,
 	.driver = {
 		.name = "sunplus,spinand",
 		.owner = THIS_MODULE,
 		.of_match_table = sunplus_nand_of_match,
+		.pm = &sp_spinand_pm_ops,
 	},
 };
 
