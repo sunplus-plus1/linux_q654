@@ -695,13 +695,26 @@ static int sp_bch_remove(struct platform_device *pdev)
 	return 0;
 }
 
-int sp_bch_suspend(struct platform_device *pdev, pm_message_t state)
+static int sp_bch_suspend(struct device *dev)
 {
+	struct sp_bch_chip *chip = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(chip->clk);
+
 	return 0;
 }
 
-int sp_bch_resume(struct platform_device *pdev)
+static int sp_bch_resume(struct device *dev)
 {
+	struct sp_bch_chip *chip = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(chip->clk);
+	if (ret < 0)
+		return ret;
+
+	sp_bch_reset(chip);
+
 	return 0;
 }
 
@@ -727,7 +740,14 @@ static struct platform_device sp_bch_device = {
 };
 #endif
 
+static const struct dev_pm_ops sp_bch_pm_ops = {
+	.suspend	= sp_bch_suspend,
+	.resume		= sp_bch_resume,
+};
+
 static const struct of_device_id sp_bch_of_match[] = {
+	{ .compatible = "sunplus,sp7021-bch" },
+	{ .compatible = "sunplus,q645-bch" },
 	{ .compatible = "sunplus,sp7350-bch" },
 	{},
 };
@@ -736,12 +756,11 @@ MODULE_DEVICE_TABLE(of, sp_bch_of_match);
 static struct platform_driver sp_bch_driver = {
 	.probe = sp_bch_probe,
 	.remove = sp_bch_remove,
-	.suspend = sp_bch_suspend,
-	.resume = sp_bch_resume,
 	.driver = {
 		.name = "sunplus,sp_bch",
 		.owner = THIS_MODULE,
 		.of_match_table = sp_bch_of_match,
+		.pm = &sp_bch_pm_ops,
 	},
 };
 
