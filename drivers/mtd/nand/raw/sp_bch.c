@@ -17,6 +17,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
+#include <linux/reset.h>
 #include <linux/uaccess.h>
 #include "sp_bch.h"
 
@@ -610,6 +611,18 @@ static int sp_bch_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	chip->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(chip->rstc)) {
+		dev_err(dev, "failed to get reset control\n");
+		goto err;
+	}
+
+	ret = reset_control_deassert(chip->rstc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset control");
+		goto err;
+	}
+
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(clk)) {
 		ret = clk_prepare(clk);
@@ -698,8 +711,15 @@ static int sp_bch_remove(struct platform_device *pdev)
 static int sp_bch_suspend(struct device *dev)
 {
 	struct sp_bch_chip *chip = dev_get_drvdata(dev);
+	int ret;
 
 	clk_disable_unprepare(chip->clk);
+
+	ret = reset_control_assert(chip->rstc);
+	if (ret) {
+		dev_err(dev, "failed to assert reset control");
+		return ret;
+	}
 
 	return 0;
 }
@@ -708,6 +728,12 @@ static int sp_bch_resume(struct device *dev)
 {
 	struct sp_bch_chip *chip = dev_get_drvdata(dev);
 	int ret;
+
+	ret = reset_control_deassert(chip->rstc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset control");
+		return ret;
+	}
 
 	ret = clk_prepare_enable(chip->clk);
 	if (ret < 0)

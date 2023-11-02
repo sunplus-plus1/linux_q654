@@ -332,6 +332,7 @@ struct sp_spinand_regs {
 struct sp_spinand_info {
 	struct device *dev;
 	struct clk *clk;
+	struct reset_control *rstc;
 	struct mtd_info *mtd;
 	struct nand_chip nand;
 	void __iomem *regs;
