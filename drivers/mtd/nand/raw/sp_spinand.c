@@ -13,6 +13,7 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include "sp_bch.h"
@@ -1158,6 +1159,18 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	info->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(info->rstc)) {
+		SPINAND_LOGE("Failed to get reset control\n");
+		goto err1;
+	}
+
+	ret = reset_control_deassert(info->rstc);
+	if (ret) {
+		SPINAND_LOGE("Failed to deassert reset control\n");
+		goto err1;
+	}
+
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(clk)) {
 		ret = clk_prepare(clk);
@@ -1429,8 +1442,15 @@ static int sp_spinand_remove(struct platform_device *pdev)
 static int sp_spinand_suspend(struct device *dev)
 {
 	struct sp_spinand_info *info = dev_get_drvdata(dev);
+	int ret;
 
 	clk_disable_unprepare(info->clk);
+
+	ret = reset_control_assert(info->rstc);
+	if (ret) {
+		SPINAND_LOGE("Failed to assert reset control\n");
+		return ret;
+	}
 
 	return 0;
 
@@ -1441,9 +1461,17 @@ static int sp_spinand_resume(struct device *dev)
 	struct sp_spinand_info *info = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(info->clk);
-	if (ret < 0)
+	ret = reset_control_deassert(info->rstc);
+	if (ret) {
+		SPINAND_LOGE("Failed to deassert reset control\n");
 		return ret;
+	}
+
+	ret = clk_prepare_enable(info->clk);
+	if (ret < 0) {
+		SPINAND_LOGE("Failed to enable clock");
+		return ret;
+	}
 
 	/* Configure the feature registers of SPI-NAND devices */
 	sp_spinand_feature_cfg(info);

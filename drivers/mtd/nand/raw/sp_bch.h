@@ -84,6 +84,7 @@ struct sp_bch_chip {
 	struct device *dev;
 	struct mtd_info *mtd;
 	struct clk *clk;
+	struct reset_control *rstc;
 	void __iomem *regs;
 	int irq;
 	int busy;
