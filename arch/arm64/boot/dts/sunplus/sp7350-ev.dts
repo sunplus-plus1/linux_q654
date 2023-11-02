@@ -107,6 +107,33 @@
 		spi0 = &sp_spinor0;
 
 		usb-device0 = &udc0;
+
+		stc0 = &stc;
+		stc1 = &stc_av0;
+		stc2 = &stc_av1;
+		stc3 = &stc_av2;
+		stc4 = &stc_av4;
+
+		timer0 = &stc_timer0;
+		timer1 = &stc_timer1;
+		timer2 = &stc_timer2;
+		timer3 = &stc_timer3;
+		timer4 = &stc_av0_timer0;
+		timer5 = &stc_av0_timer1;
+		timer6 = &stc_av0_timer2;
+		timer7 = &stc_av0_timer3;
+		timer8 = &stc_av1_timer0;
+		timer9 = &stc_av1_timer1;
+		timer10 = &stc_av1_timer2;
+		timer11 = &stc_av1_timer3;
+		timer12 = &stc_av2_timer0;
+		timer13 = &stc_av2_timer1;
+		timer14 = &stc_av2_timer2;
+		timer15 = &stc_av2_timer3;
+		timer16 = &stc_av4_timer0;
+		timer17 = &stc_av4_timer1;
+		timer18 = &stc_av4_timer2;
+		timer19 = &stc_av4_timer3;
 	};
 
 	chosen {
@@ -3276,6 +3303,216 @@
 		clocks = <&clkc STC_AV3>;
 		resets = <&rstc RST_STC_AV3>;
 		timeout-sec = <10>;
+	};
+
+	stc: stc@f8800b80 {
+		compatible = "sunplus,sp7350-stc";
+		reg = <0x00 0xf8800b80 0x00 0x14>;
+		clocks = <&clkc SYSAO>;
+		clock-names = "clk_sys";
+		stc-src-sel = /bits/ 8 <1>;
+		stc-freq = <100000>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		stc_timer0: timer0@f8800ba4 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800ba4 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 129 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_timer1: timer1@f8800bb0 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800bb0 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_timer2: timer2@f8800bbc {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800bbc 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_timer3: timer3@f8800bc8 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800bc8 0x0 0x14>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 132 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+	};
+
+	stc_av0: stc_av0@f8800c00 {
+		compatible = "sunplus,sp7350-stc";
+		reg = <0x00 0xf8800c00 0x00 0x14>;
+		clocks = <&clkc SYSAO>;
+		clock-names = "clk_sys";
+		stc-src-sel = /bits/ 8 <1>;
+		stc-freq = <100000>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		stc_av0_timer0: timer0@f8800c24 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800c24 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 133 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av0_timer1: timer1@f8800c30 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800c30 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 134 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av0_timer2: timer2@f8800c3c {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800c3c 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 135 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av0_timer3: timer3@f8800c48 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800c48 0x0 0x14>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 136 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+	};
+
+	stc_av1: stc_av1@f8800c80 {
+		compatible = "sunplus,sp7350-stc";
+		reg = <0x00 0xf8800c80 0x00 0x14>;
+		clocks = <&clkc SYSAO>;
+		clock-names = "clk_sys";
+		stc-src-sel = /bits/ 8 <1>;
+		stc-freq = <100000>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		stc_av1_timer0: timer0@f8800ca4 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800ca4 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av1_timer1: timer1@f8800cb0 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800cb0 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 138 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av1_timer2: timer2@f8800cbc {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800cbc 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 139 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av1_timer3: timer3@f8800cc8 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800cc8 0x0 0x14>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 140 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+	};
+
+	stc_av2: stc_av2@f8800d00 {
+		compatible = "sunplus,sp7350-stc";
+		reg = <0x00 0xf8800d00 0x00 0x14>;
+		clocks = <&clkc SYSAO>;
+		clock-names = "clk_sys";
+		stc-src-sel = /bits/ 8 <1>;
+		stc-freq = <100000>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		stc_av2_timer0: timer0@f8800d24 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800d24 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av2_timer1: timer1@f8800d30 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800d30 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av2_timer2: timer2@f8800d3c {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800d3c 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 144 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av2_timer3: timer3@f8800d48 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8800d48 0x0 0x14>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 145 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+	};
+
+	stc_av4: stc_av4@f8801300 {
+		compatible = "sunplus,sp7350-stc";
+		reg = <0x00 0xf8801300 0x00 0x14>;
+		clocks = <&clkc SYSAO>;
+		clock-names = "clk_sys";
+		stc-src-sel = /bits/ 8 <1>;
+		stc-freq = <100000>;
+
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		stc_av4_timer0: timer0@f8801324 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8801324 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 186 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av4_timer1: timer1@f8801330 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8801330 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 187 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av4_timer2: timer2@f880133c {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf880133c 0x0 0xc>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 188 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
+		stc_av4_timer3: timer3@f8801348 {
+			compatible = "sunplus,sp7350-timer";
+			reg = <0x0 0xf8801348 0x0 0x14>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 189 IRQ_TYPE_EDGE_RISING>;
+			timer-mode = /bits/ 8 <1>;
+		};
 	};
 
 	timer_test: timer_test@f8000580 {

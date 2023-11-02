@@ -477,6 +477,20 @@ config HISI_HIKEY_USB
 	  switching between the dual-role USB-C port and the USB-A host ports
 	  using only one USB controller.
 
+config SUNPLUS_STC
+	tristate "STC on Sunplus SP7350 Platform"
+	depends on SOC_SP7350
+	help
+	  Enable support for the Sunplus SOC's on-chip STC. STC provides clock 
+	  source for timer.
+
+config SUNPLUS_TIMER
+	tristate "Timers on Sunplus SP7350 Platform"
+	depends on SOC_SP7350 && SUNPLUS_STC
+	help
+	  Enable support for the Sunplus SOC's on-chip Timers. The default 
+	  clock source uses the STC source.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
