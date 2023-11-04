@@ -62,6 +62,7 @@
 //#define DISP_MIPITX_DSI_VPP_SRC_3840
 
 #define LT8912B_HDMI_ENABLE
+//#define LT8912B_HDMI_480X272
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
 #define LT8912B_HDMI_1080P
@@ -1334,7 +1335,7 @@
 			compatible = "lontium,lt8912b";
 			reg = <0x48>;
 			//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
-			#if defined(LT8912B_HDMI_480P)
+			#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
 			hdmi-timing = <0x0>;
 			#elif defined(LT8912B_HDMI_720P)
 			hdmi-timing = <0x2>;
@@ -3155,7 +3156,7 @@
 		//sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
 		//sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
 		//sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-		sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
 
 		sp7350,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
 		sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
@@ -3184,15 +3185,15 @@
 			 * 0xe = ARGB8888
 			 */
 	#if defined(DISP_MIPITX_DSI_VPP_SRC_480P)
-		sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
 	#elif defined(DISP_MIPITX_DSI_VPP_SRC_720P)
-		sp7350,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 1280 720 480 1280 0x2>; /* 0x2 = YUY2 */
 	#elif defined(DISP_MIPITX_DSI_VPP_SRC_1080P)
-		sp7350,vpp0_layer = <0 0 1920 1080 1920 1080 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 1920 1080 480 1280 0x2>; /* 0x2 = YUY2 */
 	#elif defined(DISP_MIPITX_DSI_VPP_SRC_3840)
-		sp7350,vpp0_layer = <0 0 3840 2880 3840 2880 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 3840 2880 480 1280 0x2>; /* 0x2 = YUY2 */
 	#else
-		sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
 			/* 0x1 = UYVY
 			 * 0x2 = YUY2
 			 * 0x3 = NV16
@@ -3227,7 +3228,11 @@
 			 */
 #elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 		sp7350,dev_name = "LT8912B-HDMI";
-	#if defined(LT8912B_HDMI_480P)
+	#if defined(LT8912B_HDMI_480X272)
+		sp7350,osd0_layer = <0 0 480 272 0x8>; /* 0x8 = RGB565 */
+		sp7350,vpp0_layer = <0 0 720 480 480 272 0x2>; /* 0x2 = YUY2 */
+		sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
+	#elif defined(LT8912B_HDMI_480P)
 		sp7350,osd0_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd1_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
@@ -3239,21 +3244,21 @@
 		sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
 		sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
 	#elif defined(LT8912B_HDMI_1080P)
 		sp7350,osd0_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd1_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 1920 1080 1920 1080 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 720 480 1920 1080 0x2>; /* 0x2 = YUY2 */
 		sp7350,disp_output = <1920 1080 0x0>; /* 0x0:MIPITX DSI */
 	#else
 		sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
+		sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
 		sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
 	#endif
 		sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */

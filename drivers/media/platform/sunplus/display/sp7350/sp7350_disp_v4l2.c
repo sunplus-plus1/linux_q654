@@ -277,10 +277,17 @@ static int sp_start_streaming(struct vb2_queue *vq, unsigned int count)
 		/*
 		 * set vpp layer for vscl block
 		 */
+		#ifdef SP_DISP_VPP_SCALE_NEW
+		sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
+				layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
+				disp_dev->vpp_res[0].img_dest_w, disp_dev->vpp_res[0].img_dest_h,
+				disp_dev->out_res.width, disp_dev->out_res.height);
+		#else
 		sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 				disp_dev->vpp_res[0].crop_w, disp_dev->vpp_res[0].crop_h,
 				layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
 				disp_dev->out_res.width, disp_dev->out_res.height);
+		#endif
 	}
 
 	layer->skip_first_int = 1;

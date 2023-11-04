@@ -28,6 +28,8 @@ extern const struct proc_ops sp_disp_proc_ops;
 //#define SP_DISP_OSD_PARM
 #define V4L2_TEST_DQBUF
 
+#define SP_DISP_VPP_SCALE_NEW
+
 #ifdef SP_DISP_V4L2_SUPPORT
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
@@ -138,6 +140,17 @@ struct sp_disp_layer_osd_res {
  * define for sp7350 display driver
  *   vpp layer resolution info
  */
+#ifdef SP_DISP_VPP_SCALE_NEW
+struct sp_disp_layer_vpp_res {
+	unsigned int x_ofs;
+	unsigned int y_ofs;
+	unsigned int img_src_w;
+	unsigned int img_src_h;
+	unsigned int img_dest_w;
+	unsigned int img_dest_h;
+	unsigned int color_mode;
+};
+#else
 struct sp_disp_layer_vpp_res {
 	unsigned int x_ofs;
 	unsigned int y_ofs;
@@ -147,6 +160,7 @@ struct sp_disp_layer_vpp_res {
 	unsigned int height;
 	unsigned int color_mode;
 };
+#endif
 
 /*
  * define for sp7350 display driver

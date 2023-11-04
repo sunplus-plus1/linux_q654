@@ -280,6 +280,80 @@ EXPORT_SYMBOL(sp7350_vpp_bist_set);
  */
 #define SP7350_VPP_FACTOR_METHOD	0
 
+#ifdef SP_DISP_VPP_SCALE_NEW
+int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int img_src_w, int img_src_h, int yuv_fmt)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value;
+
+	value = readl(disp_dev->base + IMGREAD_GLOBAL_CONTROL);
+	value |= SP7350_VPP_IMGREAD_FETCH_EN;
+	writel(value, disp_dev->base + IMGREAD_GLOBAL_CONTROL);
+
+	value = readl(disp_dev->base + IMGREAD_CONFIG);
+	value &= ~(SP7350_VPP_IMGREAD_DATA_FMT |
+		SP7350_VPP_IMGREAD_YC_SWAP | SP7350_VPP_IMGREAD_UV_SWAP);
+	if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_YUY2)
+		value |= SP7350_VPP_IMGREAD_DATA_FMT_SEL(SP7350_VPP_IMGREAD_DATA_FMT_YUY2);
+	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV12)
+		value |= SP7350_VPP_IMGREAD_DATA_FMT_SEL(SP7350_VPP_IMGREAD_DATA_FMT_NV12);
+	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV16)
+		value |= SP7350_VPP_IMGREAD_DATA_FMT_SEL(SP7350_VPP_IMGREAD_DATA_FMT_NV16);
+	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV24)
+		value |= SP7350_VPP_IMGREAD_DATA_FMT_SEL(SP7350_VPP_IMGREAD_DATA_FMT_NV24);
+	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_UYVY)
+		value |= SP7350_VPP_IMGREAD_DATA_FMT_SEL(SP7350_VPP_IMGREAD_DATA_FMT_YUY2) |
+			SP7350_VPP_IMGREAD_YC_SWAP;
+	else
+		value |= SP7350_VPP_IMGREAD_DATA_FMT_SEL(SP7350_VPP_IMGREAD_DATA_FMT_YUY2);
+
+	value |= SP7350_VPP_IMGREAD_FM_MODE;
+
+	if (disp_dev->out_res.mipitx_mode == SP7350_MIPITX_DSI)
+		;//TBD
+	else
+		value |= SP7350_VPP_IMGREAD_UV_SWAP; //for CSI YUY2 test only
+
+	writel(value, disp_dev->base + IMGREAD_CONFIG);
+
+	value = 0;
+	#if (SP7350_VPP_SCALE_METHOD == 1) //method 1 , set imgread xstart&ystart
+	value |= (y << 16) | (x << 0);
+	#endif
+	writel(value, disp_dev->base + IMGREAD_CROP_START);
+
+	value = 0;
+	value |= (img_src_h << 16) | (img_src_w << 0);
+	writel(value, disp_dev->base + IMGREAD_FRAME_SIZE);
+
+	value = 0;
+	if ((yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_YUY2) ||
+		 (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_UYVY))
+		value |= (0 << 16) | (img_src_w * 2);
+	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV12)
+		//value |= ((img_src_w / 2) << 16) | (img_src_w);
+		value |= (img_src_w << 16) | (img_src_w);
+	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV16)
+		value |= (0 << 16) | (img_src_w);
+	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV24)
+		value |= ((img_src_w * 2) << 16) | (img_src_w);
+	else
+		value |= (0 << 16) | (img_src_w * 2);
+	writel(value, disp_dev->base + IMGREAD_LINE_STRIDE_SIZE);
+
+	writel((u32)data_addr1,
+		disp_dev->base + IMGREAD_DATA_ADDRESS_1);
+	writel((u32)data_addr1 + (img_src_w * img_src_h),
+		disp_dev->base + IMGREAD_DATA_ADDRESS_2);
+
+	//pr_info("  imgread (%d, %d)\n", img_src_w, h);
+	//pr_info("    luma=0x%08x, chroma=0x%08x\n",
+	//	data_addr1, data_addr1 + (img_src_w * img_src_h));
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_vpp_imgread_set);
+#else
 int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int w, int h, int yuv_fmt)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
@@ -352,7 +426,155 @@ int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int w, int h, int yuv_f
 	return 0;
 }
 EXPORT_SYMBOL(sp7350_vpp_imgread_set);
+#endif
 
+#ifdef SP_DISP_VPP_SCALE_NEW
+int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest_w, int img_dest_h, int output_w, int output_h)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u64 factor64, factor_init64;
+	int crop_xlen, crop_ylen;
+	u32 source_w, source_h;
+	u32 value;
+
+	//pr_info("vpp vscl setting\n");
+
+	#if (SP7350_VPP_SCALE_METHOD == 1) //method 1 , set imgread xstart&ystart
+	x = 0;
+	y = 0;
+	#endif
+	value = readl(disp_dev->base + VSCL_CONFIG2);
+	value |= (SP7350_VPP_VSCL_BUFR_EN |
+		SP7350_VPP_VSCL_VINT_EN |
+		SP7350_VPP_VSCL_HINT_EN |
+		SP7350_VPP_VSCL_DCTRL_EN |
+		SP7350_VPP_VSCL_ACTRL_EN);
+	writel(value, disp_dev->base + VSCL_CONFIG2);
+
+	if (img_src_w < 128) img_src_w = 128;
+	if (img_src_h < 128) img_src_h = 128;
+
+	if (x > (img_src_w - 128)) x = img_src_w / 2;
+	if (y > (img_src_h - 128)) y = img_src_h / 2;
+
+	crop_xlen = img_src_w - x;
+	crop_ylen = img_src_h - y;
+
+	writel(crop_xlen, disp_dev->base + VSCL_ACTRL_I_XLEN);
+	writel(crop_ylen, disp_dev->base + VSCL_ACTRL_I_YLEN);
+	#if (SP7350_VPP_SCALE_METHOD == 1) //method 1 , set imgread xstart&ystart, fix 0 here
+	writel(0, disp_dev->base + VSCL_ACTRL_S_XSTART);
+	writel(0, disp_dev->base + VSCL_ACTRL_S_YSTART);
+	#elif (SP7350_VPP_SCALE_METHOD == 2) //method 2 , set vscl xstart&ystart
+	writel(x, disp_dev->base + VSCL_ACTRL_S_XSTART);
+	writel(y, disp_dev->base + VSCL_ACTRL_S_YSTART);
+	#endif
+
+	#if 1 //crop left & top only
+	writel(crop_xlen, disp_dev->base + VSCL_ACTRL_S_XLEN);
+	writel(crop_ylen, disp_dev->base + VSCL_ACTRL_S_YLEN);
+	#else //crop left & top & right & bot
+	writel(crop_xlen - x, disp_dev->base + VSCL_ACTRL_S_XLEN);
+	writel(crop_ylen - y, disp_dev->base + VSCL_ACTRL_S_YLEN);
+	#endif
+	writel(img_dest_w, disp_dev->base + VSCL_DCTRL_D_XLEN);
+	writel(img_dest_h, disp_dev->base + VSCL_DCTRL_D_YLEN);
+
+	writel(output_w, disp_dev->base + VSCL_DCTRL_O_XLEN);
+	writel(output_h, disp_dev->base + VSCL_DCTRL_O_YLEN);
+	writel(0, disp_dev->base + VSCL_DCTRL_D_XSTART);
+	writel(0, disp_dev->base + VSCL_DCTRL_D_YSTART);
+
+	/*
+	 * VSCL SETTING for HORIZONTAL
+	 */
+	value = readl(disp_dev->base + VSCL_HINT_CTRL);
+	value |= SP7350_VPP_VSCL_HINT_FLT_EN;
+	writel(value, disp_dev->base + VSCL_HINT_CTRL);
+
+	source_w = readl(disp_dev->base + VSCL_ACTRL_S_XLEN);
+
+	/* cal h_factor */
+	if (source_w == img_dest_w)
+		factor64 = DIV64_U64_ROUND_CLOSEST((u64)source_w << 22, (u64)img_dest_w);
+	else {
+		factor64 = DIV64_U64_ROUND_UP((u64)source_w << 22, (u64)img_dest_w);
+		#if (SP7350_VPP_FACTOR_METHOD == 0)
+		factor64 -= 1;
+		#endif
+	}
+	value = ((u32)factor64 >> 0) & 0x0000ffff;
+	writel(value, disp_dev->base + VSCL_HINT_HFACTOR_LOW);
+	value = ((u32)factor64 >> 16) & 0x000001ff;
+	writel(value, disp_dev->base + VSCL_HINT_HFACTOR_HIGH);
+
+	/* cal h_factor_init */
+	if (source_w == img_dest_w)
+		factor_init64 = 0;
+	else {
+		factor_init64 = ((u64)source_w << 22) % ((u64)img_dest_w);
+		#if (SP7350_VPP_FACTOR_METHOD == 1)
+		factor_init64 = img_dest_w - factor_init64;
+		#endif
+	}
+	value = ((u32)factor_init64 >> 0) & 0x0000ffff;
+	writel(value, disp_dev->base + VSCL_HINT_INITF_LOW);
+	value = ((u32)factor_init64 >> 16) & 0x0000003f;
+	#if (SP7350_VPP_FACTOR_METHOD == 1)
+	value |= SP7350_VPP_VSCL_HINT_INITF_PN;
+	#endif
+	writel(value, disp_dev->base + VSCL_HINT_INITF_HIGH);
+
+	/*
+	 * VSCL SETTING for VERTICAL
+	 */
+	value = readl(disp_dev->base + VSCL_VINT_CTRL);
+	value |= SP7350_VPP_VSCL_VINT_FLT_EN;
+	writel(value, disp_dev->base + VSCL_VINT_CTRL);
+
+	source_h = readl(disp_dev->base + VSCL_ACTRL_S_YLEN);
+
+	/* cal v_factor */
+	if (source_h == img_dest_h)
+		factor64 = DIV64_U64_ROUND_CLOSEST((u64)source_h << 22, (u64)img_dest_h);
+	else {
+		factor64 = DIV64_U64_ROUND_UP((u64)source_h << 22, (u64)img_dest_h);
+		#if (SP7350_VPP_FACTOR_METHOD == 0)
+		factor64 -= 1;
+		#endif
+	}
+	value = ((u32)factor64 >> 0) & 0x0000ffff;
+	writel(value, disp_dev->base + VSCL_VINT_VFACTOR_LOW);
+	value = ((u32)factor64 >> 16) & 0x000001ff;
+	writel(value, disp_dev->base + VSCL_VINT_VFACTOR_HIGH);
+
+	/* cal v_factor_init */
+	if (source_h == img_dest_h)
+		factor_init64 = 0;
+	else {
+		factor_init64 = ((u64)source_h << 22) % ((u64)img_dest_h);
+		#if (SP7350_VPP_FACTOR_METHOD == 1)
+		factor_init64 = img_dest_h - factor_init64;
+		#endif
+	}
+	value = ((u32)factor_init64 >> 0) & 0x0000ffff;
+	writel(value, disp_dev->base + VSCL_VINT_INITF_LOW);
+	value = ((u32)factor_init64 >> 16) & 0x0000003f;
+	#if (SP7350_VPP_FACTOR_METHOD == 1)
+	value |= SP7350_VPP_VSCL_VINT_INITF_PN;
+	#endif
+	writel(value, disp_dev->base + VSCL_VINT_INITF_HIGH);
+
+	//pr_info("  Offset (%d, %d) IN (%d, %d), OUT (%d, %d)\n", x, y, source_w, source_h, img_dest_w, img_dest_h);
+
+	//pr_info("    (x-axis, y-axis) = (%02d.%03d x,%02d.%03d x) \n",
+	//	img_dest_w/source_w, (img_dest_w * 1000 / source_w)-(img_dest_w/source_w)*1000,
+	//	img_dest_h/source_h, (img_dest_h * 1000 / source_h)-(img_dest_h/source_h)*1000);
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_vpp_vscl_set);
+#else
 int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int input_w, int input_h, int output_w, int output_h)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
@@ -392,7 +614,10 @@ int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int input_w, int input
 
 	writel(input_w, disp_dev->base + VSCL_ACTRL_I_XLEN);
 	writel(input_h, disp_dev->base + VSCL_ACTRL_I_YLEN);
-	#if (SP7350_VPP_SCALE_METHOD == 2) //method 2 , set vscl xstart&ystart
+	#if (SP7350_VPP_SCALE_METHOD == 1) //method 1 , set imgread xstart&ystart, fix 0 here
+	writel(0, disp_dev->base + VSCL_ACTRL_S_XSTART);
+	writel(0, disp_dev->base + VSCL_ACTRL_S_YSTART);
+	#elif (SP7350_VPP_SCALE_METHOD == 2) //method 2 , set vscl xstart&ystart
 	writel(x, disp_dev->base + VSCL_ACTRL_S_XSTART);
 	writel(y, disp_dev->base + VSCL_ACTRL_S_YSTART);
 	#endif
@@ -487,6 +712,8 @@ int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int input_w, int input
 	return 0;
 }
 EXPORT_SYMBOL(sp7350_vpp_vscl_set);
+#endif
+
 
 #define SP7350_VPP_VPOST_WIN_ALPHA_VALUE	0xff
 #define SP7350_VPP_VPOST_VPP_ALPHA_VALUE	0xff
@@ -551,19 +778,35 @@ int sp7350_vpp_resolution_init(struct sp_disp_device *disp_dev)
 	/*
 	 * set vpp layer for imgread block
 	 */
+	#ifdef SP_DISP_VPP_SCALE_NEW
+	sp7350_vpp_imgread_set((u32)virt_to_phys(&vpp0_data_array),
+			disp_dev->vpp_res[0].x_ofs,
+			disp_dev->vpp_res[0].y_ofs,
+			disp_dev->vpp_res[0].img_src_w,
+			disp_dev->vpp_res[0].img_src_h,
+			disp_dev->vpp_res[0].color_mode);
+	#else
 	sp7350_vpp_imgread_set((u32)virt_to_phys(&vpp0_data_array),
 			disp_dev->vpp_res[0].x_ofs,
 			disp_dev->vpp_res[0].y_ofs,
 			disp_dev->vpp_res[0].width,
 			disp_dev->vpp_res[0].height,
 			disp_dev->vpp_res[0].color_mode);
+	#endif
 	/*
 	 * set vpp layer for vscl block
 	 */
+	#ifdef SP_DISP_VPP_SCALE_NEW
+	sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
+			disp_dev->vpp_res[0].img_src_w, disp_dev->vpp_res[0].img_src_h,
+			disp_dev->vpp_res[0].img_dest_w, disp_dev->vpp_res[0].img_dest_h,
+			disp_dev->out_res.width, disp_dev->out_res.height);
+	#else
 	sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 			disp_dev->vpp_res[0].crop_w, disp_dev->vpp_res[0].crop_h,
 			disp_dev->vpp_res[0].width, disp_dev->vpp_res[0].height,
 			disp_dev->out_res.width, disp_dev->out_res.height);
+	#endif
 
 	return 0;
 }
@@ -574,19 +817,35 @@ int sp7350_vpp_restore(struct sp_disp_device *disp_dev)
 	/*
 	 * set vpp layer for imgread block
 	 */
+	#ifdef SP_DISP_VPP_SCALE_NEW
+	sp7350_vpp_imgread_set((u32)virt_to_phys(&vpp0_data_array),
+			disp_dev->vpp_res[0].x_ofs,
+			disp_dev->vpp_res[0].y_ofs,
+			disp_dev->vpp_res[0].img_src_w,
+			disp_dev->vpp_res[0].img_src_h,
+			disp_dev->vpp_res[0].color_mode);
+	#else
 	sp7350_vpp_imgread_set((u32)virt_to_phys(&vpp0_data_array),
 			disp_dev->vpp_res[0].x_ofs,
 			disp_dev->vpp_res[0].y_ofs,
 			disp_dev->vpp_res[0].width,
 			disp_dev->vpp_res[0].height,
 			disp_dev->vpp_res[0].color_mode);
+	#endif
 	/*
 	 * set vpp layer for vscl block
 	 */
+	#ifdef SP_DISP_VPP_SCALE_NEW
+	sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
+			disp_dev->vpp_res[0].img_src_w, disp_dev->vpp_res[0].img_src_h,
+			disp_dev->vpp_res[0].img_dest_w, disp_dev->vpp_res[0].img_dest_h,
+			disp_dev->out_res.width, disp_dev->out_res.height);
+	#else
 	sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 			disp_dev->vpp_res[0].crop_w, disp_dev->vpp_res[0].crop_h,
 			disp_dev->vpp_res[0].width, disp_dev->vpp_res[0].height,
 			disp_dev->out_res.width, disp_dev->out_res.height);
+	#endif
 
 	return 0;
 }
