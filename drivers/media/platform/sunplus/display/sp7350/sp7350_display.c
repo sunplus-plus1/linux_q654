@@ -168,10 +168,17 @@ static irqreturn_t sp7350_display_irq_fs(int irq, void *param)
 					/*
 					 * set vpp layer for vscl block
 					 */
+					#ifdef SP_DISP_VPP_SCALE_NEW
+					sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
+							layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
+							disp_dev->vpp_res[0].img_dest_w, disp_dev->vpp_res[0].img_dest_h,
+							disp_dev->out_res.width, disp_dev->out_res.height);
+					#else
 					sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 							disp_dev->vpp_res[0].crop_w, disp_dev->vpp_res[0].crop_h,
 							layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
 							disp_dev->out_res.width, disp_dev->out_res.height);
+					#endif
 				}
 
 				layer->cur_frm->vb.vb2_buf.timestamp = ktime_get_ns();
@@ -336,6 +343,43 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	/*
 	 * set vpp0_layer (offset & resolution & format)
 	 */
+	#ifdef SP_DISP_VPP_SCALE_NEW
+	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
+		"sp7350,vpp0_layer", vpp0_res, 7);
+	if (ret) {
+		disp_dev->vpp_res[0].x_ofs = 0;
+		disp_dev->vpp_res[0].y_ofs = 0;
+		disp_dev->vpp_res[0].img_src_w = 0;//720;
+		disp_dev->vpp_res[0].img_src_h = 0;//480;
+		disp_dev->vpp_res[0].img_dest_w = 0;
+		disp_dev->vpp_res[0].img_dest_h = 0;
+		disp_dev->vpp_res[0].color_mode = SP7350_VPP_IMGREAD_DATA_FMT_YUY2;
+	} else {
+		disp_dev->vpp_res[0].x_ofs = vpp0_res[0];
+		disp_dev->vpp_res[0].y_ofs = vpp0_res[1];
+		disp_dev->vpp_res[0].img_src_w = vpp0_res[2];
+		disp_dev->vpp_res[0].img_src_h = vpp0_res[3];
+		disp_dev->vpp_res[0].img_dest_w = vpp0_res[4];
+		disp_dev->vpp_res[0].img_dest_h = vpp0_res[5];
+		disp_dev->vpp_res[0].color_mode = vpp0_res[6];
+
+		if (vpp0_res[0] > vpp0_res[2])
+			pr_info("  warning x_ofs > img_src_w!\n");
+		if (vpp0_res[1] > vpp0_res[3])
+			pr_info("  warning y_ofs > img_src_h!\n");
+	}
+	#if 0
+	pr_info("  vpp0 (x,y) (img_src_w,img_src_h) = (%d %d)(%d %d)\n",
+		disp_dev->vpp_res[0].x_ofs,
+		disp_dev->vpp_res[0].y_ofs,
+		disp_dev->vpp_res[0].img_src_w,
+		disp_dev->vpp_res[0].img_src_h);
+	pr_info("  vpp0 img_dest_w/img_dset_h/cmod = %d %d %d\n",
+		disp_dev->vpp_res[0].img_dest_w,
+		disp_dev->vpp_res[0].img_dset_h,
+		disp_dev->vpp_res[0].color_mode);
+	#endif
+	#else
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
 		"sp7350,vpp0_layer", vpp0_res, 7);
 	if (ret) {
@@ -370,6 +414,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 		disp_dev->vpp_res[0].width,
 		disp_dev->vpp_res[0].height,
 		disp_dev->vpp_res[0].color_mode);
+	#endif
 	#endif
 
 	/*
@@ -681,8 +726,13 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	for (i = 0; i < SP_DISP_MAX_DEVICES; i++) {
 		if (i == 4) {
 			/* for vpp layer */
+			#ifdef SP_DISP_VPP_SCALE_NEW
+			disp_dev->dev[i]->fmt.fmt.pix.width = disp_dev->vpp_res[0].img_src_w;
+			disp_dev->dev[i]->fmt.fmt.pix.height = disp_dev->vpp_res[0].img_src_h;
+			#else
 			disp_dev->dev[i]->fmt.fmt.pix.width = disp_dev->vpp_res[0].width;
 			disp_dev->dev[i]->fmt.fmt.pix.height = disp_dev->vpp_res[0].height;
+			#endif
 
 			if (disp_dev->vpp_res[0].color_mode == SP7350_VPP_IMGREAD_DATA_FMT_UYVY)
 				disp_dev->dev[i]->fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_UYVY;
