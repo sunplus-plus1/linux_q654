@@ -17,7 +17,7 @@
 #include <linux/mmc/core.h>
 #include <linux/mmc/host.h>
 
-//#define MEASUREMENT_SIGNAL //timing measurement
+#define MEASUREMENT_SIGNAL //timing measurement
 //#define SPMMC_SOFTPAD
 
 #define SPMMC_SUPPORT_VOLTAGE_1V8

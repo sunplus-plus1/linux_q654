@@ -368,9 +368,7 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 
 static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 {
-	#ifdef HS400
-	u32 x;
-	#endif
+	u32 hs400_value,i;
 	u32 value = readl(&host->base->sd_config1);
 	int clkdiv = readl(&host->base->sd_config0) >> 20;
 	int delay = clkdiv/2 < 7 ? clkdiv/2 : 7;
@@ -412,15 +410,37 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 	case MMC_TIMING_MMC_HS400:
 		host->ddr_enabled = 1;
 		timing_name = "mmc HS400";
-		#ifdef HS400
-		x = readl(&host->base->sd_config0);
-		x = bitfield_replace(x, 19, 1, 1);//sdhs400mode
-		writel(x, &host->base->sd_config0);
-		//spmmc_pr(INFO, "sdhs400mode=1\n");
-		x = readl(&host->base->card_mediatype_srcdst);
-		x = bitfield_replace(x, 11, 1, 0);//enhanced_strobe=0:RSP don't use data strobe
-		writel(x, &host->base->card_mediatype_srcdst);
-		#endif
+
+		hs400_value = readl(&host->base->sd_config0);
+		hs400_value = bitfield_replace(hs400_value, 19, 1, 1);//sdhs400mode
+		writel(hs400_value, &host->base->sd_config0);
+		//spmmc_pr(WARNING, "sdhs400mode=1\n");
+		mdelay(1);
+		hs400_value = readl(&host->base->card_mediatype_srcdst);
+		hs400_value = bitfield_replace(hs400_value, 11, 1, 1);
+		writel(hs400_value, &host->base->card_mediatype_srcdst);
+		//spmmc_pr(WARNING, "enhanced_strobe=1\n");
+		mdelay(1);
+		hs400_value = readl(&host->base->sd_vol_ctrl);
+		hs400_value = bitfield_replace(hs400_value, 31, 1, 0);
+		writel(hs400_value, &host->base->sd_vol_ctrl);
+		mdelay(1);
+		hs400_value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		hs400_value = bitfield_replace(hs400_value, 31, 1, 0);
+		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		mdelay(1);
+		hs400_value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+		hs400_value = bitfield_replace(hs400_value, 20, 1, 0);//DI FF BYPASS TM:Don not bypass IP input data
+		for (i = 0; i < 9; i++)
+			hs400_value = bitfield_replace(hs400_value, 21 + i, 1, 1);//DO FF BYPASS TM:Don not bypass IP input data
+		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+		mdelay(1);
+		hs400_value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		hs400_value = bitfield_replace(hs400_value, 13, 1, 1);//EMMC_DS_DO_FF_BYPASS_TM: Do not bypass IP input data.
+		hs400_value = bitfield_replace(hs400_value, 14, 2, 2);//EMMC_DS_DI_DEL_SEL.
+		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		//spmmc_pr(WARNING, "Do not bypass IP input data\n");
+		mdelay(1);
 		break;
 	default:
 		timing_name = "invalid";
@@ -662,6 +682,7 @@ static void __send_stop_cmd(struct spmmc_host *host)
 	value = bitfield_replace(value, 0, 1, 0); /* sdcmpen */
 	writel(value, &host->base->sd_int);
 	spmmc_trigger_transaction(host);
+	spmmc_get_rsp(host, &stop);
 	spmmc_wait_finish(host);
 }
 
@@ -896,6 +917,35 @@ static void spmmc_set_power_mode(struct spmmc_host *host, struct mmc_ios *ios)
  * 3. unlock host->mrq_lock
  * 4. notify mmc layer the request is done
  */
+static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_request *mrq)
+{
+	struct mmc_command *cmd;
+	struct mmc_data *data;
+
+	if (!mrq)
+		return;
+
+	cmd = mrq->cmd;
+	data = mrq->data;
+
+	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
+		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
+		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
+		host->dma_use_int = 0;
+	}
+	if(cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK){
+ 		spmmc_get_rsp(host, cmd);
+	}
+	spmmc_check_error(host, mrq);
+	host->mrq = NULL;
+	mutex_unlock(&host->mrq_lock);
+	spmmc_pr(VERBOSE, "request done > error:%d, cmd:%d, resp:0x%08x\n", cmd->error, cmd->opcode, cmd->resp[0]);
+	mmc_request_done(host->mmc, mrq);
+}
+
+
+
 static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mrq)
 {
 	struct mmc_command *cmd;
@@ -914,6 +964,7 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 		host->dma_use_int = 0;
 	}
 	spmmc_get_rsp(host, cmd);
+	spmmc_wait_finish(host);
 	spmmc_check_error(host, mrq);
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
@@ -938,7 +989,7 @@ irqreturn_t spmmc_irq(int irq, void *dev_id)
 		if (unlikely(readl(&host->base->sd_state) & SPMMC_SDSTATE_ERROR))
 			tasklet_schedule(&host->tsklet_finish_req);
 		else
-			spmmc_finish_request(host, host->mrq);
+			spmmc_finish_request_for_irq(host, host->mrq);
 	}
 	if (value & SPMMC_SDINT_SDIO &&
 		(value & SPMMC_SDINT_SDIOEN)) {
@@ -969,6 +1020,7 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		value = bitfield_replace(value, 0, 1, 0); /* sdcmpen */
 		writel(value, &host->base->sd_int);
 		spmmc_trigger_transaction(host);
+		spmmc_get_rsp(host, cmd);
 		spmmc_wait_finish(host);
 		spmmc_pr(VERBOSE, "request done > error:%d, cmd:%d, resp:%08x %08x %08x %08x\n",
 			 cmd->error, cmd->opcode, cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
@@ -1009,10 +1061,11 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		} else {
 			if (!(host->use_int || host->dma_use_int)) {
 				spmmc_trigger_transaction(host);
-				spmmc_wait_finish(host);
 				spmmc_finish_request(host, mrq);
 			} else {
 				spmmc_trigger_transaction(host);
+				if(cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
+ 					spmmc_get_rsp(host, cmd);
 			}
 		}
 	}
@@ -1746,15 +1799,41 @@ static int config_gpio_bypass_en_store(struct spmmc_host *host, const char *arg)
 	if (kstrtoul(arg, 0, &val) || val > 1)
 		return SPMMC_CFG_FAIL;
 
-	value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
-	value = bitfield_replace(value, 20, 1, 0);//DI FF BYPASS TM:Don not bypass IP input data
-	for (i = 0; i < 9; i++)
-		value = bitfield_replace(value, 21 + i, 1, 1);//DO FF BYPASS TM:Don not bypass IP input data
-	writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+
 
 	value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[2]);
 	value = bitfield_replace(value, 31, 1, val);
 	writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+
+
+	if(val == 0){
+		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+		value = bitfield_replace(value, 20, 1, 0);//DI FF BYPASS TM:Don not bypass IP input data
+		for (i = 0; i < 9; i++)
+			value = bitfield_replace(value, 21 + i, 1, 1);//DO FF BYPASS TM:Don not bypass IP input data
+		writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+
+		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		value = bitfield_replace(value, 13, 1, 1);//EMMC_DS_DO_FF_BYPASS_TM: Do not bypass IP input data.
+		value = bitfield_replace(value, 14, 2, 1);//EMMC_DS_DI_DEL_SEL.
+		writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+
+		spmmc_pr(INFO, "Do not bypass IP input data\n");
+	}
+	else{
+		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+		value = bitfield_replace(value, 20, 1, 1);//DI FF BYPASS TM:bypass IP input data
+		for (i = 0; i < 9; i++)
+			value = bitfield_replace(value, 21 + i, 1, 0);//DO FF BYPASS TM:bypass IP input data
+		writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+
+		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		value = bitfield_replace(value, 13, 1, 0);//EMMC_DS_DO_FF_BYPASS_TM:bypass IP input data.
+		writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+
+		spmmc_pr(INFO, "bypass IP input data.\n");
+	}
+
 	return SPMMC_CFG_SUCCESS;
 }
 
@@ -2095,7 +2174,7 @@ static void tsklet_func_finish_req(unsigned long data)
 	struct spmmc_host *host = (struct spmmc_host *)data;
 
 	spin_lock(&host->lock);
-	spmmc_finish_request(host, host->mrq);
+	spmmc_finish_request_for_irq(host, host->mrq);
 	spin_unlock(&host->lock);
 }
 
@@ -2111,9 +2190,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 	struct spmmc_host *host;
 	unsigned int mode;
-	#ifdef HS400
 	u32 x;
-	#endif
 
 	ret = spmmc_device_create_sysfs(pdev);
 	if (ret) {
@@ -2250,11 +2327,9 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	#ifdef HS400
 	x = readl(&host->base->card_mediatype_srcdst);
 	x = bitfield_replace(x, 11, 1, 0);//enhanced_strobe=0:RSP don't use data strobe
 	writel(x, &host->base->card_mediatype_srcdst);
-	#endif
 
 	mmc->caps |= MMC_CAP_CMD23;
 
