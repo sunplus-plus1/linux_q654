@@ -351,11 +351,6 @@ static void sp7350_draw_bmpfile(char *filename,
 			goto err_init;
 		}
 
-		if (bmp.bpp == 24)
-			line_pitch = SP7350_DISP_ALIGN(bmp.width, 2);
-		else
-			line_pitch = bmp.width;
-
 		if ((bmp.width + start_x) > fbinfo->var.xres) {
 			pr_err("bmp_width + start_x >= device width, %d + %d >= %d\n",
 				bmp.width, start_x, fbinfo->var.xres);
@@ -370,7 +365,9 @@ static void sp7350_draw_bmpfile(char *filename,
 
 		bpp = bmp.bpp >> 3;
 
-		tmpbuf = kmalloc(line_pitch * bmp.height * bpp, GFP_KERNEL);
+		line_pitch = SP7350_DISP_ALIGN((bmp.width * bpp), 4); 
+
+		tmpbuf = kmalloc(line_pitch * bmp.height, GFP_KERNEL);
 		if (IS_ERR(tmpbuf)) {
 			pr_err("kmalloc error\n");
 			goto err_init;
@@ -379,7 +376,7 @@ static void sp7350_draw_bmpfile(char *filename,
 		fp->f_op->llseek(fp, bmp.data_offset, 0);
 
 		ret = kernel_read(fp, tmpbuf,
-			line_pitch * bmp.height * bpp, &fp->f_pos);
+			line_pitch * bmp.height, &fp->f_pos);
 		if (ret <= 0) {
 			pr_err("read file:%s error\n", filename);
 			goto err_init;
@@ -389,7 +386,7 @@ static void sp7350_draw_bmpfile(char *filename,
 
 		for (y = bmp.height - 1; y >= 0; y--) {
 			for (x = 0; x < bmp.width; x++) {
-				line_index = (line_pitch * y + x) * bpp;
+				line_index = line_pitch * y + x * bpp;
 
 				color = sp7350fb_chan_by_field(
 					(bmp.bpp == 24) ?
