@@ -35,6 +35,9 @@
 //#define TP2815_IN2_1LANE
 //#define TP2815_IN2_2LANES
 //#define TP2815_IN2_2VC
+//#define TP2815_IN3
+//#define TP2815_IN3_1LANE
+//#define TP2815_IN3_2VC
 //#define TP2815_IN4
 //#define TP2815_IN4_1LANE
 //#define TP2815_IN4_2VC
@@ -1031,7 +1034,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1)
+#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1112,6 +1115,39 @@
 				tp2815_1: endpoint {
 					remote-endpoint = <&csi2_1>;
 	#ifdef TP2815_IN1_1LANE
+					data-lanes = <1>;
+	#else
+					data-lanes = <1 2>;
+	#endif
+					clock-continuous;
+					link-frequencies = /bits/ 64 <456000000>;
+				};
+			};
+		};
+#endif
+#ifdef TP2815_IN3 /* Add tp2815 subnode in i2c1 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_3: sensor@44 {
+			compatible = "Techpoint,tp2815";
+			reg = <0x44>;
+			clocks = <&tp2815_clk>;
+	#ifdef TP2815_IN3_2VC
+			input-channel = <2>;
+	#else
+			input-channel = <1>;
+	#endif
+			input-standard = <0>;
+			//pinctrl-names = "default";
+			//pinctrl-0 = <&camera_1_pins>;
+			//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
+			//reset-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
+
+			port {
+				tp2815_3: endpoint {
+					remote-endpoint = <&csi2_3>;
+	#ifdef TP2815_IN3_1LANE
 					data-lanes = <1>;
 	#else
 					data-lanes = <1 2>;
@@ -2318,7 +2354,7 @@
 			#size-cells = <0>;
 
 			/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN2 /* Add imx219 subnode in i2c2 */
+#ifdef IMX219_IN2 /* Add imx219 subnode in i2c0 */
 			port@0 {
 				reg = <0>;
 
@@ -2331,7 +2367,7 @@
 				};
 			};
 #endif
-#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c2 */
+#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c0 */
 			port@0 {
 				reg = <0>;
 
@@ -2471,7 +2507,7 @@
 		resets = <&rstc RST_MIPICSI3>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <3>;
-#if defined(IMX219_IN3)
+#if defined(IMX219_IN3) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2481,6 +2517,12 @@
 		max_channels = <4>;
 #ifdef IMX219_IN3
 		num_channels = <1>;
+#elif defined(TP2815_IN3)
+	#ifdef TP2815_IN3_2VC
+		num_channels = <2>;
+	#else
+		num_channels = <1>;
+	#endif
 #else
 		num_channels = <2>;
 #endif
@@ -2490,7 +2532,7 @@
 			#size-cells = <0>;
 
 			/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN3 /* Add imx219 subnode in i2c3 */
+#ifdef IMX219_IN3 /* Add imx219 subnode in i2c1 */
 			port@0 {
 				reg = <0>;
 
@@ -2500,6 +2542,23 @@
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef TP2815_IN3 /* Add tp2815 subnode in i2c1 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_3: endpoint {
+					remote-endpoint = <&tp2815_3>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+	#ifdef TP2815_IN3_1LANE
+					data-lanes = <1>;
+	#else
+					data-lanes = <1 2>;
+	#endif
 				};
 			};
 #endif
@@ -2539,7 +2598,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <6>;
-#if defined(IMX219_IN3)
+#if defined(IMX219_IN3) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2585,7 +2644,11 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <7>;
+#if defined(TP2815_IN3) && defined(TP2815_IN3_2VC)
+		status = "okay";
+#else
 		status = "disabled";
+#endif
 
 		ports {
 			#address-cells = <1>;
