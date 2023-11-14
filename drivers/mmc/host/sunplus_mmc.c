@@ -406,6 +406,17 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 		break;
 	case MMC_TIMING_MMC_HS200:
 		timing_name = "mmc HS200";
+		hs400_value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		hs400_value = bitfield_replace(hs400_value, 31, 1, 0);
+		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
+		mdelay(1);
+		hs400_value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+		hs400_value = bitfield_replace(hs400_value, 20, 1, 0);//DI FF BYPASS TM:Don not bypass IP input data
+		for (i = 0; i < 9; i++)
+			hs400_value = bitfield_replace(hs400_value, 21 + i, 1, 1);//DO FF BYPASS TM:Don not bypass IP input data
+		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[1]);
+		mdelay(1);
+		spmmc_pr(WARNING, "Do not bypass IP input data\n");
 		break;
 	case MMC_TIMING_MMC_HS400:
 		host->ddr_enabled = 1;
@@ -773,7 +784,6 @@ static int spmmc_check_error(struct spmmc_host *host, struct mmc_request *mrq)
 		if(CMD23_RECEIVED == 0){
 			spmmc_pr(DEBUG, "CMD23_RECEIVED == 0\n");
 			__send_stop_cmd(host);
-			spmmc_sw_reset(host);
 		}
 		else {
 			spmmc_pr(DEBUG, "CMD23_RECEIVED == 1\n");
@@ -1512,7 +1522,7 @@ static int config_sd_cap_show(struct spmmc_host *host, char *buf)
 			idx = 2;
 		else if (host->mmc->caps & MMC_CAP_MMC_HIGHSPEED)
 			idx = 1;
-		return sprintf(buf, "MMC capability: %s\n",
+		return sprintf(buf, "*capability: %s\n",
 			spmmc_mmc_cap_str[idx]);
 	}
 
