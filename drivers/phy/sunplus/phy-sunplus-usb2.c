@@ -119,11 +119,8 @@ static int update_disc_vol(struct sp_usbphy *usbphy)
 	otp_v = nvmem_cell_read(cell, &otp_l);
 	nvmem_cell_put(cell);
 
-	if (!IS_ERR(otp_v)) {
-		set = *(otp_v + 1);
-		set = (set << (sizeof(char) * 8)) | *otp_v;
-		set = (set >> usbphy->disc_vol_addr_off) & J_DISC;
-	}
+	if (!IS_ERR(otp_v))
+		set = *otp_v & J_DISC;
 
 	if (IS_ERR(otp_v) || set == 0)
 		set = OTP_DISC_LEVEL_DEFAULT;
