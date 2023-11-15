@@ -876,10 +876,13 @@ struct test_case test_case[] = {
 	},
 };
 
-static void testcase(int i)
+static int testcase(int i)
 {
+	int ret;
 	pr_info("TEST_CASE_#%02d: %s\n", i + 1, test_case[i].name);
-	pr_info("%s\n\n", test_case[i].fun(NULL) ? "FAIL" : "SUCCESS");
+	ret = test_case[i].fun(NULL);
+	pr_info("%s\n\n", ret ? "FAIL" : "SUCCESS");
+	return ret;
 }
 
 static void rsa_mt_test(int t)
@@ -897,25 +900,32 @@ static void rsa_mt_test(int t)
 
 static int test(const char *val, const struct kernel_param *kp)
 {
-	int i = *val - '0';
+	int ret, i = *val - '0';
 
 	rsa_tt_stop = 0;
 	if (*val == 'x') // MT
 		rsa_mt_test(*(val+1) - '0');
 	else if (i <= ARRAY_SIZE(test_case)) {
 		if (i)
-			testcase(i - 1);
+			ret = testcase(i - 1);
 		else
 			while (i < ARRAY_SIZE(test_case)) {
-				testcase(i);
+				ret = testcase(i);
+				if (ret) break; // failed
 				i++;
 			}
 	}
 
-	return 0;
+	return ret;
+}
+
+static int test_get(char *buffer, const struct kernel_param *kp)
+{
+	return sprintf(buffer, "%d", test("2", kp));
 }
 
 static const struct kernel_param_ops test_ops = {
 	.set = test,
+	.get = test_get,
 };
 module_param_cb(test, &test_ops, NULL, 0600);
