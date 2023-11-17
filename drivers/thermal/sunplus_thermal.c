@@ -57,7 +57,6 @@ struct sp_thermal_data {
 	enum thermal_device_mode mode;
 	void __iomem *regs;
 	int otp_temp0;
-	int wraning_cnt;
 	u32 id;
 };
 
@@ -130,13 +129,6 @@ static int sp_thermal_get_sensor_temp(void *data, int *temp)
 	*temp = ((sp_data->otp_temp0 - t_code) * 10000 / sp_data->dev_comp->temp_rate) + sp_data->dev_comp->temp_base;
 	*temp *= 10;
 
-	if(*temp >= 124000){
-		if(sp_data->wraning_cnt == 0){
-			sp_data->wraning_cnt = 30;
-			pr_info("hi_temp wraning %d", *temp);
-		}
-		sp_data->wraning_cnt--;
-	}
 	return 0;
 }
 
@@ -201,7 +193,6 @@ static int sp_thermal_probe(struct platform_device *pdev)
 	ret = sp_thermal_init(sp_data);
 	ret = sp_get_otp_temp_coef(sp_data, &pdev->dev);
 	ret = sp_thermal_register_sensor(pdev, sp_data, 0);
-	sp_data->wraning_cnt = 0;
 
 	return ret;
 }
