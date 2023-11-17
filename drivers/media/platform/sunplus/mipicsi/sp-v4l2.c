@@ -334,7 +334,7 @@ static void vin_format_align(struct vin_dev *vin, struct v4l2_pix_format *pix)
  * V4L2
  */
 
-#if !(defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR))
+#if !((defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR)) || defined(MIPI_CSI_QUALITY))
 static int vin_find_pad(struct v4l2_subdev *sd, int direction)
 {
 	unsigned int pad;
@@ -387,7 +387,7 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 	if (!vin_format_from_pixel(vin, pix->pixelformat))
 		pix->pixelformat = VIN_DEFAULT_FORMAT;
 
-#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR)
+#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR) || defined(MIPI_CSI_QUALITY)
 	format.pad = pad->index;		/* Set the source pad for BIST mode */
 #else
 	/* Get the sink pad index of CSI */
@@ -1086,7 +1086,7 @@ static void vin_notify(struct v4l2_subdev *sd,
 	}
 }
 
-#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR)
+#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR) || defined(MIPI_CSI_QUALITY)
 int vin_v4l2_formats_init(struct vin_dev *vin)
 {
 	const struct vin_video_format *sd_fmts[ARRAY_SIZE(vin_formats)];
