@@ -193,8 +193,14 @@ static void csiiw_init(struct vin_dev *vin)
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
 	csiiw_writel(vin, CSIIW_LATCH_MODE, 0x1);		/* Enable before base addr setup */
+#ifdef MIPI_CSI_QUALITY
+	csiiw_writel(vin, CSIIW_STRIDE, 0xf00);
+	csiiw_writel(vin, CSIIW_FRAME_SIZE, 0x04380f00);
+	csiiw_writel(vin, CSIIW_BASE_ADDR, 0x78000000);
+#else
 	csiiw_writel(vin, CSIIW_STRIDE, 0x500);
-	csiiw_writel(vin, CSIIW_FRAME_SIZE, 0x3200500);
+	csiiw_writel(vin, CSIIW_FRAME_SIZE, 0x03200500);
+#endif
 	csiiw_writel(vin, CSIIW_FRAME_BUF, 0x00000100);	/* set offset to trigger DRAM write */
 	csiiw_writel(vin, CSIIW_CONFIG0, 0xf02700);		/* Disable csiiw, unpacked mode */
 	csiiw_writel(vin, CSIIW_INTERRUPT, 0x1111);		/* Disable and clean fs_irq and fe_irq */
