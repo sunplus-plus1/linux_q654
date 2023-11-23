@@ -484,7 +484,7 @@ static const u32 sp_mipitx_phy_pllclk_dsi[11][11] = {
 	{  240, 320, 0x0, 0x0e, 0x0, 0x0, 0x0, 0x0, 0xa, 0xf, 0x2}, /* 240x320 */
 	{3840,   64, 0x0, 0x1f, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 3840x64 */
 	{3840, 2880, 0x0, 0x3c, 0x0, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0}, /* 3840x2880 */
-	{ 800,  480, 0x0, 0x23, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 800x480 */
+	{ 800,  480, 0x1, 0x0d, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 */
 	{1024,  600, 0x1, 0x3d, 0x1, 0x1, 0x1, 0x3, 0x0, 0x0, 0x0}  /* 1024x600 */
 };
 
@@ -530,7 +530,15 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 		}
 
 		#if 1
-		if ((disp_dev->out_res.width == 720) && (disp_dev->out_res.height == 480)) {
+		if ((disp_dev->out_res.width == 800) && (disp_dev->out_res.height == 480)) {
+			value = 0;
+			value |= 0x00780058;
+			value |= (0x7f800000 | (0x15 << 7));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+			value = 0x07800380; //PLLH MIPITX CLK = 26.563MHz
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+		} else if ((disp_dev->out_res.width == 720) && (disp_dev->out_res.height == 480)) {
 			value = 0;
 			value |= 0x00780050;
 			value |= (0x7f800000 | (0xe << 7));
@@ -783,7 +791,6 @@ static void sp7350_dcs_write_buf(const void *data, size_t len)
 
 void sp7350_mipitx_panel_init(int mipitx_dev_id, int width, int height)
 {
-
 	//pr_info("mipitx id 0x%08x\n", mipitx_dev_id);
 
 	if (mipitx_dev_id == 0x00001000) {
@@ -905,6 +912,32 @@ void sp7350_mipitx_panel_init(int mipitx_dev_id, int width, int height)
 		sp7350_dcs_write_seq(0xDE, 0x00);
 		mdelay(1);
 		sp7350_dcs_write_seq(0x29);
+	} else if (mipitx_dev_id == 0x00001002) {
+		//pr_info("MIPITX DSI Panel : RASPBERRYPI_DSI_PANEL(%dx%d)\n", width, height);
+
+		/*read i2c REG_ID*/
+		/*write i2c REG_POWERON = 0 turn off*/
+		/*write i2c REG_POWERON = 1 turn on*/
+		/*write i2c REG_PORTB*/
+
+		sp7350_dcs_write_seq(0x10, 0x02, 0x03, 0x00, 0x00, 0x00); /*dsi DSI_LANEENABLE = 0x0210*/
+		sp7350_dcs_write_seq(0x64, 0x01, 0x05, 0x00, 0x00, 0x00); /*dsi PPI_D0S_CLRSIPOCOUNT = 0x0164*/
+		sp7350_dcs_write_seq(0x68, 0x01, 0x05, 0x00, 0x00, 0x00); /*dsi PPI_D1S_CLRSIPOCOUNT = 0x0168*/
+		sp7350_dcs_write_seq(0x44, 0x01, 0x00, 0x00, 0x00, 0x00); /*dsi PPI_D0S_ATMR = 0x0144*/
+		sp7350_dcs_write_seq(0x48, 0x01, 0x00, 0x00, 0x00, 0x00); /*dsi PPI_D1S_ATMR = 0x0148*/
+		sp7350_dcs_write_seq(0x14, 0x01, 0x03, 0x00, 0x00, 0x00); /*dsi PPI_LPTXTIMECNT = 0x0114*/
+
+		sp7350_dcs_write_seq(0x50, 0x04, 0x00, 0x00, 0x00, 0x00); /*dsi SPICMR = 0x0450*/
+		sp7350_dcs_write_seq(0x20, 0x04, 0x50, 0x01, 0x10, 0x00); /*dsi LCDCTRL = 0x0420*/
+		sp7350_dcs_write_seq(0x64, 0x04, 0x0f, 0x04, 0x00, 0x00); /*dsi SYSCTRL = 0x0464*/
+		mdelay(100); //msleep(100);
+		sp7350_dcs_write_seq(0x04, 0x01, 0x01, 0x00, 0x00, 0x00); /*dsi PPI_STARTPPI = 0x0104*/
+		sp7350_dcs_write_seq(0x04, 0x02, 0x01, 0x00, 0x00, 0x00); /*dsi DSI_STARTDSI = 0x0204*/
+		mdelay(100); //msleep(100);
+
+		/*write i2c REG_PWM = 255*/
+		/*write i2c REG_PORTA = 0x04*/
+
 	} else {
 		pr_info("undefined mipitx id 0x%08x\n", mipitx_dev_id);
 	}
@@ -1057,7 +1090,7 @@ static const u32 sp_mipitx_input_timing_dsi[11][10] = {
 	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x23, 320}, /* 240x320 */
 	{3840,   64, 0x4,  0, 0x5,  0, 0x1, 0x6, 0x1c,   64}, /* 3840x64 */
 	{3840, 2880, 0x4,  0, 0x5,  0, 0x1, 0x6, 0x26, 2880}, /* 3840x2880 */
-	{ 800,  480, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x23,  480}, /* 800x480 */
+	{ 800,  480, 0x70,  0, 0x5,  0, 0x2, 0x7, 0x15,  480}, /* 800x480 */
 	{1024,  600, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x23,  600}  /* 1024x600 */
 };
 
@@ -1099,7 +1132,7 @@ void sp7350_mipitx_video_mode_setting(void)
 		}
 
 		value = 0;
-		if (disp_dev->mipitx_lane == 1)
+		if ((disp_dev->mipitx_lane == 1) && (width == 240) && (height == 320))
 			value |= SP7350_MIPITX_HSA_SET(0x6) |
 				SP7350_MIPITX_HFP_SET(sp_mipitx_input_timing_dsi[time_cnt][3]) |
 				SP7350_MIPITX_HBP_SET(sp_mipitx_input_timing_dsi[time_cnt][4]);
@@ -1221,6 +1254,10 @@ void sp7350_mipitx_phy_init_dsi(void)
 		sp7350_mipitx_cmd_mode_start();
 		//transfer data from TX to RX (depends on panel manufacturer)
 		sp7350_mipitx_panel_init(0x00001001, width, height);
+	} else if (disp_dev->mipitx_dev_id == 0x00001002) {
+		sp7350_mipitx_cmd_mode_start();
+		//transfer data from TX to RX (depends on panel manufacturer)
+		sp7350_mipitx_panel_init(0x00001002, width, height);
 	}
 
 	sp7350_mipitx_pllclk_set(SP7350_MIPITX_HS_MODE, width, height);
