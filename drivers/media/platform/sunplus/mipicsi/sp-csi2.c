@@ -32,6 +32,7 @@ struct csi2_dev;
 /* Compliler switch */
 //#define MIPI_CSI_BIST		/* Enable MIPI-CSI BIST function */
 //#define MIPI_CSI_XTOR		/* Import RAW10 pattern from MIPI XTOR */
+//#define MIPI_CSI_QUALITY	/* Import test patterns from MIPI PHY */
 //#define MIPI_CSI_VC_TEST	/* Set VC in DI with sysfs for testing */
 
 /* Max number on CSI instances that can be in a system */
@@ -262,7 +263,7 @@ static int csi2_calc_mbps(struct csi2_dev *priv, unsigned int bpp,
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
-#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR)
+#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR) || defined(MIPI_CSI_QUALITY)
 	return 100;		// Return 100MHz for BIST mode
 #endif
 
@@ -303,7 +304,7 @@ static int csi2_get_active_lanes(struct csi2_dev *priv,
 
 	*lanes = priv->lanes;
 
-#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR)
+#if defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR) || defined(MIPI_CSI_QUALITY)
 	dev_dbg(priv->dev, "Skip sending 'get_mbus_config' command\n");
 	return 0;
 #endif
@@ -490,15 +491,15 @@ static void csi2_dt_config(struct csi2_dev *priv, unsigned int dt)
 	default:
 	case 0x1e:	/* YUY2 */
 	case 0x2a:	/* RAW8 */
-		set_field(&mix_cfg, 2, 0x3<<16);	/* Source is 8 bits per pixel */
+		set_field(&mix_cfg, 2, 0x7<<16);	/* Source is 8 bits per pixel */
 		break;
 
 	case 0x2b:	/* RAW10 */
-		set_field(&mix_cfg, 1, 0x3<<16);	/* Source is 10 bits per pixel */
+		set_field(&mix_cfg, 1, 0x7<<16);	/* Source is 10 bits per pixel */
 		break;
 
 	case 0x2c:	/* RAW12 */
-		set_field(&mix_cfg, 0, 0x3<<16);	/* Source is 12 bits per pixel */
+		set_field(&mix_cfg, 0, 0x7<<16);	/* Source is 12 bits per pixel */
 		break;
 	}
 
@@ -591,12 +592,39 @@ static void csi2_init(struct csi2_dev *priv)
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
 	val = csi_readl(priv, MIPICSI_MIX_CFG);
+#ifdef MIPI_CSI_QUALITY
+	set_field(&val, 0x1, 0x3<<20);		/* MIPI input lane number is 2 lane */
+	set_field(&val, 0x2, 0x7<<16);		/* MIPI input data format is RAW8 */
+#else
 	set_field(&val, 0x0, 0x3<<20);		/* MIPI input lane number is 1 lane */
 	set_field(&val, 0x1, 0x7<<16);		/* MIPI input data format is RAW10 */
+#endif
 	set_field(&val, 0x1, 0x1<<15);		/* When detect EOF control word, generate EOF */
 	set_field(&val, 0x1, 0x1<<8);		/* For bit sequence of a word, transfer MSB bit first */
 	csi_writel(priv, MIPICSI_MIX_CFG, val);
 
+#ifdef MIPI_CSI_QUALITY
+	val = 0;
+	set_field(&val, (0x0<<6|0x00), 0xff<<24);	/* Set CH3_SOF_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x00), 0xff<<16);	/* Set CH2_SOF_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x00), 0xff<<8);	/* Set CH1_SOF_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x00), 0xff<<0);	/* Set CH0_SOF_SYNCOWRD field */
+	csi_writel(priv, MIPICSI_SOF_SYNCWORD, val);
+
+	val = 0;
+	set_field(&val, (0x0<<6|0x1e), 0xff<<24);	/* Set CH3_SOL_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x1e), 0xff<<16);	/* Set CH2_SOL_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x1e), 0xff<<8);	/* Set CH1_SOL_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x1e), 0xff<<0);	/* Set CH0_SOL_SYNCOWRD field */
+	csi_writel(priv, MIPICSI_SOL_SYNCWORD, val);
+
+	val = 0;
+	set_field(&val, (0x0<<6|0x01), 0xff<<24);	/* Set CH3_EOF_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x01), 0xff<<16);	/* Set CH2_EOF_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x01), 0xff<<8);	/* Set CH1_EOF_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x01), 0xff<<0);	/* Set CH0_EOF_SYNCOWRD field */
+	csi_writel(priv, MIPICSI_EOF_SYNCWORD, val);
+#else
 	val = 0;
 	set_field(&val, (0x3<<6|0x00), 0xff<<24);	/* Set CH3_SOF_SYNCOWRD field */
 	set_field(&val, (0x2<<6|0x00), 0xff<<16);	/* Set CH2_SOF_SYNCOWRD field */
@@ -612,14 +640,31 @@ static void csi2_init(struct csi2_dev *priv)
 	csi_writel(priv, MIPICSI_SOL_SYNCWORD, val);
 
 	val = 0;
+	set_field(&val, (0x3<<6|0x01), 0xff<<24);	/* Set CH3_EOF_SYNCOWRD field */
+	set_field(&val, (0x2<<6|0x01), 0xff<<16);	/* Set CH2_EOF_SYNCOWRD field */
+	set_field(&val, (0x1<<6|0x01), 0xff<<8);	/* Set CH1_EOF_SYNCOWRD field */
+	set_field(&val, (0x0<<6|0x01), 0xff<<0);	/* Set CH0_EOF_SYNCOWRD field */
+	csi_writel(priv, MIPICSI_EOF_SYNCWORD, val);
+#endif
+
+	val = 0;
+#ifdef MIPI_CSI_QUALITY
+	set_field(&val, 0x0, 0x1<<8);		/* ECC correction enable */
+	set_field(&val, 0x0, 0x1<<4);		/* ECC check enable */
+#else
 	set_field(&val, 0x1, 0x1<<8);		/* ECC correction enable */
 	set_field(&val, 0x1, 0x1<<4);		/* ECC check enable */
+#endif
 	set_field(&val, 0x0, 0x3<<0);		/* ECC code word order */
 	csi_writel(priv, MIPICSI_ECC_CFG, val);
 
 	val = csi_readl(priv, MIPI_ANALOG_CFG0);
 	set_field(&val, 0x0, 0x1<<8);		/* MIPI mode */
+#ifdef MIPI_CSI_QUALITY
+	set_field(&val, 0x3, 0xf<<4);		/* Enable data lane of LP mode circuit for data lane 0/1 */
+#else
 	set_field(&val, 0x1, 0xf<<4);		/* Enable data lane of LP mode circuit for data lane 0 */
+#endif
 	set_field(&val, 0x1, 0x1<<3);		/* Set HS mode according to the power state */
 	set_field(&val, 0x1, 0x1<<2);		/* Enable clock lane of LP mode circuit */
 	set_field(&val, 0x0, 0x1<<1);		/* Normal mode for serial-to-parallel flip-flop */
@@ -728,7 +773,7 @@ static int csi2_start(struct csi2_dev *priv)
 	csi2_bist_control(priv, 1);
 
 	return 0;
-#elif defined(MIPI_CSI_XTOR)
+#elif defined(MIPI_CSI_XTOR) || defined(MIPI_CSI_QUALITY)
 	return 0;
 #endif
 
@@ -748,7 +793,7 @@ static void csi2_stop(struct csi2_dev *priv)
 	csi2_enter_standby(priv);
 #if defined(MIPI_CSI_BIST)
 	csi2_bist_control(priv, 0);
-#elif defined(MIPI_CSI_XTOR)
+#elif defined(MIPI_CSI_XTOR) || defined(MIPI_CSI_QUALITY)
 	// Blank
 #else
 	v4l2_subdev_call(priv->remote, video, s_stream, 0);
@@ -765,7 +810,7 @@ static int csi2_s_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&priv->lock);
 
-#if !(defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR))
+#if !(defined(MIPI_CSI_BIST) || defined(MIPI_CSI_XTOR)) || defined(MIPI_CSI_QUALITY)
 	if (!priv->remote) {
 		ret = -ENODEV;
 		goto out;
@@ -1086,7 +1131,7 @@ static int csi2_parse_dt(struct csi2_dev *priv)
 
 	dev_dbg(priv->dev, "%s, Skip bounding a sensor\n", __func__);
 	return ret;
-#elif defined(MIPI_CSI_XTOR)
+#elif defined(MIPI_CSI_XTOR) || defined(MIPI_CSI_QUALITY)
 	/* For XTOR test, skip bounding a sensor */
 	priv->lanes = 1;		/* Set active lane number here */
 
