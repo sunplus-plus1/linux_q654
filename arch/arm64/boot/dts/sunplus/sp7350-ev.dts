@@ -18,6 +18,8 @@
 //#define ENABLE_DMATX6
 //#define ENABLE_DMATX7
 
+//#define SPI_LOOPBACK_MTTEST
+
 //#define MIPI_CSI_4VC
 //#define IMX219_IN0
 //#define IMX219_IN1
@@ -63,6 +65,8 @@
 //#define DISP_MIPITX_DSI_VPP_SRC_720P
 //#define DISP_MIPITX_DSI_VPP_SRC_1080P
 //#define DISP_MIPITX_DSI_VPP_SRC_3840
+
+//#define RASPBERRYPI_DSI_PANEL
 
 #define LT8912B_HDMI_ENABLE
 //#define LT8912B_HDMI_480X272
@@ -749,17 +753,21 @@
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc SPICB0>;
 		resets = <&rstc RST_SPICB0>;
+#ifndef SPI_LOOPBACK_MTTEST
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_master0_pins>;
 		dmas = <&ahbdma1 0 0 0>,
 		       <&ahbdma1 1 0 0>;
 		dma-names = "rx", "tx";
 		status = "disabled";
+#endif
 		spi@0 {
 			compatible = "rohm,dh2228fv";
 			spi-max-frequency = <5000000>;
 			reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
 			status = "disabled";
+#endif
 		};
 	};
 
@@ -772,17 +780,21 @@
 		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc SPICB1>;
 		resets = <&rstc RST_SPICB1>;
+#ifndef SPI_LOOPBACK_MTTEST
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_master1_pins>;
 		dmas = <&ahbdma1 2 0 0>,
 		       <&ahbdma1 3 0 0>;
 		dma-names = "rx", "tx";
 		status = "disabled";
+#endif
 		spi@0 {
 			compatible = "rohm,dh2228fv";
 			spi-max-frequency = <5000000>;
 			reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
 			status = "disabled";
+#endif
 		};
 	};
 
@@ -795,17 +807,21 @@
 		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc SPICB2>;
 		resets = <&rstc RST_SPICB2>;
+#ifndef SPI_LOOPBACK_MTTEST
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_master2_pins>;
 		dmas = <&ahbdma1 4 0 0>,
 		       <&ahbdma1 5 0 0>;
 		dma-names = "rx", "tx";
 		status = "disabled";
+#endif
 		spi@0 {
 			compatible = "rohm,dh2228fv";
 			spi-max-frequency = <5000000>;
 			reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
 			status = "disabled";
+#endif
 		};
 	};
 
@@ -818,17 +834,21 @@
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc SPICB3>;
 		resets = <&rstc RST_SPICB3>;
+#ifndef SPI_LOOPBACK_MTTEST
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_master3_pins>;
 		dmas = <&ahbdma1 6 0 0>,
 		       <&ahbdma1 7 0 0>;
 		dma-names = "rx", "tx";
 		status = "disabled";
+#endif
 		spi@0 {
 			compatible = "rohm,dh2228fv";
 			spi-max-frequency = <5000000>;
 			reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
 			status = "disabled";
+#endif
 		};
 	};
 
@@ -841,17 +861,21 @@
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc SPICB4>;
 		resets = <&rstc RST_SPICB4>;
+#ifndef SPI_LOOPBACK_MTTEST
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi_master4_pins>;
 		dmas = <&ahbdma1 6 0 0>,
 		       <&ahbdma1 7 0 0>;
 		dma-names = "rx", "tx";
 		status = "disabled";
+#endif
 		spi@0 {
 			compatible = "rohm,dh2228fv";
 			spi-max-frequency = <5000000>;
 			reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
 			status = "disabled";
+#endif
 		};
 	};
 
@@ -1353,16 +1377,35 @@
 		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc I2CM6>;
 		resets = <&rstc RST_I2CM6>;
+#if defined(LT8912B_HDMI_ENABLE) || defined(RASPBERRYPI_DSI_PANEL)
+		/* fix setting for lt8912b & raspberrypi_lcd */
+		//i2c-scl-rising-time-ns = <0>;
+		//i2c-scl-falling-time-ns = <0>;
 		i2c-sda-hold-time-ns = <2000>;
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c6 */
 		clock-frequency = <100000>;
 #else
+		i2c-sda-hold-time-ns = <1000>;
 		clock-frequency = <400000>;
 #endif
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo6_pins>;
 		status = "okay";
 
+#ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		raspberrypi_lcd: lcd@45 {
+			//compatible = "raspberrypi,7inch-touchscreen-panel";
+			compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+			reg = <0x45>;
+			port {
+				panel_dsi_port: endpoint {
+				remote-endpoint = <&disp_phy>;
+				};
+			};
+		};
+#endif
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c6 */
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -3291,6 +3334,24 @@
 			 * 0x2 = DSI RGB666_24BITS / CSI_20BITS YUY2 10bit
 			 * 0x3 = DSI RGB888        / CSI_24BITS RGB888
 			 */
+#elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
+		sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
+		sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,vpp0_layer = <0 0 720 480 800 480 0x2>; /* 0x2 = YUY2 */
+		sp7350,disp_output = <800 480 0x0>; /* 0x0:MIPITX DSI */
+		sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
+		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x1:Raising Edge */
+		sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x0:Sync Pulse */
+		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
+		port {
+			disp_phy: endpoint {
+				remote-endpoint = <&panel_dsi_port>;
+			};
+		};
+
 #elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 		sp7350,dev_name = "LT8912B-HDMI";
 	#if defined(LT8912B_HDMI_480X272)
