@@ -456,7 +456,7 @@ static void sp_crypto_hw_init(struct sp_crypto_dev *dev)
 	SP_CRYPTO_INF("HASH_RING: %px %d\n", (void *)phy_addr, ring->trb_sem.count);
 	SP_CRYPTO_INF("HASH_CR  : %08x\n", R(HASH_CR));
 	SP_CRYPTO_INF("HASH_ER  : %08x\n", R(HASH_ER));
-
+#if 0
 	ring = AES_RING(dev);
 	phy_addr = ring->pa;
 	W(AESDMA_CRCR, phy_addr | AUTODMA_CRCR_FLAGS);
@@ -474,13 +474,73 @@ static void sp_crypto_hw_init(struct sp_crypto_dev *dev)
 	SP_CRYPTO_INF("AES_RING : %px %d\n", (void *)phy_addr, ring->trb_sem.count);
 	SP_CRYPTO_INF("AES_CR   : %08x\n", R(AES_CR));
 	SP_CRYPTO_INF("AES_ER   : %08x\n", R(AES_ER));
-
+#endif
 #ifdef USE_ERF
 	W(SECIE, RSA_DMA_IE | AES_TRB_IE | HASH_TRB_IE | AES_ERF_IE | HASH_ERF_IE);
 #else
-	W(SECIE, RSA_DMA_IE | AES_TRB_IE | HASH_TRB_IE);
+	W(SECIE, RSA_DMA_IE | AES_DMA_IE | HASH_TRB_IE);
 #endif
 	SP_CRYPTO_INF("SECIE: %08x\n", R(SECIE));
+}
+
+struct sp_crypto_dev *sp_crypto_dev(void)
+{
+	return sp_dd_tb;
+}
+EXPORT_SYMBOL(sp_crypto_dev);
+
+static int sp_crypto_init(void)
+{
+	int ret = 0;
+
+	SP_CRYPTO_TRACE();
+	ret = sp_hash_init();
+	ERR_OUT(ret, goto out0, "sp_hash_init");
+	ret = sp_aes_init();
+	ERR_OUT(ret, goto out1, "sp_aes_init");
+#ifdef USE_REF
+	for (i = 0; i < ARRAY_SIZE(sp_dd_tb); ++i) {
+		struct platform_device *pdev = platform_device_alloc("sp_crypto", i);
+
+		sp_dd_tb[i].device = &pdev->dev;
+		sp_dd_tb[i].reg = ioremap((u32)sp_dd_tb[i].reg, sizeof(struct sp_crypto_reg));
+		platform_set_drvdata(pdev, &sp_dd_tb[i]);
+		platform_device_add(pdev);
+
+		SP_CRYPTO_INF("SP_CRYPTO_ENGINE_%d =================\n", i);
+		SP_CRYPTO_INF("reg     : %px\n", sp_dd_tb[i].reg);
+		SP_CRYPTO_INF("regsize : %d\n", sizeof(struct sp_crypto_reg));
+	}
+
+	// must after reg ioremap, it's used in sp_rsa_init()
+#endif
+	SP_CRYPTO_TRACE();
+	ret = sp_rsa_init();
+	ERR_OUT(ret, goto out2, "sp_rsa_init");
+
+	return 0;
+out2:
+	sp_aes_finit();
+out1:
+	sp_hash_finit();
+out0:
+	return ret;
+
+}
+
+static void sp_crypto_exit(void)
+{
+	SP_CRYPTO_TRACE();
+#ifdef USE_REF
+	for (i = 0; i < ARRAY_SIZE(sp_dd_tb); ++i) {
+		platform_device_del(to_platform_device(sp_dd_tb[i].device));
+		platform_device_put(to_platform_device(sp_dd_tb[i].device));
+		iounmap((void *)sp_dd_tb[i].reg);
+	}
+#endif
+	sp_rsa_finit();
+	sp_aes_finit();
+	sp_hash_finit();
 }
 
 static int sp_crypto_probe(struct platform_device *pdev)
@@ -544,7 +604,9 @@ static int sp_crypto_probe(struct platform_device *pdev)
 	ERR_OUT(ret, goto out4, "request_irq(%d)", dev->irq);
 
 	sp_crypto_hw_init(dev);
-	//BUG_ON(1);
+
+	ret = sp_crypto_init();
+	ERR_OUT(ret, goto out4, "sp_crypto_init");
 
 	return 0;
 
@@ -566,6 +628,7 @@ static int sp_crypto_remove(struct platform_device *pdev)
 	struct sp_crypto_reg *reg = dev->reg;
 
 	SP_CRYPTO_TRACE();
+	sp_crypto_exit();
 
 	/* hw stop */
 	// HASH
@@ -646,61 +709,12 @@ static struct platform_driver sp_crtpto_driver = {
 
 static int __init sp_crypto_module_init(void)
 {
-	int ret = 0;
-
-	SP_CRYPTO_TRACE();
-
-	ret = sp_hash_init();
-	ERR_OUT(ret, goto out0, "sp_hash_init");
-	ret = sp_aes_init();
-	ERR_OUT(ret, goto out1, "sp_aes_init");
-
-	platform_driver_register(&sp_crtpto_driver);
-#ifdef USE_REF
-	for (i = 0; i < ARRAY_SIZE(sp_dd_tb); ++i) {
-		struct platform_device *pdev = platform_device_alloc("sp_crypto", i);
-
-		sp_dd_tb[i].device = &pdev->dev;
-		sp_dd_tb[i].reg = ioremap((u32)sp_dd_tb[i].reg, sizeof(struct sp_crypto_reg));
-		platform_set_drvdata(pdev, &sp_dd_tb[i]);
-		platform_device_add(pdev);
-
-		SP_CRYPTO_INF("SP_CRYPTO_ENGINE_%d =================\n", i);
-		SP_CRYPTO_INF("reg     : %px\n", sp_dd_tb[i].reg);
-		SP_CRYPTO_INF("regsize : %d\n", sizeof(struct sp_crypto_reg));
-	}
-
-	// must after reg ioremap, it's used in sp_rsa_init()
-#endif
-	SP_CRYPTO_TRACE();
-	ret = sp_rsa_init();
-	ERR_OUT(ret, goto out2, "sp_rsa_init");
-
-	return 0;
-
-out2:
-	sp_aes_finit();
-out1:
-	sp_hash_finit();
-out0:
-	return ret;
+	return platform_driver_register(&sp_crtpto_driver);
 }
 
 static void __exit sp_crypto_module_exit(void)
 {
-	SP_CRYPTO_TRACE();
-#ifdef USE_REF
-	for (i = 0; i < ARRAY_SIZE(sp_dd_tb); ++i) {
-		platform_device_del(to_platform_device(sp_dd_tb[i].device));
-		platform_device_put(to_platform_device(sp_dd_tb[i].device));
-		iounmap((void *)sp_dd_tb[i].reg);
-	}
-#endif
 	platform_driver_unregister(&sp_crtpto_driver);
-
-	sp_rsa_finit();
-	sp_aes_finit();
-	sp_hash_finit();
 }
 
 module_init(sp_crypto_module_init);
