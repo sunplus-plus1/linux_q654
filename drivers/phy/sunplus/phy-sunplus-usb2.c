@@ -57,6 +57,7 @@
 #define PROB_MASK				GENMASK(5, 3)
 #define PROB					FIELD_PREP(PROB_MASK, 7)
 #define GLO_CTRL0_OFFSET			0x70
+#define OTG_PD					BIT(2)
 #define GLO_CTRL1_OFFSET			0x74
 #define CLK120_27_SEL				BIT(19)
 #define RX_CLK_SEL				BIT(6)
@@ -160,10 +161,12 @@ static int sp_uphy_init(struct phy *phy)
 	val &= ~(RX_CLK_SEL | TX_CLK_SEL);
 	writel(val, usbphy->phy_regs + GLO_CTRL1_OFFSET);
 
+#if 0
 	/* battery charger */
 	writel(J_TBCWAIT_1P1_MS | J_TVDM_SRC_DIS_8P2_MS | J_TVDM_SRC_EN_1P6_MS | J_BC_EN,
 	       usbphy->phy_regs + CONFIG16);
 	writel(IBG_TRIM0_SSLVHT | J_VDATREE_TRIM_DEFAULT, usbphy->phy_regs + CONFIG17);
+#endif
 
 	/* chirp mode */
 	writel(J_FORCE_DISC_ON | J_DEBUG_CTRL_ADDR_MACRO, usbphy->phy_regs + CONFIG3);
@@ -230,6 +233,10 @@ static int sp_uphy_power_on(struct phy *phy)
 	pll_pwr_on &= (~PLL_PD_SEL & ~PLL_PD);
 	writel(pll_pwr_on, usbphy->phy_regs + GLO_CTRL2_OFFSET);
 
+	/* OTG power up */
+	writel(readl(usbphy->phy_regs + GLO_CTRL0_OFFSET) & ~OTG_PD,
+							usbphy->phy_regs + GLO_CTRL0_OFFSET);
+
 	/* USB clock = 120MHz */
 	writel(readl(usbphy->phy_regs + GLO_CTRL1_OFFSET) & ~CLK120_27_SEL,
 							usbphy->phy_regs + GLO_CTRL1_OFFSET);
@@ -246,6 +253,11 @@ static int sp_uphy_power_off(struct phy *phy)
 {
 	struct sp_usbphy *usbphy = phy_get_drvdata(phy);
 	u32 temp;
+
+	/* OTG power down */
+	temp = readl(usbphy->phy_regs + GLO_CTRL0_OFFSET);
+	temp |= OTG_PD;
+	writel(temp, usbphy->phy_regs + GLO_CTRL0_OFFSET);
 
 	/* PLL power down */
 	temp = readl(usbphy->phy_regs + GLO_CTRL2_OFFSET);
