@@ -21,6 +21,7 @@
 #include "stmmac.h"
 
 #define ONLY_TEST_PHYLOOPBACK 1
+//#define ONLY_TEST_MAC2MAC 1
 
 struct stmmachdr {
 	__be32 version;
@@ -384,10 +385,10 @@ static int stmmac_test_phy_loopback(struct stmmac_priv *priv)
 {
 	struct stmmac_packet_attrs attr = { };
 	int ret;
-
+#ifndef ONLY_TEST_MAC2MAC
 	if (!priv->dev->phydev)
 		return -EOPNOTSUPP;
-
+#endif
 #ifndef ONLY_TEST_PHYLOOPBACK
 	ret = phy_loopback(priv->dev->phydev, true);
 	if (ret)
@@ -2036,14 +2037,16 @@ void stmmac_selftest_run(struct net_device *dev,
 			}
 
 			ret = stmmac_selftests[i].fn(priv);
+			//printk("packet test result:%d \n",ret);
 			if (ret && (ret != -EOPNOTSUPP)) {
 				etest->flags |= ETH_TEST_FL_FAILED;
 				fail_count++;
+                //printk("packet test fail:%d \n",fail_count);
 			}
 
 			switch (stmmac_selftests[i].lb) {
 			case STMMAC_LOOPBACK_PHY:
-				if ((fail_count ) || (j == 10)){
+				if ((fail_count) || (j == 10)){
 					if (fail_count) {
 						j = 11;
 						printk("ETH test fail \n");
@@ -2057,6 +2060,54 @@ void stmmac_selftest_run(struct net_device *dev,
 						ret = phy_loopback(dev->phydev, false);
 					if (!ret)
 						break;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+	}
+#elif defined ONLY_TEST_MAC2MAC
+	for (j = 0; j <= 100; j++) {
+		for (i = 0; i < count; i++) {
+			ret = 0;
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				break;
+			default:
+				ret = -EOPNOTSUPP;
+				break;
+			}
+
+			/*
+			* First tests will always be MAC / PHY loobpack. If any of
+			* them is not supported we abort earlier.
+			*/
+			if (ret) {
+				netdev_err(priv->dev, "Loopback is not supported\n");
+				etest->flags |= ETH_TEST_FL_FAILED;
+				break;
+			}
+
+			ret = stmmac_selftests[i].fn(priv);
+			printk("packet test result:%d \n",ret);
+			if (ret && (ret != -EOPNOTSUPP)) {
+				etest->flags |= ETH_TEST_FL_FAILED;
+				fail_count++;
+                //printk("packet test fail:%d \n",fail_count);
+			}
+
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				if ((fail_count) || (j == 100)){
+					if (fail_count) {
+						j = 101;
+						printk("ETH test fail \n");
+						buf[i] = -110;
+					}
+					else {
+						buf[i] = ret;
+					}
 				}
 				break;
 			default:

@@ -413,6 +413,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		goto bus_register_done;
 
 	found = 0;
+#ifndef SKIP_PHY
 	for (addr = 0; addr < max_addr; addr++) {
 		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
 
@@ -446,6 +447,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 		err = -ENODEV;
 		goto no_phy_found;
 	}
+#endif
 
 	/* Try to probe the XPCS by scanning all addresses. */
 	if (priv->hw->xpcs) {
