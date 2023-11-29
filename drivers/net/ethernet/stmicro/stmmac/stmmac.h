@@ -23,6 +23,8 @@
 #include <linux/reset.h>
 #include <net/page_pool.h>
 
+//#define SKIP_PHY 1
+
 struct stmmac_resources {
 	void __iomem *addr;
 	const char *mac;

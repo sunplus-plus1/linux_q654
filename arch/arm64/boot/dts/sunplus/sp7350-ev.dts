@@ -74,6 +74,9 @@
 //#define LT8912B_HDMI_720P
 #define LT8912B_HDMI_1080P
 
+//#define ETHERNET_WITHOUT_PHY
+//#define ETHERNET_WITH_RMII_PHY
+
 / {
 	model = "Sunplus SP7350";
 	compatible = "sunplus,sp7350";
@@ -1642,6 +1645,7 @@
 		//};
 	};
 
+#ifdef ETHERNET_WITHOUT_PHY
 	ethernet: stmmac@f8103000 {
 		compatible = "snps,dwmac-3.70a";
 		reg = <0x00 0xf8103000 0x00 0x2000>;
@@ -1650,6 +1654,7 @@
 			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+		wakeup-source;
 		clocks = <&clkc GMAC>;
 		clock-names = "stmmaceth";
 		clock_in_out = "output";
@@ -1659,7 +1664,119 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gmac_pins>;
 		mac-mode = "rgmii";
-		/* Reset time is 20ms, 100ms for rtl8211f */
+		/* fixed-burst-->speed little high*/
+		snps,mixed-burst;
+		snps,force_sf_dma_mode;
+		snps,multicast-filter-bins = <256>;
+		snps,perfect-filter-entries = <128>;
+		snps,ps-speed = <1000>;
+		rx-fifo-depth = <16384>;
+		tx-fifo-depth = <16384>;
+		snps,axi-config = <&stmmac_axi_setup>;
+		snps,mtl-rx-config = <&mtl_rx_setup>;
+		snps,mtl-tx-config = <&mtl_tx_setup>;
+		nvmem-cell-names = "mac-address";
+		nvmem-cells = <&mac_addr>;
+		clk_csr = <4>;
+		phy-mode = "rgmii";
+		//phy-handle = <&phy0>;
+
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+		};
+
+		mdio0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+#elif defined(ETHERNET_WITH_RMII_PHY)
+	ethernet: stmmac@f8103000 {
+		compatible = "snps,dwmac-3.70a";
+		reg = <0x00 0xf8103000 0x00 0x2000>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+		wakeup-source;
+		clocks = <&clkc GMAC>;
+		clock-names = "stmmaceth";
+		clock_in_out = "output";
+		clock-frequency = <50000000>;
+		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
+		reset-names = "rstc_gmac", "rstc_pd_gmac";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac_pins>;
+		mac-mode = "rmii";
+		/* Reset time is 30ms, 150ms for rtl8211f */
+		snps,reset-delays-us = <0 30000 150000>;
+		/* fixed-burst-->speed little high*/
+		snps,mixed-burst;
+		//snps,fixed-burst;
+		/* default threshold=64, real use 128 */
+		//snps,force_thresh_dma_mode;
+		/* default */
+		snps,force_sf_dma_mode;
+		/*LPI switch*/
+		snps,en-tx-lpi-clockgating;
+		snps,multicast-filter-bins = <256>;
+		snps,perfect-filter-entries = <128>;
+		snps,ps-speed = <100>;
+		//snps,pbl = <16>;
+		//snps,txpbl = <16>;
+		//snps,rxpbl = <16>;
+		//snps,no-pbl-x8;
+		//snps,tso;
+		rx-fifo-depth = <16384>;
+		tx-fifo-depth = <16384>;
+		snps,axi-config = <&stmmac_axi_setup>;
+		snps,mtl-rx-config = <&mtl_rx_setup>;
+		snps,mtl-tx-config = <&mtl_tx_setup>;
+		nvmem-cell-names = "mac-address";
+		nvmem-cells = <&mac_addr>;
+		clk_csr = <4>;
+		phy-mode = "rmii";
+		phy-handle = <&phy0>;
+		/*id-->use phy hardway tx/rx delay 2ns, txid-->use phy hardway tx delay 2ns, rxid-->use phy hardway rx delay 2ns*/
+		//phy-mode = "rgmii-id";
+		//phy-mode = "rgmii-txid";
+		//phy-mode = "rgmii-rxid";
+		//status = "disabled";
+
+		mdio0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dwmac-mdio";
+			phy0: ethernet-phy@0 {
+				compatible = "ethernet-phy-id001c.c816", "ethernet-phy-ieee802.3-c22";
+				reg = <1>;
+				reset-assert-us = <1000>;
+				reset-deassert-us = <2000>;
+			};
+		};
+	};
+#else
+	ethernet: stmmac@f8103000 {
+		compatible = "snps,dwmac-3.70a";
+		reg = <0x00 0xf8103000 0x00 0x2000>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+		wakeup-source;
+		clocks = <&clkc GMAC>;
+		clock-names = "stmmaceth";
+		clock_in_out = "output";
+		clock-frequency = <50000000>;
+		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
+		reset-names = "rstc_gmac", "rstc_pd_gmac";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gmac_pins>;
+		mac-mode = "rgmii";
+		/* Reset time is 30ms, 150ms for rtl8211f */
 		snps,reset-delays-us = <0 30000 150000>;
 		/* fixed-burst-->speed little high*/
 		snps,mixed-burst;
@@ -1683,7 +1800,6 @@
 		snps,axi-config = <&stmmac_axi_setup>;
 		snps,mtl-rx-config = <&mtl_rx_setup>;
 		snps,mtl-tx-config = <&mtl_tx_setup>;
-		//max-speed = <1000>;
 		nvmem-cell-names = "mac-address";
 		nvmem-cells = <&mac_addr>;
 		clk_csr = <4>;
@@ -1693,8 +1809,6 @@
 		//phy-mode = "rgmii-id";
 		//phy-mode = "rgmii-txid";
 		//phy-mode = "rgmii-rxid";
-		//tx_delay = <0x25>;
-		//rx_delay = <0x15>;
 		//status = "disabled";
 
 		mdio0 {
@@ -1703,13 +1817,13 @@
 			compatible = "snps,dwmac-mdio";
 			phy0: ethernet-phy@0 {
 				compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
-				//compatible = "ethernet-phy-id001c.c816", "ethernet-phy-ieee802.3-c22";
 				reg = <1>;
 				reset-assert-us = <1000>;
 				reset-deassert-us = <2000>;
 			};
 		};
 	};
+#endif
 
 	sp_spinor0: spinor@f8000b00 {
 		compatible = "sunplus,sp7350-spi-nor";

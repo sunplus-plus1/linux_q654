@@ -567,6 +567,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		return ERR_PTR(rc);
 	}
 
+#ifndef SKIP_PHY
 	/* clock setup */
 	if (!of_device_is_compatible(np, "snps,dwc-qos-ethernet-4.10")) {
 		plat->stmmac_clk = devm_clk_get(&pdev->dev,
@@ -586,6 +587,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->pclk = NULL;
 	}
 	clk_prepare_enable(plat->pclk);
+#endif
 
 	/* Fall-back to main clock in case of no PTP ref is passed */
 	plat->clk_ptp_ref = devm_clk_get(&pdev->dev, "ptp_ref");
@@ -598,6 +600,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dev_dbg(&pdev->dev, "PTP rate %d\n", plat->clk_ptp_rate);
 	}
 
+#ifndef SKIP_PHY
 	plat->stmmac_rst = devm_reset_control_get(&pdev->dev,
 						  STMMAC_RESOURCE_NAME);
 	if (IS_ERR(plat->stmmac_rst)) {
@@ -607,6 +610,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dev_info(&pdev->dev, "no reset control found\n");
 		plat->stmmac_rst = NULL;
 	}
+#endif
 
 	return plat;
 

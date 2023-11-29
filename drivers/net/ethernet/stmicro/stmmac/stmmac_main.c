@@ -66,7 +66,11 @@ MODULE_PARM_DESC(phyaddr, "Physical device address");
 #define STMMAC_TX_THRESH(x)	((x)->dma_tx_size / 4)
 #define STMMAC_RX_THRESH(x)	((x)->dma_rx_size / 4)
 
+#ifndef SKIP_PHY
 static int flow_ctrl = FLOW_AUTO;
+#else
+static int flow_ctrl = FLOW_OFF;
+#endif
 module_param(flow_ctrl, int, 0644);
 MODULE_PARM_DESC(flow_ctrl, "Flow control ability [on/off]");
 
@@ -924,6 +928,7 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
 	ctrl &= ~priv->hw->link.speed_mask;
 
+#ifndef SKIP_PHY
 	if (interface == PHY_INTERFACE_MODE_USXGMII) {
 		switch (speed) {
 		case SPEED_10000:
@@ -982,16 +987,22 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 			return;
 		}
 	}
-
+#else
+    ctrl |= priv->hw->link.speed1000;
+#endif
 	priv->speed = speed;
 
 	if (priv->plat->fix_mac_speed)
 		priv->plat->fix_mac_speed(priv, speed);
 
+#ifndef SKIP_PHY
 	if (!duplex)
 		ctrl &= ~priv->hw->link.duplex;
 	else
 		ctrl |= priv->hw->link.duplex;
+#else
+    ctrl |= priv->hw->link.duplex;
+#endif
 
 	/* Flow Control operation */
 	if (tx_pause && rx_pause)
@@ -1089,6 +1100,7 @@ static int stmmac_init_phy(struct net_device *dev)
 
 static int stmmac_phy_setup(struct stmmac_priv *priv)
 {
+#ifndef SKIP_PHY
 	struct fwnode_handle *fwnode = of_fwnode_handle(priv->plat->phylink_node);
 	int mode = priv->plat->phy_interface;
 	struct phylink *phylink;
@@ -1107,6 +1119,24 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 
 	priv->phylink = phylink;
 	return 0;
+#else
+    u32 ctrl;
+
+	ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
+	ctrl &= ~priv->hw->link.speed_mask;
+	ctrl |= priv->hw->link.speed1000;
+
+	priv->speed = SPEED_1000;
+	if (priv->plat->fix_mac_speed)
+	    priv->plat->fix_mac_speed(priv->plat->bsp_priv, priv->speed);
+
+	ctrl |= priv->hw->link.duplex;
+
+	writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
+	printk("3. MAC config reg = 0x%08x\n",readl(priv->ioaddr + MAC_CTRL_REG));
+
+	return 0;
+#endif
 }
 
 static void stmmac_display_rx_rings(struct stmmac_priv *priv)
@@ -2801,6 +2831,7 @@ static int stmmac_open(struct net_device *dev)
 	u32 chan;
 	int ret;
 
+#ifndef SKIP_PHY
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI &&
 	    priv->hw->xpcs == NULL) {
@@ -2812,6 +2843,7 @@ static int stmmac_open(struct net_device *dev)
 			return ret;
 		}
 	}
+#endif
 
 	/* Extra statistics */
 	memset(&priv->xstats, 0, sizeof(struct stmmac_extra_stats));
@@ -2865,9 +2897,11 @@ static int stmmac_open(struct net_device *dev)
 
 	stmmac_init_coalesce(priv);
 
+#ifndef SKIP_PHY
 	phylink_start(priv->phylink);
 	/* We may have called phylink_speed_down before */
 	phylink_speed_up(priv->phylink);
+#endif
 
 	/* Request the IRQ lines */
 	ret = request_irq(dev->irq, stmmac_interrupt,
@@ -2914,7 +2948,9 @@ lpiirq_error:
 wolirq_error:
 	free_irq(dev->irq, dev);
 irq_error:
+#ifndef SKIP_PHY
 	phylink_stop(priv->phylink);
+#endif
 
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++)
 		del_timer_sync(&priv->tx_queue[chan].txtimer);
@@ -2923,7 +2959,9 @@ irq_error:
 init_error:
 	free_dma_desc_resources(priv);
 dma_desc_error:
+#ifndef SKIP_PHY
 	phylink_disconnect_phy(priv->phylink);
+#endif
 	return ret;
 }
 
@@ -2938,11 +2976,13 @@ static int stmmac_release(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 chan;
 
+#ifndef SKIP_PHY
 	if (device_may_wakeup(priv->device))
 		phylink_speed_down(priv->phylink, false);
 	/* Stop and disconnect the PHY */
 	phylink_stop(priv->phylink);
 	phylink_disconnect_phy(priv->phylink);
+#endif
 
 	stmmac_disable_all_queues(priv);
 
@@ -4212,7 +4252,9 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
+#ifndef SKIP_PHY
 		ret = phylink_mii_ioctl(priv->phylink, rq, cmd);
+#endif
 		break;
 	case SIOCSHWTSTAMP:
 		ret = stmmac_hwtstamp_set(dev, rq);
@@ -5075,6 +5117,7 @@ int stmmac_dvr_probe(struct device *device,
 
 	stmmac_check_pcs_mode(priv);
 
+#ifndef SKIP_PHY
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI) {
 		/* MDIO bus Registration */
@@ -5086,6 +5129,7 @@ int stmmac_dvr_probe(struct device *device,
 			goto error_mdio_register;
 		}
 	}
+#endif
 
 	ret = stmmac_phy_setup(priv);
 	if (ret) {
@@ -5117,7 +5161,9 @@ int stmmac_dvr_probe(struct device *device,
 error_serdes_powerup:
 	unregister_netdev(ndev);
 error_netdev_register:
+#ifndef SKIP_PHY
 	phylink_destroy(priv->phylink);
+#endif
 error_phy_setup:
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI)
@@ -5158,7 +5204,9 @@ int stmmac_dvr_remove(struct device *dev)
 #ifdef CONFIG_DEBUG_FS
 	stmmac_exit_fs(ndev);
 #endif
+#ifndef SKIP_PHY
 	phylink_destroy(priv->phylink);
+#endif
 	if (priv->plat->stmmac_rst)
 		reset_control_assert(priv->plat->stmmac_rst);
 	clk_disable_unprepare(priv->plat->pclk);
@@ -5189,7 +5237,9 @@ int stmmac_suspend(struct device *dev)
 	if (!ndev || !netif_running(ndev))
 		return 0;
 
+#ifndef SKIP_PHY
 	phylink_mac_change(priv->phylink, false);
+#endif
 
 	mutex_lock(&priv->lock);
 
@@ -5218,9 +5268,11 @@ int stmmac_suspend(struct device *dev)
 	} else {
 		mutex_unlock(&priv->lock);
 		rtnl_lock();
+#ifndef SKIP_PHY
 		if (device_may_wakeup(priv->device))
 			phylink_speed_down(priv->phylink, false);
 		phylink_stop(priv->phylink);
+#endif
 		rtnl_unlock();
 		mutex_lock(&priv->lock);
 
@@ -5295,12 +5347,16 @@ int stmmac_resume(struct device *dev)
 
 		/*This is used to fix phy status issue after suspend->resume with WOL enable*/
 		rtnl_lock();
+#ifndef SKIP_PHY
 		phylink_speed_down(priv->phylink, false);
 		phylink_stop(priv->phylink);
+#endif
 		rtnl_unlock();
 		rtnl_lock();
+#ifndef SKIP_PHY
 		phylink_start(priv->phylink);
 		phylink_speed_up(priv->phylink);
+#endif
 		rtnl_unlock();
 
 		priv->irq_wake = 0;
@@ -5327,9 +5383,11 @@ int stmmac_resume(struct device *dev)
 
 	if (!device_may_wakeup(priv->device) || !priv->plat->pmt) {
 		rtnl_lock();
+#ifndef SKIP_PHY
 		phylink_start(priv->phylink);
 		/* We may have called phylink_speed_down before */
 		phylink_speed_up(priv->phylink);
+#endif
 		rtnl_unlock();
 	}
 
@@ -5352,7 +5410,9 @@ int stmmac_resume(struct device *dev)
 	mutex_unlock(&priv->lock);
 	rtnl_unlock();
 
+#ifndef SKIP_PHY
 	phylink_mac_change(priv->phylink, true);
+#endif
 
 	netif_device_attach(ndev);
 

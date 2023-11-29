@@ -30,7 +30,11 @@ static void dwmac1000_core_init(struct mac_device_info *hw,
 	int mtu = dev->mtu;
 
 	/* Configure GMAC core */
+#ifndef SKIP_PHY
 	value |= GMAC_CORE_INIT;
+#else
+    value |= (GMAC_CONTROL_JD | GMAC_CONTROL_DM | GMAC_CONTROL_ACS | GMAC_CONTROL_BE | GMAC_CONTROL_DCRS);
+#endif
 
 	/* Clear ACS bit because Ethernet switch tagging formats such as
 	 * Broadcom tags can look like invalid LLC/SNAP packets and cause the
