@@ -14,3 +14,6 @@ display_sp7350-objs += sp7350_disp_v4l2.o
 ifdef CONFIG_VIDEO_SP7350_DISP_DEBUG
 display_sp7350-objs += sp7350_disp_debug.o
 endif
+ifdef CONFIG_VIDEO_SP7350_DISP_PI_PANEL
+display_sp7350-objs += sp7350_disp_pi_dsi_panel.o
+endif

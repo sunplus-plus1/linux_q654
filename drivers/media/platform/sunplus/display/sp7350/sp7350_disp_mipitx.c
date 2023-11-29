@@ -747,6 +747,7 @@ static void sp7350_dcs_write_buf(const void *data, size_t len)
 
 	data1 = (u8 *)data;
 
+	udelay(100);
 	if (len == 0) {
 		check_cmd_fifo_full();
 		value = 0x00000003;
