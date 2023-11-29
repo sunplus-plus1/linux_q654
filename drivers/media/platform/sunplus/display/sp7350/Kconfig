@@ -18,3 +18,12 @@ config VIDEO_SP7350_DISP_DEBUG
 	  Debug function reserved for display further check.
 	  echo "dump all" > /sys/module/display_sp7350/parameter/debug
 	  can show more info for display driver details.
+
+config VIDEO_SP7350_DISP_PI_PANEL
+	bool "Builtin RASPBERRYPI 7inch TOUCHSCREEN I2C controller"
+	depends on VIDEO_SP7350_DISP
+	default n
+	help
+	  Say Y here, if you use raspberrypi 7inch touchscreen 800x480 DSI panel
+	  Note, this i2c controller only support dsi function
+	  Not include touchscreen function
