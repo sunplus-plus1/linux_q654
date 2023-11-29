@@ -1957,7 +1957,7 @@
 		cd-gpios = <&pctl 17 GPIO_ACTIVE_LOW>;
 		delay-val = <0x777110>;
 		bus-width = <4>;
-		max-frequency = <160000000>;
+		max-frequency = <200000000>;
 		disable-wp;
 		cap-sd-highspeed;
 		sd-uhs-sdr12;
@@ -1970,7 +1970,7 @@
 	};
 
 	sdio: sdio@f8008400 {
-		compatible = "sunplus,sp7350-sd";
+		compatible = "sunplus,sp7350-1v8-sdio";
 		reg = < 0x0 0xf8008400 0x0 0x180>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
@@ -1980,7 +1980,7 @@
 		pinctrl-0 = <&sdio_pins>;
 		delay-val = <0x777110>;
 		bus-width = <4>;
-		max-frequency = <160000000>;
+		max-frequency = <200000000>;
 		non-removable;
 		disable-wp;
 		cap-sd-highspeed;
