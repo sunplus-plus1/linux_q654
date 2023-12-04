@@ -64,10 +64,6 @@ struct crypto_gcm_req_priv_ctx {
 	u8 iv[16];
 	u8 auth_tag[16];
 	u8 iauth_tag[16];
-#ifdef CONFIG_SOC_SP7021
-	/* avoid auth_tag & src @ same cacheline */
-	u8 dummy[L1_CACHE_BYTES - 48];
-#endif
 	struct scatterlist src[3];
 	struct scatterlist dst[3];
 	struct scatterlist sg;
