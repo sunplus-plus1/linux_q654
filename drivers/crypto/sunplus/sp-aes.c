@@ -4,7 +4,6 @@
  *       All rights reserved.
  */
 //#define DEBUG
-#include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
@@ -21,13 +20,16 @@
 #define SEC_DMA_ENABLE	(1 << 0)
 #define SEC_DMA_SIZE(x) ((x) << 16)
 #define M_KEYLEN(x)     (((x) >> 2) << 16)
-#define AES_BUF_SIZE	(CHACHA_BLOCK_SIZE + AES_KEYSIZE_256 + CHACHA_IV_SIZE)
+
+#define WORK_BUF_SIZE	(CHACHA_BLOCK_SIZE + AES_KEYSIZE_256 + CHACHA_IV_SIZE)
+#define IV_OFFSET	(CHACHA_BLOCK_SIZE + AES_KEYSIZE_256)
+#define KEY_OFFSET	(CHACHA_BLOCK_SIZE)
 
 struct sp_crypto_aes_ctx {
-	u32 key[AES_KEYSIZE_256];
-	u32 key_length;
-	u32 blksize;
-	uintptr_t iv;
+	u8 key[AES_KEYSIZE_256];
+	u32 mode;
+	u32 gctr;
+	u32 keysize;
 };
 
 struct sp_aes_priv {
@@ -39,6 +41,8 @@ struct sp_aes_priv {
 } sp_aes;
 
 extern struct sp_crypto_dev *sp_crypto_dev(void);
+static struct device *dev;
+static struct sp_crypto_reg *reg;
 
 static int sp_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len)
@@ -46,130 +50,163 @@ static int sp_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	struct sp_crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	int err;
 
-	err = aes_check_keylen(key_len);
-	if (err)
-		return err;
-
 	SP_CRYPTO_DBG("[%s:%d] %px %px %u", __FUNCTION__, __LINE__, ctx, in_key, key_len);
-	ctx->key_length = key_len;
-	if (!sp_aes.va)
-		sp_aes.va = dma_alloc_coherent(sp_crypto_dev()->device, AES_BUF_SIZE, &sp_aes.pa, GFP_KERNEL);
-	memcpy(ctx->key, in_key, key_len);
-	ctx->blksize = AES_BLOCK_SIZE;
+	err = aes_check_keylen(key_len);
+	if (!err) {
+		memcpy(ctx->key, in_key, key_len);
+		ctx->keysize = key_len;
+	}
 
-	return 0;
+	return err;
 }
 
-static void sp_aes_exec(struct crypto_tfm *tfm, uintptr_t dst, uintptr_t src, u32 size, u32 mode)
+static void sp_aes_hw_exec(u32 src, u32 dst, u32 bytes)
 {
-	struct sp_crypto_reg *reg = sp_crypto_dev()->reg;
-	struct sp_crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
-	int b = size < CHACHA_BLOCK_SIZE;
-
-	SP_CRYPTO_DBG("[%04x:%02x] %08lx %08lx %u\n", mode, ctx->blksize, src, dst, size);
-	mutex_lock(&sp_aes.lock);
+	W(AESSPTR, src);
+	W(AESDPTR, dst);
 
 	sp_aes.done = false;
-	if (b) {
-		memcpy(sp_aes.va, (void *)src, size);
-		//dump_buf(sp_aes.va, size);
-	}
-	memcpy(sp_aes.va + CHACHA_BLOCK_SIZE, ctx->key, ctx->key_length);
-	if (ctx->iv) {
-		memcpy(sp_aes.va + CHACHA_BLOCK_SIZE + AES_KEYSIZE_256, (void *)ctx->iv, CHACHA_IV_SIZE);
-		ctx->iv = sp_aes.pa + CHACHA_BLOCK_SIZE + AES_KEYSIZE_256;
-	}
 	smp_wmb(); /* memory barrier */
-
-	W(AESPAR0, mode | M_KEYLEN(ctx->key_length));
-	W(AESPAR1, ctx->iv); // iv
-	ctx->iv = 0; // initial iv @ ctx 1st call hw
-	W(AESPAR2, sp_aes.pa + CHACHA_BLOCK_SIZE); // kptr
-	W(AESSPTR, b ? sp_aes.pa : src);
-	W(AESDPTR, b ? sp_aes.pa : dst);
-	W(AESDMACS, SEC_DMA_SIZE(b ? CHACHA_BLOCK_SIZE : size) | SEC_DMA_ENABLE);
+	W(AESDMACS, SEC_DMA_SIZE(bytes) | SEC_DMA_ENABLE);
 	wait_event_interruptible_timeout(sp_aes.wait, sp_aes.done, 60*HZ);
+}
 
-	SP_CRYPTO_TRACE();
-	if (b) {
-		//dump_buf(sp_aes.va, size);
-		memcpy((void *)dst, sp_aes.va, size);
-	}
+static void sp_aes_exec(struct crypto_tfm *tfm, u8 *out, const u8 *in, u32 mode)
+{
+	struct sp_crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+	const u32 bytes = AES_BLOCK_SIZE;
+
+	//SP_CRYPTO_DBG("[%s:%d] %px %px %px %u %u\n", __FUNCTION__, __LINE__, ctx, in, out, mode, blksize);
+	mutex_lock(&sp_aes.lock);
+
+	// mode
+	W(AESPAR0, mode | M_KEYLEN(ctx->keysize));
+
+	// key
+	memcpy(sp_aes.va + KEY_OFFSET, ctx->key, ctx->keysize);
+	W(AESPAR2, sp_aes.pa + KEY_OFFSET);
+
+	memcpy(sp_aes.va, in, bytes);
+
+	sp_aes_hw_exec(sp_aes.pa, sp_aes.pa, bytes);
+
+	memcpy(out, sp_aes.va, bytes);
 
 	mutex_unlock(&sp_aes.lock);
 }
 
 static void sp_aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	return sp_aes_exec(tfm, (uintptr_t)out, (uintptr_t)in, AES_BLOCK_SIZE, M_AES_ECB | M_ENC);
+	return sp_aes_exec(tfm, out, in, M_ENC);
 }
 
 static void sp_aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
-	return sp_aes_exec(tfm, (uintptr_t)out, (uintptr_t)in, AES_BLOCK_SIZE, M_AES_ECB | M_DEC);
+	return sp_aes_exec(tfm, out, in, M_DEC);
 }
 
-static int sp_chacha_set_key(struct crypto_skcipher *tfm,
+static int sp_skcipher_set_key(struct crypto_skcipher *tfm,
 	const u8 *in_key, unsigned int key_len)
 {
 	return sp_aes_set_key(&tfm->base, in_key, key_len);
 }
 
-static int sp_chacha_crypt(struct skcipher_request *req, u32 mode)
+static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 {
-	struct device *dev = sp_crypto_dev()->device;
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct sp_crypto_aes_ctx *ctx = crypto_skcipher_ctx(tfm);
+	const unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	const unsigned int blksize = crypto_skcipher_chunksize(tfm);
 	struct skcipher_walk walk;
 	unsigned int nbytes;
 	int err;
 
-	err = skcipher_walk_virt(&walk, req, false);
-	ctx->iv = (uintptr_t)req->iv;
-	ctx->blksize = CHACHA_BLOCK_SIZE;
+	mutex_lock(&sp_aes.lock);
 
-	while ((nbytes = walk.nbytes) > 0) {
-		uintptr_t src = (uintptr_t)walk.src.virt.addr;
-		uintptr_t dst = (uintptr_t)walk.dst.virt.addr;
-		u32 bytes = nbytes - (nbytes % ctx->blksize) ?: nbytes;
+	// mode
+	mode |= ctx->mode | ctx->gctr;
+	W(AESPAR0, mode | M_KEYLEN(ctx->keysize));
+
+	// key
+	memcpy(sp_aes.va + KEY_OFFSET, ctx->key, ctx->keysize);
+	W(AESPAR2, sp_aes.pa + KEY_OFFSET);
+
+	// iv in
+	if (ivsize) {
+		memcpy(sp_aes.va + IV_OFFSET, req->iv, ivsize);
+		W(AESPAR1, sp_aes.pa + IV_OFFSET);
+	}
+
+	err = skcipher_walk_virt(&walk, req, false);
+	while (!err && (nbytes = walk.nbytes) > 0) {
+		void *src = walk.src.virt.addr;
+		void *dst = walk.dst.virt.addr;
+		u32 bytes = nbytes - (nbytes % blksize) ?: nbytes;
 
 		SP_CRYPTO_DBG("%u %u %u\n", nbytes, walk.total, bytes);
-		if (bytes >= CHACHA_BLOCK_SIZE) {
+		if (bytes >= blksize) {
+			dma_addr_t src_pa, dst_pa;
+
 			if (src != dst) {
-				src = dma_map_single(dev, (void *)src, bytes, DMA_TO_DEVICE);
-				dst = dma_map_single(dev, (void *)dst, bytes, DMA_FROM_DEVICE);
+				src_pa = dma_map_single(dev, src, bytes, DMA_TO_DEVICE);
+				dst_pa = dma_map_single(dev, dst, bytes, DMA_FROM_DEVICE);
 			} else {
-				src = dma_map_single(dev, (void *)src, bytes, DMA_BIDIRECTIONAL);
-				dst = src;
+				src_pa = dma_map_single(dev, src, bytes, DMA_BIDIRECTIONAL);
+				dst_pa = src_pa;
 			}
-		}
-		sp_aes_exec(&tfm->base, dst, src, bytes, mode);
-		if (bytes >= CHACHA_BLOCK_SIZE) {
+
+			sp_aes_hw_exec(src_pa, dst_pa, bytes);
+
 			if (src != dst) {
-				dma_unmap_single(dev, src, bytes, DMA_TO_DEVICE);
-				dma_unmap_single(dev, dst, bytes, DMA_FROM_DEVICE);
+				dma_unmap_single(dev, src_pa, bytes, DMA_TO_DEVICE);
+				dma_unmap_single(dev, dst_pa, bytes, DMA_FROM_DEVICE);
 			} else {
-				dma_unmap_single(dev, src, bytes, DMA_BIDIRECTIONAL);
+				dma_unmap_single(dev, src_pa, bytes, DMA_BIDIRECTIONAL);
 			}
+		} else {
+			//dump_buf(src, bytes);
+			memcpy(sp_aes.va, src, bytes);
+
+			sp_aes_hw_exec(sp_aes.pa, sp_aes.pa, blksize);
+
+			memcpy(dst, sp_aes.va, bytes);
+			//dump_buf(dst, bytes);
 		}
 
 		nbytes -= bytes;
 		err = skcipher_walk_done(&walk, nbytes);
-		if (err)
-			break;
 	}
+
+	// iv out
+	switch (ctx->mode) {
+	case M_AES_CBC:
+	case M_AES_CTR:
+		memcpy(req->iv, sp_aes.va + IV_OFFSET, ivsize);
+	}
+
+	mutex_unlock(&sp_aes.lock);
 
 	return err;
 }
 
-static int sp_chacha_encrypt(struct skcipher_request *req)
+static int sp_cra_init(struct crypto_tfm *tfm)
 {
-	return sp_chacha_crypt(req, M_CHACHA20 | M_ENC);
+	struct sp_crypto_aes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	ctx->gctr = (ctx->mode ? 32 : 128) << 24; // 2nd call from gcm.c hack
+	ctx->mode = crypto_tfm_alg_priority(tfm) & M_MMASK;
+
+	return 0;
 }
 
-static int sp_chacha_decrypt(struct skcipher_request *req)
+static int sp_skcipher_encrypt(struct skcipher_request *req)
 {
-	return sp_chacha_crypt(req, M_CHACHA20 | M_DEC);
+	return sp_skcipher_crypt(req, M_ENC);
+}
+
+static int sp_skcipher_decrypt(struct skcipher_request *req)
+{
+	return sp_skcipher_crypt(req, M_DEC);
 }
 
 static struct crypto_alg sp_aes_generic_alg = {
@@ -193,27 +230,90 @@ static struct crypto_alg sp_aes_generic_alg = {
 
 static struct skcipher_alg algs[] = {
 	{
-		.base.cra_name		= "chacha20",
-		.base.cra_driver_name	= "sp-chacha20-generic",
-		.base.cra_priority	= 400,
-		.base.cra_blocksize	= 1,
+		.base.cra_name		= "ecb(aes)",
+		.base.cra_driver_name	= "sp-aes-ecb",
+		.base.cra_priority	= 0x200 | M_AES_ECB,
+		.base.cra_blocksize	= AES_BLOCK_SIZE,
+		//.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
 		.base.cra_ctxsize	= sizeof(struct sp_crypto_aes_ctx),
+		.base.cra_init		= sp_cra_init,
+		.base.cra_module	= THIS_MODULE,
+
+		.min_keysize		= AES_MIN_KEY_SIZE,
+		.max_keysize		= AES_MAX_KEY_SIZE,
+		.ivsize			= 0,
+		.chunksize		= AES_BLOCK_SIZE,
+		.setkey			= sp_skcipher_set_key,
+		.encrypt		= sp_skcipher_encrypt,
+		.decrypt		= sp_skcipher_decrypt,
+	},
+	{
+		.base.cra_name		= "cbc(aes)",
+		.base.cra_driver_name	= "sp-aes-cbc",
+		.base.cra_priority	= 0x200 | M_AES_CBC,
+		.base.cra_blocksize	= AES_BLOCK_SIZE,
+		//.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
+		.base.cra_ctxsize	= sizeof(struct sp_crypto_aes_ctx),
+		.base.cra_init		= sp_cra_init,
+		.base.cra_module	= THIS_MODULE,
+
+		.min_keysize		= AES_MIN_KEY_SIZE,
+		.max_keysize		= AES_MAX_KEY_SIZE,
+		.ivsize			= AES_BLOCK_SIZE,
+		.chunksize		= AES_BLOCK_SIZE,
+		.setkey			= sp_skcipher_set_key,
+		.encrypt		= sp_skcipher_encrypt,
+		.decrypt		= sp_skcipher_decrypt,
+	},
+	{
+		.base.cra_name		= "ctr(aes)",
+		.base.cra_driver_name	= "sp-aes-ctr",
+		.base.cra_priority	= 0x200 | M_AES_CTR,
+		.base.cra_blocksize	= 1,
+		//.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
+		.base.cra_ctxsize	= sizeof(struct sp_crypto_aes_ctx),
+		.base.cra_init		= sp_cra_init,
+		.base.cra_module	= THIS_MODULE,
+
+		.min_keysize		= AES_MIN_KEY_SIZE,
+		.max_keysize		= AES_MAX_KEY_SIZE,
+		.ivsize			= AES_BLOCK_SIZE,
+		.chunksize		= AES_BLOCK_SIZE,
+		.setkey			= sp_skcipher_set_key,
+		.encrypt		= sp_skcipher_encrypt,
+		.decrypt		= sp_skcipher_decrypt,
+	},
+#if 0
+	{	/*FIXME: hw iv issue */
+		.base.cra_name		= "chacha20",
+		.base.cra_driver_name	= "sp-chacha20",
+		.base.cra_priority	= 0x200 | M_CHACHA20,
+		.base.cra_blocksize	= 1,
+		//.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
+		.base.cra_ctxsize	= sizeof(struct sp_crypto_aes_ctx),
+		.base.cra_init		= sp_cra_init,
 		.base.cra_module	= THIS_MODULE,
 
 		.min_keysize		= CHACHA_KEY_SIZE,
 		.max_keysize		= CHACHA_KEY_SIZE,
 		.ivsize			= CHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
-		.setkey			= sp_chacha_set_key,
-		.encrypt		= sp_chacha_encrypt,
-		.decrypt		= sp_chacha_decrypt,
+		.setkey			= sp_skcipher_set_key,
+		.encrypt		= sp_skcipher_encrypt,
+		.decrypt		= sp_skcipher_decrypt,
 	},
+#endif
 };
 
 int sp_aes_init(void)
 {
-	init_waitqueue_head(&sp_aes.wait);
-	mutex_init(&sp_aes.lock);
+	if (!dev) {
+		dev = sp_crypto_dev()->device;
+		reg = sp_crypto_dev()->reg;
+		init_waitqueue_head(&sp_aes.wait);
+		mutex_init(&sp_aes.lock);
+		sp_aes.va = dma_alloc_coherent(dev, WORK_BUF_SIZE, &sp_aes.pa, GFP_KERNEL);
+	}
 	return crypto_register_alg(&sp_aes_generic_alg) || crypto_register_skciphers(algs, ARRAY_SIZE(algs));
 }
 EXPORT_SYMBOL(sp_aes_init);
