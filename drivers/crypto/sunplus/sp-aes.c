@@ -136,7 +136,7 @@ static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 
 	// iv in
 	if (ivsize) {
-		memcpy(sp_aes.va + IV_OFFSET, req->iv, ivsize);
+		memcpy(IV, req->iv, ivsize);
 		W(AESPAR1, sp_aes.pa + IV_OFFSET);
 		fix_iv = IV[1];
 	}
@@ -195,7 +195,7 @@ static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 	switch (ctx->mode) {
 	case M_AES_CBC:
 	case M_AES_CTR:
-		memcpy(req->iv, sp_aes.va + IV_OFFSET, ivsize);
+		memcpy(req->iv, IV, ivsize);
 	}
 
 	mutex_unlock(&sp_aes.lock);
