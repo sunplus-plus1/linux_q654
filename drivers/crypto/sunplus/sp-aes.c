@@ -111,6 +111,8 @@ static int sp_skcipher_set_key(struct crypto_skcipher *tfm,
 	return sp_aes_set_key(&tfm->base, in_key, key_len);
 }
 
+#define IV ((u32*)(sp_aes.va + IV_OFFSET))
+
 static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
@@ -119,6 +121,7 @@ static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 	const unsigned int blksize = crypto_skcipher_chunksize(tfm);
 	struct skcipher_walk walk;
 	unsigned int nbytes;
+	u32 fix_iv; /* CHACHA20 fix hw iv issue */
 	int err;
 
 	mutex_lock(&sp_aes.lock);
@@ -135,6 +138,7 @@ static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 	if (ivsize) {
 		memcpy(sp_aes.va + IV_OFFSET, req->iv, ivsize);
 		W(AESPAR1, sp_aes.pa + IV_OFFSET);
+		fix_iv = IV[1];
 	}
 
 	err = skcipher_walk_virt(&walk, req, false);
@@ -143,9 +147,16 @@ static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 		void *dst = walk.dst.virt.addr;
 		u32 bytes = nbytes - (nbytes % blksize) ?: nbytes;
 
-		SP_CRYPTO_DBG("%u %u %u\n", nbytes, walk.total, bytes);
-		if (bytes >= blksize) {
+		if (bytes > blksize) {
 			dma_addr_t src_pa, dst_pa;
+
+			if (ctx->mode == M_CHACHA20) {
+				u32 iv = IV[0];
+				u32 blks = bytes / CHACHA_BLOCK_SIZE;
+
+				if ((iv + blks) < iv)
+					bytes = (~iv + 1) * CHACHA_BLOCK_SIZE;
+			}
 
 			if (src != dst) {
 				src_pa = dma_map_single(dev, src, bytes, DMA_TO_DEVICE);
@@ -172,6 +183,9 @@ static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 			memcpy(dst, sp_aes.va, bytes);
 			//dump_buf(dst, bytes);
 		}
+
+		if (ctx->mode == M_CHACHA20 && !IV[0])
+			IV[1] = fix_iv;
 
 		nbytes -= bytes;
 		err = skcipher_walk_done(&walk, nbytes);
@@ -283,8 +297,7 @@ static struct skcipher_alg algs[] = {
 		.encrypt		= sp_skcipher_encrypt,
 		.decrypt		= sp_skcipher_decrypt,
 	},
-#if 0
-	{	/*FIXME: hw iv issue */
+	{
 		.base.cra_name		= "chacha20",
 		.base.cra_driver_name	= "sp-chacha20",
 		.base.cra_priority	= 0x200 | M_CHACHA20,
@@ -302,7 +315,6 @@ static struct skcipher_alg algs[] = {
 		.encrypt		= sp_skcipher_encrypt,
 		.decrypt		= sp_skcipher_decrypt,
 	},
-#endif
 };
 
 int sp_aes_init(void)
