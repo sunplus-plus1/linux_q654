@@ -235,6 +235,13 @@
 			no-map;
 		};
 
+		/* video v4l2 0x80000000~0x88000000, total 64M */
+		vcodec_v4l2: vcodec@80000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x80000000 0x0 0x18000000>;
+			no-map;
+		};
+
 		/* CM4 reserve memory: 0xfa240000 ~ 0xfa29ffff, total 384K */
 		rproc0runaddr: cm4runaddr@fa240000 {
 			compatible = "shared-dma-pool";
@@ -3283,6 +3290,11 @@
 		compatible = "sunplus,sp7350-hantro-dmem";
 		memory-region = <&video_codec_decode>;
 		video_codec-supply = <&video_codec_core_0v8>;
+	};
+
+	video_codec_v4l2 {
+		compatible = "sunplus,sp7350-hantro-vsiv4l2";
+		memory-region = <&vcodec_v4l2>;
 	};
 
 	galcore: galcore@f8140000 {

@@ -589,6 +589,8 @@ static int v4l2_probe(struct platform_device *pdev)
 	struct video_device *venc, *vdec;
 	int ret = 0;
 
+	pr_info ("%s", __func__);
+
 	v4l2_klog(LOGLVL_BRIEF, "%s", __func__);
 	if (gvsidev != NULL)
 		return 0;
@@ -715,8 +717,7 @@ static const struct platform_device_id v4l2_platform_ids[] = {
 };
 
 static const struct of_device_id v4l2_of_match[] = {
-	{ .compatible = "nxp,imx8m-vsiv4l2", },
-	{ .compatible = "sunplus,q645-hantro-vsiv4l2", },
+	{ .compatible = "sunplus,sp7350-hantro-vsiv4l2", },
 	{/* sentinel */}
 };
 
@@ -734,7 +735,7 @@ static struct platform_driver v4l2_drm_platform_driver = {
 static const struct platform_device_info v4l2_platform_info = {
 	.name		= DRIVER_NAME,
 	.id		= -1,
-	.dma_mask	= DMA_BIT_MASK(64),
+	.dma_mask	= DMA_BIT_MASK(32),
 };
 #ifndef USE_X86_SYS
 module_platform_driver(v4l2_drm_platform_driver);
