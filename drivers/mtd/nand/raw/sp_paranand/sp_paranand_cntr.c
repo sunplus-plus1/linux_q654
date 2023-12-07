@@ -135,9 +135,9 @@ void sp_pnand_abort(struct nand_chip *chip)
 	cmd_f.cq3 = 0;
 	cmd_f.cq4 = CMD_COMPLETE_EN | CMD_FLASH_TYPE(data->flash_type) |\
 	            CMD_START_CE(data->sel_chip);
-	if (data->flash_type == ONFI2 || data->flash_type == ONFI3)
-		cmd_f.cq4 |= CMD_INDEX(ONFI_FIXFLOW_SYNCRESET);
-	else
+	//if (data->flash_type == ONFI2 || data->flash_type == ONFI3)
+		//cmd_f.cq4 |= CMD_INDEX(ONFI_FIXFLOW_SYNCRESET);
+	//else
 		cmd_f.cq4 |= CMD_INDEX(FIXFLOW_RESET);
 
 	sp_pnand_issue_cmd(chip, &cmd_f);
