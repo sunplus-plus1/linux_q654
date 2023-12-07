@@ -1,0 +1,5 @@
+config VIP9000_NPU
+	tristate "ML Inference Processor VIP9000-NPU driver"
+	default n
+	help
+		 Support for the ML Inference Processor VIP9000-NPU driver
