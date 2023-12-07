@@ -337,6 +337,9 @@ struct sp_pnand_data {
 	int inverse;
 	int scramble;
 	int clkfreq;
+	int timing_mode;
+	int ddr_enable; // Set DDR mode if nand support sync interface
+	const char *name;
 	struct dma_chan *dmac;
 
 	unsigned long priv ____cacheline_aligned;
