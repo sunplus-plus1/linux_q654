@@ -229,6 +229,7 @@ struct vin_dev {
 	struct list_head buf_list;
 	unsigned int sequence;
 	enum vin_dma_state state;
+	bool skip_first_int;
 
 	const struct vin_video_format **sd_formats;
 	unsigned int num_of_sd_formats;

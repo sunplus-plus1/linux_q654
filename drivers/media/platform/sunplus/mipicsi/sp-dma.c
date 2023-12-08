@@ -427,7 +427,7 @@ static void vin_fill_hw_slot(struct vin_dev *vin, int slot)
 				vin->format.sizeimage / 2;
 			break;
 		}
-	} else if (list_empty(&vin->buf_list)) {
+	} else if (list_empty(&vin->buf_list) || vin->skip_first_int) {
 		vin->buf_hw[slot].buffer = NULL;
 		vin->buf_hw[slot].type = FULL;
 		phys_addr = vin->scratch_phys;
@@ -525,6 +525,11 @@ static irqreturn_t vin_fe_irq(int irq, void *data)
 	spin_lock_irqsave(&vin->qlock, flags);
 
 	handled = 1;
+
+	if (vin->skip_first_int) {
+		vin_dbg(vin, "Skip first interrupt\n");
+		vin->skip_first_int = false;
+	}
 
 	/* Nothing to do if capture status is 'STOPPED' */
 	if (vin->state == STOPPED) {
@@ -862,6 +867,7 @@ static int vin_start_streaming(struct vb2_queue *vq, unsigned int count)
 	spin_lock_irqsave(&vin->qlock, flags);
 
 	vin->sequence = 0;
+	vin->skip_first_int = true;
 
 	ret = vin_capture_start(vin);
 	if (ret) {
