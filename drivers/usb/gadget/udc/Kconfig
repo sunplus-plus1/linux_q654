@@ -158,7 +158,7 @@ config USB_PXA25X
 	   gadget drivers to also be dynamically linked.
 
 config USB_SP_UDC
- 	tristate "Sunplus USB Device Controller"
+ 	tristate "Sunplus USB 2.0 Device Controller"
  	depends on SOC_SP7350
  	select USB_GADGET_DUALSPEED
  	select PHY_SUNPLUS_USB
