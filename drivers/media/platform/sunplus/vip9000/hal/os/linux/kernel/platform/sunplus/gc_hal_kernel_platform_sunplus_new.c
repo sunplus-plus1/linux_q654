@@ -652,9 +652,9 @@ static struct pci_driver gpu_pci_subdriver = {
 };
 
 #else
-//hugo
+
 static const struct of_device_id gpu_dt_ids[] = {
-    { .compatible = "sunplus,galcore", },
+    { .compatible = "galcore", },
 
     { /* sentinel */ }
 };
