@@ -63,7 +63,7 @@
 #include "gc_hal_kernel_parameter.h"
 
 #include <linux/platform_device.h>
-#include <linux/clk.h>//hugo debug
+#include <linux/clk.h>
 #include <linux/reset.h>
 
 /* Zone used for header/footer. */
@@ -1198,12 +1198,8 @@ static int viv_dev_suspend(struct platform_device *dev, pm_message_t state)
     gckGALDEVICE gal_device;
     gckDEVICE device;
     gctUINT i, devIndex;
-    //struct clk *clk;//hugo debug
-    //struct reset_control *resets;
 
     gal_device = platform_get_drvdata(dev);
-
-    printk("viv_dev_suspend\n");//hugo
 
     if (!gal_device)
         return -1;
@@ -1226,11 +1222,7 @@ static int viv_dev_suspend(struct platform_device *dev, pm_message_t state)
                     return -1;              
             }
         }
-    }
-    //clk = devm_clk_get(&dev->dev, 0);//hugo debug
-    //resets = devm_reset_control_get_exclusive(&dev->dev, 0);
-    //clk_disable_unprepare(clk);
-    //reset_control_assert(resets);  
+    } 
     return 0;
 }
 
@@ -1241,12 +1233,8 @@ static int viv_dev_resume(struct platform_device *dev)
     gckDEVICE device;
     gctUINT i, devIndex;
     gceCHIPPOWERSTATE statesStored;
-    //struct clk *clk;//hugo debug
-    //struct reset_control *resets;
 
     gal_device = platform_get_drvdata(dev);
-
-    printk("viv_dev_resume\n");//hugo
 
     if (!gal_device)
         return -1;
@@ -1288,12 +1276,6 @@ static int viv_dev_resume(struct platform_device *dev)
             }
         }
     }
-
-    //resets = devm_reset_control_get_exclusive(&dev->dev, 0);
-    //clk = devm_clk_get(&dev->dev, 0);//hugo debug
-    //reset_control_deassert(resets); 
-    //clk_prepare_enable(clk);
-
     return 0;
 }
 
@@ -1316,7 +1298,7 @@ static const struct dev_pm_ops viv_dev_pm_ops = {
     SET_SYSTEM_SLEEP_PM_OPS(viv_dev_system_suspend, viv_dev_system_resume)
 };
 #endif
-//hugo
+
 static const
 struct of_device_id galcore_dev_match1[] = {
     {
@@ -1351,8 +1333,6 @@ static struct platform_driver viv_dev_driver = {
 static int __init viv_dev_init(void)
 {
     int ret = 0;
-
-    //printk("viv_dev_init \n");//hugo
 
     ret = gckPLATFORM_Init(&viv_dev_driver, &platform);
 
