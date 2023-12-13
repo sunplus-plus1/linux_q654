@@ -2127,7 +2127,7 @@ static int sp_cbdma_remove(struct platform_device *pdev)
 
 static int sp_cbdma_pm_suspend(struct device *dev)
 {
-	struct sp_dma_device *xdev = dev_get_drvdata(dev);
+	//struct sp_dma_device *xdev = dev_get_drvdata(dev);
 	//int err;
 
 	/*
