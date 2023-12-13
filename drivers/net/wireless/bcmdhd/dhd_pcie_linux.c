@@ -889,6 +889,9 @@ static int dhdpcie_pci_resume_early(struct pci_dev *pdev)
 	if (!bus) {
 		return ret;
 	}
+	if (bus->dhd->busstate == DHD_BUS_DOWN) {
+		return ret;
+	}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 9))
 	/* On fc30 (linux ver 5.0.9),
@@ -1576,7 +1579,7 @@ dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto exit;
 	}
 
-	printf("PCI_PROBE:  bus %X, slot %X,vendor %X, device %X"
+	printf("PCI_PROBE:  bus 0x%X, slot 0x%X,vendor 0x%X, device 0x%X"
 		"(good PCI location)\n", pdev->bus->number,
 		PCI_SLOT(pdev->devfn), pdev->vendor, pdev->device);
 
@@ -2871,7 +2874,7 @@ void dhdpcie_oob_intr_set(dhd_bus_t *bus, bool enable)
 static irqreturn_t wlan_oob_irq_isr(int irq, void *data)
 {
 	dhd_bus_t *bus = (dhd_bus_t *)data;
-	DHD_TRACE(("%s: IRQ ISR\n", __FUNCTION__));
+	DHD_INTR(("%s: IRQ ISR\n", __FUNCTION__));
 	bus->last_oob_irq_isr_time = OSL_LOCALTIME_NS();
 	return IRQ_WAKE_THREAD;
 }
@@ -2883,10 +2886,10 @@ static irqreturn_t wlan_oob_irq(int irq, void *data)
 	bus = (dhd_bus_t *)data;
 	dhdpcie_oob_intr_set(bus, FALSE);
 #ifdef DHD_USE_PCIE_OOB_THREADED_IRQ
-	DHD_TRACE(("%s: IRQ Thread\n", __FUNCTION__));
+	DHD_INTR(("%s: IRQ Thread\n", __FUNCTION__));
 	bus->last_oob_irq_thr_time = OSL_LOCALTIME_NS();
 #else
-	DHD_TRACE(("%s: IRQ ISR\n", __FUNCTION__));
+	DHD_INTR(("%s: IRQ ISR\n", __FUNCTION__));
 	bus->last_oob_irq_isr_time = OSL_LOCALTIME_NS();
 #endif /* DHD_USE_PCIE_OOB_THREADED_IRQ */
 

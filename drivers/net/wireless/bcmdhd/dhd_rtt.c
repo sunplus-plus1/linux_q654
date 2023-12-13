@@ -105,7 +105,6 @@ static DEFINE_SPINLOCK(noti_list_lock);
 
 /* broadcom specific set to have more accurate data */
 #define ENABLE_VHT_ACK
-#define CH_MIN_5G_CHANNEL 34
 
 /* CUR ETH became obsolete with this major version onwards */
 #define RTT_IOV_CUR_ETH_OBSOLETE 12

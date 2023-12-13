@@ -5159,6 +5159,13 @@ wl_show_host_event(dhd_pub_t *dhd_pub, wl_event_msg_t *event, void *event_data,
 		DHD_EVENT(("MACEVENT: %s, type:%d\n", event_name, reason));
 		break;
 #endif /* WL_TWT */
+	case WLC_E_COUNTRY_CODE_CHANGED:
+		DHD_EVENT(("MACEVENT: %s: Country code changed to %s\n", event_name,
+			(char*)event_data));
+		break;
+	case WLC_E_OWE_INFO:
+		DHD_EVENT(("MACEVENT: %s, MAC %s type:%d\n", event_name, eabuf, reason));
+		break;
 	default:
 		DHD_EVENT(("MACEVENT: %s %d, MAC %s, status %d, reason %d, auth %d\n",
 		       event_name, event_type, eabuf, (int)status, (int)reason,
@@ -7848,7 +7855,7 @@ int dhd_get_download_buffer(dhd_pub_t	*dhd, char *file_path, download_type_t com
 					*length = fw->size;
 					goto err;
 				}
-				*buffer = VMALLOCZ(dhd->osh, fw->size);
+				*buffer = VMALLOCZ(dhd->osh, *length);
 				if (*buffer == NULL) {
 					DHD_ERROR(("%s: Failed to allocate memory %d bytes\n",
 						__FUNCTION__, (int)fw->size));
