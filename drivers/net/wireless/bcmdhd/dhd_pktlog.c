@@ -1195,13 +1195,17 @@ dhd_pktlog_dump_write_file(dhd_pub_t *dhdp)
 {
 	struct file *w_pcap_fp = NULL;
 	uint32 file_mode;
+#ifdef get_fs
 	mm_segment_t old_fs;
+#endif /* get_fs */
 	char pktlogdump_path[128];
 	int ret = BCME_OK;
 
 	dhd_pktlog_get_filename(dhdp, pktlogdump_path, 128);
+#ifdef get_fs
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
+#endif /* get_fs */
 	file_mode = O_CREAT | O_WRONLY;
 
 	w_pcap_fp = dhd_filp_open(pktlogdump_path, file_mode, 0664);
@@ -1228,9 +1232,9 @@ fail:
 	if (!IS_ERR(w_pcap_fp)) {
 		dhd_filp_close(w_pcap_fp, NULL);
 	}
-
+#ifdef get_fs
 	set_fs(old_fs);
-
+#endif /* get_fs */
 #ifdef DHD_DUMP_MNGR
 	if (ret >= 0) {
 		dhd_dump_file_manage_enqueue(dhdp, pktlogdump_path, DHD_PKTLOG_DUMP_TYPE);

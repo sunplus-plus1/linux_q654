@@ -1508,13 +1508,13 @@ dhdpcie_bus_isr(dhd_bus_t *bus)
 			}
 		}
 
+#ifndef DHD_READ_INTSTATUS_IN_DPC
 		if (bus->d2h_intr_method == PCIE_MSI &&
 				!dhd_conf_legacy_msi_chip(bus->dhd)) {
 			/* For MSI, as intstatus is cleared by firmware, no need to read */
 			goto skip_intstatus_read;
 		}
 
-#ifndef DHD_READ_INTSTATUS_IN_DPC
 		intstatus = dhdpcie_bus_intstatus(bus);
 
 		/* Check if the interrupt is ours or not */
@@ -4378,11 +4378,7 @@ dhdpcie_download_nvram(struct dhd_bus *bus)
 	} else {
 		nvram_uefi_exists = TRUE;
 	}
-#ifdef DHD_LINUX_STD_FW_API
-	memblock_len = len;
-#else
 	memblock_len = MAX_NVRAMBUF_SIZE;
-#endif /* DHD_LINUX_STD_FW_API */
 
 	DHD_ERROR(("%s: dhd_get_download_buffer len %d\n", __FUNCTION__, len));
 
@@ -9458,7 +9454,7 @@ dhd_bus_hostready(struct  dhd_bus *bus)
 		return;
 	}
 
-	DHD_ERROR_MEM(("%s : Read PCICMD Reg: 0x%08X\n", __FUNCTION__,
+	DHD_ERROR(("%s : Read PCICMD Reg: 0x%08X\n", __FUNCTION__,
 		dhd_pcie_config_read(bus, PCI_CFG_CMD, sizeof(uint32))));
 
 	dhd_bus_dump_dar_registers(bus);
@@ -9468,7 +9464,7 @@ dhd_bus_hostready(struct  dhd_bus *bus)
 #endif /* defined(DHD_MMIO_TRACE) */
 	si_corereg(bus->sih, bus->sih->buscoreidx, dhd_bus_db1_addr_get(bus), ~0, 0x12345678);
 	bus->hostready_count ++;
-	DHD_ERROR_MEM(("%s: Ring Hostready:%d\n", __FUNCTION__, bus->hostready_count));
+	DHD_ERROR(("%s: Ring Hostready:%d\n", __FUNCTION__, bus->hostready_count));
 }
 
 /* Clear INTSTATUS */
@@ -17813,4 +17809,26 @@ dhdpcie_induce_cbp_hang(dhd_pub_t *dhd)
 	addr = apb2_wrapper_reg + apb2_reset_ctrl_offset;
 	val = 1;
 	dhd_sbreg_op(dhd, addr, &val, FALSE);
+}
+
+#define BUS_SLEEP_WAIT_CNT	3
+#define BUS_SLEEP_WAIT_MS	20
+int
+dhd_bus_sleep(dhd_pub_t *dhdp, bool sleep, uint32 *intstatus)
+{
+	dhd_bus_t *bus = dhdp->bus;
+	int active, cnt = 0;
+
+	if (bus) {
+		while ((active = dhd_os_check_wakelock_all(bus->dhd)) &&
+				(cnt < BUS_SLEEP_WAIT_CNT)) {
+			OSL_SLEEP(BUS_SLEEP_WAIT_MS);
+			cnt++;
+		}
+	} else {
+		DHD_ERROR(("bus is NULL\n"));
+		active = -1;
+	}
+
+	return active;
 }

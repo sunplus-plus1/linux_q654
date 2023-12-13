@@ -620,6 +620,10 @@ static void dhd_natoe_ct_event_hanlder(void *handle, void *event_info, u8 event)
 static void dhd_natoe_ct_ioctl_handler(void *handle, void *event_info, uint8 event);
 #endif /* WL_NATOE */
 
+#if defined(CONFIG_DHD_USE_STATIC_BUF) && defined(DHD_STATIC_IN_DRIVER)
+extern int dhd_static_buf_init(void);
+extern void dhd_static_buf_exit(void);
+#endif /* CONFIG_DHD_USE_STATIC_BUF && DHD_STATIC_IN_DRIVER */
 #ifdef DHD_UPDATE_INTF_MAC
 static void dhd_ifupdate_event_handler(void *handle, void *event_info, u8 event);
 #endif /* DHD_UPDATE_INTF_MAC */
@@ -1142,9 +1146,16 @@ static int dhd_pm_callback(struct notifier_block *nfb, unsigned long action, voi
 	dhd_pub_t *dhd = &dhdinfo->pub;
 	struct dhd_conf *conf = dhd->conf;
 	int suspend_mode = conf->suspend_mode;
+#if defined(BCMDBUS) && defined(WL_EXT_WOWL)
+	int wowl_dngldown = 0;
+#endif
 
 	BCM_REFERENCE(dhdinfo);
 	BCM_REFERENCE(suspend);
+
+#if defined(BCMDBUS) && defined(WL_EXT_WOWL)
+	wowl_dngldown = dhd_conf_wowl_dngldown(dhd);
+#endif
 
 	switch (action) {
 	case PM_HIBERNATION_PREPARE:
@@ -1189,7 +1200,16 @@ static int dhd_pm_callback(struct notifier_block *nfb, unsigned long action, voi
 			dhd_suspend_resume_helper(dhdinfo, suspend, 0);
 #ifdef BCMDBUS
 		} else {
-			printf("%s: skip resume since bus suspeneded\n", __FUNCTION__);
+#if defined(BCMDBUS) && defined(WL_EXT_WOWL)
+			if (wowl_dngldown) {
+				printf("%s: reset power\n", __FUNCTION__);
+				dhd_wifi_platform_set_power(dhd, FALSE);
+				dhd_wifi_platform_set_power(dhd, TRUE);
+			} else
+#endif
+			{
+				printf("%s: skip resume since bus suspeneded\n", __FUNCTION__);
+			}
 		}
 #endif
 	}
@@ -3534,7 +3554,9 @@ static void
 dhd_set_mac_addr_handler(void *handle, void *event_info, u8 event)
 {
 	dhd_info_t *dhd = handle;
-	dhd_if_t *ifp = event_info;
+	int ifidx = (int)((long int)event_info);
+	dhd_if_t *ifp = NULL;
+
 
 	if (event != DHD_WQ_WORK_SET_MAC) {
 		DHD_ERROR(("%s: unexpected event \n", __FUNCTION__));
@@ -3545,8 +3567,13 @@ dhd_set_mac_addr_handler(void *handle, void *event_info, u8 event)
 		return;
 	}
 
+#ifdef DHD_NOTIFY_MAC_CHANGED
+	rtnl_lock();
+#endif /* DHD_NOTIFY_MAC_CHANGED */
 	dhd_net_if_lock_local(dhd);
 	DHD_OS_WAKE_LOCK(&dhd->pub);
+
+	ifp = dhd->iflist[ifidx];
 
 	// terence 20160907: fix for not able to set mac when wlan0 is down
 	if (ifp == NULL || !ifp->set_macaddress) {
@@ -3559,22 +3586,17 @@ dhd_set_mac_addr_handler(void *handle, void *event_info, u8 event)
 
 	ifp->set_macaddress = FALSE;
 
-#ifdef DHD_NOTIFY_MAC_CHANGED
-	rtnl_lock();
-#endif /* DHD_NOTIFY_MAC_CHANGED */
-
 	if (_dhd_set_mac_address(dhd, ifp->idx, ifp->mac_addr, TRUE) == 0)
 		DHD_INFO(("%s: MACID is overwritten\n",	__FUNCTION__));
 	else
 		DHD_ERROR(("%s: _dhd_set_mac_address() failed\n", __FUNCTION__));
 
-#ifdef DHD_NOTIFY_MAC_CHANGED
-	rtnl_unlock();
-#endif /* DHD_NOTIFY_MAC_CHANGED */
-
 done:
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 	dhd_net_if_unlock_local(dhd);
+#ifdef DHD_NOTIFY_MAC_CHANGED
+	rtnl_unlock();
+#endif /* DHD_NOTIFY_MAC_CHANGED */
 }
 
 static void
@@ -3598,11 +3620,6 @@ dhd_set_mcast_list_handler(void *handle, void *event_info, u8 event)
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 
 	ifp = dhd->iflist[ifidx];
-
-	if (ifp == NULL || !dhd->pub.up) {
-		DHD_ERROR(("%s: interface info not available/down \n", __FUNCTION__));
-		goto done;
-	}
 
 	if (ifp == NULL || !dhd->pub.up) {
 		DHD_ERROR(("%s: interface info not available/down \n", __FUNCTION__));
@@ -3681,8 +3698,8 @@ dhd_set_mac_address(struct net_device *dev, void *addr)
 	}
 #endif /* WL_CFG80211 */
 
-	dhd_deferred_schedule_work(dhd->dhd_deferred_wq, (void *)dhdif, DHD_WQ_WORK_SET_MAC,
-		dhd_set_mac_addr_handler, DHD_WQ_WORK_PRIORITY_LOW);
+	dhd_deferred_schedule_work(dhd->dhd_deferred_wq, (void *)((long int)ifidx),
+		DHD_WQ_WORK_SET_MAC, dhd_set_mac_addr_handler, DHD_WQ_WORK_PRIORITY_LOW);
 	return ret;
 }
 
@@ -3701,7 +3718,7 @@ dhd_set_multicast_list(struct net_device *dev)
 		DHD_WQ_WORK_SET_MCAST_LIST, dhd_set_mcast_list_handler, DHD_WQ_WORK_PRIORITY_LOW);
 
 	// terence 20160907: fix for not able to set mac when wlan0 is down
-	dhd_deferred_schedule_work(dhd->dhd_deferred_wq, (void *)dhd->iflist[ifidx],
+	dhd_deferred_schedule_work(dhd->dhd_deferred_wq, (void *)((long int)ifidx),
 		DHD_WQ_WORK_SET_MAC, dhd_set_mac_addr_handler, DHD_WQ_WORK_PRIORITY_LOW);
 }
 
@@ -4413,24 +4430,13 @@ BCMFASTPATH(dhd_start_xmit)(struct sk_buff *skb, struct net_device *net)
 #endif
 	/* Make sure there's enough room for any header */
 #if !defined(BCM_ROUTER_DHD)
-	if (skb_headroom(skb) < dhd->pub.hdrlen + htsfdlystat_sz) {
-		struct sk_buff *skb2;
-
-		DHD_INFO(("%s: insufficient headroom\n",
-		          dhd_ifname(&dhd->pub, ifidx)));
-		dhd->pub.tx_realloc++;
-
+	if (skb_cow(skb, (dhd->pub.hdrlen + htsfdlystat_sz))) {
+		DHD_ERROR(("%s: skb_cow failed\n",
+		           dhd_ifname(&dhd->pub, ifidx)));
 		bcm_object_trace_opr(skb, BCM_OBJDBG_REMOVE, __FUNCTION__, __LINE__);
-		skb2 = skb_realloc_headroom(skb, dhd->pub.hdrlen + htsfdlystat_sz);
-
-		dev_kfree_skb(skb);
-		if ((skb = skb2) == NULL) {
-			DHD_ERROR(("%s: skb_realloc_headroom failed\n",
-			           dhd_ifname(&dhd->pub, ifidx)));
-			ret = -ENOMEM;
-			goto done;
-		}
-		bcm_object_trace_opr(skb, BCM_OBJDBG_ADD_PKT, __FUNCTION__, __LINE__);
+		dev_kfree_skb_any(skb);
+		ret = -ENOMEM;
+		goto done;
 	}
 #endif /* !BCM_ROUTER_DHD */
 
@@ -8679,7 +8685,7 @@ static void dhd_rollback_cpu_freq(dhd_info_t *dhd)
 static int
 dhd_ioctl_entry_wrapper(struct net_device *net, struct ifreq *ifr,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
-	void __user *data, 
+	void __user *data,
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(5, 15, 0) */
 	int cmd)
 {
@@ -9226,6 +9232,8 @@ dhd_open(struct net_device *net)
 
 	WL_MSG(net->name, "Enter\n");
 	DHD_ERROR(("%s\n", dhd_version));
+	if (ANDROID_VERSION > 0)
+		printf("ANDROID_VERSION = %d\n", ANDROID_VERSION);
 	/* Init wakelock */
 	if (!dhd_download_fw_on_driverload) {
 		if (!(dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
@@ -9468,8 +9476,13 @@ dhd_open(struct net_device *net)
 		if (dhd->rx_napi_netdev == NULL) {
 			dhd->rx_napi_netdev = dhd->iflist[ifidx]->net;
 			memset(&dhd->rx_napi_struct, 0, sizeof(struct napi_struct));
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
+			netif_napi_add(dhd->rx_napi_netdev, &dhd->rx_napi_struct,
+				dhd_napi_poll);
+#else
 			netif_napi_add(dhd->rx_napi_netdev, &dhd->rx_napi_struct,
 				dhd_napi_poll, dhd_napi_weight);
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)) */
 			DHD_INFO(("%s napi<%p> enabled ifp->net<%p,%s> dhd_napi_weight: %d\n",
 				__FUNCTION__, &dhd->rx_napi_struct, net,
 				net->name, dhd_napi_weight));
@@ -10438,8 +10451,13 @@ dhd_remove_if(dhd_pub_t *dhdpub, int ifidx, bool need_rtnl_lock)
 #endif /* DHDTCPACK_SUPPRESS && BCMPCIE */
 				if (need_rtnl_lock)
 					unregister_netdev(ifp->net);
-				else
+				else {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)) && defined(WL_CFG80211)
+					cfg80211_unregister_netdevice(ifp->net);
+#else
 					unregister_netdevice(ifp->net);
+#endif
+				}
 #if defined(WLDWDS) && defined(WL_EXT_IAPSTA)
 				if (ifp->dwds) {
 					wl_ext_iapsta_dettach_dwds_netdev(ifp->net, ifidx, ifp->bssidx);
@@ -14620,10 +14638,10 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 apsta = 0;
 	int ap_mode = 1;
 #endif /* (defined(AP) || defined(WLP2P)) && !defined(SOFTAP_AND_GC) */
-#ifdef GET_CUSTOM_MAC_ENABLE
 	struct ether_addr ea_addr;
 	char hw_ether[62];
-#endif /* GET_CUSTOM_MAC_ENABLE */
+	dhd_if_t *ifp = dhd->info->iflist[0];
+	bool set_mac = FALSE;
 #ifdef OKC_SUPPORT
 	uint32 okc = 1;
 #endif
@@ -14815,19 +14833,26 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* EVENT_LOG_RATE_HC */
 
-#ifdef GET_CUSTOM_MAC_ENABLE
 	memset(hw_ether, 0, sizeof(hw_ether));
-	ret = wifi_platform_get_mac_addr(dhd->info->adapter, hw_ether, 0);
+	if (ifp->set_macaddress) {
+		memcpy(hw_ether, ifp->mac_addr, ETHER_ADDR_LEN);
+		set_mac = TRUE;
+	}
+#ifdef GET_CUSTOM_MAC_ENABLE
 #ifdef GET_CUSTOM_MAC_FROM_CONFIG
-	if (!memcmp(&ether_null, &dhd->conf->hw_ether, ETHER_ADDR_LEN)) {
-		ret = 0;
-	} else
-#endif
-	if (!ret) {
-		memset(buf, 0, sizeof(buf));
-#ifdef GET_CUSTOM_MAC_FROM_CONFIG
+	else if (memcmp(&ether_null, &dhd->conf->hw_ether, ETHER_ADDR_LEN)) {
+		set_mac = TRUE;
 		memcpy(hw_ether, &dhd->conf->hw_ether, sizeof(dhd->conf->hw_ether));
+	}
 #endif
+	else {
+		ret = wifi_platform_get_mac_addr(dhd->info->adapter, hw_ether, 0);
+		if (!ret)
+			set_mac = TRUE;
+	}
+#endif /* GET_CUSTOM_MAC_ENABLE */
+	if (set_mac) {
+		memset(buf, 0, sizeof(buf));
 		bcopy(hw_ether, ea_addr.octet, sizeof(struct ether_addr));
 		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
 		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
@@ -14843,7 +14868,9 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 				goto done;
 			}
 		}
-	} else {
+	}
+#ifdef GET_CUSTOM_MAC_ENABLE
+	else {
 		DHD_ERROR(("%s: can't get custom MAC address, ret=%d\n", __FUNCTION__, ret));
 		ret = BCME_NOTUP;
 		goto done;
@@ -15621,6 +15648,7 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 //	setbit(mask, WLC_E_TXFAIL); // terence 20181106: remove unnecessary event
 #endif
 	setbit(mask, WLC_E_JOIN_START);
+	setbit(mask, WLC_E_OWE_INFO);
 //	setbit(mask, WLC_E_SCAN_COMPLETE); // terence 20150628: remove redundant event
 #ifdef DHD_DEBUG
 	setbit(mask, WLC_E_SCAN_CONFIRM_IND);
@@ -16943,7 +16971,8 @@ dhd_register_if(dhd_pub_t *dhdp, int ifidx, bool need_rtnl_lock)
 		wl_ext_iapsta_update_net_device(net, ifidx);
 #endif /* WL_EXT_IAPSTA */
 		if (dhd->pub.up == 1) {
-			if (_dhd_set_mac_address(dhd, ifidx, net->dev_addr, FALSE) == 0)
+			memcpy(temp_addr, net->dev_addr, ETHER_ADDR_LEN);
+			if (_dhd_set_mac_address(dhd, ifidx, temp_addr, FALSE) == 0)
 				DHD_INFO(("%s: MACID is overwritten\n", __FUNCTION__));
 			else
 				DHD_ERROR(("%s: _dhd_set_mac_address() failed\n", __FUNCTION__));
@@ -17763,6 +17792,9 @@ dhd_module_cleanup(void)
 #endif /* OEM_ANDROID */
 
 	dhd_wifi_platform_unregister_drv();
+#if defined(CONFIG_DHD_USE_STATIC_BUF) && defined(DHD_STATIC_IN_DRIVER)
+	dhd_static_buf_exit();
+#endif /* CONFIG_DHD_USE_STATIC_BUF && DHD_STATIC_IN_DRIVER */
 	printf("%s: Exit\n", __FUNCTION__);
 }
 
@@ -17791,6 +17823,12 @@ _dhd_module_init(void)
 		PRINTF_SYSTEM_TIME, __FUNCTION__, dhd_version);
 	if (ANDROID_VERSION > 0)
 		printf("ANDROID_VERSION = %d\n", ANDROID_VERSION);
+#if defined(CONFIG_DHD_USE_STATIC_BUF) && defined(DHD_STATIC_IN_DRIVER)
+	err = dhd_static_buf_init();
+	if (err) {
+		goto exit;
+	}
+#endif /* CONFIG_DHD_USE_STATIC_BUF && DHD_STATIC_IN_DRIVER */
 
 #ifdef DHD_BUZZZ_LOG_ENABLED
 	dhd_buzzz_attach();
@@ -17851,6 +17889,11 @@ _dhd_module_init(void)
 		}
 	}
 
+#if defined(CONFIG_DHD_USE_STATIC_BUF) && defined(DHD_STATIC_IN_DRIVER)
+exit:
+	if (err)
+		dhd_static_buf_exit();
+#endif /* CONFIG_DHD_USE_STATIC_BUF && DHD_STATIC_IN_DRIVER */
 	printf("%s: Exit err=%d\n", __FUNCTION__, err);
 	return err;
 }
@@ -21090,6 +21133,10 @@ int dhd_os_wake_lock_timeout(dhd_pub_t *pub)
 		ret = dhd->wakelock_rx_timeout_enable > dhd->wakelock_ctrl_timeout_enable ?
 			dhd->wakelock_rx_timeout_enable : dhd->wakelock_ctrl_timeout_enable;
 #ifdef CONFIG_HAS_WAKELOCK
+#ifdef DHD_DEBUG_WAKE_LOCK
+		printf("%s: rx_timeout=%dms, ctrl_timeout=%dms\n", __FUNCTION__,
+		dhd->wakelock_rx_timeout_enable, dhd->wakelock_ctrl_timeout_enable);
+#endif
 		if (dhd->wakelock_rx_timeout_enable)
 			dhd_wake_lock_timeout(dhd->wl_rxwake,
 				msecs_to_jiffies(dhd->wakelock_rx_timeout_enable));
@@ -21629,10 +21676,10 @@ dhd_os_check_wakelock_all(dhd_pub_t *pub)
 	lock_active = (l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8 || l9 || l10);
 
 	/* Indicate to the Host to avoid going to suspend if internal locks are up */
+	DHD_ERROR(("%s wakelock c-%d wl-%d wd-%d rx-%d "
+		"ctl-%d intr-%d scan-%d evt-%d, pm-%d, txfl-%d nan-%d\n",
+		__FUNCTION__, c, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10));
 	if (lock_active) {
-		DHD_ERROR(("%s wakelock c-%d wl-%d wd-%d rx-%d "
-			"ctl-%d intr-%d scan-%d evt-%d, pm-%d, txfl-%d nan-%d\n",
-			__FUNCTION__, c, l1, l2, l3, l4, l5, l6, l7, l8, l9, l10));
 		return 1;
 	}
 #elif defined(BCMSDIO)
@@ -25451,7 +25498,9 @@ void custom_xps_map_clear(struct net_device *net)
 	DHD_INFO(("%s : Entered.\n", __FUNCTION__));
 
     rcu_read_lock();
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
+	dev_maps = rcu_dereference(net->xps_maps[XPS_CPUS]);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 	dev_maps = rcu_dereference(net->xps_cpus_map);
 #else
     dev_maps = rcu_dereference(net->xps_maps);
@@ -25459,7 +25508,9 @@ void custom_xps_map_clear(struct net_device *net)
     rcu_read_unlock();
 
 	if (dev_maps) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
+		RCU_INIT_POINTER(net->xps_maps[XPS_CPUS], NULL);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 0))
 		RCU_INIT_POINTER(net->xps_cpus_map, NULL);
 #else
 		RCU_INIT_POINTER(net->xps_maps, NULL);
@@ -26131,7 +26182,7 @@ dhd_log_dump_init(dhd_pub_t *dhd)
 	}
 #else
 	DHD_ERROR(("%s: logdump_prsrv_tailsize = %uKB \n",
-		__FUNCTION__, logdump_prsrv_tailsize/1024);
+		__FUNCTION__, logdump_prsrv_tailsize/1024));
 #endif /* CONFIG_LOG_BUF_SHIFT */
 
 	mutex_init(&dhd_info->logdump_lock);

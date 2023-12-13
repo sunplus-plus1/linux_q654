@@ -1262,6 +1262,7 @@ wl_cfgvendor_gscan_get_channel_list(struct wiphy *wiphy,
 	} else if (err == BCME_OK) {
 		reply_len = (num_channels * sizeof(uint32));
 	} else if (err == BCME_UNSUPPORTED) {
+		MFREE(cfg->osh, reply, CHANINFO_LIST_BUF_SIZE);
 		reply = dhd_pno_get_gscan(dhdp,
 			DHD_PNO_GET_CHANNEL_LIST, &band, &reply_len);
 		if (!reply) {
@@ -6848,7 +6849,7 @@ static void fill_chanspec_to_channel_info(chanspec_t cur_chanspec,
 static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	struct wireless_dev *wdev, const void  *data, int len)
 {
-	static char iovar_buf[WLC_IOCTL_MAXLEN];
+	char *iovar_buf;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	int err = 0, ret = 0, i;
 	wifi_radio_stat *radio;
@@ -6876,7 +6877,8 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	wifi_rate_stat *p_wifi_rate_stat = NULL;
 	uint total_len = 0;
 	uint32 rxbeaconmbss;
-	wlc_rev_info_t revinfo;
+	wlc_rev_info_t *revinfo;
+	uint revinfo_size = sizeof(wlc_rev_info_t);
 	wl_if_stats_t *if_stats = NULL;
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
 	wl_pwrstats_query_t scan_query;
@@ -6886,7 +6888,8 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	uint32 tot_pno_dur = 0;
 	wifi_channel_stat cur_channel_stat;
 	cca_congest_channel_req_t *cca_result;
-	cca_congest_channel_req_t cca_req;
+	cca_congest_channel_req_t *cca_req = NULL;
+	uint cca_req_size = sizeof(cca_congest_channel_req_t);
 	uint32 cca_busy_time = 0;
 	int cur_chansp, cur_band;
 	chanspec_t cur_chanspec;
@@ -6899,17 +6902,23 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	BCM_REFERENCE(if_stats);
 	BCM_REFERENCE(dhdp);
 	/* Get the device rev info */
-	bzero(&revinfo, sizeof(revinfo));
-	err = wldev_ioctl_get(bcmcfg_to_prmry_ndev(cfg), WLC_GET_REVINFO, &revinfo,
-			sizeof(revinfo));
+	revinfo = (void *)MALLOCZ(cfg->osh, revinfo_size);
+	if (revinfo == NULL) {
+		WL_ERR(("revinfo alloc failed\n"));
+		return BCME_NOMEM;
+	}
+	err = wldev_ioctl_get(bcmcfg_to_prmry_ndev(cfg), WLC_GET_REVINFO, revinfo,
+			revinfo_size);
 	if (err != BCME_OK) {
 		goto exit;
 	}
 
+	iovar_buf = cfg->ioctl_buf;
 	outdata = (void *)MALLOCZ(cfg->osh, WLC_IOCTL_MAXLEN);
 	if (outdata == NULL) {
+		err = BCME_NOMEM;
 		WL_ERR(("outdata alloc failed\n"));
-		return BCME_NOMEM;
+		goto exit;
 	}
 
 	bzero(&scbval, sizeof(scb_val_t));
@@ -6944,12 +6953,14 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	if (err != BCME_OK && err != BCME_UNSUPPORTED) {
 		WL_ERR(("error (%d) - size = %zu\n", err, sizeof(wl_pwrstats_t)));
 		goto exit;
+	} else if (err == BCME_UNSUPPORTED) {
+		goto exit;
 	}
 
 	pwrstats = (wl_pwrstats_t *) iovar_buf;
 
 	if (dtoh16(pwrstats->version) != WL_PWRSTATS_VERSION) {
-		WL_ERR(("PWRSTATS Version mismatch\n"));
+		WL_ERR(("PWRSTATS Version mismatch %d\n", dtoh16(pwrstats->version)));
 		err = BCME_ERROR;
 		goto exit;
 	}
@@ -7137,11 +7148,17 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		*/
 		WL_TRACE(("cca_get_stats_ext unsupported or version mismatch\n"));
 
-		cca_req.num_secs = NUM_CCA_SAMPLING_SECS;
-		cca_req.chanspec = wl_chspec_host_to_driver(cur_chanspec);
+		cca_req = (void *)MALLOCZ(cfg->osh, cca_req_size);
+		if (cca_req == NULL) {
+			err = BCME_NOMEM;
+			WL_ERR(("cca_req alloc failed\n"));
+			goto exit;
+		}
+		cca_req->num_secs = NUM_CCA_SAMPLING_SECS;
+		cca_req->chanspec = wl_chspec_host_to_driver(cur_chanspec);
 
-		err = wldev_iovar_getbuf(bcmcfg_to_prmry_ndev(cfg), "cca_get_stats", &cca_req,
-			sizeof(cca_req), iovar_buf, WLC_IOCTL_MAXLEN, NULL);
+		err = wldev_iovar_getbuf(bcmcfg_to_prmry_ndev(cfg), "cca_get_stats", cca_req,
+			cca_req_size, iovar_buf, WLC_IOCTL_MAXLEN, NULL);
 
 		if (err != BCME_OK && err != BCME_UNSUPPORTED) {
 			WL_ERR(("error (%d) - size = %zu\n",
@@ -7203,7 +7220,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	/* traditional(ver<=10)counters will use WL_CNT_XTLV_CNTV_LE10_UCODE.
 	 * Other cases will use its xtlv type accroding to corerev
 	 */
-	err = wl_cntbuf_to_xtlv_format(NULL, iovar_buf, WLC_IOCTL_MAXLEN, revinfo.corerev);
+	err = wl_cntbuf_to_xtlv_format(NULL, iovar_buf, WLC_IOCTL_MAXLEN, revinfo->corerev);
 	if (err != BCME_OK) {
 		WL_ERR(("wl_cntbuf_to_xtlv_format ERR %d\n", err));
 		goto exit;
@@ -7314,6 +7331,9 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 		WL_ERR(("Vendor Command reply failed ret:%d \n", err));
 
 exit:
+	if (cca_req) {
+		MFREE(cfg->osh, cca_req, cca_req_size);
+	}
 #ifdef CHAN_STATS_SUPPORT
 	if (all_chan_req) {
 		MFREE(cfg->osh, all_chan_req, all_chan_req_size);
@@ -7337,6 +7357,9 @@ exit:
 		MFREE(cfg->osh, per_chspec_stats, per_chspec_stats_size);
 	}
 #endif /* CHAN_STATS_SUPPORT */
+	if (revinfo) {
+		MFREE(cfg->osh, revinfo, revinfo_size);
+	}
 	return err;
 }
 #endif /* LINKSTAT_SUPPORT */
@@ -8301,7 +8324,9 @@ static int wl_cfgvendor_nla_put_dump_data(dhd_pub_t *dhd_pub, struct sk_buff *sk
 		wl_cfgvendor_nla_put_axi_error_data(skb, ndev);
 	}
 #endif /* DNGL_AXI_ERROR_LOGGING */
+#if defined(DHD_FW_COREDUMP)
 	if (dhd_pub->memdump_enabled || (dhd_pub->memdump_type == DUMP_TYPE_BY_SYSDUMP)) {
+#endif /* DHD_FW_COREDUMP */
 		if (((ret = wl_cfgvendor_nla_put_debug_dump_data(skb, ndev)) < 0) ||
 			((ret = wl_cfgvendor_nla_put_memdump_data(skb, ndev, fw_len)) < 0) ||
 			((ret = wl_cfgvendor_nla_put_sssr_dump_data(skb, ndev)) < 0)) {
@@ -8312,7 +8337,9 @@ static int wl_cfgvendor_nla_put_dump_data(dhd_pub_t *dhd_pub, struct sk_buff *sk
 			goto done;
 		}
 #endif /* DHD_PKT_LOGGING */
+#if defined(DHD_FW_COREDUMP)
 	}
+#endif /* DHD_FW_COREDUMP */
 done:
 	return ret;
 }
@@ -8470,15 +8497,15 @@ static int __wl_cfgvendor_dbg_get_pkt_fates(struct wiphy *wiphy,
 				user_buf = (void __user *)(unsigned long) nla_get_u64(iter);
 				break;
 			default:
-				WL_ERR(("%s: no such attribute %d\n", __FUNCTION__, type));
+				WL_ERR(("no such attribute %d\n", type));
 				ret = -EINVAL;
 				goto exit;
 		}
 	}
 
 	if (!req_count || !user_buf) {
-		WL_ERR(("%s: invalid request, user_buf=%p, req_count=%u\n",
-			__FUNCTION__, user_buf, req_count));
+		WL_ERR(("invalid request, user_buf=%p, req_count=%u\n",
+			user_buf, req_count));
 		ret = -EINVAL;
 		goto exit;
 	}
@@ -10115,7 +10142,9 @@ const struct nla_policy andr_dbg_policy[DEBUG_ATTRIBUTE_MAX] = {
 	[DEBUG_ATTRIBUTE_LOG_MIN_DATA_SIZE] = { .type = NLA_U32 },
 	[DEBUG_ATTRIBUTE_FW_DUMP_LEN] = { .type = NLA_U32 },
 	[DEBUG_ATTRIBUTE_FW_DUMP_DATA] = { .type = NLA_U64 },
+#if (ANDROID_VERSION >= 11)
 	[DEBUG_ATTRIBUTE_FW_ERR_CODE] = { .type = NLA_U32 },
+#endif
 	[DEBUG_ATTRIBUTE_RING_DATA] = { .type = NLA_BINARY },
 	[DEBUG_ATTRIBUTE_RING_STATUS] = { .type = NLA_BINARY },
 	[DEBUG_ATTRIBUTE_RING_NUM] = { .type = NLA_U32 },
