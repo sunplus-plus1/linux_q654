@@ -296,7 +296,7 @@ typedef struct ulp_shm_info {
  * Cf PR53622
  */
 
-#define	WL_BSS_INFO_VERSION	109		/**< current version of wl_bss_info struct */
+#define WL_BSS_INFO_VER_109	109
 
 /**
  * BSS info structure
@@ -1037,8 +1037,8 @@ typedef struct wl_iscan_results_v2 {
 #ifndef WL_BSS_INFO_TYPEDEF_HAS_ALIAS
 typedef wl_iscan_results_v109_t wl_iscan_results_t;
 /** size of wl_iscan_results not including variable length array */
-#define WL_ISCAN_RESULTS_FIXED_SIZE \
-	(WL_SCAN_RESULTS_FIXED_SIZE + OFFSETOF(wl_iscan_results_t, results))
+#define WL_ISCAN_RESULTS_V109_FIXED_SIZE \
+        (WL_SCAN_RESULTS_V109_FIXED_SIZE + OFFSETOF(wl_iscan_results_v109_t, results))
 #endif
 
 typedef struct wl_probe_params {
@@ -23537,6 +23537,18 @@ typedef struct wl_filter_ie_iov_v1 {
 	uint32	pktflag;	/* frame type - FC_XXXX */
 	uint8	tlvs[];		/* variable data (zero in for list ,clearall) */
 } wl_filter_ie_iov_v1_t;
+
+#define  WL_ASSOC_RESP_PARAMS_V1 (1u)
+typedef struct wl_assoc_resp_params_v1 {
+	uint16	version;			/* Structure version */
+	uint16	len;				/* Total length of the structure */
+	uint16	fixed_length;			/* Total length of fixed fields */
+	uint8	mac_addr[ETHER_ADDR_LEN];	/* peer MAC address */
+	uint8	resp_ie_len;			/* Assoc_resp IE's length */
+	uint8	pad;				/* Pad for alignment */
+	uint16	status;				/* AREQ status code from Host */
+	uint8	ies[];				/* Variable data (resp_ies) */
+} wl_assoc_resp_params_v1_t;
 
 /* Event aggregation config */
 #define EVENT_AGGR_CFG_VERSION		1

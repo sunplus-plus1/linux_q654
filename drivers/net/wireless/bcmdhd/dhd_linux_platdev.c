@@ -128,7 +128,7 @@ wifi_adapter_info_t* dhd_wifi_platform_attach_adapter(uint32 bus_type,
 		if ((adapter->bus_type == -1 || adapter->bus_type == bus_type) &&
 			(adapter->bus_num == -1 || adapter->bus_num == bus_num) &&
 			(adapter->slot_num == -1 || adapter->slot_num == slot_num)
-#if defined(ENABLE_INSMOD_NO_FW_LOAD)
+#if defined(ENABLE_INSMOD_NO_FW_LOAD) && !defined(ENABLE_INSMOD_NO_POWER_OFF)
 			&& (wifi_chk_adapter_status(adapter, status))
 #endif
 		) {
@@ -158,6 +158,10 @@ wifi_adapter_info_t* dhd_wifi_platform_get_adapter(uint32 bus_type, uint32 bus_n
 	return NULL;
 }
 
+#if defined(CONFIG_WIFI_CONTROL_FUNC) && defined(CONFIG_DHD_USE_STATIC_BUF)
+extern void *dhd_wlan_mem_prealloc(int section, unsigned long size);
+#endif /* CONFIG_WIFI_CONTROL_FUNC && CONFIG_DHD_USE_STATIC_BUF */
+
 void* wifi_platform_prealloc(wifi_adapter_info_t *adapter, int section, unsigned long size)
 {
 	void *alloc_ptr = NULL;
@@ -170,7 +174,11 @@ void* wifi_platform_prealloc(wifi_adapter_info_t *adapter, int section, unsigned
 #if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)
 		alloc_ptr = plat_data->mem_prealloc(adapter->bus_type, adapter->index, section, size);
 #else
+#if defined(CONFIG_WIFI_CONTROL_FUNC) && defined(CONFIG_DHD_USE_STATIC_BUF)
+		alloc_ptr = dhd_wlan_mem_prealloc(section, size);
+#else
 		alloc_ptr = plat_data->mem_prealloc(section, size);
+#endif
 #endif
 		if (alloc_ptr) {
 			DHD_INFO(("success alloc section %d\n", section));
@@ -257,7 +265,11 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 		}
 #endif /* ENABLE_4335BT_WAR */
 
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+		err = plat_data->set_power(on);
+#else
 		err = plat_data->set_power(on, adapter);
+#endif
 	}
 
 	if (msec && !err)
@@ -307,7 +319,11 @@ int wifi_platform_get_mac_addr(wifi_adapter_info_t *adapter, unsigned char *buf,
 		return -EINVAL;
 	plat_data = adapter->wifi_plat_data;
 	if (plat_data->get_mac_addr) {
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+		return plat_data->get_mac_addr(buf);
+#else
 		return plat_data->get_mac_addr(buf, ifidx);
+#endif
 	}
 	return -EOPNOTSUPP;
 }
@@ -673,7 +689,8 @@ void wifi_ctrlfunc_unregister_drv(void)
 #endif /* !defined(CONFIG_DTS) */
 
 #if defined(CUSTOMER_HW)
-	dhd_wlan_deinit_plat_data(adapter);
+	if (adapter)
+		dhd_wlan_deinit_plat_data(adapter);
 #endif
 
 	kfree(dhd_wifi_platdata->adapters);
@@ -928,12 +945,6 @@ static int dhd_wifi_platform_load_sdio(void)
 					__FUNCTION__, err));
 				return err;
 			}
-			/*case: sdio device probed earlier than wifi driver.*/
-			if(down_trylock(&dhd_chipup_sem) == 0) {
-				dhd_bus_unreg_sdio_notify();
-				chip_up = TRUE;
-				break;
-			}
 			err = wifi_platform_set_power(adapter, TRUE, WIFI_TURNON_DELAY);
 			if (err) {
 				DHD_ERROR(("%s: wifi pwr on error ! \n", __FUNCTION__));
@@ -1019,7 +1030,7 @@ static int dhd_wifi_platform_load_usb(void)
 	int i;
 #endif
 
-#if !defined(DHD_PRELOAD)
+#if !defined(DHD_PRELOAD) && !defined(ENABLE_INSMOD_NO_POWER_OFF)
 	/* power down all adapters */
 	for (i = 0; i < dhd_wifi_platdata->num_adapters; i++) {
 		adapter = &dhd_wifi_platdata->adapters[i];
