@@ -204,9 +204,9 @@ int sp_powm(struct rsa_para *res, struct rsa_para *base,
 	smp_wmb(); /* memory barrier */
 
 #ifdef RSA_DATA_BIGENDBIAN
-	W(RSADMACS, RSA_DMA_SIZE(rsa_bytes) | RSA_DATA_BE | RSA_DMA_ENABLE);
+	W(RSADMACS, SEC_DMA_SIZE(rsa_bytes) | SEC_DATA_BE | SEC_DMA_ENABLE);
 #else
-	W(RSADMACS, RSA_DMA_SIZE(rsa_bytes) | RSA_DATA_LE | RSA_DMA_ENABLE);
+	W(RSADMACS, SEC_DMA_SIZE(rsa_bytes) | SEC_DATA_LE | SEC_DMA_ENABLE);
 #endif
 	ret = wait_event_interruptible_timeout(rsa_priv.wait, rsa_priv.wait_flag, 30*HZ);
 	mutex_unlock(&rsa_priv.lock);
