@@ -17,6 +17,8 @@
 #include <asm/cacheflush.h>
 #include <crypto/scatterwalk.h>
 
+#define SP_CRYPTO_PRI		(0x200)
+
 //#define SP_CRYPTO_LOCAL_TEST
 //#define USE_REF
 //#define USE_ERF		// use event_ring_full intr
