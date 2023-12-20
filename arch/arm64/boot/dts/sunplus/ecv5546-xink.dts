@@ -506,23 +506,23 @@
 		mboxes = <&mbox 0>; // for SUNPLUS_MBOX_TEST
 	};
 
-	npu_core_0v8: npu_0p8v {
+	/*npu_core_0v8: npu_0p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "npu_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
 		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};
+	};*/
 
-	video_codec_core_0v8: video_0p8v {
+	/*video_codec_core_0v8: video_0p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "video_codec_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
 		gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};
+	};*/
 
 	imx219_vana_2v8: 2p8v {
 		compatible = "regulator-fixed";
@@ -3283,13 +3283,13 @@
 	video_codec_emem {
 		compatible = "sunplus,sp7350-hantro-emem";
 		memory-region = <&video_codec_encode>;
-		video_codec-supply = <&video_codec_core_0v8>;
+		//video_codec-supply = <&video_codec_core_0v8>;
 	};
 
 	video_codec_dmem {
 		compatible = "sunplus,sp7350-hantro-dmem";
 		memory-region = <&video_codec_decode>;
-		video_codec-supply = <&video_codec_core_0v8>;
+		//video_codec-supply = <&video_codec_core_0v8>;
 	};
 
 	video_codec_v4l2 {
@@ -3304,7 +3304,7 @@
 		memory-region = <&npu_reserve>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
-		npu_core-supply = <&npu_core_0v8>;
+		//npu_core-supply = <&npu_core_0v8>;
 		clocks = <&clkc NPU>;
 		clock-names = "clk_vip9000";
 		clock-frequency = <900000000>;
