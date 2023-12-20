@@ -213,7 +213,7 @@ static int sp_cra_init(struct crypto_tfm *tfm)
 	struct sp_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	ctx->gctr = (ctx->mode ? 32 : 128) << 24; // 2nd call from gcm.c hack
-	ctx->mode = crypto_tfm_alg_priority(tfm) & M_MMASK;
+	ctx->mode = crypto_tfm_alg_priority(tfm) & ~SP_CRYPTO_PRI;
 
 	return 0;
 }
@@ -231,7 +231,7 @@ static int sp_skcipher_decrypt(struct skcipher_request *req)
 static struct crypto_alg sp_aes_generic_alg = {
 	.cra_name		=	"aes",
 	.cra_driver_name	=	"sp-aes-generic",
-	.cra_priority		=	400,
+	.cra_priority		=	SP_CRYPTO_PRI,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct sp_aes_ctx),
@@ -251,7 +251,7 @@ static struct skcipher_alg algs[] = {
 	{
 		.base.cra_name		= "ecb(aes)",
 		.base.cra_driver_name	= "sp-aes-ecb",
-		.base.cra_priority	= 0x200 | M_AES_ECB,
+		.base.cra_priority	= SP_CRYPTO_PRI | M_AES_ECB,
 		.base.cra_blocksize	= AES_BLOCK_SIZE,
 		.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
 		.base.cra_ctxsize	= sizeof(struct sp_aes_ctx),
@@ -269,7 +269,7 @@ static struct skcipher_alg algs[] = {
 	{
 		.base.cra_name		= "cbc(aes)",
 		.base.cra_driver_name	= "sp-aes-cbc",
-		.base.cra_priority	= 0x200 | M_AES_CBC,
+		.base.cra_priority	= SP_CRYPTO_PRI | M_AES_CBC,
 		.base.cra_blocksize	= AES_BLOCK_SIZE,
 		.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
 		.base.cra_ctxsize	= sizeof(struct sp_aes_ctx),
@@ -287,7 +287,7 @@ static struct skcipher_alg algs[] = {
 	{
 		.base.cra_name		= "ctr(aes)",
 		.base.cra_driver_name	= "sp-aes-ctr",
-		.base.cra_priority	= 0x200 | M_AES_CTR,
+		.base.cra_priority	= SP_CRYPTO_PRI | M_AES_CTR,
 		.base.cra_blocksize	= 1,
 		.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
 		.base.cra_ctxsize	= sizeof(struct sp_aes_ctx),
@@ -305,7 +305,7 @@ static struct skcipher_alg algs[] = {
 	{
 		.base.cra_name		= "chacha20",
 		.base.cra_driver_name	= "sp-chacha20",
-		.base.cra_priority	= 0x200 | M_CHACHA20,
+		.base.cra_priority	= SP_CRYPTO_PRI | M_CHACHA20,
 		.base.cra_blocksize	= 1,
 		.base.cra_alignmask	= AES_BLOCK_SIZE - 1,
 		.base.cra_ctxsize	= sizeof(struct sp_aes_ctx),
