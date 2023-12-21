@@ -53,9 +53,10 @@
  *
  *****************************************************************************/
 
-#include <linux/io.h>
 #include <linux/kernel.h>
-//#include <dt-bindings/clock/amlogic,g12a-clkc.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/delay.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
@@ -63,42 +64,19 @@
 #include <linux/regulator/consumer.h>
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_kernel_platform.h"
-#include <linux/clk.h>
 #include <dt-bindings/clock/sp-sp7350.h>
 
+#define WORKAROUND_FOR_NPU_SMS_RESET_BUG 1
+
+#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
+#define NPU_WORKAROUND_BIT	0xF880007C
+
+static void __iomem *npu_sms_reset_reg_base;
+#endif
+static void __iomem *npu_ios_reg_base;
 static struct clk *clk;
 static struct regulator *vcc_reg;
 static struct reset_control *dec_rstc;
-
-static int reg_write(unsigned long long reg, unsigned int writeval)
-{
-	void __iomem *vaddr;
-
-	vaddr = ioremap(reg, 4);
-	if (vaddr == NULL) {
-		// printk("reg_write ioremap_wc error\n");
-		return -1;
-	}
-	writel(writeval, vaddr);
-	iounmap(vaddr);
-
-	return 0;
-}
-
-static int reg_read(unsigned long long  reg, unsigned int *readval)
-{
-	void __iomem *vaddr;
-
-	vaddr = ioremap(reg, 4);
-	if (vaddr == NULL) {
-		// printk("reg_read ioremap_wc error\n");
-		return -1;
-	}
-	*readval = readl(vaddr);
-	iounmap(vaddr);
-
-	return 0;
-}
 
 gceSTATUS
 _AdjustParam(
@@ -155,10 +133,6 @@ _AdjustParam(
 	return ret;
 }
 
-#define MOON0_SCFG_7	0xF880001C		  //hw reset reg
-#define ISO_CTRL_EBABLE	0xF880125C		//G36.23 ISO CTRL ENABLE
-#define NPU_WORKAROUND_BIT	0xF880007C
-
 gceSTATUS
 _GetPower(IN gcsPLATFORM * platform)
 {
@@ -183,6 +157,19 @@ _GetPower(IN gcsPLATFORM * platform)
 		return PTR_ERR(dec_rstc);
 	}
 
+	npu_ios_reg_base = of_iomap(dev->of_node, 1);
+	if (!npu_ios_reg_base) {
+		dev_err(dev, "failed to get ios base\n");
+		return gcvSTATUS_OUT_OF_MEMORY;
+	}
+
+#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
+	npu_sms_reset_reg_base = ioremap(NPU_WORKAROUND_BIT, 4);
+	if (npu_sms_reset_reg_base == NULL) {
+		dev_err(dev, "failed to get workaroud base\n");
+		return gcvSTATUS_OUT_OF_MEMORY;
+	}
+#endif
 	dev_info(dev, "NPU get power success\n");
 
 	return gcvSTATUS_OK;
@@ -198,6 +185,11 @@ _PutPower(gcsPLATFORM *platform)
 	clk = NULL;
 	vcc_reg = NULL;
 	dec_rstc = NULL;
+	iounmap(npu_ios_reg_base);
+
+#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
+	iounmap(npu_sms_reset_reg_base);
+#endif
 
 	return gcvSTATUS_OK;
 }
@@ -228,7 +220,7 @@ _SetPower(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctBOOL enable
 				return ret;
 			}
 
-			mdelay(5);
+			mdelay(10);
 			dev_dbg(dev, "regulator enable success\n");
 		}
 
@@ -251,15 +243,17 @@ _SetPower(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctBOOL enable
 
 		/*disable NPU ISO (Register G36. ISO_CTRL_ENABLE [4])*/
 		dev_dbg(dev, "disable NPU ISO\n");
-		reg_read(ISO_CTRL_EBABLE, &reg_read_value);
+		reg_read_value = readl(npu_ios_reg_base);
 		reg_read_value = reg_read_value&0x0;
-		reg_write(ISO_CTRL_EBABLE, reg_read_value);
+		writel(reg_read_value, npu_ios_reg_base);
 
+#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
 		/*NPU HW work-around*/
 		dev_dbg(dev, "NPU HW work-around\n");
-		reg_write(NPU_WORKAROUND_BIT, 0x5811);
+		writel(0x5811, npu_sms_reset_reg_base);
 		udelay(300);
-		reg_write(NPU_WORKAROUND_BIT, 0x5807);
+		writel(0x5807, npu_sms_reset_reg_base);
+#endif
 
 		/*NPU HW Reset deassert*/
 		if (IS_ERR(dec_rstc)) {
@@ -290,17 +284,19 @@ _SetPower(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctBOOL enable
 		}
 		dev_dbg(dev, "reset okay\n");
 
+#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
 		/*NPU HW work-around*/
 		dev_dbg(dev, "NPU HW work-around\n");
-		reg_write(NPU_WORKAROUND_BIT, 0x5811);
+		writel(0x5811, npu_sms_reset_reg_base);
 		udelay(300);
-		reg_write(NPU_WORKAROUND_BIT, 0x5807);
+		writel(0x5807, npu_sms_reset_reg_base);
+#endif
 
 		/*enable NPU ISO (Register G36. ISO_CTRL_ENABLE [4])*/
 		dev_dbg(dev, "enable NPU ISO\n");
-		reg_read(ISO_CTRL_EBABLE, &reg_read_value);
+		reg_read_value = readl(npu_ios_reg_base);
 		reg_read_value = reg_read_value|(0x1<<4);
-		reg_write(ISO_CTRL_EBABLE, reg_read_value);
+		writel(reg_read_value, npu_ios_reg_base);
 
 		/*NPU HW clock disable*/
 		if (IS_ERR(clk)) {
@@ -324,7 +320,7 @@ _SetPower(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctBOOL enable
 				dev_dbg(dev, "regulator disable success\n");
 		}
 	}
-	mdelay(1);
+	mdelay(2);
 
 	dev_dbg(dev, "%s ret=%d\n", __func__, ret);
 
