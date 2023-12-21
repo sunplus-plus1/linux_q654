@@ -2027,8 +2027,6 @@
 		nvmem-cells = <&disc_vol>;
 		#phy-cells = <0>;
 		sunplus,disc-vol-addr-off = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&otg_pins>;
 	};
 
 	ehci0: usb@f8102100 {
