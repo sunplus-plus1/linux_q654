@@ -58,7 +58,7 @@ static int lt8912_write_init_config(struct lt8912 *lt)
 		{0x0a, 0xff},
 		{0x0b, 0x7c},
 		{0x0c, 0xff},
-		{0x42, 0x04},
+		{0x42, 0x05},
 
 		/*Tx Analog*/
 		{0x31, 0xb1},
@@ -166,6 +166,7 @@ static int lt8912_write_rxlogicres_config(struct lt8912 *lt)
 	return ret;
 };
 
+#if 0
 static int lt8912_write_lvds_config(struct lt8912 *lt)
 {
 	const struct reg_sequence seq[] = {
@@ -191,6 +192,7 @@ static int lt8912_write_lvds_config(struct lt8912 *lt)
 
 	return regmap_multi_reg_write(lt->regmap[I2C_CEC_DSI], seq, ARRAY_SIZE(seq));
 };
+#endif
 
 static inline struct lt8912 *bridge_to_lt8912(struct drm_bridge *b)
 {
@@ -387,9 +389,11 @@ static int lt8912_video_on(struct lt8912 *lt)
 	if (ret < 0)
 		goto end;
 
+	#if 0
 	ret = lt8912_write_lvds_config(lt);
 	if (ret < 0)
 		goto end;
+	#endif
 
 end:
 	return ret;
@@ -765,6 +769,8 @@ static int lt8912_probe(struct i2c_client *client,
 	lt8912_soft_power_on(lt);
 
 	lt8912_bridge_enable(&lt->bridge);
+
+	pr_info("%s\n", __func__);
 
 	return 0;
 
