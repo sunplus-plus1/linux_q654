@@ -1406,8 +1406,8 @@
 		#size-cells = <0>;
 
 		raspberrypi_lcd: lcd@45 {
-			//compatible = "raspberrypi,7inch-touchscreen-panel";
-			compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+			compatible = "raspberrypi,7inch-touchscreen-panel";
+			//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
 			reg = <0x45>;
 			port {
 				panel_dsi_port: endpoint {
@@ -1422,6 +1422,7 @@
 
 		lontium_lt8912b: hdmi@48 {
 			compatible = "lontium,lt8912b";
+			//compatible = "lontium,lt8912b-builtin";
 			reg = <0x48>;
 			//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
 			#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
@@ -3469,7 +3470,7 @@
 		sp7350,vpp0_layer = <0 0 720 480 800 480 0x2>; /* 0x2 = YUY2 */
 		sp7350,disp_output = <800 480 0x0>; /* 0x0:MIPITX DSI */
 		sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x1:Raising Edge */
+		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
 		sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x0:Sync Pulse */
 		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
 		port {
@@ -3514,7 +3515,7 @@
 		sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
 	#endif
 		sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x1:Raising Edge */
+		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
 		sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
 		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
 #endif

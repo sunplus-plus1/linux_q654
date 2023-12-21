@@ -17,3 +17,6 @@ endif
 ifdef CONFIG_VIDEO_SP7350_DISP_PI_PANEL
 display_sp7350-objs += sp7350_disp_pi_dsi_panel.o
 endif
+ifdef CONFIG_VIDEO_SP7350_DISP_LT8912B
+display_sp7350-objs += sp7350_disp_lt8912b.o
+endif
