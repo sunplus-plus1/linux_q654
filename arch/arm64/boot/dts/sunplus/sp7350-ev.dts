@@ -3299,7 +3299,8 @@
 
 	galcore: galcore@f8140000 {
 		compatible = "galcore";
-		reg = <0x0 0xf8140000 0x0 0x20000>;
+		reg = <0x0 0xf8140000 0x0 0x20000>, <0x0 0xf880125c 0x0 0xff>;
+		reg-name = "galcore","gal_ios";
 		dev_name = "galcore";
 		memory-region = <&npu_reserve>;
 		interrupt-parent = <&gic>;
