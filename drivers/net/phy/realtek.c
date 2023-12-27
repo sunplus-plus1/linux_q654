@@ -574,10 +574,12 @@ static struct phy_driver realtek_drvs[] = {
 		.name		= "RTL8201F Fast Ethernet",
 		.ack_interrupt	= &rtl8201_ack_interrupt,
 		.config_intr	= &rtl8201_config_intr,
+		.read_status	= genphy_read_status,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
+		.set_loopback   = genphy_loopback,
 	}, {
 		PHY_ID_MATCH_MODEL(0x001cc880),
 		.name		= "RTL8208 Fast Ethernet",
