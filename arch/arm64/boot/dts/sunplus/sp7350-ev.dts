@@ -3828,11 +3828,14 @@
 
 	pctl: pinctrl@f8800080 {
 		compatible = "sunplus,sp7350-pctl";
-		reg = <0x0 0xf8800080 0x0 0x2c>,
-		      <0x0 0xf88032e4 0x0 0x1c>,
-		      <0x0 0xf8803380 0x0 0x180>,
-		      <0x0 0xf8802f80 0x0 0x1c>;
-		reg-names = "moon1", "first", "gpioxt", "gpio_ao_int";
+		reg =
+			<0x0 0xf8800080 0x0 0x2c>,
+			<0x0 0xf8803280 0x0 0x60>,
+			<0x0 0xf88032e4 0x0 0x1c>,
+			<0x0 0xf8803300 0x0 0x80>,
+			<0x0 0xf8803380 0x0 0x180>,
+			<0x0 0xf8802f80 0x0 0x1c>;
+		reg-names = "moon1", "pad_ctl_1", "first", "pad_ctl_2", "gpioxt", "gpio_ao_int";
 		gpio-controller;
 		#gpio-cells = <2>;
 
@@ -3850,11 +3853,13 @@
 		};
 
 		typec_pins: pinmux_typec-pins {
-			sunplus,pins = < SPPCTL_IOPAD(98, SPPCTL_PCTL_G_GPIO, 0, 0) >;
+			pins = "GPIO98";
+			function = "GPIO";
 		};
 
 		dwc3id_pins: pinmux_usb3id-pins {
-			sunplus,pins = < SPPCTL_IOPAD(99, SPPCTL_PCTL_G_GPIO, 0, 0) >;
+			pins = "GPIO99";
+			function = "GPIO";
 		};
 
 		spi_nor_pins: pinmux_spi_nor-pins {

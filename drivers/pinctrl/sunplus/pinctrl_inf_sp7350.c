@@ -1,62 +1,53 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Sunplus SP7350 Pin Controller Driver
- * Copyright (C) Sunplus Technology
- */
 
 #include "sppctl.h"
 
 #define P(x) PINCTRL_PIN(x, D_PIS(x))
 
 // function: GPIO. list of groups (pins)
-const unsigned int sppctlpins_G[] = {
-	  0,   1,   2,   3,   4,   5,   6,   7,
-	  8,   9,  10,  11,  12,  13,  14,  15,
-	 16,  17,  18,  19,  20,  21,  22,  23,
-	 24,  25,  26,  27,  28,  29,  30,  31,
-	 32,  33,  34,  35,  36,  37,  38,  39,
-	 40,  41,  42,  43,  44,  45,  46,  47,
-	 48,  49,  50,  51,  52,  53,  54,  55,
-	 56,  57,  58,  59,  60,  61,  62,  63,
-	 64,  65,  66,  67,  68,  69,  70,  71,
-	 72,  73,  74,  75,  76,  77,  78,  79,
-	 80,  81,  82,  83,  84,  85,  86,  87,
-	 88,  89,  90,  91,  92,  93,  94,  95,
-	 96,  97,  98,  99, 100, 101, 102, 103,
-	104, 105,
+const unsigned int sppctlpins_group[] = {
+	0,  1,	2,  3,	4,   5,	  6,   7,   8,	 9,   10, 11, 12, 13, 14, 15,
+	16, 17, 18, 19, 20,  21,  22,  23,  24,	 25,  26, 27, 28, 29, 30, 31,
+	32, 33, 34, 35, 36,  37,  38,  39,  40,	 41,  42, 43, 44, 45, 46, 47,
+	48, 49, 50, 51, 52,  53,  54,  55,  56,	 57,  58, 59, 60, 61, 62, 63,
+	64, 65, 66, 67, 68,  69,  70,  71,  72,	 73,  74, 75, 76, 77, 78, 79,
+	80, 81, 82, 83, 84,  85,  86,  87,  88,	 89,  90, 91, 92, 93, 94, 95,
+	96, 97, 98, 99, 100, 101, 102, 103, 104, 105,
 };
 
 const struct pinctrl_pin_desc sppctlpins_all[] = {
-	P(0),   P(1),   P(2),   P(3),   P(4),   P(5),   P(6),   P(7),
-	P(8),   P(9),   P(10),  P(11),  P(12),  P(13),  P(14),  P(15),
-	P(16),  P(17),  P(18),  P(19),  P(20),  P(21),  P(22),  P(23),
-	P(24),  P(25),  P(26),  P(27),  P(28),  P(29),  P(30),  P(31),
-	P(32),  P(33),  P(34),  P(35),  P(36),  P(37),  P(38),  P(39),
-	P(40),  P(41),  P(42),  P(43),  P(44),  P(45),  P(46),  P(47),
-	P(48),  P(49),  P(50),  P(51),  P(52),  P(53),  P(54),  P(55),
-	P(56),  P(57),  P(58),  P(59),  P(60),  P(61),  P(62),  P(63),
-	P(64),  P(65),  P(66),  P(67),  P(68),  P(69),  P(70),  P(71),
-	P(72),  P(73),  P(74),  P(75),  P(76),  P(77),  P(78),  P(79),
-	P(80),  P(81),  P(82),  P(83),  P(84),  P(85),  P(86),  P(87),
-	P(88),  P(89),  P(90),  P(91),  P(92),  P(93),  P(94),  P(95),
-	P(96),  P(97),  P(98),  P(99),  P(100), P(101), P(102), P(103),
-	P(104), P(105),
+	P(0),  P(1),   P(2),   P(3),   P(4),   P(5),   P(6),   P(7),  P(8),
+	P(9),  P(10),  P(11),  P(12),  P(13),  P(14),  P(15),  P(16), P(17),
+	P(18), P(19),  P(20),  P(21),  P(22),  P(23),  P(24),  P(25), P(26),
+	P(27), P(28),  P(29),  P(30),  P(31),  P(32),  P(33),  P(34), P(35),
+	P(36), P(37),  P(38),  P(39),  P(40),  P(41),  P(42),  P(43), P(44),
+	P(45), P(46),  P(47),  P(48),  P(49),  P(50),  P(51),  P(52), P(53),
+	P(54), P(55),  P(56),  P(57),  P(58),  P(59),  P(60),  P(61), P(62),
+	P(63), P(64),  P(65),  P(66),  P(67),  P(68),  P(69),  P(70), P(71),
+	P(72), P(73),  P(74),  P(75),  P(76),  P(77),  P(78),  P(79), P(80),
+	P(81), P(82),  P(83),  P(84),  P(85),  P(86),  P(87),  P(88), P(89),
+	P(90), P(91),  P(92),  P(93),  P(94),  P(95),  P(96),  P(97), P(98),
+	P(99), P(100), P(101), P(102), P(103), P(104), P(105),
 };
-const size_t sppctlpins_allSZ = ARRAY_SIZE(sppctlpins_all);
+
+const size_t sppctlpins_all_nums = ARRAY_SIZE(sppctlpins_all);
 
 // pmux groups: some pins are muxable. group = pin
-const char * const sppctlpmux_list_s[] = {
+const char *const sppctlpmux_list_s[] = {
 	D_PIS(0),
 };
+
 // gpio: is defined in gpio_inf_sp7350.c
-const size_t PMUX_listSZ = sizeof(sppctlpmux_list_s)/sizeof(*(sppctlpmux_list_s));
+const size_t pinmux_list_size =
+	sizeof(sppctlpmux_list_s) / sizeof(*(sppctlpmux_list_s));
 
 static const unsigned int pins_spif[] = { 21, 22, 23, 24, 25, 26 };
 static const struct sppctlgrp_t sp7350grps_spif[] = {
 	EGRP("SPI_FLASH", 1, pins_spif),
 };
 
-static const unsigned int pins_emmc[] = { 20, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37 };
+static const unsigned int pins_emmc[] = { 20, 28, 29, 30, 31, 32,
+					  33, 34, 35, 36, 37 };
 static const struct sppctlgrp_t sp7350grps_emmc[] = {
 	EGRP("EMMC", 1, pins_emmc),
 };
@@ -78,7 +69,9 @@ static const struct sppctlgrp_t sp7350grps_sdio30[] = {
 	EGRP("SDIO", 1, pins_sdio30),
 };
 
-static const unsigned int pins_para_nand[] = { 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36 };
+static const unsigned int pins_para_nand[] = { 20, 21, 22, 23, 24, 25,
+					       26, 27, 28, 29, 30, 31,
+					       32, 33, 34, 35, 36 };
 static const struct sppctlgrp_t sp7350grps_para_nand[] = {
 	EGRP("PARA_NAND", 1, pins_para_nand),
 };
@@ -88,7 +81,8 @@ static const struct sppctlgrp_t sp7350grps_usb_otg[] = {
 	EGRP("USB_OTG", 1, pins_usb_otg),
 };
 
-static const unsigned int pins_gmac_rgmii[] = { 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+static const unsigned int pins_gmac_rgmii[] = { 3,  4,	5,  6,	7,  8,	9,
+						10, 11, 12, 13, 14, 15, 16 };
 static const unsigned int pins_gmac_rmii[] = { 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 static const struct sppctlgrp_t sp7350grps_gmac[] = {
 	EGRP("GMAC_RGMII", 1, pins_gmac_rgmii),
@@ -353,6 +347,7 @@ static const struct sppctlgrp_t sp7350grps_spdif_in[] = {
 	EGRP("SPDIF_IN_X5", 5, pins_spdif_x5),
 	EGRP("SPDIF_IN_X6", 6, pins_spdif_x6),
 };
+
 static const struct sppctlgrp_t sp7350grps_spdif_out[] = {
 	EGRP("SPDIF_OUT_X1", 1, pins_spdif_x1),
 	EGRP("SPDIF_OUT_X2", 2, pins_spdif_x2),
@@ -372,25 +367,18 @@ static const unsigned int pins_int0_x7[] = { 13 };
 static const unsigned int pins_int0_x8[] = { 14 };
 static const unsigned int pins_int0_x9[] = { 15 };
 static const struct sppctlgrp_t sp7350grps_int0[] = {
-	EGRP("INT0_X1", 1, pins_int0_x1),
-	EGRP("INT0_X2", 2, pins_int0_x2),
-	EGRP("INT0_X3", 3, pins_int0_x3),
-	EGRP("INT0_X4", 4, pins_int0_x4),
-	EGRP("INT0_X5", 5, pins_int0_x5),
-	EGRP("INT0_X6", 6, pins_int0_x6),
-	EGRP("INT0_X7", 7, pins_int0_x7),
-	EGRP("INT0_X8", 8, pins_int0_x8),
+	EGRP("INT0_X1", 1, pins_int0_x1), EGRP("INT0_X2", 2, pins_int0_x2),
+	EGRP("INT0_X3", 3, pins_int0_x3), EGRP("INT0_X4", 4, pins_int0_x4),
+	EGRP("INT0_X5", 5, pins_int0_x5), EGRP("INT0_X6", 6, pins_int0_x6),
+	EGRP("INT0_X7", 7, pins_int0_x7), EGRP("INT0_X8", 8, pins_int0_x8),
 	EGRP("INT0_X9", 9, pins_int0_x9),
 };
+
 static const struct sppctlgrp_t sp7350grps_int1[] = {
-	EGRP("INT1_X1", 1, pins_int0_x1),
-	EGRP("INT1_X2", 2, pins_int0_x2),
-	EGRP("INT1_X3", 3, pins_int0_x3),
-	EGRP("INT1_X4", 4, pins_int0_x4),
-	EGRP("INT1_X5", 5, pins_int0_x5),
-	EGRP("INT1_X6", 6, pins_int0_x6),
-	EGRP("INT1_X7", 7, pins_int0_x7),
-	EGRP("INT1_X8", 8, pins_int0_x8),
+	EGRP("INT1_X1", 1, pins_int0_x1), EGRP("INT1_X2", 2, pins_int0_x2),
+	EGRP("INT1_X3", 3, pins_int0_x3), EGRP("INT1_X4", 4, pins_int0_x4),
+	EGRP("INT1_X5", 5, pins_int0_x5), EGRP("INT1_X6", 6, pins_int0_x6),
+	EGRP("INT1_X7", 7, pins_int0_x7), EGRP("INT1_X8", 8, pins_int0_x8),
 	EGRP("INT1_X9", 9, pins_int0_x9),
 };
 
@@ -404,25 +392,18 @@ static const unsigned int pins_int2_x7[] = { 11 };
 static const unsigned int pins_int2_x8[] = { 16 };
 static const unsigned int pins_int2_x9[] = { 17 };
 static const struct sppctlgrp_t sp7350grps_int2[] = {
-	EGRP("INT2_X1", 1, pins_int2_x1),
-	EGRP("INT2_X2", 2, pins_int2_x2),
-	EGRP("INT2_X3", 3, pins_int2_x3),
-	EGRP("INT2_X4", 4, pins_int2_x4),
-	EGRP("INT2_X5", 5, pins_int2_x5),
-	EGRP("INT2_X6", 6, pins_int2_x6),
-	EGRP("INT2_X7", 7, pins_int2_x7),
-	EGRP("INT2_X8", 8, pins_int2_x8),
+	EGRP("INT2_X1", 1, pins_int2_x1), EGRP("INT2_X2", 2, pins_int2_x2),
+	EGRP("INT2_X3", 3, pins_int2_x3), EGRP("INT2_X4", 4, pins_int2_x4),
+	EGRP("INT2_X5", 5, pins_int2_x5), EGRP("INT2_X6", 6, pins_int2_x6),
+	EGRP("INT2_X7", 7, pins_int2_x7), EGRP("INT2_X8", 8, pins_int2_x8),
 	EGRP("INT2_X9", 9, pins_int2_x9),
 };
+
 static const struct sppctlgrp_t sp7350grps_int3[] = {
-	EGRP("INT3_X1", 1, pins_int2_x1),
-	EGRP("INT3_X2", 2, pins_int2_x2),
-	EGRP("INT3_X3", 3, pins_int2_x3),
-	EGRP("INT3_X4", 4, pins_int2_x4),
-	EGRP("INT3_X5", 5, pins_int2_x5),
-	EGRP("INT3_X6", 6, pins_int2_x6),
-	EGRP("INT3_X7", 7, pins_int2_x7),
-	EGRP("INT3_X8", 8, pins_int2_x8),
+	EGRP("INT3_X1", 1, pins_int2_x1), EGRP("INT3_X2", 2, pins_int2_x2),
+	EGRP("INT3_X3", 3, pins_int2_x3), EGRP("INT3_X4", 4, pins_int2_x4),
+	EGRP("INT3_X5", 5, pins_int2_x5), EGRP("INT3_X6", 6, pins_int2_x6),
+	EGRP("INT3_X7", 7, pins_int2_x7), EGRP("INT3_X8", 8, pins_int2_x8),
 	EGRP("INT3_X9", 9, pins_int2_x9),
 };
 
@@ -436,25 +417,18 @@ static const unsigned int pins_int4_x7[] = { 13 };
 static const unsigned int pins_int4_x8[] = { 18 };
 static const unsigned int pins_int4_x9[] = { 19 };
 static const struct sppctlgrp_t sp7350grps_int4[] = {
-	EGRP("INT4_X1", 1, pins_int4_x1),
-	EGRP("INT4_X2", 2, pins_int4_x2),
-	EGRP("INT4_X3", 3, pins_int4_x3),
-	EGRP("INT4_X4", 4, pins_int4_x4),
-	EGRP("INT4_X5", 5, pins_int4_x5),
-	EGRP("INT4_X6", 6, pins_int4_x6),
-	EGRP("INT4_X7", 7, pins_int4_x7),
-	EGRP("INT4_X8", 8, pins_int4_x8),
+	EGRP("INT4_X1", 1, pins_int4_x1), EGRP("INT4_X2", 2, pins_int4_x2),
+	EGRP("INT4_X3", 3, pins_int4_x3), EGRP("INT4_X4", 4, pins_int4_x4),
+	EGRP("INT4_X5", 5, pins_int4_x5), EGRP("INT4_X6", 6, pins_int4_x6),
+	EGRP("INT4_X7", 7, pins_int4_x7), EGRP("INT4_X8", 8, pins_int4_x8),
 	EGRP("INT4_X9", 9, pins_int4_x9),
 };
+
 static const struct sppctlgrp_t sp7350grps_int5[] = {
-	EGRP("INT5_X1", 1, pins_int4_x1),
-	EGRP("INT5_X2", 2, pins_int4_x2),
-	EGRP("INT5_X3", 3, pins_int4_x3),
-	EGRP("INT5_X4", 4, pins_int4_x4),
-	EGRP("INT5_X5", 5, pins_int4_x5),
-	EGRP("INT5_X6", 6, pins_int4_x6),
-	EGRP("INT5_X7", 7, pins_int4_x7),
-	EGRP("INT5_X8", 8, pins_int4_x8),
+	EGRP("INT5_X1", 1, pins_int4_x1), EGRP("INT5_X2", 2, pins_int4_x2),
+	EGRP("INT5_X3", 3, pins_int4_x3), EGRP("INT5_X4", 4, pins_int4_x4),
+	EGRP("INT5_X5", 5, pins_int4_x5), EGRP("INT5_X6", 6, pins_int4_x6),
+	EGRP("INT5_X7", 7, pins_int4_x7), EGRP("INT5_X8", 8, pins_int4_x8),
 	EGRP("INT5_X9", 9, pins_int4_x9),
 };
 
@@ -482,6 +456,7 @@ static const struct sppctlgrp_t sp7350grps_int6[] = {
 	EGRP("INT6_X10", 10, pins_int6_x10),
 	EGRP("INT6_X11", 11, pins_int6_x11),
 };
+
 static const struct sppctlgrp_t sp7350grps_int7[] = {
 	EGRP("INT7_X1", 1, pins_int6_x1),
 	EGRP("INT7_X2", 2, pins_int6_x2),
@@ -496,108 +471,116 @@ static const struct sppctlgrp_t sp7350grps_int7[] = {
 	EGRP("INT7_X11", 11, pins_int6_x11),
 };
 
-static const unsigned int pins_gpio_ao_int0_x1[] = { 52, 53, 54, 55, 56, 57, 58, 59 };
-static const unsigned int pins_gpio_ao_int0_x2[] = { 68, 69, 70, 71, 72, 73, 74, 75 };
+static const unsigned int pins_gpio_ao_int0_x1[] = { 52, 53, 54, 55,
+						     56, 57, 58, 59 };
+static const unsigned int pins_gpio_ao_int0_x2[] = { 68, 69, 70, 71,
+						     72, 73, 74, 75 };
 static const struct sppctlgrp_t sp7350grps_gpio_ao_int0[] = {
 	EGRP("GPIO_AO_INT0_X1", 1, pins_gpio_ao_int0_x1),
 	EGRP("GPIO_AO_INT0_X2", 1, pins_gpio_ao_int0_x2),
 };
 
-static const unsigned int pins_gpio_ao_int1_x1[] = { 60, 61, 62, 63, 64, 65, 66, 67 };
-static const unsigned int pins_gpio_ao_int1_x2[] = { 76, 77, 78, 79, 80, 81, 82, 83 };
+static const unsigned int pins_gpio_ao_int1_x1[] = { 60, 61, 62, 63,
+						     64, 65, 66, 67 };
+static const unsigned int pins_gpio_ao_int1_x2[] = { 76, 77, 78, 79,
+						     80, 81, 82, 83 };
 static const struct sppctlgrp_t sp7350grps_gpio_ao_int1[] = {
 	EGRP("GPIO_AO_INT1_X1", 1, pins_gpio_ao_int1_x1),
 	EGRP("GPIO_AO_INT1_X2", 1, pins_gpio_ao_int1_x2),
 };
 
-static const unsigned int pins_gpio_ao_int2_x1[] = { 68, 69, 70, 71, 72, 73, 74, 75 };
-static const unsigned int pins_gpio_ao_int2_x2[] = { 84, 85, 86, 87, 88, 89, 90, 91 };
+static const unsigned int pins_gpio_ao_int2_x1[] = { 68, 69, 70, 71,
+						     72, 73, 74, 75 };
+static const unsigned int pins_gpio_ao_int2_x2[] = { 84, 85, 86, 87,
+						     88, 89, 90, 91 };
 static const struct sppctlgrp_t sp7350grps_gpio_ao_int2[] = {
 	EGRP("GPIO_AO_INT2_X1", 1, pins_gpio_ao_int2_x1),
 	EGRP("GPIO_AO_INT2_X2", 1, pins_gpio_ao_int2_x2),
 };
 
-static const unsigned int pins_gpio_ao_int3_x1[] = { 76, 77, 78, 79, 80, 81, 82, 83 };
-static const unsigned int pins_gpio_ao_int3_x2[] = { 91, 92, 93, 94, 95, 96, 97, 98 };
+static const unsigned int pins_gpio_ao_int3_x1[] = { 76, 77, 78, 79,
+						     80, 81, 82, 83 };
+static const unsigned int pins_gpio_ao_int3_x2[] = { 91, 92, 93, 94,
+						     95, 96, 97, 98 };
 static const struct sppctlgrp_t sp7350grps_gpio_ao_int3[] = {
 	EGRP("GPIO_AO_INT3_X1", 1, pins_gpio_ao_int3_x1),
 	EGRP("GPIO_AO_INT3_X2", 1, pins_gpio_ao_int3_x2),
 };
 
 struct func_t list_funcs[] = {
-	FNCN("GPIO",            fOFF_0, 0, 0, 0),
-	FNCN("IOP",             fOFF_0, 0, 0, 0),
+	FNCN("GPIO", F_OFF_0, 0, 0, 0),
+	FNCN("IOP", F_OFF_0, 0, 0, 0),
 
-	FNCE("SPI_FLASH",       fOFF_G, 1, 0,  1, sp7350grps_spif),
-	FNCE("EMMC",            fOFF_G, 1, 1,  1, sp7350grps_emmc),
-	FNCE("SPI_NAND",        fOFF_G, 1, 2,  2, sp7350grps_spi_nand),
-	FNCE("SD_CARD",         fOFF_G, 1, 4,  1, sp7350grps_sdc30),
-	FNCE("SDIO",            fOFF_G, 1, 5,  1, sp7350grps_sdio30),
-	FNCE("PARA_NAND",       fOFF_G, 1, 6,  1, sp7350grps_para_nand),
-	FNCE("USB_OTG",         fOFF_G, 1, 7,  1, sp7350grps_usb_otg),
-	FNCE("GMAC",            fOFF_G, 1, 9,  1, sp7350grps_gmac),
-	FNCE("PWM0",            fOFF_G, 1, 10, 2, sp7350grps_pwm0),
-	FNCE("PWM1",            fOFF_G, 1, 12, 2, sp7350grps_pwm1),
-	FNCE("PWM2",            fOFF_G, 1, 14, 2, sp7350grps_pwm2),
+	FNCE("SPI_FLASH", F_OFF_G, 1, 0, 1, sp7350grps_spif),
+	FNCE("EMMC", F_OFF_G, 1, 1, 1, sp7350grps_emmc),
+	FNCE("SPI_NAND", F_OFF_G, 1, 2, 2, sp7350grps_spi_nand),
+	FNCE("SD_CARD", F_OFF_G, 1, 4, 1, sp7350grps_sdc30),
+	FNCE("SDIO", F_OFF_G, 1, 5, 1, sp7350grps_sdio30),
+	FNCE("PARA_NAND", F_OFF_G, 1, 6, 1, sp7350grps_para_nand),
+	FNCE("USB_OTG", F_OFF_G, 1, 7, 1, sp7350grps_usb_otg),
+	FNCE("GMAC", F_OFF_G, 1, 9, 1, sp7350grps_gmac),
+	FNCE("PWM0", F_OFF_G, 1, 10, 2, sp7350grps_pwm0),
+	FNCE("PWM1", F_OFF_G, 1, 12, 2, sp7350grps_pwm1),
+	FNCE("PWM2", F_OFF_G, 1, 14, 2, sp7350grps_pwm2),
 
-	FNCE("PWM3",            fOFF_G, 2, 0,  2, sp7350grps_pwm3),
-	FNCE("UART0",           fOFF_G, 2, 2,  2, sp7350grps_uart0),
-	FNCE("UART1",           fOFF_G, 2, 4,  2, sp7350grps_uart1),
-	FNCE("UART1_FC",        fOFF_G, 2, 6,  2, sp7350grps_uart1_fc),
-	FNCE("UART2",           fOFF_G, 2, 8,  2, sp7350grps_uart2),
-	FNCE("UART2_FC",        fOFF_G, 2, 10, 2, sp7350grps_uart2_fc),
-	FNCE("UART3",           fOFF_G, 2, 12, 2, sp7350grps_uart3),
-	FNCE("UADBG",           fOFF_G, 2, 14, 1, sp7350grps_uadbg),
+	FNCE("PWM3", F_OFF_G, 2, 0, 2, sp7350grps_pwm3),
+	FNCE("UART0", F_OFF_G, 2, 2, 2, sp7350grps_uart0),
+	FNCE("UART1", F_OFF_G, 2, 4, 2, sp7350grps_uart1),
+	FNCE("UART1_FC", F_OFF_G, 2, 6, 2, sp7350grps_uart1_fc),
+	FNCE("UART2", F_OFF_G, 2, 8, 2, sp7350grps_uart2),
+	FNCE("UART2_FC", F_OFF_G, 2, 10, 2, sp7350grps_uart2_fc),
+	FNCE("UART3", F_OFF_G, 2, 12, 2, sp7350grps_uart3),
+	FNCE("UADBG", F_OFF_G, 2, 14, 1, sp7350grps_uadbg),
 
-	FNCE("UART6",           fOFF_G, 3, 0,  2, sp7350grps_uart6),
-	FNCE("UART7",           fOFF_G, 3, 2,  1, sp7350grps_uart7),
-	FNCE("I2C_COMBO0",      fOFF_G, 3, 3,  2, sp7350grps_i2c_combo0),
-	FNCE("I2C_COMBO1",      fOFF_G, 3, 5,  1, sp7350grps_i2c_combo1),
-	FNCE("I2C_COMBO2",      fOFF_G, 3, 6,  2, sp7350grps_i2c_combo2),
-	FNCE("I2C_COMBO3",      fOFF_G, 3, 8,  1, sp7350grps_i2c_combo3),
-	FNCE("I2C_COMBO4",      fOFF_G, 3, 9,  1, sp7350grps_i2c_combo4),
-	FNCE("I2C_COMBO5",      fOFF_G, 3, 10, 1, sp7350grps_i2c_combo5),
-	FNCE("I2C_COMBO6",      fOFF_G, 3, 11, 2, sp7350grps_i2c_combo6),
-	FNCE("I2C_COMBO7",      fOFF_G, 3, 13, 2, sp7350grps_i2c_combo7),
+	FNCE("UART6", F_OFF_G, 3, 0, 2, sp7350grps_uart6),
+	FNCE("UART7", F_OFF_G, 3, 2, 1, sp7350grps_uart7),
+	FNCE("I2C_COMBO0", F_OFF_G, 3, 3, 2, sp7350grps_i2c_combo0),
+	FNCE("I2C_COMBO1", F_OFF_G, 3, 5, 1, sp7350grps_i2c_combo1),
+	FNCE("I2C_COMBO2", F_OFF_G, 3, 6, 2, sp7350grps_i2c_combo2),
+	FNCE("I2C_COMBO3", F_OFF_G, 3, 8, 1, sp7350grps_i2c_combo3),
+	FNCE("I2C_COMBO4", F_OFF_G, 3, 9, 1, sp7350grps_i2c_combo4),
+	FNCE("I2C_COMBO5", F_OFF_G, 3, 10, 1, sp7350grps_i2c_combo5),
+	FNCE("I2C_COMBO6", F_OFF_G, 3, 11, 2, sp7350grps_i2c_combo6),
+	FNCE("I2C_COMBO7", F_OFF_G, 3, 13, 2, sp7350grps_i2c_combo7),
 
-	FNCE("I2C_COMBO8",      fOFF_G, 4, 0,  2, sp7350grps_i2c_combo8),
-	FNCE("I2C_COMBO9",      fOFF_G, 4, 2,  2, sp7350grps_i2c_combo9),
-	FNCE("SPI_MASTER0",     fOFF_G, 4, 14, 2, sp7350grps_spi_master0),
+	FNCE("I2C_COMBO8", F_OFF_G, 4, 0, 2, sp7350grps_i2c_combo8),
+	FNCE("I2C_COMBO9", F_OFF_G, 4, 2, 2, sp7350grps_i2c_combo9),
+	FNCE("SPI_MASTER0", F_OFF_G, 4, 14, 2, sp7350grps_spi_master0),
 
-	FNCE("SPI_MASTER1",     fOFF_G, 5, 1,  2, sp7350grps_spi_master1),
-	FNCE("SPI_MASTER2",     fOFF_G, 5, 3,  1, sp7350grps_spi_master2),
-	FNCE("SPI_MASTER3",     fOFF_G, 5, 4,  2, sp7350grps_spi_master3),
-	FNCE("SPI_MASTER4",     fOFF_G, 5, 6,  1, sp7350grps_spi_master4),
-	FNCE("SPI_SLAVE0",      fOFF_G, 5, 7,  2, sp7350grps_spi_slave0),
-	FNCE("AUD_TDMTX_XCK",   fOFF_G, 5, 9,  1, sp7350grps_aud_tdmtx_xck),
-	FNCE("AUD_DAC_XCK1",    fOFF_G, 5, 10, 1, sp7350grps_aud_dac_xck1),
-	FNCE("AUD_DAC_XCK",     fOFF_G, 5, 11, 1, sp7350grps_aud_dac_xck),
-	FNCE("AUD_AU2_DATA0",   fOFF_G, 5, 12, 1, sp7350grps_aud_au2_data0),
-	FNCE("AUD_AU1_DATA0",   fOFF_G, 5, 13, 1, sp7350grps_aud_au1_data0),
-	FNCE("AUD_AU2_CK",      fOFF_G, 5, 14, 1, sp7350grps_aud_au2_ck),
-	FNCE("AUD_AU1_CK",      fOFF_G, 5, 15, 1, sp7350grps_aud_au1_ck),
+	FNCE("SPI_MASTER1", F_OFF_G, 5, 1, 2, sp7350grps_spi_master1),
+	FNCE("SPI_MASTER2", F_OFF_G, 5, 3, 1, sp7350grps_spi_master2),
+	FNCE("SPI_MASTER3", F_OFF_G, 5, 4, 2, sp7350grps_spi_master3),
+	FNCE("SPI_MASTER4", F_OFF_G, 5, 6, 1, sp7350grps_spi_master4),
+	FNCE("SPI_SLAVE0", F_OFF_G, 5, 7, 2, sp7350grps_spi_slave0),
+	FNCE("AUD_TDMTX_XCK", F_OFF_G, 5, 9, 1, sp7350grps_aud_tdmtx_xck),
+	FNCE("AUD_DAC_XCK1", F_OFF_G, 5, 10, 1, sp7350grps_aud_dac_xck1),
+	FNCE("AUD_DAC_XCK", F_OFF_G, 5, 11, 1, sp7350grps_aud_dac_xck),
+	FNCE("AUD_AU2_DATA0", F_OFF_G, 5, 12, 1, sp7350grps_aud_au2_data0),
+	FNCE("AUD_AU1_DATA0", F_OFF_G, 5, 13, 1, sp7350grps_aud_au1_data0),
+	FNCE("AUD_AU2_CK", F_OFF_G, 5, 14, 1, sp7350grps_aud_au2_ck),
+	FNCE("AUD_AU1_CK", F_OFF_G, 5, 15, 1, sp7350grps_aud_au1_ck),
 
-	FNCE("AUD_AU_ADC_DATA0",fOFF_G, 6, 0,  2, sp7350grps_aud_au_adc_data0),
-	FNCE("AUD_ADC2_DATA0",  fOFF_G, 6, 2,  1, sp7350grps_aud_adc2_data0),
-	FNCE("AUD_ADC1_DATA0",  fOFF_G, 6, 3,  1, sp7350grps_aud_adc1_data0),
-	FNCE("AUD_TDM",         fOFF_G, 6, 4,  1, sp7350grps_aud_tdm),
-	FNCE("SPDIF_IN",        fOFF_G, 6, 5,  3, sp7350grps_spdif_in),
-	FNCE("SPDIF_OUT",       fOFF_G, 6, 8,  3, sp7350grps_spdif_out),
+	FNCE("AUD_AU_ADC_DATA0", F_OFF_G, 6, 0, 2, sp7350grps_aud_au_adc_data0),
+	FNCE("AUD_ADC2_DATA0", F_OFF_G, 6, 2, 1, sp7350grps_aud_adc2_data0),
+	FNCE("AUD_ADC1_DATA0", F_OFF_G, 6, 3, 1, sp7350grps_aud_adc1_data0),
+	FNCE("AUD_TDM", F_OFF_G, 6, 4, 1, sp7350grps_aud_tdm),
+	FNCE("SPDIF_IN", F_OFF_G, 6, 5, 3, sp7350grps_spdif_in),
+	FNCE("SPDIF_OUT", F_OFF_G, 6, 8, 3, sp7350grps_spdif_out),
 
-	FNCE("INT0",            fOFF_G, 7, 5,  4, sp7350grps_int0),
-	FNCE("INT1",            fOFF_G, 7, 9,  4, sp7350grps_int1),
+	FNCE("INT0", F_OFF_G, 7, 5, 4, sp7350grps_int0),
+	FNCE("INT1", F_OFF_G, 7, 9, 4, sp7350grps_int1),
 
-	FNCE("INT2",            fOFF_G, 8, 0,  4, sp7350grps_int2),
-	FNCE("INT3",            fOFF_G, 8, 4,  4, sp7350grps_int3),
-	FNCE("INT4",            fOFF_G, 8, 8,  4, sp7350grps_int4),
-	FNCE("INT5",            fOFF_G, 8, 12, 4, sp7350grps_int5),
+	FNCE("INT2", F_OFF_G, 8, 0, 4, sp7350grps_int2),
+	FNCE("INT3", F_OFF_G, 8, 4, 4, sp7350grps_int3),
+	FNCE("INT4", F_OFF_G, 8, 8, 4, sp7350grps_int4),
+	FNCE("INT5", F_OFF_G, 8, 12, 4, sp7350grps_int5),
 
-	FNCE("INT6",            fOFF_G, 9, 0,  4, sp7350grps_int6),
-	FNCE("INT7",            fOFF_G, 9, 4,  4, sp7350grps_int7),
-	FNCE("GPIO_AO_INT0",    fOFF_G, 9, 8,  2, sp7350grps_gpio_ao_int0),
-	FNCE("GPIO_AO_INT1",    fOFF_G, 9, 10, 2, sp7350grps_gpio_ao_int1),
-	FNCE("GPIO_AO_INT2",    fOFF_G, 9, 12, 2, sp7350grps_gpio_ao_int2),
-	FNCE("GPIO_AO_INT3",    fOFF_G, 9, 14, 2, sp7350grps_gpio_ao_int3),
+	FNCE("INT6", F_OFF_G, 9, 0, 4, sp7350grps_int6),
+	FNCE("INT7", F_OFF_G, 9, 4, 4, sp7350grps_int7),
+	FNCE("GPIO_AO_INT0", F_OFF_G, 9, 8, 2, sp7350grps_gpio_ao_int0),
+	FNCE("GPIO_AO_INT1", F_OFF_G, 9, 10, 2, sp7350grps_gpio_ao_int1),
+	FNCE("GPIO_AO_INT2", F_OFF_G, 9, 12, 2, sp7350grps_gpio_ao_int2),
+	FNCE("GPIO_AO_INT3", F_OFF_G, 9, 14, 2, sp7350grps_gpio_ao_int3),
 };
 
-const size_t list_funcsSZ = ARRAY_SIZE(list_funcs);
+const size_t list_func_nums = ARRAY_SIZE(list_funcs);
