@@ -1,19 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * SP7021 pinmux controller driver.
- * Copyright (C) Sunplus Tech/Tibbo Tech. 2020
- * Author: Dvorkin Dmitry <dvorkin@tibbo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -23,13 +8,12 @@
 #include "sppctl.h"
 #include "../core.h"
 
-
 void print_device_tree_node(struct device_node *node, int depth)
 {
-	int i = 0;
 	struct device_node *child;
-	struct property    *properties;
-	char                indent[255] = "";
+	struct property *properties;
+	char indent[255] = "";
+	int i = 0;
 
 	for (i = 0; i < depth * 3; i++)
 		indent[i] = ' ';
@@ -38,187 +22,237 @@ void print_device_tree_node(struct device_node *node, int depth)
 	++depth;
 	if (depth == 1) {
 		pr_info("%s{ name = %s\n", indent, node->name);
-		for (properties = node->properties; properties != NULL;
-			properties = properties->next)
-			pr_info("%s  %s (%d)\n", indent, properties->name, properties->length);
+		for (properties = node->properties; properties;
+		     properties = properties->next)
+			pr_info("%s  %s (%d)\n", indent, properties->name,
+				properties->length);
 		pr_info("%s}\n", indent);
 	}
 
 	for_each_child_of_node(node, child) {
 		pr_info("%s{ name = %s\n", indent, child->name);
-		for (properties = child->properties; properties != NULL;
-			properties = properties->next)
-			pr_info("%s  %s (%d)\n", indent, properties->name, properties->length);
+		for (properties = child->properties; properties;
+		     properties = properties->next)
+			pr_info("%s  %s (%d)\n", indent, properties->name,
+				properties->length);
 		print_device_tree_node(child, depth);
 		pr_info("%s}\n", indent);
 	}
 }
 
-void sppctl_gmx_set(struct sppctl_pdata_t *_p, uint8_t _roff, uint8_t _boff, uint8_t _bsiz,
-		    uint8_t _rval)
+void sppctl_gmx_set(struct sppctl_pdata_t *pdata, u8 reg_offset, u8 bit_offset,
+		    u8 bit_nums, u8 bit_value)
 {
-	uint32_t *r;
-	struct sppctl_reg_t x = { .m = (~(~0 << _bsiz)) << _boff,
-				  .v = ((uint16_t)_rval) << _boff };
+	struct sppctl_reg_t x;
+	u32 *r;
 
-	if (_p->debug > 1)
-		KDBG(_p->pcdp->dev, "%s(x%X,x%X,x%X,x%X) m:x%X v:x%X\n",
-		     __func__, _roff, _boff, _bsiz, _rval, x.m, x.v);
+	x.m = (~(~0 << bit_nums)) << bit_offset;
+	x.v = ((uint16_t)bit_value) << bit_offset;
+
+	if (pdata->debug > 1)
+		KDBG(pdata->pcdp->dev,
+		     "%s(reg_off[0x%X],bit_off[0x%X],bit_nums[0x%X],bit_val[0x%X]) mask_bit:0x%X control_bit:0x%X\n",
+		     __func__, reg_offset, bit_offset, bit_nums, bit_value, x.m,
+		     x.v);
 	r = (uint32_t *)&x;
-	writel(*r, _p->baseI + (_roff << 2));
+	writel(*r, pdata->moon1_regs_base + (reg_offset << 2));
 }
 
-uint8_t sppctl_gmx_get(struct sppctl_pdata_t *_p, uint8_t _roff, uint8_t _boff, uint8_t _bsiz)
+u8 sppctl_gmx_get(struct sppctl_pdata_t *pdata, u8 reg_offset, u8 bit_offset,
+		  u8 bit_nums)
 {
-	uint8_t rval;
 	struct sppctl_reg_t *x;
-	uint32_t r = readl(_p->baseI + (_roff << 2));
+	u8 bit_value;
+	u32 r;
+
+	r = readl(pdata->moon1_regs_base + (reg_offset << 2));
 
 	x = (struct sppctl_reg_t *)&r;
-	rval = (x->v >> _boff) & (~(~0 << _bsiz));
+	bit_value = (x->v >> bit_offset) & (~(~0 << bit_nums));
 
-	if (_p->debug > 1)
-		KDBG(_p->pcdp->dev, "%s(x%X,x%X,x%X) v:x%X rval:x%X\n",
-		     __func__, _roff, _boff, _bsiz, x->v, rval);
+	if (pdata->debug > 1)
+		KDBG(pdata->pcdp->dev,
+		     "%s(reg_off[0x%X],bit_off[0x%X],bit_nums[0x%X]) control_bit:0x%X bit_val:0x%X\n",
+		     __func__, reg_offset, bit_offset, bit_nums, x->v,
+		     bit_value);
 
-	return rval;
+	return bit_value;
 }
 
-void sppctl_pin_set(struct sppctl_pdata_t *_p, uint8_t _pin, uint8_t _fun)
+void sppctl_pin_set(struct sppctl_pdata_t *pdata, u8 pin_selector,
+		    u8 func_selector)
 {
 }
 
-uint8_t sppctl_fun_get(struct sppctl_pdata_t *_p,  uint8_t _fun)
+u8 sppctl_fun_get(struct sppctl_pdata_t *pdata, u8 func_selector)
 {
 	return 0;
 }
 
-int sppctl_pctl_resmap(struct platform_device *_pd, struct sppctl_pdata_t *_pc)
+int sppctl_pctl_resmap(struct platform_device *pdev,
+		       struct sppctl_pdata_t *pdata)
 {
 	struct resource *rp;
 
 	// res0
-	rp = platform_get_resource_byname(_pd, IORESOURCE_MEM, "gpioxt");
+	rp = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpioxt");
 	if (IS_ERR(rp)) {
-		KERR(&(_pd->dev), "%s get res#0 ERR\n", __func__);
+		KERR(&pdev->dev, "%s get res#0 ERR\n", __func__);
 		return PTR_ERR(rp);
 	}
-	KDBG(&(_pd->dev), "mres #0:%p\n", rp);
+	KDBG(&pdev->dev, "mres #0:%p\n", rp);
 	if (!rp)
 		return -EFAULT;
-	KDBG(&(_pd->dev), "mapping [%pa-%pa]\n", &rp->start, &rp->end);
+	KDBG(&pdev->dev, "mapping [%pa-%pa]\n", &rp->start, &rp->end);
 
-	_pc->base0 = devm_ioremap_resource(&(_pd->dev), rp);
-	if (IS_ERR(_pc->base0)) {
-		KERR(&(_pd->dev), "%s map res#0 ERR\n", __func__);
-		return PTR_ERR(_pc->base0);
+	pdata->gpioxt_regs_base = devm_ioremap_resource(&pdev->dev, rp);
+	if (IS_ERR(pdata->gpioxt_regs_base)) {
+		KERR(&pdev->dev, "%s map res#0 ERR\n", __func__);
+		return PTR_ERR(pdata->gpioxt_regs_base);
 	}
 
 	// res2
-	rp = platform_get_resource_byname(_pd, IORESOURCE_MEM, "first");
+	rp = platform_get_resource_byname(pdev, IORESOURCE_MEM, "first");
 	if (IS_ERR(rp)) {
-		KERR(&(_pd->dev), "%s get res#2 ERR\n", __func__);
+		KERR(&pdev->dev, "%s get res#2 ERR\n", __func__);
 		return PTR_ERR(rp);
 	}
-	KDBG(&(_pd->dev), "mres #2:%p\n", rp);
+	KDBG(&pdev->dev, "mres #2:%p\n", rp);
 	if (!rp)
 		return -EFAULT;
-	KDBG(&(_pd->dev), "mapping [%pa-%pa]\n", &rp->start, &rp->end);
+	KDBG(&pdev->dev, "mapping [%pa-%pa]\n", &rp->start, &rp->end);
 
-	_pc->base2 = devm_ioremap_resource(&(_pd->dev), rp);
-	if (IS_ERR(_pc->base2)) {
-		KERR(&(_pd->dev), "%s map res#2 ERR\n", __func__);
-		return PTR_ERR(_pc->base2);
+	pdata->first_regs_base = devm_ioremap_resource(&pdev->dev, rp);
+	if (IS_ERR(pdata->first_regs_base)) {
+		KERR(&pdev->dev, "%s map res#2 ERR\n", __func__);
+		return PTR_ERR(pdata->first_regs_base);
+	}
+
+	//res3
+	rp = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pad_ctl_1");
+	if (IS_ERR(rp)) {
+		KERR(&pdev->dev, "%s get res#3 ERR\n", __func__);
+		return PTR_ERR(rp);
+	}
+	KDBG(&pdev->dev, "mres #3:%p\n", rp);
+	if (!rp)
+		return -EFAULT;
+	KDBG(&pdev->dev, "mapping [%pa-%pa]\n", &rp->start, &rp->end);
+
+	pdata->padctl1_regs_base = devm_ioremap_resource(&pdev->dev, rp);
+	if (IS_ERR(pdata->padctl1_regs_base)) {
+		KERR(&pdev->dev, "%s map res#3 ERR\n", __func__);
+		return PTR_ERR(pdata->padctl1_regs_base);
+	}
+
+	//res 4
+	rp = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pad_ctl_2");
+	if (IS_ERR(rp)) {
+		KERR(&pdev->dev, "%s get res#4 ERR\n", __func__);
+		return PTR_ERR(rp);
+	}
+	KDBG(&pdev->dev, "mres #4:%p\n", rp);
+	if (!rp)
+		return -EFAULT;
+	KDBG(&pdev->dev, "mapping [%pa-%pa]\n", &rp->start, &rp->end);
+
+	pdata->padctl2_regs_base = devm_ioremap_resource(&pdev->dev, rp);
+	if (IS_ERR(pdata->padctl2_regs_base)) {
+		KERR(&pdev->dev, "%s map res#4 ERR\n", __func__);
+		return PTR_ERR(pdata->padctl2_regs_base);
 	}
 
 	// iop
-	rp = platform_get_resource_byname(_pd, IORESOURCE_MEM, "moon1");
+	rp = platform_get_resource_byname(pdev, IORESOURCE_MEM, "moon1");
 	if (IS_ERR(rp)) {
-		KERR(&(_pd->dev), "%s get res#I ERR\n", __func__);
+		KERR(&pdev->dev, "%s get res#I ERR\n", __func__);
 		return PTR_ERR(rp);
 	}
-	KDBG(&(_pd->dev), "mres #I:%p\n", rp);
+	KDBG(&pdev->dev, "mres #I:%p\n", rp);
 	if (!rp)
 		return -EFAULT;
-	KDBG(&(_pd->dev), "mapping [%pa-%pa]\n", &rp->start, &rp->end);
+	KDBG(&pdev->dev, "mapping [%pa-%pa]\n", &rp->start, &rp->end);
 
-	_pc->baseI = devm_ioremap_resource(&(_pd->dev), rp);
-	if (IS_ERR(_pc->baseI)) {
-		KERR(&(_pd->dev), "%s map res#I ERR\n", __func__);
-		return PTR_ERR(_pc->baseI);
+	pdata->moon1_regs_base = devm_ioremap_resource(&pdev->dev, rp);
+	if (IS_ERR(pdata->moon1_regs_base)) {
+		KERR(&pdev->dev, "%s map res#I ERR\n", __func__);
+		return PTR_ERR(pdata->moon1_regs_base);
 	}
 
 #if defined(SUPPORT_GPIO_AO_INT)
-	rp = platform_get_resource_byname(_pd, IORESOURCE_MEM, "gpio_ao_int");
+	rp = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpio_ao_int");
 	if (IS_ERR(rp)) {
-		KERR(&(_pd->dev), "%s get res#A ERR\n", __func__);
+		KERR(&pdev->dev, "%s get res#A ERR\n", __func__);
 		return PTR_ERR(rp);
 	}
-	KDBG(&(_pd->dev), "mres #A:%p\n", rp);
+	KDBG(&pdev->dev, "mres #A:%p\n", rp);
 	if (!rp)
 		return -EFAULT;
-	KDBG(&(_pd->dev), "mapping [%pa-%pa]\n", &rp->start, &rp->end);
+	KDBG(&pdev->dev, "mapping [%pa-%pa]\n", &rp->start, &rp->end);
 
-	_pc->baseA = devm_ioremap_resource(&(_pd->dev), rp);
-	if (IS_ERR(_pc->baseA)) {
-		KERR(&(_pd->dev), "%s map res#A ERR\n", __func__);
-		return PTR_ERR(_pc->baseA);
+	pdata->gpio_ao_int_regs_base = devm_ioremap_resource(&pdev->dev, rp);
+	if (IS_ERR(pdata->gpio_ao_int_regs_base)) {
+		KERR(&pdev->dev, "%s map res#A ERR\n", __func__);
+		return PTR_ERR(pdata->gpio_ao_int_regs_base);
 	}
 #endif
 
 	return 0;
 }
 
-static int sppctl_dnew(struct platform_device *_pd)
+static int sppctl_dnew(struct platform_device *pdev)
 {
+	struct sppctl_pdata_t *pdata;
+	struct device_node *np;
 	int ret = -ENODEV;
-	struct device_node *np = _pd->dev.of_node;
-	struct sppctl_pdata_t *p = NULL;
 
+	np = pdev->dev.of_node;
 	if (!np) {
-		KERR(&(_pd->dev), "Invalid dtb node\n");
+		KERR(&pdev->dev, "Invalid dtb node\n");
 		return -EINVAL;
 	}
 	if (!of_device_is_available(np)) {
-		KERR(&(_pd->dev), "dtb is not available\n");
+		KERR(&pdev->dev, "dtb is not available\n");
 		return -ENODEV;
 	}
 
 	// print_device_tree_node(np, 0);
 
-	p = devm_kzalloc(&(_pd->dev), sizeof(*p), GFP_KERNEL);
-	if (!p)
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
 		return -ENOMEM;
 
-	ret = sppctl_pctl_resmap(_pd, p);
+	ret = sppctl_pctl_resmap(pdev, pdata);
 	if (ret != 0)
 		return ret;
 
 	// set gpio_chip
-	_pd->dev.platform_data = p;
-	sppctl_sysfs_init(_pd);
+	pdev->dev.platform_data = pdata;
+	sppctl_sysfs_init(pdev);
 
-	ret = sppctl_gpio_new(_pd, p);
+	ret = sppctl_gpio_new(pdev, pdata);
 	if (ret != 0)
 		return ret;
 
-	ret = sppctl_pinctrl_init(_pd);
+	ret = sppctl_pinctrl_init(pdev);
 	if (ret != 0)
 		return ret;
 
-	pinctrl_add_gpio_range(p->pcdp, &(p->gpio_range));
+	pinctrl_add_gpio_range(pdata->pcdp, &pdata->gpio_range);
 	pr_info(M_NAM " by " M_ORG "" M_CPR);
 
 	return 0;
 }
 
-static int sppctl_ddel(struct platform_device *_pd)
+static int sppctl_ddel(struct platform_device *pdev)
 {
-	struct sppctl_pdata_t *p = (struct sppctl_pdata_t *)_pd->dev.platform_data;
+	struct sppctl_pdata_t *pdata =
+		(struct sppctl_pdata_t *)pdev->dev.platform_data;
 
-	sppctl_gpio_del(_pd, p);
-	sppctl_sysfs_clean(_pd);
-	sppctl_pinctrl_clea(_pd);
+	sppctl_gpio_del(pdev, pdata);
+	sppctl_sysfs_clean(pdev);
+	sppctl_pinctrl_clean(pdev);
+
 	return 0;
 }
 
@@ -252,7 +286,6 @@ static void __exit sppctl_drv_exit(void)
 }
 module_exit(sppctl_drv_exit);
 
-MODULE_AUTHOR(M_AUT1);
-MODULE_AUTHOR(M_AUT2);
+MODULE_AUTHOR(M_AUT);
 MODULE_DESCRIPTION(M_NAM);
 MODULE_LICENSE(M_LIC);
