@@ -143,7 +143,7 @@ static int sp_u3phy_power_on(struct phy *phy)
 	result = readl(&dwc3phy_reg->cfg[1]);
 	writel(result | 0x3, &dwc3phy_reg->cfg[1]);
 	u3phy->busy = 1;
-	result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(100));
+	result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(500));
 	//if (!result)
 	//	dev_dbg(dev, "reset failed 1\n");
 		//return -ETIME;
