@@ -924,9 +924,7 @@ static void hal_udc_analysis_event_trb(struct trb_data *event_trb, struct sp_udc
 			if (udc->usb_test_mode)
 				writel(bitfield_replace(readl(&USBx->GL_CS), 12, 4, 0), &USBx->GL_CS);
 
-#if 0
 			hal_udc_sw_stop_handle(udc);
-#endif
 
 			break;
 		default:
