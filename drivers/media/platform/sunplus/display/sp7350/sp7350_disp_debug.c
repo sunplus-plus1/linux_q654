@@ -147,9 +147,9 @@ static char *spmon_readint(char *p, int *x)
  *    echo "dispmon bist tcon hv5 exter" > /proc/disp_mon
  *    echo "dispmon bist tcon gamma on"  > /proc/disp_mon
  *    echo "dispmon bist tcon gamma off" > /proc/disp_mon
- *    echo "dispmon bist tcon gamma upd" > /proc/disp_mon
- *    echo "dispmon bist tcon gamma all" > /proc/disp_mon
- *    echo "dispmon bist tcon rgb selftest"  > /proc/disp_mon
+ *    echo "dispmon bist tcon gamma upd1" > /proc/disp_mon
+ *    echo "dispmon bist tcon gamma [wr|wg|wb|rr|rg|rb|rrgb]" > /proc/disp_mon
+ *    echo "dispmon bist tcon rgb selftest [R|G|B|RG|RB|GB|RGB]"  > /proc/disp_mon
  *    echo "dispmon bist tcon rgb on" > /proc/disp_mon
  *    echo "dispmon bist tcon rgb off" > /proc/disp_mon
  *    echo "dispmon bist tcon dither set6bit 0 0 0"  > /proc/disp_mon
@@ -157,7 +157,7 @@ static char *spmon_readint(char *p, int *x)
  *    echo "dispmon bist tcon dither set 0 0 0 0"  > /proc/disp_mon
  *    echo "dispmon bist tcon dither on" > /proc/disp_mon
  *    echo "dispmon bist tcon dither off" > /proc/disp_mon
- *    echo "dispmon bist tcon bitswap set [RGB|RBG|GBR|GRB|BRG|BGR]" > /proc/disp_mon
+ *    echo "dispmon bist tcon bitswap set [RGB|RBG|GBR|GRB|BRG|BGR] [MSB|LSB]" > /proc/disp_mon
  *    echo "dispmon bist tcon bitswap on" > /proc/disp_mon
  *    echo "dispmon bist tcon bitswap off" > /proc/disp_mon
 

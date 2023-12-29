@@ -168,11 +168,6 @@
 #define SP7350_TCON_DITHER_RGBC_SEL                    BIT(0)
 #define SP7350_TCON_DITHER_RGBC_SEL_R                  0
 #define SP7350_TCON_DITHER_RGBC_SEL_RGB                1
-void sp7350_tcon_enhanced_dither_6bit_set(u32 mode, u32 table_v_shift_en, u32 table_h_shift_en);
-void sp7350_tcon_enhanced_dither_8bit_set(void);
-void sp7350_tcon_enhanced_dither_set(u32 rgbc_sel, u32 method, u32 temporal_mode_en, u32 dot_mode);
-void sp7350_tcon_enhanced_dither_enable(u32 enable);
-
 
 /* TCON_BIT_SWAP_CTRL */
 #define SP7350_TCON_BIT_SW_ON                  BIT(0)
@@ -232,6 +227,14 @@ int sp7350_tcon_rgb_adjust_slope_set(u32 channel_sel, const u16 *slope, u32 slop
 int sp7350_tcon_rgb_adjust_cp_get(u32 channel_sel, u8 *cp_src, u8 *cp_sdt, u32 cp_size);
 int sp7350_tcon_rgb_adjust_slope_get(u32 channel_sel, u16 *slope, u32 slope_size);
 void sp7350_tcon_rgb_adjust_enable(u32 channel_sel);
+
+/*
+ * SP7350 Dither Settings
+ */
+void sp7350_tcon_enhanced_dither_6bit_set(u32 mode, u32 table_v_shift_en, u32 table_h_shift_en);
+void sp7350_tcon_enhanced_dither_8bit_set(void);
+void sp7350_tcon_enhanced_dither_set(u32 rgbc_sel, u32 method, u32 temporal_mode_en, u32 dot_mode);
+void sp7350_tcon_enhanced_dither_enable(u32 enable);
 
 /*
  * SP7350 TCON bitswap Settings
