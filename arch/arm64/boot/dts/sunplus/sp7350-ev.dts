@@ -66,13 +66,13 @@
 //#define DISP_MIPITX_DSI_VPP_SRC_1080P
 //#define DISP_MIPITX_DSI_VPP_SRC_3840
 
-//#define RASPBERRYPI_DSI_PANEL
+#define RASPBERRYPI_DSI_PANEL
 
-#define LT8912B_HDMI_ENABLE
+//#define LT8912B_HDMI_ENABLE
 //#define LT8912B_HDMI_480X272
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
-#define LT8912B_HDMI_1080P
+//#define LT8912B_HDMI_1080P
 
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
@@ -3462,7 +3462,7 @@
 			 */
 #elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
 		sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
-		sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,osd0_layer = <0 0 800 480 0xd>; /* 0x8 = RGBA8888 */
 		sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
