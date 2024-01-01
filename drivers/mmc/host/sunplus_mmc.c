@@ -1509,6 +1509,7 @@ static const char * const spmmc_mmc_cap_str[] = {
 	"cap-mmc-highspeed",
 	"mmc-ddr",
 	"mmc-hs200",
+	"mmc-hs400",
 };
 
 static int config_sd_cap_show(struct spmmc_host *host, char *buf)
@@ -1516,7 +1517,9 @@ static int config_sd_cap_show(struct spmmc_host *host, char *buf)
 	u32 idx = 0;
 
 	if (host->mode == SPMMC_MODE_EMMC) {
-		if (host->mmc->caps2 & MMC_CAP2_HS200)
+		if (host->mmc->caps2 & MMC_CAP2_HS400_ES)
+			idx = 4;
+		else if (host->mmc->caps2 & MMC_CAP2_HS200)
 			idx = 3;
 		else if (host->mmc->caps & MMC_CAP_DDR)
 			idx = 2;
@@ -1545,7 +1548,9 @@ static int config_mmc_cap_store(struct spmmc_host *host, const char *arg)
 {
 	u32 idx = 0;
 
-	if (!strcasecmp("hs200", arg))
+	if (!strcasecmp("hs400", arg))
+		idx = 4;
+	else if (!strcasecmp("hs200", arg))
 		idx = 3;
 	else if (!strcasecmp("ddr", arg))
 		idx = 2;
@@ -1557,8 +1562,11 @@ static int config_mmc_cap_store(struct spmmc_host *host, const char *arg)
 		return SPMMC_CFG_FAIL;
 
 	host->mmc->caps &= ~(MMC_CAP_MMC_HIGHSPEED | MMC_CAP_DDR);
-	host->mmc->caps2 &= ~(MMC_CAP2_HS200);
+	host->mmc->caps2 &= ~(MMC_CAP2_HS200 | MMC_CAP2_HS400_ES);
 	switch (idx) {
+	case 4:
+		host->mmc->caps2 |= MMC_CAP2_HS400_ES;
+		fallthrough;	
 	case 3:
 		host->mmc->caps2 |= MMC_CAP2_HS200;
 		fallthrough;
