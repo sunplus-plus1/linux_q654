@@ -26,6 +26,7 @@
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
+//#define OV5647_IN4
 //#define IMX219_IN5
 //#define TP2815_IN0
 //#define TP2815_IN0_1LANE
@@ -196,17 +197,17 @@
 		};
 		vdev0vring0: vdev0vring0@5bf00000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf00000 0x0 0x4000>;
+			reg = <0x0 0x5bf00000 0x0 0x10000>;
 			no-map;
 		};
-		vdev0vring1: vdev0vring1@5bf04000 {
+		vdev0vring1: vdev0vring1@5bf10000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf04000 0x0 0x4000>;
+			reg = <0x0 0x5bf10000 0x0 0x10000>;
 			no-map;
 		};
-		vdev0_reserve: vdev0_reserve@5bf08000 {
+		vdev0_reserve: vdev0_reserve@5bf20000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf08000 0x0 0xf8000>;
+			reg = <0x0 0x5bf20000 0x0 0xe0000>;
 			no-map;
 		};
 
@@ -294,6 +295,12 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
+		};
+
+		ov5647_clk: camera-ov5647-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
 		};
 
 		tp2815_clk: camera-tp2815-clk {
@@ -545,6 +552,30 @@
 		regulator-name = "camera_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+	};
+
+	ov5647_avdd_2v8: ov5647_avdd_2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	ov5647_dovdd_1v8: ov5647_dovdd_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ov5647_dvdd_1v5: ov5647_dvdd_1v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_dvdd";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
 	};
 
@@ -1205,7 +1236,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1233,6 +1264,29 @@
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <456000000>;
+				};
+			};
+		};
+#endif
+#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: ov5647@36 {
+			compatible = "ovti,ov5647";
+			reg = <0x36>;
+			clocks = <&ov5647_clk>;
+		
+			avdd-supply = <&ov5647_avdd_2v8>;
+			dovdd-supply = <&ov5647_dovdd_1v8>;
+			dvdd-supply = <&ov5647_dvdd_1v5>;
+
+			port {
+				ov5647_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <297000000>;
 				};
 			};
 		};
@@ -2850,7 +2904,7 @@
 		resets = <&rstc RST_MIPICSI4>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <4>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2860,6 +2914,8 @@
 		max_channels = <4>;
 #ifdef IMX219_IN4
 		num_channels = <1>;
+#elif defined(OV5647_IN4)
+	num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
 		num_channels = <2>;
@@ -2882,6 +2938,19 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_4: endpoint {
 					remote-endpoint = <&imx219_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&ov5647_4>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -2940,7 +3009,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
 		status = "okay";
 #else
 		status = "disabled";
