@@ -3845,11 +3845,13 @@
 		emmc_pins: pinmux_emmc-pins {
 			function = "EMMC";
 			groups = "EMMC";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;
 		};
 
 		sdcard_pins: pinmux_sdcard-pins {
 			function = "SD_CARD";
 			groups = "SD_CARD";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;
 		};
 
 		typec_pins: pinmux_typec-pins {
@@ -3865,26 +3867,39 @@
 		spi_nor_pins: pinmux_spi_nor-pins {
 			function = "SPI_FLASH";
 			groups = "SPI_FLASH";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+			pinconf_d0_d1 {
+				pins = "GPIO26","GPIO23";
+				bias-pull-down;
+			};
 		};
 
 		spi_nand_pins: pinmux_spi_nand-pins {
 			function = "SPI_NAND";
 			groups = "SPI_NAND_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+			pinconf_d0_d1 {
+				pins = "GPIO30","GPIO33";
+				bias-pull-down;
+			};
 		};
 
 		para_nand_pins: pinmux_para_nand-pins {
 			function = "PARA_NAND";
 			groups = "PARA_NAND";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		uart0_pins: pinmux_uart0-pins {
 			function = "UART0";
 			groups = "UART0_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		uart1_pins: pinmux_uart1-pins {
 			function = "UART1";
 			groups = "UART1_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		uart1_fc_pins: pinmux_uart1_fc-pins {
 			function = "UART1_FC";
@@ -3894,6 +3909,7 @@
 		uart2_pins: pinmux_uart2-pins {
 			function = "UART2";
 			groups = "UART2_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		uart2_fc_pins: pinmux_uart2_fc-pins {
 			function = "UART2_FC";
@@ -3903,21 +3919,25 @@
 		uart3_pins: pinmux_uart3-pins {
 			function = "UART3";
 			groups = "UART3_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		uadbg_pins: pinmux_uadbg-pins {
 			function = "UADBG";
 			groups = "UADBG";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 		};
 
 		uart6_pins: pinmux_uart6-pins {
 			function = "UART6";
 			groups = "UART6_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 		};
 
 		uart7_pins: pinmux_uart7-pins {
 			function = "UART7";
 			groups = "UART7";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 		};
 
 		spi_master0_pins: pinmux_spi_master0-pins {
@@ -3948,18 +3968,22 @@
 		i2c_combo0_pins: pinmux_i2c_combo0-pins {
 			function = "I2C_COMBO0";
 			groups = "I2C_COMBO0_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		i2c_combo1_pins: pinmux_i2c_combo1-pins {
 			function = "I2C_COMBO1";
 			groups = "I2C_COMBO1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		i2c_combo2_pins: pinmux_i2c_combo2-pins {
 			function = "I2C_COMBO2";
 			groups = "I2C_COMBO2_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		i2c_combo3_pins: pinmux_i2c_combo3-pins {
 			function = "I2C_COMBO3";
 			groups = "I2C_COMBO3";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		i2c_combo4_pins: pinmux_i2c_combo4-pins {
 			function = "I2C_COMBO4";
@@ -3972,10 +3996,12 @@
 		i2c_combo6_pins: pinmux_i2c_combo6-pins {
 			function = "I2C_COMBO6";
 			groups = "I2C_COMBO6_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_16400_IOL_16500UA>;
 		};
 		i2c_combo7_pins: pinmux_i2c_combo7-pins {
 			function = "I2C_COMBO7";
 			groups = "I2C_COMBO7_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		i2c_combo8_pins: pinmux_i2c_combo8-pins {
 			function = "I2C_COMBO8";
@@ -3987,8 +4013,22 @@
 		};
 
 		gmac_pins: pinmux_gmac-pins {
-			function = "GMAC";
-			groups = "GMAC_RGMII";
+			pinmux{
+				function = "GMAC";
+				groups = "GMAC_RGMII";
+			};
+			pinconf0 {
+				pins = "GPIO7","GPIO8","GPIO10","GPIO11","GPIO15","GPIO16";
+				drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_16400_IOL_16500UA>;
+			};
+			pinconf1 {
+				pins = "GPIO3","GPIO4","GPIO5","GPIO6","GPIO13","GPIO14";
+				drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA>;
+			};
+			pinconf3 {
+				pins = "GPIO9","GPIO12";
+				drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA>;
+			};
 		};
 
 		otg_pins: pinmux_otg_pins {
@@ -3999,6 +4039,7 @@
 		sdio_pins: pinmux_sdio-pins {
 			function = "SDIO";
 			groups = "SDIO";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;
 		};
 
 		pwm0_pins: pinmux_pwm0-pins {
