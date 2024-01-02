@@ -45,6 +45,31 @@ properties:
       - description: Name of the PAD_CTL2 registers.
       - description: Name of the GPIOXT registers.
       - description: Name of the GPIO_AO_INT registers.
+      
+  sunplus,ms-dvio-group-0:
+    description: |
+      Select the voltage mode for DVIO group 0(G_MX21~G_MX27).
+      "3V0" for 3.0V, "1V8" for 1.8V.
+
+  sunplus,ms-dvio-group-1:
+    description: |
+      Select the voltage mode for DVIO group 1(G_MX20, G_MX28~G_MX37).
+      "3V0" for 3.0V, "1V8" for 1.8V.
+
+  sunplus,ms-dvio-ao-group-0:
+    description: |
+      Select the voltage mode for DVIO AO group 0(AO_MX0~AO_MX9).
+      "3V0" for 3.0V, "1V8" for 1.8V.
+
+  sunplus,ms-dvio-ao-group-1:
+    description: |
+      Select the voltage mode for DVIO AO group 1(AO_MX10~AO_MX19).
+      "3V0" for 3.0V, "1V8" for 1.8V.
+
+  sunplus,ms-dvio-ao-group-2:
+    description: |
+      Select the voltage mode for DVIO AO group 2(AO_MX20~AO_MX29).
+      "3V0" for 3.0V, "1V8" for 1.8V.
 
 patternProperties:
   '^.*$':
@@ -91,7 +116,7 @@ patternProperties:
             Define pin-group in a specified pin-function.
             The name should be one or more of string in the following enumeration.
           $ref: "/schemas/types.yaml#/definitions/string"
-          
+
           enum: [
             SPI_FLASH, EMMC, SPI_NAND_X1, SPI_NAND_X2, SD_CARD, SDIO,
             PARA_NAND, USB_OTG, GMAC_RGMII, GMAC_RMII, PWM0_X1, PWM0_X2,
