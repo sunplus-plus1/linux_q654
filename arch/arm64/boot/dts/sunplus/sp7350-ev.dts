@@ -197,17 +197,17 @@
 		};
 		vdev0vring0: vdev0vring0@5bf00000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf00000 0x0 0x4000>;
+			reg = <0x0 0x5bf00000 0x0 0x10000>;
 			no-map;
 		};
-		vdev0vring1: vdev0vring1@5bf04000 {
+		vdev0vring1: vdev0vring1@5bf10000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf04000 0x0 0x4000>;
+			reg = <0x0 0x5bf10000 0x0 0x10000>;
 			no-map;
 		};
-		vdev0_reserve: vdev0_reserve@5bf08000 {
+		vdev0_reserve: vdev0_reserve@5bf20000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf08000 0x0 0xf8000>;
+			reg = <0x0 0x5bf20000 0x0 0xe0000>;
 			no-map;
 		};
 
