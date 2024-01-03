@@ -1077,6 +1077,8 @@ patternProperties:
     description: Tianma Micro-electronics Co., Ltd.
   "^tlm,.*":
     description: Trusted Logic Mobility
+  "^tmi,.*":
+    description: TOLL Micro-Electronic Co., Ltd.
   "^tmt,.*":
     description: Tecon Microprocessor Technologies, LLC.
   "^topeet,.*":
