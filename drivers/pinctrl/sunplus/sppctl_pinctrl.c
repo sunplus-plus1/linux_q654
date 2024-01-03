@@ -277,7 +277,7 @@ static int sppctl_pinconf_group_get(struct pinctrl_dev *pctldev,
 				    unsigned int group_selector,
 				    unsigned long *config)
 {
-	KINF(pctldev->dev, "%s(%d)\n", __func__, group_selector);
+	KDBG(pctldev->dev, "%s(%d)\n", __func__, group_selector);
 
 	return 0;
 }
@@ -302,7 +302,7 @@ static int sppctl_pinconf_group_set(struct pinctrl_dev *pctldev,
 				for (k = 0; k < group.pnum; k++) {
 					pin = group.pins[k];
 
-					KINF(pctldev->dev,
+					KDBG(pctldev->dev,
 					     "(%s:%d)grp%d.name[%s]pin[%d]\n",
 					     __func__, __LINE__, group_selector,
 					     group.name, pin);
@@ -1064,7 +1064,7 @@ void group_groups(struct platform_device *pdev)
 			j++;
 		}
 	}
-	KINF(&pdev->dev, "funcs: %zd unq_grps: %zd\n", list_func_nums,
+	KDBG(&pdev->dev, "funcs: %zd unq_grps: %zd\n", list_func_nums,
 	     unique_groups_nums);
 }
 
