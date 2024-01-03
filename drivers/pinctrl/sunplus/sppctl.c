@@ -7,6 +7,7 @@
 
 #include "sppctl.h"
 #include "../core.h"
+#include "sppctl_gpio_ops.h"
 
 void print_device_tree_node(struct device_node *node, int depth)
 {
@@ -200,6 +201,83 @@ int sppctl_pctl_resmap(struct platform_device *pdev,
 	return 0;
 }
 
+static int sppctl_pinctrl_mode_select(struct pinctrl_dev *pctldev,
+				      struct device_node *np_config)
+{
+	struct sppctl_pdata_t *pctrl;
+	struct gpio_chip *chip;
+	struct device_node *np;
+	unsigned int value;
+	const char *ms_val;
+	int ret;
+
+	pctrl = pinctrl_dev_get_drvdata(pctldev);
+	chip = &pctrl->gpiod->chip;
+	np = of_node_get(np_config);
+
+	ret = of_property_read_string(np_config, "sunplus,ms-dvio-group-0",
+				      &ms_val);
+	if (!ret) {
+		if (!strcmp(ms_val, "3V0"))
+			value = 0;
+		else
+			value = 1;
+
+		sppctl_gpio_voltage_mode_select_set(chip, G_MX_MS_TOP_0, value);
+	}
+
+	ret = of_property_read_string(np_config, "sunplus,ms-dvio-group-1",
+				      &ms_val);
+	if (!ret) {
+		if (!strcmp(ms_val, "3V0"))
+			value = 0;
+		else
+			value = 1;
+
+		sppctl_gpio_voltage_mode_select_set(chip, G_MX_MS_TOP_1, value);
+	}
+
+	ret = of_property_read_string(np_config, "sunplus,ms-dvio-ao-group-0",
+				      &ms_val);
+	if (!ret) {
+		if (!strcmp(ms_val, "3V0"))
+			value = 0;
+		else
+			value = 1;
+
+		sppctl_gpio_voltage_mode_select_set(chip, AO_MX_MS_TOP_0,
+						    value);
+	}
+
+	ret = of_property_read_string(np_config, "sunplus,ms-dvio-ao-group-1",
+				      &ms_val);
+	if (!ret) {
+		if (!strcmp(ms_val, "3V0"))
+			value = 0;
+		else
+			value = 1;
+
+		sppctl_gpio_voltage_mode_select_set(chip, AO_MX_MS_TOP_1,
+						    value);
+	}
+
+	ret = of_property_read_string(np_config, "sunplus,ms-dvio-ao-group-2",
+				      &ms_val);
+	if (!ret) {
+		if (!strcmp(ms_val, "3V0"))
+			value = 0;
+		else
+			value = 1;
+
+		sppctl_gpio_voltage_mode_select_set(chip, AO_MX_MS_TOP_2,
+						    value);
+	}
+
+	of_node_put(np);
+
+	return 0;
+}
+
 static int sppctl_dnew(struct platform_device *pdev)
 {
 	struct sppctl_pdata_t *pdata;
@@ -240,6 +318,9 @@ static int sppctl_dnew(struct platform_device *pdev)
 
 	pinctrl_add_gpio_range(pdata->pcdp, &pdata->gpio_range);
 	pr_info(M_NAM " by " M_ORG "" M_CPR);
+
+	//voltage mode select
+	sppctl_pinctrl_mode_select(pdata->pcdp, pdev->dev.of_node);
 
 	return 0;
 }

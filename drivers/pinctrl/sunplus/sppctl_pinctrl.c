@@ -12,7 +12,8 @@ struct grp2fp_map_t *g2fp_maps;
 
 #define PIN_CONFIG_INPUT_INVERT (PIN_CONFIG_END + 1)
 #define PIN_CONFIG_OUTPUT_INVERT (PIN_CONFIG_END + 2)
-#define PIN_CONFIG_BIAS_STRONG_PULL_UP (PIN_CONFIG_END + 3)
+#define PIN_CONFIG_SLEW_RATE_CTRL (PIN_CONFIG_END + 3)
+#define PIN_CONFIG_BIAS_STRONG_PULL_UP (PIN_CONFIG_END + 4)
 
 #ifdef CONFIG_GENERIC_PINCONF
 static const struct pinconf_generic_params sppctl_dt_params[] = {
@@ -20,14 +21,18 @@ static const struct pinconf_generic_params sppctl_dt_params[] = {
 	{ "sunplus,output-invert-enable", PIN_CONFIG_OUTPUT_INVERT, 1 },
 	{ "sunplus,input-invert-disable", PIN_CONFIG_INPUT_INVERT, 0 },
 	{ "sunplus,output-invert-disable", PIN_CONFIG_OUTPUT_INVERT, 0 },
+	{ "sunplus,slew-rate-control-disable", PIN_CONFIG_SLEW_RATE_CTRL, 0 },
+	{ "sunplus,slew-rate-control-enable", PIN_CONFIG_SLEW_RATE_CTRL, 1 },
 	{ "sunplus,bias-strong-pull-up", PIN_CONFIG_BIAS_STRONG_PULL_UP, 1 },
 
 };
 
 #ifdef CONFIG_DEBUG_FS
 static const struct pin_config_item sppctl_conf_items[] = {
-	PCONFDUMP(PIN_CONFIG_INPUT_INVERT, "input invert enable", NULL, false),
-	PCONFDUMP(PIN_CONFIG_OUTPUT_INVERT, "output invert enable", NULL,
+	PCONFDUMP(PIN_CONFIG_INPUT_INVERT, "input invert enabled", NULL, false),
+	PCONFDUMP(PIN_CONFIG_OUTPUT_INVERT, "output invert enabled", NULL,
+		  false),
+	PCONFDUMP(PIN_CONFIG_SLEW_RATE_CTRL, "slew rate control enabled", NULL,
 		  false),
 	PCONFDUMP(PIN_CONFIG_BIAS_STRONG_PULL_UP, "bias strong pull up", NULL,
 		  false),
@@ -226,6 +231,12 @@ static int sppctl_pinconf_set(struct pinctrl_dev *pctldev,
 			     pin_selector, arg == 0 ? "disable" : "enable");
 			sppctl_gpio_schmitt_trigger_set(chip, pin_selector,
 							arg);
+			break;
+		case PIN_CONFIG_SLEW_RATE_CTRL:
+			KDBG(pctldev->dev, "GPIO[%d]:%s slew rate control\n",
+			     pin_selector, arg == 0 ? "disable" : "enable");
+			sppctl_gpio_slew_rate_control_set(chip, pin_selector,
+							  arg);
 			break;
 		case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
 			KDBG(pctldev->dev, "GPIO[%d]:high-Z\n", pin_selector);

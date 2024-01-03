@@ -22,11 +22,13 @@
 #define REG_OFFSET_DS2 0x30 /* padctl1_regs_base */
 #define REG_OFFSET_DS3 0x40 /* padctl1_regs_base */
 
+#define REG_OFFSET_SLEW_RATE 0x00 /* padctl2_regs_base */
 #define REG_OFFSET_PULL_ENABLE 0x08 /* padctl2_regs_base */
 #define REG_OFFSET_PULL_SELECTOR 0x10 /* padctl2_regs_base */
 #define REG_OFFSET_STRONG_PULL_UP 0x18 /* padctl2_regs_base */
 #define REG_OFFSET_PULL_UP 0x20 /* padctl2_regs_base */
 #define REG_OFFSET_PULL_DOWN 0x28 /* padctl2_regs_base */
+#define REG_OFFSET_MODE_SELECT 0x30 /* padctl2_regs_base */
 
 // (/16)*4
 #define R16_ROF(r) (((r) >> 4) << 2)
@@ -212,6 +214,33 @@ int sppctl_gpio_schmitt_trigger_set(struct gpio_chip *chip,
 	return 0;
 }
 
+/* slew-rate control; for GPIO only */
+int sppctl_gpio_slew_rate_control_set(struct gpio_chip *chip,
+				      unsigned int selector, unsigned int value)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int pin;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	if (IS_DVIO(selector))
+		return -EINVAL;
+
+	pin = (selector > 19) ? selector - 60 : selector;
+
+	r = readl(pc->padctl2_regs_base + REG_OFFSET_SLEW_RATE + R32_ROF(pin));
+
+	if (value)
+		r |= BIT(R32_BOF(pin));
+	else
+		r &= ~BIT(R32_BOF(pin));
+
+	writel(r, pc->padctl2_regs_base + REG_OFFSET_SLEW_RATE + R32_ROF(pin));
+
+	return 0;
+}
+
 /* pull-up */
 int sppctl_gpio_pull_up(struct gpio_chip *chip, unsigned int selector)
 {
@@ -359,7 +388,7 @@ int sppctl_gpio_strong_pull_up(struct gpio_chip *chip, unsigned int selector)
 	return 0;
 }
 
-/* high-Z; for DVIO only */
+/* high-Z; */
 int sppctl_gpio_high_impedance(struct gpio_chip *chip, unsigned int selector)
 {
 	struct sppctlgpio_chip_t *pc;
@@ -459,6 +488,49 @@ int sppctl_gpio_bias_disable(struct gpio_chip *chip, unsigned int selector)
 		writel(r, pc->padctl2_regs_base + REG_OFFSET_STRONG_PULL_UP +
 				  R32_ROF(pin));
 	}
+	return 0;
+}
+
+//voltage mode select
+int sppctl_gpio_voltage_mode_select_set(struct gpio_chip *chip,
+					enum vol_ms_group ms_group,
+					unsigned int value)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int bit;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	switch (ms_group) {
+	case G_MX_MS_TOP_0:
+		bit = 0;
+		break;
+	case G_MX_MS_TOP_1:
+		bit = 1;
+		break;
+	case AO_MX_MS_TOP_0:
+		bit = 2;
+		break;
+	case AO_MX_MS_TOP_1:
+		bit = 3;
+		break;
+	case AO_MX_MS_TOP_2:
+		bit = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	r = readl(pc->padctl2_regs_base + REG_OFFSET_MODE_SELECT);
+
+	if (value)
+		r |= BIT(bit);
+	else
+		r &= ~BIT(bit);
+
+	writel(r, pc->padctl2_regs_base + REG_OFFSET_MODE_SELECT);
+
 	return 0;
 }
 
