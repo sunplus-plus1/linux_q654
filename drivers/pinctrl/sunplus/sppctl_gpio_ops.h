@@ -5,6 +5,23 @@
 
 #include "sppctl_gpio.h"
 
+/**
+ * enum vol_ms_group - the groups of voltage mode select for DVIO.
+ * @G_MX_MS_TOP_0 includes pins from G_MX21 to G_MX27.
+ * @G_MX_MS_TOP_1 includes pins G_MX20, and those from G_MX28 to G_MX37.
+ * @AO_MX_MS_TOP_0 includes pins from A0_MX0 to AO_MX9.
+ * @AO_MX_MS_TOP_1 includes pins from A0_MX10 to AO_MX19.
+ * @AO_MX_MS_TOP_2 includes pins from A0_MX20 to AO_MX29.
+ */
+
+enum vol_ms_group {
+	G_MX_MS_TOP_0,
+	G_MX_MS_TOP_1,
+	AO_MX_MS_TOP_0,
+	AO_MX_MS_TOP_1,
+	AO_MX_MS_TOP_2,
+};
+
 // who is first: GPIO(1) | MUX(0)
 int sppctl_gpio_first_get(struct gpio_chip *chip, unsigned int selector);
 
@@ -28,9 +45,19 @@ void sppctl_gpio_output_invert_set(struct gpio_chip *chip,
 int sppctl_gpio_drive_strength_set(struct gpio_chip *chip,
 				   unsigned int selector, int value);
 
+//voltage mode select
+int sppctl_gpio_voltage_mode_select_set(struct gpio_chip *chip,
+					enum vol_ms_group ms_group,
+					unsigned int value);
+
 // enable/disable schmitt trigger 0:disable 1:enable
 int sppctl_gpio_schmitt_trigger_set(struct gpio_chip *chip,
 				    unsigned int selector, int value);
+
+//enable/disable slew rate control 0:disable 1:enable
+int sppctl_gpio_slew_rate_control_set(struct gpio_chip *chip,
+				      unsigned int selector,
+				      unsigned int value);
 
 /* pull-up */
 int sppctl_gpio_pull_up(struct gpio_chip *chip, unsigned int selector);
@@ -41,7 +68,7 @@ int sppctl_gpio_pull_down(struct gpio_chip *chip, unsigned int selector);
 /* strongly pull-up; for GPIO only */
 int sppctl_gpio_strong_pull_up(struct gpio_chip *chip, unsigned int selector);
 
-/* high-Z; for DVIO only */
+/* high-Z; */
 int sppctl_gpio_high_impedance(struct gpio_chip *chip, unsigned int selector);
 
 /* bias disable */
