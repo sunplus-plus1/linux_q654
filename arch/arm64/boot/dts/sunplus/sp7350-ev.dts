@@ -2196,6 +2196,10 @@
 		phy-names = "uphy";
 	};
 
+	spdwc3: spdwc3@f80a1000 {
+		compatible = "sunplus,dwc3";
+	};
+
 	spsoc-pcm-driver {
 		compatible = "sunplus,audio-pcm";
 		//status = "disabled";
