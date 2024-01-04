@@ -252,7 +252,7 @@ gceSTATUS _SetPower(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctB
 #if WORKAROUND_FOR_NPU_SMS_RESET_BUG
 		/*NPU HW reset SMS*/
 		npu_sms_reset();
-		dev_dbg(dev, "NPU HW reset SMS\n")
+		dev_dbg(dev, "NPU HW reset SMS\n");
 #endif
 
 		/*NPU HW reset deassert*/
