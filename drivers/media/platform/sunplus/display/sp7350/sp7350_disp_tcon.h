@@ -215,8 +215,8 @@ void sp7350_tcon_timing_get(void);
 /*
  * SP7350 TCON GAMMA Settings
  */
-void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u8 *table, u32 size);
-void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u8 *table, u32 size);
+void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u16 *table, u32 tablesize);
+void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u16 *table, u32 tablesize);
 void sp7350_tcon_gamma_table_enable(int enable);
 
 /*

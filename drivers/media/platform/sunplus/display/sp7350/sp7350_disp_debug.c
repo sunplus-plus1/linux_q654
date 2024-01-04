@@ -34,7 +34,7 @@ static char *spmon_skipspace(char *p)
 	return p;
 }
 
-#if 0
+#if 1
 static char *spmon_readint(char *p, int *x)
 {
 	int base = 10;
@@ -43,7 +43,7 @@ static char *spmon_readint(char *p, int *x)
 	if (x == NULL)
 		return p;
 
-	*x = 0;
+	//*x = 0;
 
 	if (p == NULL)
 		return NULL;
@@ -516,113 +516,154 @@ static void sunplus_debug_cmd(char *tmpbuf)
 					pr_info("bist tcon hv5 cmd undef\n");
 
 			} else if (!strncasecmp(tmpbuf, "gamma", 5)) {
-				u8 tmptable[512], tmptable2[512];
-				int i;
+				u16 *tmptablebuf = NULL;
+				//u16 tmptable[512], tmptable2[512];
+				u16 *tmptable = NULL, *tmptable2 = NULL;
+				int i = 0;
 				int tablesize = 512;
+				int channel_val = -1;
+				int step = 4096 / tablesize;
+
+				tmptablebuf = kmalloc(tablesize*sizeof(u16)*2, GFP_KERNEL);
+				if (!tmptablebuf) {
+					pr_info("kmalloc fail!!!\n");
+					return;
+				}
+				tmptable = tmptablebuf;
+				tmptable2 = tmptablebuf + tablesize;
 
 				tmpbuf = spmon_skipspace(tmpbuf + 5);
 				if (!strncasecmp(tmpbuf, "upd1", 4)) {
 					pr_info("bist tcon gamma table update1\n");
 					for (i = 0; i < tablesize; i++) {
-						tmptable[i] = i%256;
+						//tmptable[i] = i%256;
+						tmptable[i] = i*step;
 					}
 					for (i = 0; i < 3; i++) {
 						sp7350_tcon_gamma_table_set(i+1, tmptable, tablesize);
 						sp7350_tcon_gamma_table_get(i+1, tmptable2, tablesize);
-						if (memcmp(tmptable, tmptable2, tablesize)) {
+						if (memcmp(tmptable, tmptable2, tablesize*sizeof(u16))) {
 							pr_info("Gamma table %s update fail.\n", i==2 ? "B": i ? "G" : "R");
 							pr_info("Input gamma table:\n");
 							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
-								tmptable, tablesize, true);
+								tmptable, tablesize*sizeof(u16), true);
 							pr_info("Output gamma table:\n");
 							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
-								tmptable2, tablesize, true);
+								tmptable2, tablesize*sizeof(u16), true);
+						}
+						else {
+							pr_info("Gamma table %s update success.\n", i==2 ? "B": i ? "G" : "R");
 						}
 					}
 				} else if (!strncasecmp(tmpbuf, "upd2", 4)){
 					pr_info("bist tcon gamma table update2\n");
 					for (i = 0; i < tablesize; i++) {
-						tmptable[i] = tablesize%256 - i;
+						//tmptable[i] = tablesize%256 - i;
+						tmptable[i] = 0xFFF- i*step;
 					}
 					for (i = 0; i < 3; i++) {
 						sp7350_tcon_gamma_table_set(i+1, tmptable, tablesize);
 						sp7350_tcon_gamma_table_get(i+1, tmptable2, tablesize);
-						if (memcmp(tmptable, tmptable2, tablesize)) {
+						if (memcmp(tmptable, tmptable2, tablesize*sizeof(u16))) {
 							pr_info("Gamma table %s update fail.\n", i==2 ? "B": i ? "G" : "R");
 							pr_info("Input gamma table:\n");
 							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
-								tmptable, tablesize, true);
+								tmptable, tablesize*sizeof(u16), true);
 							pr_info("Output gamma table:\n");
 							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
-								tmptable2, tablesize, true);
+								tmptable2, tablesize*sizeof(u16), true);
+						}
+						else {
+							pr_info("Gamma table %s update success.\n", i==2 ? "B": i ? "G" : "R");
 						}
 					}
 				} else if (!strncasecmp(tmpbuf, "wr", 2)){
 					pr_info("bist tcon gamma table write r channel\n");
-					for (i = 0; i < tablesize; i++) {
-						tmptable[i] = tablesize%256 - i;
+					tmpbuf = spmon_skipspace(tmpbuf + 2);
+					tmpbuf = spmon_readint(tmpbuf, &channel_val);
+					if (channel_val != -1) {
+						pr_info("Write r channel %d\n", channel_val);
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = channel_val;
+						}
+					}
+					else {  /* use default value */
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = 0xFFF- i*step;
+						}
 					}
 					sp7350_tcon_gamma_table_set(SP7350_TCON_GM_UPDDEL_RGB_R, tmptable, tablesize);
-
-
 				} else if (!strncasecmp(tmpbuf, "wg", 2)){
 					pr_info("bist tcon gamma table write g channel\n");
-					for (i = 0; i < tablesize; i++) {
-						tmptable[i] = tablesize%256 - i;
+					tmpbuf = spmon_skipspace(tmpbuf + 2);
+					tmpbuf = spmon_readint(tmpbuf, &channel_val);
+					if (channel_val != -1) {
+						pr_info("Write g channel %d\n", channel_val);
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = channel_val;
+						}
+					}
+					else {  /* use default value */
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = 0xFFF- i*step;
+						}
 					}
 					sp7350_tcon_gamma_table_set(SP7350_TCON_GM_UPDDEL_RGB_G, tmptable, tablesize);
-
 				} else if (!strncasecmp(tmpbuf, "wb", 2)){
 					pr_info("bist tcon gamma table write b channel\n");
-					for (i = 0; i < tablesize; i++) {
-						tmptable[i] = tablesize%256 - i;
+					tmpbuf = spmon_skipspace(tmpbuf + 2);
+					tmpbuf = spmon_readint(tmpbuf, &channel_val);
+					if (channel_val != -1) {
+						pr_info("Write b channel %d\n", channel_val);
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = channel_val;
+						}
+					}
+					else {  /* use default value */
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = 0xFFF- i*step;
+						}
 					}
 					sp7350_tcon_gamma_table_set(SP7350_TCON_GM_UPDDEL_RGB_B, tmptable, tablesize);
-
 				} else if (!strncasecmp(tmpbuf, "rr", 2)){
 					pr_info("bist tcon gamma table read r channel\n");
 					sp7350_tcon_gamma_table_get(SP7350_TCON_GM_UPDDEL_RGB_R, tmptable2, tablesize);
 					pr_info("Output gamma R table:\n");
 					print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_OFFSET, 16, 1,
-						tmptable2, tablesize, true);
-
+						tmptable2, tablesize*sizeof(u16), true);
 				} else if (!strncasecmp(tmpbuf, "rg", 2)){
 					pr_info("bist tcon gamma table read g channel\n");
 					sp7350_tcon_gamma_table_get(SP7350_TCON_GM_UPDDEL_RGB_G, tmptable2, tablesize);
 					pr_info("Output gamma G table:\n");
 					print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_OFFSET, 16, 1,
-						tmptable2, tablesize, true);
-
+						tmptable2, tablesize*sizeof(u16), true);
 				} else if (!strncasecmp(tmpbuf, "rb", 2)){
 					pr_info("bist tcon gamma table read b channel\n");
 					sp7350_tcon_gamma_table_get(SP7350_TCON_GM_UPDDEL_RGB_B, tmptable2, tablesize);
 					pr_info("Output gamma B table:\n");
 					print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_OFFSET, 16, 1,
-						tmptable2, tablesize, true);
-
+						tmptable2, tablesize*sizeof(u16), true);
 				} else if (!strncasecmp(tmpbuf, "rrgb", 4)){
 					pr_info("bist tcon gamma table read\n");
 					for (i = 0; i < 3; i++) {
 						sp7350_tcon_gamma_table_get(i+1, tmptable2, tablesize);
-						if (memcmp(tmptable, tmptable2, tablesize)) {
+						if (memcmp(tmptable, tmptable2, tablesize*sizeof(u16))) {
 							pr_info("Output gamma table:\n");
 							print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
-								tmptable2, tablesize, true);
+								tmptable2, tablesize*sizeof(u16), true);
 						}
 					}
-
-
 				} else if (!strncasecmp(tmpbuf, "on", 2)) {
 					pr_info("bist tcon gamma table enable.\n");
 					sp7350_tcon_gamma_table_enable(1);
-
 				} else if (!strncasecmp(tmpbuf, "off", 3)) {
 					pr_info("bist tcon gamma table disable.\n");
 					sp7350_tcon_gamma_table_enable(0);
-
-
 				} else
 					pr_info("bist tcon gamma cmd undef\n");
+
+				kfree(tmptablebuf);
+				tmptablebuf = NULL;
 
 			} else if (!strncasecmp(tmpbuf, "rgb", 3)) {
 				u32 channel_sel = 0;

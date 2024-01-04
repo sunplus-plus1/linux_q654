@@ -7,6 +7,8 @@
 #include "sp7350_display.h"
 #include "sp7350_disp_regs.h"
 
+#define C3V_DISP_TCON_GAMMA_WORKAROUND_EN  1
+
 static const char * const tpg_mode[] = {
 	"TPG off", "TPG internal", "TPG external", "TPG external"};
 static const char * const tpg_pattern[] = {
@@ -702,7 +704,7 @@ void sp7350_tcon_timing_get(void)
 		value1, value1);
 }
 
-void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u8 *table, u32 size)
+void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u16 *table, u32 tablesize)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	int i;
@@ -718,12 +720,13 @@ void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u8 *table, u32 size)
 		udelay(50);
 	} while(1);
 
+	value &= ~(SP7350_TCON_GM_UPDDEL_RGB_MASK);
 	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_UPD_SCHEME | SP7350_TCON_GM_BYPASS | SP7350_TCON_GM_UPDWE |
 			SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
 	writel(value, disp_dev->base + TCON_GAMMA0);
 
 	/* Write data to SRAM. */
-	for(i = 0; i < size ; i++) {
+	for(i = 0; i < tablesize ; i++) {
 		writel(i, disp_dev->base + TCON_GAMMA1);
 		writel(table[i], disp_dev->base + TCON_GAMMA2);
 		value |= SP7350_TCON_GM_UPDEN;
@@ -735,11 +738,13 @@ void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u8 *table, u32 size)
 			}
 			udelay(50);
 		} while(1);
-		//printk("[%03d]0x%02X ", i, table[i]);
-		//if (!((i+1) %16)) {
-		//	printk("\n");
-		//}
 	}
+
+	/* workaround for write, write last -> read first. */
+	#if C3V_DISP_TCON_GAMMA_WORKAROUND_EN
+	value = 0x00000021;
+	writel(value, disp_dev->base + TCON_GAMMA0);
+	#endif
 
 	/* Write end, Enable Gamma Correction */
 	/*value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
@@ -750,7 +755,7 @@ void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u8 *table, u32 size)
 }
 EXPORT_SYMBOL(sp7350_tcon_gamma_table_set);
 
-void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u8 *table, u32 size)
+void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u16 *table, u32 tablesize)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	int i;
@@ -766,13 +771,19 @@ void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u8 *table, u32 size)
 	} while(1);
 
 	//value2 = value;
+	value &= ~(SP7350_TCON_GM_UPDDEL_RGB_MASK);
+#if C3V_DISP_TCON_GAMMA_WORKAROUND_EN
 	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_BYPASS |
 			SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
+#else
+	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_UPD_SCHEME | SP7350_TCON_GM_BYPASS |
+			SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
+#endif
 	value &= ~(SP7350_TCON_GM_UPDWE);
 	writel(value, disp_dev->base + TCON_GAMMA0);
 
 	/* Read data from SRAM. */
-	for(i = 0; i < size ; i++) {
+	for(i = 0; i < tablesize ; i++) {
 		writel(i, disp_dev->base + TCON_GAMMA1);
 		value |= SP7350_TCON_GM_UPDEN;
 		writel(value, disp_dev->base + TCON_GAMMA0);
@@ -780,10 +791,6 @@ void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u8 *table, u32 size)
 			value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
 			if (!(value & SP7350_TCON_GM_UPDEN)) {
 				table[i] = readl(disp_dev->base + TCON_GAMMA2);
-				//printk("[%03d]0x%02X ", i, table[i]);
-				//if (!((i+1) %16)) {
-				//	printk("\n");
-				//}
 				break;
 			}
 			udelay(50);
@@ -999,6 +1006,7 @@ void sp7350_tcon_enhanced_dither_set(u32 rgbc_sel, u32 method , u32 temporal_mod
 	else
 		value &= ~(SP7350_TCON_DITHER_TEMP_EN);
 
+	value &= ~(SP7350_TCON_DITHER_PANEL_DOT_MODE_MASK);
 	value |= SP7350_TCON_DITHER_PANEL_DOT_MODE_SET(dot_mode);
 
 	writel(value, disp_dev->base + TCON_DITHER_TVOUT);
@@ -1089,7 +1097,7 @@ int sp7350_tcon_bitswap_set(int bit_mode, int channel_mode)
 
 	/* DOUT[i] = DIN[i] */
 	for(i=0; i < 8; i++) {
-		value = readl(disp_dev->base + TCON_BIT_SWAP_G0 + (i << 2));
+		//value = readl(disp_dev->base + TCON_BIT_SWAP_G0 + (i << 2));
 		value = FIELD_PREP(GENMASK(4, 0), dotmap[i*3]) |
 			FIELD_PREP(GENMASK(9, 5), dotmap[i*3+1]) |
 			FIELD_PREP(GENMASK(14,10), dotmap[i*3+2]);
