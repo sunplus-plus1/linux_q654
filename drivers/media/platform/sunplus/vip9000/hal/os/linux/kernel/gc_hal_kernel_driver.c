@@ -543,6 +543,9 @@ static int drv_open(struct inode *inode, struct file *filp)
     gctUINT index    = 0;
     gckDEVICE device;
 
+    struct inode *npu_inode = filp->f_path.dentry->d_inode;
+    npu_inode->i_mode |= 0666;
+
     gcmkHEADER_ARG("inode=%p filp=%p", inode, filp);
 
     data = kmalloc(sizeof(gcsHAL_PRIVATE_DATA), GFP_KERNEL | __GFP_NOWARN);
