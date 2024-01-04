@@ -27,6 +27,7 @@
 //#define IMX219_IN3
 //#define IMX219_IN4
 //#define OV5647_IN4
+//#define IMX708_IN4
 //#define IMX219_IN5
 //#define TP2815_IN0
 //#define TP2815_IN0_1LANE
@@ -303,6 +304,12 @@
 			clock-frequency = <25000000>;
 		};
 
+		imx708_clk: camera-imx708-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+
 		tp2815_clk: camera-tp2815-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -576,6 +583,40 @@
 		regulator-name = "camera_dvdd";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
+
+	imx708_vana1_2v8: imx708_vana1_2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vana1";
+		startup-delay-us = <70000>;
+		off-on-delay-us = <30000>;
+		regulator-min-microvolt = <2700000>;
+		regulator-max-microvolt = <2700000>;
+		regulator-always-on;
+	};
+
+	imx708_vana2_1v8: imx708_vana2_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vana2";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	imx708_vdig_1v1: imx708_vdig_1v1 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vdig";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-always-on;
+	};
+
+	imx708_vddl_1v8: imx708_vddl_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vddl";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
 
@@ -1236,7 +1277,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1276,7 +1317,6 @@
 			compatible = "ovti,ov5647";
 			reg = <0x36>;
 			clocks = <&ov5647_clk>;
-
 			avdd-supply = <&ov5647_avdd_2v8>;
 			dovdd-supply = <&ov5647_dovdd_1v8>;
 			dvdd-supply = <&ov5647_dvdd_1v5>;
@@ -1287,6 +1327,30 @@
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <297000000>;
+				};
+			};
+		};
+#endif
+#ifdef IMX708_IN4 /* Add imx708 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: imx708@1a {
+			compatible = "sony,imx708";
+			reg = <0x1a>;
+			clocks = <&imx708_clk>;
+			clock-names = "inclk";
+			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
+			vana2-supply = <&imx708_vana2_1v8>;/* 1.8v */
+			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
+			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
+
+			port {
+				imx708_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <450000000>;
 				};
 			};
 		};
@@ -2900,7 +2964,7 @@
 		resets = <&rstc RST_MIPICSI4>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <4>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2908,7 +2972,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#ifdef IMX219_IN4
+#if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		num_channels = <1>;
 #elif defined(OV5647_IN4)
 	num_channels = <1>;
@@ -2947,6 +3011,19 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_4: endpoint {
 					remote-endpoint = <&ov5647_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef IMX708_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&imx708_4>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -3005,7 +3082,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
