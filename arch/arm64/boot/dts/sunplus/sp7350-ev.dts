@@ -1832,7 +1832,7 @@
 		clocks = <&clkc GMAC>;
 		clock-names = "stmmaceth";
 		clock_in_out = "output";
-		clock-frequency = <50000000>;
+		clock-frequency = <125000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
 		reset-names = "rstc_gmac", "rstc_pd_gmac";
 		pinctrl-names = "default";
