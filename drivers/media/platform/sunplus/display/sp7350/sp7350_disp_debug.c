@@ -13,7 +13,10 @@
 #include "sp7350_display.h"
 #include "sp7350_disp_regs.h"
 
+static void sp7350_dmix_luma_adjust_selftest(void);
+static void sp7350_dmix_chroma_adjust_selftest(void);
 static void sp7350_tcon_rgb_adjust_selftest(u32 channel_sel);
+
 
 static char *spmon_skipspace(char *p)
 {
@@ -120,6 +123,15 @@ static char *spmon_readint(char *p, int *x)
  *    echo "dispmon bist dmix snow" > /proc/disp_mon
  *    echo "dispmon bist dmix snowhalf" > /proc/disp_mon
  *    echo "dispmon bist dmix snowmax" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj on" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj off" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj luma" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj chroma" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj ptg" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd0" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd1" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd2" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd3" > /proc/disp_mon
  *    echo "dispmon bist tcon off" > /proc/disp_mon
  *    echo "dispmon bist tcon gen on" > /proc/disp_mon
  *    echo "dispmon bist tcon gen off" > /proc/disp_mon
@@ -160,8 +172,6 @@ static char *spmon_readint(char *p, int *x)
  *    echo "dispmon bist tcon bitswap set [RGB|RBG|GBR|GRB|BRG|BGR] [MSB|LSB]" > /proc/disp_mon
  *    echo "dispmon bist tcon bitswap on" > /proc/disp_mon
  *    echo "dispmon bist tcon bitswap off" > /proc/disp_mon
-
-
  *
  *  <dmix layer check/set>
  *    echo "dispmon layer info" > /proc/disp_mon
@@ -323,6 +333,53 @@ static void sunplus_debug_cmd(char *tmpbuf)
 			} else
 				pr_info("bist osd3 cmd undef\n");
 
+		} else if (!strncasecmp(tmpbuf, "tgen", 4)) {
+			tmpbuf = spmon_skipspace(tmpbuf + 4);
+			pr_info("bist tgen cmd\n");
+			if (!strncasecmp(tmpbuf, "dtgadj", 6)) {
+				int input, i;
+				int adj_value = -1;
+				tmpbuf = spmon_skipspace(tmpbuf + 6);
+				pr_info("bist tgen dtg adj\n");
+				if (!strncasecmp(tmpbuf, "ptg", 3)) {
+					pr_info("bist tgen dtgadj ptg\n");
+					input = SP7350_TGEN_DTG_ADJ_PTG;
+					tmpbuf = spmon_skipspace(tmpbuf + 3);
+				} else if (!strncasecmp(tmpbuf, "osd0", 4)) {
+					pr_info("bist tgen dtgadj osd0\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD0;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else if (!strncasecmp(tmpbuf, "osd1", 4)) {
+					pr_info("bist tgen dtgadj osd1\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD1;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else if (!strncasecmp(tmpbuf, "osd2", 4)) {
+					pr_info("bist tgen dtgadj osd2\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD2;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else if (!strncasecmp(tmpbuf, "osd3", 4)) {
+					pr_info("bist tgen dtgadj osd3\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD3;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else {
+					pr_info("bist tgen dtgadj cmd undef\n");
+					return;
+				}
+				tmpbuf = spmon_readint(tmpbuf, &adj_value);
+				if (adj_value != -1) {
+					pr_info("Set[%d] adj_value %d\n", input, adj_value);
+					sp7350_tgen_input_adjust(input, adj_value);
+				}
+				else {	/* autotest */
+					for (i = 0; i <= 0x3f; i++) {
+						pr_info("Set[%d] adj_value %d\n",input, i);
+						sp7350_tgen_input_adjust(input, i);
+						msleep(300);
+					}
+				}
+			}  else
+				pr_info("bist tgen cmd undef\n");
+
 		} else if (!strncasecmp(tmpbuf, "dmix", 4)) {
 			tmpbuf = spmon_skipspace(tmpbuf + 4);
 			pr_info("bist dmix cmd\n");
@@ -374,7 +431,25 @@ static void sunplus_debug_cmd(char *tmpbuf)
 					pr_info("bist dmix bor blue(def)\n");
 					sp7350_dmix_ptg_set(SP7350_DMIX_BIST_BORDER, 0x29f06e); //BG blue
 				}
-			} else
+			}else if (!strncasecmp(tmpbuf, "adj", 3)) {
+				tmpbuf = spmon_skipspace(tmpbuf + 3);
+				pr_info("bist dmix color adj\n");
+				if (!strncasecmp(tmpbuf, "on", 2)) {
+					pr_info("bist dmix adj on\n");
+					sp7350_dmix_color_adj_onoff(1);
+				} else if (!strncasecmp(tmpbuf, "off", 3)) {
+					pr_info("bist dmix adj off\n");
+					sp7350_dmix_color_adj_onoff(0);
+				} else if (!strncasecmp(tmpbuf, "luma", 4)) {
+					pr_info("bist dmix adj luma selftest\n");
+					sp7350_dmix_luma_adjust_selftest();
+				} else if (!strncasecmp(tmpbuf, "chroma", 6)) {
+					pr_info("bist dmix adj chroma selftest\n");
+					sp7350_dmix_chroma_adjust_selftest();
+				} else
+					pr_info("bist dmix adj cmd undef\n");
+
+			}  else
 				pr_info("bist dmix cmd undef\n");
 
 		} else if (!strncasecmp(tmpbuf, "tcon", 4)) {
@@ -1077,6 +1152,121 @@ void sp7350_debug_init(struct sp_disp_device *disp_dev)
 void sp7350_debug_cleanup(struct sp_disp_device *disp_dev)
 {
 	debugfs_remove_recursive(disp_dev->debug.debugfs_dir);
+}
+
+#define DEBUG_DMIX_ADJUST_LUMA_CP_EN  1
+static void sp7350_dmix_luma_adjust_selftest(void)
+{
+	u8 tmpcptable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u8 tmpcpsrctable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u8 tmpcpsdttable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u16 tmpslopetable[SP7350_TCON_RGB_ADJ_SLOPE_SIZE];
+	u16 tmpslopetable2[SP7350_TCON_RGB_ADJ_SLOPE_SIZE];
+	int i,j;
+
+	pr_info(" DMIX Luma Adjustment SELFTEST.\n");
+
+	for (i = 0; i < 0xff; i+=3) {
+		#if DEBUG_DMIX_ADJUST_LUMA_CP_EN
+		for (j = 0; j < SP7350_TCON_RGB_ADJ_CP_SIZE; j++) {
+			tmpcptable[j] = (i + j)%0xff;
+		}
+		#endif
+		for (j = 0; j < SP7350_TCON_RGB_ADJ_SLOPE_SIZE; j++) {
+			tmpslopetable[j] = (i * 8 + j)%0x7ff;
+		}
+		#if DEBUG_DMIX_ADJUST_LUMA_CP_EN
+		pr_info(" DMIX Luma Adjustment SELFTEST cpsrc[%02x %02x %02x], cpsdt[%02x %02x %02x], slope[%04x %04x %04x %04x].\n",
+			tmpcptable[0], tmpcptable[1], tmpcptable[2],
+			tmpcptable[0], tmpcptable[1], tmpcptable[2],
+			tmpslopetable[0], tmpslopetable[1], tmpslopetable[2], tmpslopetable[3]);
+		sp7350_dmix_color_adj_luma_cp_set( tmpcptable, tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		#else
+		pr_info(" DMIX Luma Adjustment SELFTEST slope[%04x %04x %04x %04x].\n",
+			tmpslopetable[0], tmpslopetable[1], tmpslopetable[2], tmpslopetable[3]);
+		#endif
+		sp7350_dmix_color_adj_luma_slope_set( tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		sp7350_dmix_color_adj_onoff(1);
+		msleep(300);
+		#if DEBUG_DMIX_ADJUST_LUMA_CP_EN
+		sp7350_dmix_color_adj_luma_cp_get( tmpcpsrctable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		if (memcmp(tmpcptable, tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" DMIX Luma Adjust control point source update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		if (memcmp(tmpcptable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" DMIX Luma Adjust control point destination update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		#endif
+		sp7350_dmix_color_adj_luma_slope_get(tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		if (memcmp(tmpslopetable, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE)) {
+			pr_info(" DMIX Luma Adjust slope update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			break;
+		}
+	}
+
+	/* disbable */
+	//sp7350_dmix_color_adj_onoff(0);
+}
+
+static void sp7350_dmix_chroma_adjust_selftest(void)
+{
+	int i,j;
+	u16 satcos, satsin;
+	u16 tmpsatcos, tmpsatsin;
+
+
+	for (i = 0; i < 3; i++) {
+		satcos = 0;
+		satsin = 0;
+		sp7350_dmix_color_adj_onoff(1);
+		for (j = 0; j < 0x3ff; j+=8) {
+			if (i == 0) {
+				satcos = j;
+				satsin = j;
+			}
+			else if (i == 1) {
+				satcos = j;
+			}
+			else if (i == 2) {
+				satsin = j;
+			}
+
+			pr_info(" DMIX Chroma Adjustment SELFTEST satcos[%02x], satsin[%02x ].\n", satcos, satsin);
+			sp7350_dmix_color_adj_crma_set( satcos, satcos);
+			msleep(300);
+			sp7350_dmix_color_adj_crma_get( &tmpsatcos, &tmpsatsin);
+			if (satcos != tmpsatcos || satcos != tmpsatsin) {
+				pr_info(" DMIX Chroma Adjustment get satcos[%02x], satsin[%02x ].\n", tmpsatcos, tmpsatsin);
+				break;
+			}
+		}
+		msleep(3000);
+		/* disbable */
+		sp7350_dmix_color_adj_onoff(0);
+		msleep(3000);
+	}
+
+
 }
 
 static void sp7350_tcon_rgb_adjust_selftest(u32 channel_sel)
