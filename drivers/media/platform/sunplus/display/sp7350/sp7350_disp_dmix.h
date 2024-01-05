@@ -165,6 +165,12 @@ void sp7350_dmix_plane_alpha_config(struct sp7350_dmix_plane_alpha *plane);
  * SP7350 DMIX LUMA/CRMA Adjustment
  */
 void sp7350_dmix_color_adj_onoff(int enable);
+int sp7350_dmix_color_adj_luma_cp_set(const u8 *cp_src, const u8 *cp_sdt, u32 cp_size);
+int sp7350_dmix_color_adj_luma_slope_set(const u16 *slope, u32 slope_size);
+int sp7350_dmix_color_adj_luma_cp_get(u8 *cp_src, u8 *cp_sdt, u32 cp_size);
+int sp7350_dmix_color_adj_luma_slope_get(u16 *slope, u32 slope_size);
+void sp7350_dmix_color_adj_crma_set(u16 satcos, u16 satsin);
+void sp7350_dmix_color_adj_crma_get(u16 *satcos, u16 *satsin);
 
 #endif	/* __SP7350_DISP_DMIX_H__ */
 
