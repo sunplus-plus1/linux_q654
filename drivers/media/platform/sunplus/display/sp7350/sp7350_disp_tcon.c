@@ -185,7 +185,7 @@ void sp7350_tcon_decrypt_info(void)
 		FIELD_GET(GENMASK(1,1), value)?"method1":"method2",
 		FIELD_GET(GENMASK(0,0), value)?"RGB":"R only");
 
-	#if 1
+	#if 0
 	/* TCON Gamma Correction
 	*/
 	pr_info("[TCON Gamma Correction]\n");
@@ -349,6 +349,7 @@ void sp7350_tcon_decrypt_info(void)
 		FIELD_GET(GENMASK(9,5), value2),
 		FIELD_GET(GENMASK(4,0), value2));
 	#endif
+
 }
 EXPORT_SYMBOL(sp7350_tcon_decrypt_info);
 
@@ -829,6 +830,10 @@ int sp7350_tcon_rgb_adjust_cp_set(u32 channel_sel, const u8 *cp_src, const u8 *c
 	u32 value = 0;
 	int i;
 
+	if (cp_size != 3) {
+		return -1;
+	}
+
 	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
 		cp_base = TCON_R_ADJ_CP1;
 	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN)
@@ -840,7 +845,7 @@ int sp7350_tcon_rgb_adjust_cp_set(u32 channel_sel, const u8 *cp_src, const u8 *c
 
 	for (i = 0; i < cp_size; i++) {
 		//value |= SP7350_TCON_RGB_ADJ_CP_SRC_SET(cp_src[i]) | SP7350_TCON_RGB_ADJ_CP_SDT_SET(cp_sdt);
-		value = cp_src[i] + (cp_src[i] << 8);
+		value = cp_src[i] + (cp_sdt[i] << 8);
 		writel(value, disp_dev->base + cp_base + (i<<2));
 	}
 
@@ -853,6 +858,10 @@ int sp7350_tcon_rgb_adjust_slope_set(u32 channel_sel, const u16 *slope, u32 slop
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	u32 slope_base = TCON_R_ADJ_SLOPE0;
 	int i;
+
+	if (slope_size != 4) {
+		return -1;
+	}
 
 	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
 		slope_base = TCON_R_ADJ_SLOPE0;
@@ -878,6 +887,10 @@ int sp7350_tcon_rgb_adjust_cp_get(u32 channel_sel, u8 *cp_src, u8 *cp_sdt, u32 c
 	u32 value = 0;
 	int i;
 
+	if (cp_size != 3) {
+		return -1;
+	}
+
 	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
 		cp_base = TCON_R_ADJ_CP1;
 	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN)
@@ -902,6 +915,10 @@ int sp7350_tcon_rgb_adjust_slope_get(u32 channel_sel, u16 *slope, u32 slope_size
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	u32 slope_base = TCON_R_ADJ_SLOPE0;
 	int i;
+
+	if (slope_size != 4) {
+		return -1;
+	}
 
 	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
 		slope_base = TCON_R_ADJ_SLOPE0;
@@ -1030,6 +1047,7 @@ void sp7350_tcon_enhanced_dither_enable(u32 enable)
 }
 EXPORT_SYMBOL(sp7350_tcon_enhanced_dither_enable);
 
+#define  BIT_SWAP_IN_EN   1  /* DI[23:0] = {B G R} */
 int sp7350_tcon_bitswap_set(int bit_mode, int channel_mode)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
@@ -1043,40 +1061,82 @@ int sp7350_tcon_bitswap_set(int bit_mode, int channel_mode)
 		tmp[i] = i;
 	}
 
+#if BIT_SWAP_IN_EN
+	dotr = tmp;
+	dotg = tmp+8;
+	dotb = tmp+16;
+#else
 	dotb = tmp;
 	dotg = tmp+8;
 	dotr = tmp+16;
+#endif
 
 	/* set channel swap with bit swap result. */
 	if (SP7350_TCON_BIT_SW_CHNL_RGB == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
+		#else
 		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
 		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
 		memcpy(dotmap,    dotb, 8*sizeof(tmp[0]));
+		#endif
 	}
 	else if (SP7350_TCON_BIT_SW_CHNL_RBG == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
+		#else
 		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
 		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
 		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		#endif
 	}
 	else if (SP7350_TCON_BIT_SW_CHNL_GBR == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
+		#else
 		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
 		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
 		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		#endif
 	}
 	else if (SP7350_TCON_BIT_SW_CHNL_GRB == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
+		#else
 		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
 		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
 		memcpy(dotmap,	  dotb, 8*sizeof(tmp[0]));
+		#endif
 	}
 	else if (SP7350_TCON_BIT_SW_CHNL_BRG == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
+		#else
 		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
 		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
 		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		#endif
 	}
 	else if (SP7350_TCON_BIT_SW_CHNL_BGR == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
+		#else
 		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
 		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
 		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		#endif
 	}
 	else
 		return -1;
