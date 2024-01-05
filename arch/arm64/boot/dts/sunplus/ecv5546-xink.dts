@@ -525,6 +525,8 @@
 		regulator-name = "npu_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&npu_pwr_en_pins>;
 		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};*/
@@ -534,6 +536,8 @@
 		regulator-name = "video_codec_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&video_codec_pwr_en_pins>;
 		gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};*/
@@ -2079,7 +2083,7 @@
 		clocks = <&clkc CARD_CTL1>;
 		resets = <&rstc RST_CARD_CTL1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdcard_pins>;
+		pinctrl-0 = <&sdcard_pins &sdcard_cd_pins>;
 		cd-gpios = <&pctl 17 GPIO_ACTIVE_LOW>;
 		delay-val = <0x777110>;
 		bus-width = <4>;
@@ -2194,6 +2198,10 @@
 		phy-names = "uphy";
 	};
 
+	spdwc3: spdwc3@f80a1000 {
+		compatible = "sunplus,dwc3";
+	};
+
 	spsoc-pcm-driver {
 		compatible = "sunplus,audio-pcm";
 		//status = "disabled";
@@ -2222,6 +2230,8 @@
 
 	extcon_dwc3drd: extcon_usb3 {
 		compatible = "linux,extcon-usb-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&dwc3id_pins>;
 		id-gpios = <&pctl 99 GPIO_ACTIVE_HIGH>;
 	};
 
@@ -2259,6 +2269,8 @@
 		clock-names = "clkc_u3phy", "clkc_u3";
 		resets = <&rstc RST_U3PHY0>;
 		reset-names = "rstc_u3phy";
+		pinctrl-names = "default";
+		pinctrl-0 = <&typec_pins>;
 		typec-gpios = <&pctl 98 GPIO_ACTIVE_HIGH>;
 		#phy-cells = <0>;
 	};
@@ -4001,6 +4013,11 @@
 			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;
 		};
 
+		sdcard_cd_pins: pinmux_sdcard_cd-pins {
+			function = "GPIO";
+			pins = "GPIO17";
+		};
+
 		spi_nor_pins: pinmux_spi_nor-pins {
 			function = "SPI_FLASH";
 			groups = "SPI_FLASH";
@@ -4034,6 +4051,26 @@
 			function = "PARA_NAND";
 			groups = "PARA_NAND";
 			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+		};
+
+		typec_pins: pinmux_typec-pins {
+			pins = "GPIO98";
+			function = "GPIO";
+		};
+
+		dwc3id_pins: pinmux_usb3id-pins {
+			pins = "GPIO99";
+			function = "GPIO";
+		};
+
+		npu_pwr_en_pins: pinmux_video_npu_pwr_en-pins {
+			pins = "GPIO65";
+			function = "GPIO";
+		};
+
+		video_codec_pwr_en_pins: pinmux_video_codec_pwr_en-pins {
+			pins = "GPIO66";
+			function = "GPIO";
 		};
 
 		uart0_pins: pinmux_uart0-pins {
