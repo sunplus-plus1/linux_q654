@@ -654,6 +654,12 @@ static int sp_try_format(struct sp_disp_device *disp_dev,
 
 		if (pixfmt->pixelformat == pixfmt1->fourcc) {
 			match = 1;
+			/*
+			 * Add it in case of some app send pixfmt->sizeimage = 0 to driver
+			 *   caused queue setup return fail, driver calculate by itsetf.
+			 * refer to drivers/media/common/videobuf2/videobuf2-core 814
+			 */
+			pixfmt->sizeimage = pixfmt1->width * pixfmt1->height * pixfmt1->depth / 8;
 			break;
 		}
 	}
