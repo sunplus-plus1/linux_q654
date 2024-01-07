@@ -2727,7 +2727,9 @@ static int sp_udc_probe(struct platform_device *pdev)
 #if 0
 	udc->irq_num = irq_of_parse_and_map(pdev->dev.of_node, 0);
 #else
-	udc->port_num = of_alias_get_id(pdev->dev.of_node, "usb-device");
+	if (!strncmp(pdev->dev.of_node->full_name, "usb@f8102800", 12))
+		udc->port_num = 0;
+
 	pr_info("%s start, port_num:%d, %px\n", __func__, udc->port_num, udc);
 
 	/* phy */
