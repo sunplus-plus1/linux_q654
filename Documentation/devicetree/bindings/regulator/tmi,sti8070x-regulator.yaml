@@ -30,11 +30,20 @@ properties:
         1: force pwm mode
     items:
       enum: [0, 1]
-      
+  
+  tmi,sel-pin-status:
+    description: |
+      set SEL pin's level. If this property is omitted, 0 is set by default.
+        0:SEL pin is on low level.
+        1:SEL pin is on high level.
+    
   gpio:
-    description: gpio to use for enable control
-    maxItems: 1 
-
+    description: |
+      gpio to use for enable control.
+      If Enable pin is connect to a fixed power pin(like,VCC), 
+      this property should be omitted.
+    maxItems: 1
+    
 allOf:
   - $ref: regulator.yaml#
 
