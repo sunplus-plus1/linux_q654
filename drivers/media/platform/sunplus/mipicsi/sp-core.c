@@ -3,7 +3,7 @@
  * Driver for Sunplus VIN
  *
  * Copyright Sunplus Technology Co., Ltd.
- * 	  All rights reserved.
+ * All rights reserved.
  *
  * Based on Renesas R-Car VIN driver
  */
@@ -1055,7 +1055,7 @@ static const struct vin_info sp_info_sp7350 = {
 	.model = SP_Q654,
 	.use_mc = false,
 	.nv12 = false,
-	.max_width = 4096,
+	.max_width = 4608, // for imx708(12mp sensor 4608x2592)
 	.max_height = 4096,
 	.routes = sp_info_sp7350_routes,
 };

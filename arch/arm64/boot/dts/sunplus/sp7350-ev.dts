@@ -27,6 +27,7 @@
 //#define IMX219_IN3
 //#define IMX219_IN4
 //#define OV5647_IN4
+//#define IMX708_IN4
 //#define IMX219_IN5
 //#define TP2815_IN0
 //#define TP2815_IN0_1LANE
@@ -117,8 +118,6 @@
 		spis5 = &spi_controller5;
 
 		spi0 = &sp_spinor0;
-
-		usb-device0 = &udc0;
 
 		stc0 = &stc;
 		stc1 = &stc_av0;
@@ -301,6 +300,12 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <25000000>;
+		};
+
+		imx708_clk: camera-imx708-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
 		};
 
 		tp2815_clk: camera-tp2815-clk {
@@ -518,6 +523,8 @@
 		regulator-name = "npu_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&npu_pwr_en_pins>;
 		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
@@ -527,6 +534,8 @@
 		regulator-name = "video_codec_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&video_codec_pwr_en_pins>;
 		gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
@@ -576,6 +585,40 @@
 		regulator-name = "camera_dvdd";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
+
+	imx708_vana1_2v8: imx708_vana1_2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vana1";
+		startup-delay-us = <70000>;
+		off-on-delay-us = <30000>;
+		regulator-min-microvolt = <2700000>;
+		regulator-max-microvolt = <2700000>;
+		regulator-always-on;
+	};
+
+	imx708_vana2_1v8: imx708_vana2_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vana2";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	imx708_vdig_1v1: imx708_vdig_1v1 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vdig";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-always-on;
+	};
+
+	imx708_vddl_1v8: imx708_vddl_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vddl";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
 
@@ -1236,7 +1279,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1276,7 +1319,6 @@
 			compatible = "ovti,ov5647";
 			reg = <0x36>;
 			clocks = <&ov5647_clk>;
-
 			avdd-supply = <&ov5647_avdd_2v8>;
 			dovdd-supply = <&ov5647_dovdd_1v8>;
 			dvdd-supply = <&ov5647_dvdd_1v5>;
@@ -1287,6 +1329,30 @@
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <297000000>;
+				};
+			};
+		};
+#endif
+#ifdef IMX708_IN4 /* Add imx708 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: imx708@1a {
+			compatible = "sony,imx708";
+			reg = <0x1a>;
+			clocks = <&imx708_clk>;
+			clock-names = "inclk";
+			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
+			vana2-supply = <&imx708_vana2_1v8>;/* 1.8v */
+			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
+			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
+
+			port {
+				imx708_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <450000000>;
 				};
 			};
 		};
@@ -1832,7 +1898,7 @@
 		clocks = <&clkc GMAC>;
 		clock-names = "stmmaceth";
 		clock_in_out = "output";
-		clock-frequency = <50000000>;
+		clock-frequency = <125000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
 		reset-names = "rstc_gmac", "rstc_pd_gmac";
 		pinctrl-names = "default";
@@ -2015,7 +2081,7 @@
 		clocks = <&clkc CARD_CTL1>;
 		resets = <&rstc RST_CARD_CTL1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdcard_pins>;
+		pinctrl-0 = <&sdcard_pins &sdcard_cd_pins>;
 		cd-gpios = <&pctl 17 GPIO_ACTIVE_LOW>;
 		delay-val = <0x777110>;
 		bus-width = <4>;
@@ -2160,7 +2226,9 @@
 
 	extcon_dwc3drd: extcon_usb3 {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pctl 99 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&dwc3id_pins>;
+		id-gpios = <&pctl 99 GPIO_ACTIVE_HIGH>;
 	};
 
 	usb3drd0: usb3drd0{
@@ -2188,6 +2256,10 @@
 		};
 	};
 
+	spdwc3: spdwc3@f80a1000 {
+		compatible = "sunplus,dwc3";
+	};
+
 	u3phy0: uphy@f80bd000 {
 		compatible = "sunplus,usb3-phy";
 		reg = <0x0 0xf80bd000 0x0 0x80>, <0x0 0xf80a1430 0x0 0x80>;
@@ -2197,6 +2269,8 @@
 		clock-names = "clkc_u3phy", "clkc_u3";
 		resets = <&rstc RST_U3PHY0>;
 		reset-names = "rstc_u3phy";
+		pinctrl-names = "default";
+		pinctrl-0 = <&typec_pins>;
 		typec-gpios = <&pctl 98 GPIO_ACTIVE_HIGH>;
 		#phy-cells = <0>;
 	};
@@ -2900,7 +2974,7 @@
 		resets = <&rstc RST_MIPICSI4>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <4>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2908,7 +2982,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#ifdef IMX219_IN4
+#if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		num_channels = <1>;
 #elif defined(OV5647_IN4)
 	num_channels = <1>;
@@ -2947,6 +3021,19 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_4: endpoint {
 					remote-endpoint = <&ov5647_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef IMX708_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&imx708_4>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -3005,7 +3092,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3528,7 +3615,7 @@
 			 */
 #elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
 		sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
-		sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,osd0_layer = <0 0 800 480 0xd>; /* 0x8 = RGBA8888 */
 		sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
@@ -3926,6 +4013,11 @@
 			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;
 		};
 
+		sdcard_cd_pins: pinmux_sdcard_cd-pins {
+			function = "GPIO";
+			pins = "GPIO17";
+		};
+
 		spi_nor_pins: pinmux_spi_nor-pins {
 			function = "SPI_FLASH";
 			groups = "SPI_FLASH";
@@ -3959,6 +4051,26 @@
 			function = "PARA_NAND";
 			groups = "PARA_NAND";
 			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+		};
+
+		typec_pins: pinmux_typec-pins {
+			function = "GPIO";
+			pins = "GPIO98";
+		};
+
+		dwc3id_pins: pinmux_usb3id-pins {
+			function = "GPIO";
+			pins = "GPIO99";
+		};
+
+		npu_pwr_en_pins: pinmux_video_npu_pwr_en-pins {
+			function = "GPIO";
+			pins = "GPIO65";
+		};
+
+		video_codec_pwr_en_pins: pinmux_video_codec_pwr_en-pins {
+			function = "GPIO";
+			pins = "GPIO66";
 		};
 
 		uart0_pins: pinmux_uart0-pins {

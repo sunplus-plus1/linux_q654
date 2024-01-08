@@ -113,6 +113,76 @@
 #define SP7350_TCON_TPG_MODE_INTERNAL		0x1
 #define SP7350_TCON_TPG_MODE_EXTERNAL		0x2
 
+/* TCON_GAMMA0_CTRL && TCON_GAMMA1_CTRL  && TCON_GAMMA2_CTRL */
+#define SP7350_TCON_GM_UPD_SCHEME                  BIT(15)
+#define SP7350_TCON_GM_S2D_ODD_ORDER_MASK          GENMASK(14, 12)
+#define SP7350_TCON_GM_S2D_ODD_ORDER_SET(order)    FIELD_PREP(GENMASK(14, 12), order)
+#define SP7350_TCON_GM_S2D_EVEN_ORDER_MASK         GENMASK(11, 9)
+#define SP7350_TCON_GM_S2D_EVEN_ORDER_SET(order)   FIELD_PREP(GENMASK(11, 9), order)
+#define SP7350_TCON_GM_S2D_EN                      BIT(8)
+#define SP7350_TCON_GM_BYPASS                      BIT(5)
+#define SP7350_TCON_GM_UPDWE                       BIT(4)
+#define SP7350_TCON_GM_UPDDEL_RGB_MASK             GENMASK(3, 2)
+#define SP7350_TCON_GM_UPDDEL_RGB_SET(sel)         FIELD_PREP(GENMASK(3, 2), sel)
+#define SP7350_TCON_GM_UPDDEL_RGB_ALL              0x0
+#define SP7350_TCON_GM_UPDDEL_RGB_R                0x1
+#define SP7350_TCON_GM_UPDDEL_RGB_G                0x2
+#define SP7350_TCON_GM_UPDDEL_RGB_B                0x3
+#define SP7350_TCON_GM_UPDEN                       BIT(1)
+#define SP7350_TCON_GM_EN                          BIT(0)
+
+/* TCON_RGB_ADJ_CTRL */
+#define SP7350_TCON_RGB_ADJ_B_EN                  BIT(2)
+#define SP7350_TCON_RGB_ADJ_G_EN                  BIT(1)
+#define SP7350_TCON_RGB_ADJ_R_EN                  BIT(0)
+#define SP7350_TCON_RGB_ADJ_CHANNEL_R_EN          1
+#define SP7350_TCON_RGB_ADJ_CHANNEL_G_EN          2
+#define SP7350_TCON_RGB_ADJ_CHANNEL_B_EN          4
+/* TCON_RGB_ADJ_CONTROL_POINT */
+#define SP7350_TCON_RGB_ADJ_CP_SDT_MASK          GENMASK(15, 8)
+#define SP7350_TCON_RGB_ADJ_CP_SDT_SET(val)      FIELD_PREP(GENMASK(15, 8), val)
+#define SP7350_TCON_RGB_ADJ_CP_SRC_MASK          GENMASK(7, 0)
+#define SP7350_TCON_RGB_ADJ_CP_SRC_SET(val)      FIELD_PREP(GENMASK(7, 0), val)
+#define SP7350_TCON_RGB_ADJ_CP_SIZE              3
+/* TCON_RGB_ADJ_SLOPE */
+#define SP7350_TCON_RGB_ADJ_SLOPE_SIZE           4
+
+/* TCON_TC_DITHER_TVOUT */
+#define SP7350_TCON_DITHER_PANEL_DOT_MODE_MASK         GENMASK(9, 8)
+#define SP7350_TCON_DITHER_PANEL_DOT_MODE_SET(mode)    FIELD_PREP(GENMASK(9, 8), mode)
+#define SP7350_TCON_DITHER_PANEL_DOT_MODE_1DOT         0
+#define SP7350_TCON_DITHER_PANEL_DOT_MODE_H2DOT        1
+#define SP7350_TCON_DITHER_PANEL_DOT_MODE_V2DOT        2
+#define SP7350_TCON_DITHER_PANEL_DOT_MODE_2DOT         3
+#define SP7350_TCON_DITHER_565_EN                      BIT(7)
+#define SP7350_TCON_DITHER_6BIT_MODE                   BIT(6)
+#define SP7350_TCON_DITHER_6BIT_MODE_MATCHED           0
+#define SP7350_TCON_DITHER_6BIT_MODE_ROBUST            1
+#define SP7350_TCON_DITHER_6BIT_TABLE_V_SHIFT_EN       BIT(5)
+#define SP7350_TCON_DITHER_6BIT_TABLE_H_SHIFT_EN       BIT(4)
+#define SP7350_TCON_DITHER_NEW_EN                      BIT(3)
+#define SP7350_TCON_DITHER_TEMP_EN                     BIT(2)
+#define SP7350_TCON_DITHER_INIT_MODE                   BIT(1)
+#define SP7350_TCON_DITHER_INIT_MODE_METHOD2           0
+#define SP7350_TCON_DITHER_INIT_MODE_METHOD1           1
+#define SP7350_TCON_DITHER_RGBC_SEL                    BIT(0)
+#define SP7350_TCON_DITHER_RGBC_SEL_R                  0
+#define SP7350_TCON_DITHER_RGBC_SEL_RGB                1
+
+/* TCON_BIT_SWAP_CTRL */
+#define SP7350_TCON_BIT_SW_ON                  BIT(0)
+/* bit mode */
+#define SP7350_TCON_BIT_SW_BIT_MSB                  0
+#define SP7350_TCON_BIT_SW_BIT_LSB                  1
+/* channel mode */
+#define SP7350_TCON_BIT_SW_CHNL_RGB                 0
+#define SP7350_TCON_BIT_SW_CHNL_RBG                 1
+#define SP7350_TCON_BIT_SW_CHNL_GBR                 2
+#define SP7350_TCON_BIT_SW_CHNL_GRB                 3
+#define SP7350_TCON_BIT_SW_CHNL_BRG                 4
+#define SP7350_TCON_BIT_SW_CHNL_BGR                 5
+
+
 /*
  * Init SP7350 TCON Setting
  */
@@ -131,11 +201,47 @@ void sp7350_tcon_bist_info(void);
 void sp7350_tcon_bist_set(int bist_mode, int tcon_bist_pat);
 
 /*
+ * SP7350 TCON GEN Settings
+ */
+void sp7350_tcon_gen_pix_set(int enable);
+
+/*
  * SP7350 TCON Timing Control Settings
  */
 void sp7350_tcon_timing_set_dsi(void);
 void sp7350_tcon_timing_set_csi(void);
 void sp7350_tcon_timing_get(void);
+
+/*
+ * SP7350 TCON GAMMA Settings
+ */
+void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u16 *table, u32 tablesize);
+void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u16 *table, u32 tablesize);
+void sp7350_tcon_gamma_table_enable(int enable);
+
+/*
+ * SP7350 TCON RGB Adjust Settings
+ */
+int sp7350_tcon_rgb_adjust_cp_set(u32 channel_sel, const u8 *cp_src, const u8 *cp_sdt, u32 cp_size);
+int sp7350_tcon_rgb_adjust_slope_set(u32 channel_sel, const u16 *slope, u32 slope_size);
+int sp7350_tcon_rgb_adjust_cp_get(u32 channel_sel, u8 *cp_src, u8 *cp_sdt, u32 cp_size);
+int sp7350_tcon_rgb_adjust_slope_get(u32 channel_sel, u16 *slope, u32 slope_size);
+void sp7350_tcon_rgb_adjust_enable(u32 channel_sel);
+
+/*
+ * SP7350 Dither Settings
+ */
+void sp7350_tcon_enhanced_dither_6bit_set(u32 mode, u32 table_v_shift_en, u32 table_h_shift_en);
+void sp7350_tcon_enhanced_dither_8bit_set(void);
+void sp7350_tcon_enhanced_dither_set(u32 rgbc_sel, u32 method, u32 temporal_mode_en, u32 dot_mode);
+void sp7350_tcon_enhanced_dither_enable(u32 enable);
+
+/*
+ * SP7350 TCON bitswap Settings
+ */
+int sp7350_tcon_bitswap_set(int bit_mode, int channel_mode);
+void sp7350_tcon_bitswap_enable(int enable);
+
 
 /*
  * SP7350 TCON register store/restore

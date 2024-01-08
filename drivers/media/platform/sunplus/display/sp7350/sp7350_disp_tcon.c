@@ -7,6 +7,8 @@
 #include "sp7350_display.h"
 #include "sp7350_disp_regs.h"
 
+#define C3V_DISP_TCON_GAMMA_WORKAROUND_EN  1
+
 static const char * const tpg_mode[] = {
 	"TPG off", "TPG internal", "TPG external", "TPG external"};
 static const char * const tpg_pattern[] = {
@@ -161,11 +163,11 @@ void sp7350_tcon_decrypt_info(void)
 		FIELD_GET(GENMASK(5,5), tcon3_value)?"P":"N",
 		FIELD_GET(GENMASK(4,4), tcon3_value)?"P":"N",
 		FIELD_GET(GENMASK(1,1), tcon3_value)?"P":"N");
-		
+
 	value = readl(disp_dev->base + TCON_TCON4); //G200.15
 	pr_info("G200.15 TC_TCON4 0x%08x\n", value);
 	pr_info("  PIX_EN_SEL :%s\n", tcon_pix_en_sel[FIELD_GET(GENMASK(3,0), value)]);
-	
+
 	tcon5_value = readl(disp_dev->base + TCON_TCON5); //G200.26
 	pr_info("G200.26 TC_TCON5 0x%08x\n", tcon5_value);
 	pr_info("  COLOR_SPACE[%s][%s]\n",
@@ -192,10 +194,10 @@ void sp7350_tcon_decrypt_info(void)
 	//pr_info("  GM_EN[%s]\n",
 	//	FIELD_GET(GENMASK(0,0), value1)?"O":"X");
 	value2 = readl(disp_dev->base + TCON_GAMMA1); //G200.27
-	////pr_info("G200.27 TCON_GAMMA1 0x%08x\n", value2);
+	pr_info("G200.27 TCON_GAMMA1 0x%08x\n", value2);
 	//pr_info("  GM_ADDR 0x%04lx\n", FIELD_GET(GENMASK(8,0), value2));
 	value3 = readl(disp_dev->base + TCON_GAMMA2); //G200.28
-	////pr_info("G200.28 TCON_GAMMA2 0x%08x\n", value3);
+	pr_info("G200.28 TCON_GAMMA2 0x%08x\n", value3);
 	//pr_info("  GM_DATA 0x%04lx\n", FIELD_GET(GENMASK(11,0), value3));
 	pr_info("  GM_EN[%s]GM_ADDR 0x%04lx GM_DATA 0x%04lx\n",
 		FIELD_GET(GENMASK(0,0), value1)?"O":"X",
@@ -235,20 +237,26 @@ void sp7350_tcon_decrypt_info(void)
 	*/
 	pr_info("[TCON TPG Test Pattern Gen]\n");
 	value1 = readl(disp_dev->base + TCON_TPG_CTRL); //G200.06 TPG_CTRL
+	pr_info("G200.06 TPG_CTRL 0x%08x\n", value1);
 	//pr_info("  [TPG] Mode :%s\n", tpg_mode[FIELD_GET(GENMASK(1,0), value1)]);
 	//pr_info("  [TPG] Pattern :%s\n", tpg_pattern[FIELD_GET(GENMASK(5,2), value1)]);
 	pr_info("  [%s] :%s\n", tpg_mode[FIELD_GET(GENMASK(1,0), value1)],
 		tpg_pattern[FIELD_GET(GENMASK(5,2), value1)]);
 
 	value1 = readl(disp_dev->base + TCON_TPG_ALINE_START); //G200.21
+	pr_info("G200.21 TCON_TPG_ALINE_START 0x%08x\n", value1);
 	pr_info("  [TPG] ALINE_START %04ld(0x%04lx)\n",
 		FIELD_GET(GENMASK(11,0), value1), FIELD_GET(GENMASK(11,0), value1));
 	value1 = readl(disp_dev->base + TCON_TPG_HCOUNT); //G200.07
 	value2 = readl(disp_dev->base + TCON_TPG_VCOUNT); //G200.08
 	value3 = readl(disp_dev->base + TCON_TPG_HACT_COUNT); //G200.09
 	value4 = readl(disp_dev->base + TCON_TPG_VACT_COUNT); //G200.10
+	pr_info("G200.07 TCON_TPG_HCOUNT 0x%08x\n", value1);
+	pr_info("G200.08 TCON_TPG_VCOUNT 0x%08x\n", value2);
+	pr_info("G200.09 TCON_TPG_HACT_COUNT 0x%08x\n", value3);
+	pr_info("G200.10 TCON_TPG_VACT_COUNT 0x%08x\n", value4);
 	pr_info("  [TPG] H/VSTEP %04ld %04ld\n",
-		FIELD_GET(GENMASK(14,12), value2), FIELD_GET(GENMASK(14,12), value4));	
+		FIELD_GET(GENMASK(14,12), value2), FIELD_GET(GENMASK(14,12), value4));
 	pr_info("  [TPG] H/VCOUNT %04d(0x%04x) %04ld(0x%04lx)\n",
 		value1, value1, FIELD_GET(GENMASK(11,0), value2), FIELD_GET(GENMASK(11,0), value2));
 	pr_info("  [TPG] H/V_ACT_COUNT %04d(0x%04x) %04ld(0x%04lx)\n",
@@ -256,6 +264,8 @@ void sp7350_tcon_decrypt_info(void)
 
 	value1 = readl(disp_dev->base + TCON_TPG_RGB_DATA); //G200.19
 	value2 = readl(disp_dev->base + TCON_TPG_RGB_DATA_2); //G200.20
+	pr_info("G200.19 TCON_TPG_RGB_DATA 0x%08x\n", value1);
+	pr_info("G200.20 TCON_TPG_RGB_DATA_2 0x%08x\n", value2);
 	pr_info("  [TPG] WHITE_BG : %s\n",
 		FIELD_GET(GENMASK(15,15), value1)?"En set white BG":"Dis BG depends");
 	pr_info("  [TPG] R/G/B (0x%02lx)(0x%02lx)(0x%02lx)\n",
@@ -282,7 +292,7 @@ void sp7350_tcon_decrypt_info(void)
 	pr_info("  [RU] TCON_CHECK_SUM [%s] (0x%04lx)\n",
 		FIELD_GET(GENMASK(2,2), tcon5_value)?"O":"X", FIELD_GET(GENMASK(11,0), value1));
 
-	#if 0
+	#if 1
 	/* TCON Bit Swap Setting
 	*/
 	pr_info("[TCON Bit Swap Setting]\n");
@@ -339,6 +349,7 @@ void sp7350_tcon_decrypt_info(void)
 		FIELD_GET(GENMASK(9,5), value2),
 		FIELD_GET(GENMASK(4,0), value2));
 	#endif
+
 }
 EXPORT_SYMBOL(sp7350_tcon_decrypt_info);
 
@@ -399,7 +410,7 @@ void sp7350_tcon_bist_info(void)
 	value3 = readl(disp_dev->base + TCON_TPG_HACT_COUNT); //G200.09
 	value4 = readl(disp_dev->base + TCON_TPG_VACT_COUNT); //G200.10
 	pr_info("  [TPG] H/VSTEP %ld %ld\n",
-		FIELD_GET(GENMASK(14,12), value2), FIELD_GET(GENMASK(14,12), value4));	
+		FIELD_GET(GENMASK(14,12), value2), FIELD_GET(GENMASK(14,12), value4));
 	pr_info("  [TPG] H/V_CNT     %d(0x%04x) %ld(0x%04lx)\n",
 		value1, value1, FIELD_GET(GENMASK(11,0), value2), FIELD_GET(GENMASK(11,0), value2));
 	pr_info("  [TPG] H/V_ACT_CNT %d(0x%04x) %ld(0x%04lx)\n",
@@ -435,6 +446,21 @@ void sp7350_tcon_bist_set(int bist_mode, int tcon_bist_pat)
 }
 EXPORT_SYMBOL(sp7350_tcon_bist_set);
 
+void sp7350_tcon_gen_pix_set(int enable)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value;
+
+	pr_info("%s\n",__func__);
+	value = readl(disp_dev->base + TCON_TCON5);
+	if (enable)
+		value |= SP7350_TCON_AFIFO_DIS;
+	else
+		value &= ~(SP7350_TCON_AFIFO_DIS);
+	writel(value , disp_dev->base + TCON_TCON5);
+}
+EXPORT_SYMBOL(sp7350_tcon_gen_pix_set);
+
 /*
  * sp_tcon_para_dsi[x][y]
  * y = 0-1, TCON width & height
@@ -449,7 +475,8 @@ static const u32 sp_tcon_para_dsi[11][12] = {
 	//{  64,   64,    0,   63,  353,  353,  353,  356,    0,    0,   99,    0}, /* 64x64 */
 	{ 480, 1280,    0,  479,  612,  616,  612,  616,    0,    0, 1313,    0}, /* 480x1280 */
 	{ 128,  128,    0,  127,  352,  352,  352,  356,    0,    0,  149,    0}, /* 128x128 */
-	{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  363,    0}, /* 240x320 */
+	//{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  363,    0}, /* 240x320 */
+	{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  353,    0}, /* 240x320 */
 	{3840,   64,    0, 3839, 4600, 4600, 4600, 4604,    0,    0,   99,    0}, /* 3840x64 */
 	{3840, 2880,    0, 3839, 4600, 4600, 4600, 4604,    0,    0, 3199,    0}, /* 3840x2880 */
 	{ 800,  480,    0,  799,  865,  869,  865,  869,    0,    0,  509,    0}, /* 800x480 */
@@ -491,8 +518,8 @@ void sp7350_tcon_timing_set_dsi(void)
 		}
 	}
 
-	//pr_info("%s (w h)(%d %d)\n", __func__,
-	//	sp_tcon_para_dsi[time_cnt][0], sp_tcon_para_dsi[time_cnt][1]);
+	pr_info("%s (w h)(%d %d)\n", __func__,
+		sp_tcon_para_dsi[time_cnt][0], sp_tcon_para_dsi[time_cnt][1]);
 	/*
 	 * TCON H&V timing parameter
 	 */
@@ -657,7 +684,7 @@ void sp7350_tcon_timing_get(void)
 	value3 = readl(disp_dev->base + TCON_TPG_HACT_COUNT); //G200.09
 	value4 = readl(disp_dev->base + TCON_TPG_VACT_COUNT); //G200.10
 	pr_info("  [TPG] H/VSTEP     %ld %ld\n",
-		FIELD_GET(GENMASK(14,12), value2), FIELD_GET(GENMASK(14,12), value4));	
+		FIELD_GET(GENMASK(14,12), value2), FIELD_GET(GENMASK(14,12), value4));
 	pr_info("  [TPG] H/V_CNT     %d(0x%04x) %ld(0x%04lx)\n",
 		value1, value1, FIELD_GET(GENMASK(11,0), value2), FIELD_GET(GENMASK(11,0), value2));
 	pr_info("  [TPG] H/V_ACT_CNT %d(0x%04x) %ld(0x%04lx)\n",
@@ -678,6 +705,491 @@ void sp7350_tcon_timing_get(void)
 	pr_info("  [TPG_DET] HACT %d(0x%04x)\n",
 		value1, value1);
 }
+
+void sp7350_tcon_gamma_table_set(u32 updsel_rgb, const u16 *table, u32 tablesize)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	int i;
+	u32 value = 0;
+
+	/* Prepare */
+	//value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
+	do {
+		value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
+		if (!(value & SP7350_TCON_GM_UPDEN)) {
+			break;
+		}
+		udelay(50);
+	} while(1);
+
+	value &= ~(SP7350_TCON_GM_UPDDEL_RGB_MASK);
+	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_UPD_SCHEME | SP7350_TCON_GM_BYPASS | SP7350_TCON_GM_UPDWE |
+			SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
+	writel(value, disp_dev->base + TCON_GAMMA0);
+
+	/* Write data to SRAM. */
+	for(i = 0; i < tablesize ; i++) {
+		writel(i, disp_dev->base + TCON_GAMMA1);
+		writel(table[i], disp_dev->base + TCON_GAMMA2);
+		value |= SP7350_TCON_GM_UPDEN;
+		writel(value, disp_dev->base + TCON_GAMMA0);
+		do {
+			value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
+			if (!(value & SP7350_TCON_GM_UPDEN)) {
+				break;
+			}
+			udelay(50);
+		} while(1);
+	}
+
+	/* workaround for write, write last -> read first. */
+	#if C3V_DISP_TCON_GAMMA_WORKAROUND_EN
+	value = 0x00000021;
+	writel(value, disp_dev->base + TCON_GAMMA0);
+	#endif
+
+	/* Write end, Enable Gamma Correction */
+	/*value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
+	value |= SP7350_TCON_GM_EN;
+	value &= ~(SP7350_TCON_GM_BYPASS | SP7350_TCON_GM_UPDWE);
+	writel(value, disp_dev->base + TCON_GAMMA0);
+	*/
+}
+EXPORT_SYMBOL(sp7350_tcon_gamma_table_set);
+
+void sp7350_tcon_gamma_table_get(u32 updsel_rgb, u16 *table, u32 tablesize)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	int i;
+	u32 value = 0 /*, value2*/;
+
+	/* Prepare */
+	do {
+		value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
+		if (!(value & SP7350_TCON_GM_UPDEN)) {
+			break;
+		}
+		udelay(50);
+	} while(1);
+
+	//value2 = value;
+	value &= ~(SP7350_TCON_GM_UPDDEL_RGB_MASK);
+#if C3V_DISP_TCON_GAMMA_WORKAROUND_EN
+	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_BYPASS |
+			SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
+#else
+	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_UPD_SCHEME | SP7350_TCON_GM_BYPASS |
+			SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
+#endif
+	value &= ~(SP7350_TCON_GM_UPDWE);
+	writel(value, disp_dev->base + TCON_GAMMA0);
+
+	/* Read data from SRAM. */
+	for(i = 0; i < tablesize ; i++) {
+		writel(i, disp_dev->base + TCON_GAMMA1);
+		value |= SP7350_TCON_GM_UPDEN;
+		writel(value, disp_dev->base + TCON_GAMMA0);
+		do {
+			value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
+			if (!(value & SP7350_TCON_GM_UPDEN)) {
+				table[i] = readl(disp_dev->base + TCON_GAMMA2);
+				break;
+			}
+			udelay(50);
+		} while(1);
+	}
+
+	/* Read end, restore TCON_GAMMA0 */
+	//writel(value2, disp_dev->base + TCON_GAMMA0);
+}
+EXPORT_SYMBOL(sp7350_tcon_gamma_table_get);
+
+void sp7350_tcon_gamma_table_enable(int enable)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = readl(disp_dev->base + TCON_GAMMA0); //G200.00
+	if (enable) {
+		/* Enable Gamma Correction */
+		value |= SP7350_TCON_GM_EN;
+		value &= ~(SP7350_TCON_GM_BYPASS | SP7350_TCON_GM_UPDWE);
+	}
+	else {
+		value &= ~(SP7350_TCON_GM_EN);
+		value |= SP7350_TCON_GM_BYPASS;
+	}
+
+	writel(value, disp_dev->base + TCON_GAMMA0);
+}
+EXPORT_SYMBOL(sp7350_tcon_gamma_table_enable);
+
+int sp7350_tcon_rgb_adjust_cp_set(u32 channel_sel, const u8 *cp_src, const u8 *cp_sdt, u32 cp_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 cp_base = TCON_R_ADJ_CP1;
+	u32 value = 0;
+	int i;
+
+	if (cp_size != 3) {
+		return -1;
+	}
+
+	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
+		cp_base = TCON_R_ADJ_CP1;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN)
+		cp_base = TCON_G_ADJ_CP1;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_B_EN)
+		cp_base = TCON_B_ADJ_CP1;
+	else
+		return -1;
+
+	for (i = 0; i < cp_size; i++) {
+		//value |= SP7350_TCON_RGB_ADJ_CP_SRC_SET(cp_src[i]) | SP7350_TCON_RGB_ADJ_CP_SDT_SET(cp_sdt);
+		value = cp_src[i] + (cp_sdt[i] << 8);
+		writel(value, disp_dev->base + cp_base + (i<<2));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_tcon_rgb_adjust_cp_set);
+
+int sp7350_tcon_rgb_adjust_slope_set(u32 channel_sel, const u16 *slope, u32 slope_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 slope_base = TCON_R_ADJ_SLOPE0;
+	int i;
+
+	if (slope_size != 4) {
+		return -1;
+	}
+
+	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
+		slope_base = TCON_R_ADJ_SLOPE0;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN)
+		slope_base = TCON_G_ADJ_SLOPE0;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_B_EN)
+		slope_base = TCON_B_ADJ_SLOPE0;
+	else
+		return -1;
+
+	for (i = 0; i < slope_size; i++) {
+		writel(slope[i], disp_dev->base + slope_base + (i<<2));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_tcon_rgb_adjust_slope_set);
+
+int sp7350_tcon_rgb_adjust_cp_get(u32 channel_sel, u8 *cp_src, u8 *cp_sdt, u32 cp_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 cp_base = TCON_R_ADJ_CP1;
+	u32 value = 0;
+	int i;
+
+	if (cp_size != 3) {
+		return -1;
+	}
+
+	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
+		cp_base = TCON_R_ADJ_CP1;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN)
+		cp_base = TCON_G_ADJ_CP1;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_B_EN)
+		cp_base = TCON_B_ADJ_CP1;
+	else
+		return -1;
+
+	for (i = 0; i < cp_size; i++) {
+		value = readl(disp_dev->base + cp_base + (i<<2));
+		cp_src[i] = value & SP7350_TCON_RGB_ADJ_CP_SRC_MASK;
+		cp_sdt[i] = (value & SP7350_TCON_RGB_ADJ_CP_SDT_MASK) >>8;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_tcon_rgb_adjust_cp_get);
+
+int sp7350_tcon_rgb_adjust_slope_get(u32 channel_sel, u16 *slope, u32 slope_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 slope_base = TCON_R_ADJ_SLOPE0;
+	int i;
+
+	if (slope_size != 4) {
+		return -1;
+	}
+
+	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
+		slope_base = TCON_R_ADJ_SLOPE0;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN)
+		slope_base = TCON_G_ADJ_SLOPE0;
+	else if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_B_EN)
+		slope_base = TCON_B_ADJ_SLOPE0;
+	else
+		return -1;
+
+	for (i = 0; i < slope_size; i++) {
+		slope[i] = readl(disp_dev->base + slope_base + (i<<2));
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_tcon_rgb_adjust_slope_get);
+
+void sp7350_tcon_rgb_adjust_enable(u32 channel_sel)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = readl(disp_dev->base + TCON_RGB_ADJ_CTRL);
+
+	value &= ~(SP7350_TCON_RGB_ADJ_R_EN | SP7350_TCON_RGB_ADJ_G_EN | SP7350_TCON_RGB_ADJ_B_EN);
+	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN)
+		value |= SP7350_TCON_RGB_ADJ_R_EN;
+	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN)
+		value |= SP7350_TCON_RGB_ADJ_G_EN;
+	if (channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_B_EN)
+		value |= SP7350_TCON_RGB_ADJ_B_EN;
+
+	writel(value, disp_dev->base + TCON_RGB_ADJ_CTRL);
+}
+EXPORT_SYMBOL(sp7350_tcon_rgb_adjust_enable);
+
+void sp7350_tcon_enhanced_dither_6bit_set(u32 mode, u32 table_v_shift_en, u32 table_h_shift_en)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = readl(disp_dev->base + TCON_DITHER_TVOUT);
+
+	if (mode == SP7350_TCON_DITHER_6BIT_MODE_ROBUST)
+		value |= SP7350_TCON_DITHER_6BIT_MODE;
+	else
+		value &= ~(SP7350_TCON_DITHER_6BIT_MODE);
+
+	if (table_v_shift_en)
+		value |= SP7350_TCON_DITHER_6BIT_TABLE_V_SHIFT_EN;
+	else
+		value &= ~(SP7350_TCON_DITHER_6BIT_TABLE_V_SHIFT_EN);
+
+	if (table_h_shift_en)
+		value |= SP7350_TCON_DITHER_6BIT_TABLE_H_SHIFT_EN;
+	else
+		value &= ~(SP7350_TCON_DITHER_6BIT_TABLE_H_SHIFT_EN);
+
+	writel(value, disp_dev->base + TCON_DITHER_TVOUT);
+
+	/* set TC DOT RGB888=0: RGB666, TC OUT PACKAGE=101:DSI-RGB666-24b */
+	value = readl(disp_dev->base + TCON_TCON0);
+	value &= ~(SP7350_TCON_DOT_RGB888_MASK | SP7350_TCON_OUT_PACKAGE_MASK);
+	value |= SP7350_TCON_OUT_PACKAGE_SET(SP7350_TCON_OUT_PACKAGE_DSI_RGB666_24);
+	writel(value, disp_dev->base + TCON_TCON0);
+}
+EXPORT_SYMBOL(sp7350_tcon_enhanced_dither_6bit_set);
+
+void sp7350_tcon_enhanced_dither_8bit_set(void)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	/* set TC DOT RGB888=1: RGB888, TC OUT PACKAGE=100:DSI-RGB888 */
+	value = readl(disp_dev->base + TCON_TCON0);
+	value &= ~(SP7350_TCON_OUT_PACKAGE_MASK);
+	value |= SP7350_TCON_DOT_RGB888_MASK | SP7350_TCON_OUT_PACKAGE_SET(SP7350_TCON_OUT_PACKAGE_DSI_RGB888);
+	writel(value, disp_dev->base + TCON_TCON0);
+}
+EXPORT_SYMBOL(sp7350_tcon_enhanced_dither_8bit_set);
+
+void sp7350_tcon_enhanced_dither_set(u32 rgbc_sel, u32 method , u32 temporal_mode_en, u32 dot_mode)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = readl(disp_dev->base + TCON_DITHER_TVOUT);
+
+	if (rgbc_sel == SP7350_TCON_DITHER_RGBC_SEL_RGB)
+		value |= SP7350_TCON_DITHER_RGBC_SEL;
+	else
+		value &= ~(SP7350_TCON_DITHER_RGBC_SEL);
+
+	if (method == SP7350_TCON_DITHER_INIT_MODE_METHOD1)
+		value |= SP7350_TCON_DITHER_INIT_MODE;
+	else
+		value &= ~(SP7350_TCON_DITHER_INIT_MODE);
+
+	if (temporal_mode_en)
+		value |= SP7350_TCON_DITHER_TEMP_EN;
+	else
+		value &= ~(SP7350_TCON_DITHER_TEMP_EN);
+
+	value &= ~(SP7350_TCON_DITHER_PANEL_DOT_MODE_MASK);
+	value |= SP7350_TCON_DITHER_PANEL_DOT_MODE_SET(dot_mode);
+
+	writel(value, disp_dev->base + TCON_DITHER_TVOUT);
+}
+EXPORT_SYMBOL(sp7350_tcon_enhanced_dither_set);
+
+
+void sp7350_tcon_enhanced_dither_enable(u32 enable)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = readl(disp_dev->base + TCON_DITHER_TVOUT);
+
+	if (enable)
+		value |= SP7350_TCON_DITHER_NEW_EN;
+	else
+		value &= ~(SP7350_TCON_DITHER_NEW_EN);
+
+	writel(value, disp_dev->base + TCON_DITHER_TVOUT);
+}
+EXPORT_SYMBOL(sp7350_tcon_enhanced_dither_enable);
+
+#define  BIT_SWAP_IN_EN   1  /* DI[23:0] = {B G R} */
+int sp7350_tcon_bitswap_set(int bit_mode, int channel_mode)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+	u32 dotmap[24], tmp[24];
+	u32 *dotr, *dotg, *dotb;
+	int i;
+
+
+	for(i=0; i < 24; i++) {
+		tmp[i] = i;
+	}
+
+#if BIT_SWAP_IN_EN
+	dotr = tmp;
+	dotg = tmp+8;
+	dotb = tmp+16;
+#else
+	dotb = tmp;
+	dotg = tmp+8;
+	dotr = tmp+16;
+#endif
+
+	/* set channel swap with bit swap result. */
+	if (SP7350_TCON_BIT_SW_CHNL_RGB == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
+		#else
+		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap,    dotb, 8*sizeof(tmp[0]));
+		#endif
+	}
+	else if (SP7350_TCON_BIT_SW_CHNL_RBG == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
+		#else
+		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		#endif
+	}
+	else if (SP7350_TCON_BIT_SW_CHNL_GBR == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
+		#else
+		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		#endif
+	}
+	else if (SP7350_TCON_BIT_SW_CHNL_GRB == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
+		#else
+		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap,	  dotb, 8*sizeof(tmp[0]));
+		#endif
+	}
+	else if (SP7350_TCON_BIT_SW_CHNL_BRG == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotg, 8*sizeof(tmp[0]));
+		#else
+		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotr, 8*sizeof(tmp[0]));
+		memcpy(dotmap,    dotg, 8*sizeof(tmp[0]));
+		#endif
+	}
+	else if (SP7350_TCON_BIT_SW_CHNL_BGR == channel_mode) {
+		#if BIT_SWAP_IN_EN
+		memcpy(dotmap,    dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap+16, dotr, 8*sizeof(tmp[0]));
+		#else
+		memcpy(dotmap+16, dotb, 8*sizeof(tmp[0]));
+		memcpy(dotmap+8,  dotg, 8*sizeof(tmp[0]));
+		memcpy(dotmap,    dotr, 8*sizeof(tmp[0]));
+		#endif
+	}
+	else
+		return -1;
+
+	if (SP7350_TCON_BIT_SW_BIT_LSB == bit_mode) {
+		for(i=0; i < 24; i++) {
+			tmp[i] = dotmap[23-i];
+		}
+		memcpy(dotmap, tmp, 24*sizeof(tmp[0]));
+	}
+
+	//print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_OFFSET, 16, 1,
+	//	dotmap, 24, false);
+	//pr_info("%2d %2d %2d %2d %2d %2d %2d %2d", dotmap[0], dotmap[1], dotmap[2], , dotmap[3], dotmap[4], dotmap[5], dotmap[6], dotmap[7]);
+	//pr_info("%2d %2d %2d %2d %2d %2d %2d %2d", dotmap[8], dotmap[9], dotmap[10], , dotmap[11], dotmap[12], dotmap[13], dotmap[14], dotmap[15]);
+	//pr_info("%2d %2d %2d %2d %2d %2d %2d %2d", dotmap[16], dotmap[17], dotmap[18], , dotmap[19], dotmap[20], dotmap[21], dotmap[22], dotmap[23]);
+
+
+	/* DOUT[i] = DIN[i] */
+	for(i=0; i < 8; i++) {
+		//value = readl(disp_dev->base + TCON_BIT_SWAP_G0 + (i << 2));
+		value = FIELD_PREP(GENMASK(4, 0), dotmap[i*3]) |
+			FIELD_PREP(GENMASK(9, 5), dotmap[i*3+1]) |
+			FIELD_PREP(GENMASK(14,10), dotmap[i*3+2]);
+		writel(value, disp_dev->base + TCON_BIT_SWAP_G0 + (i << 2));
+
+		pr_info("DOUT[%2d %2d %2d] = DIN[%2d %2d %2d]\n", i*3, i*3+1, i*3+2, dotmap[i*3], dotmap[i*3+1], dotmap[i*3+2]);
+		//pr_info("write 0x%08x to reg 0x%08x \n",  value, disp_dev->base + TCON_BIT_SWAP_G0 + (i << 2));
+	}
+
+	return 0;
+}
+
+EXPORT_SYMBOL(sp7350_tcon_bitswap_set);
+
+
+void sp7350_tcon_bitswap_enable(int enable)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = readl(disp_dev->base + TCON_BIT_SWAP_CFG);
+
+	if (enable)
+		value |= SP7350_TCON_BIT_SW_ON;
+	else
+		value &= ~(SP7350_TCON_BIT_SW_ON);
+
+	writel(value, disp_dev->base + TCON_BIT_SWAP_CFG);
+}
+EXPORT_SYMBOL(sp7350_tcon_bitswap_enable);
+
 
 void sp7350_tcon_store(void)
 {
