@@ -246,7 +246,7 @@ void sp7350_dmix_bist_info(void)
 	pr_info("       Y/CB/CR (0x%02lx/0x%02lx/0x%02lx)\n",
 		FIELD_GET(GENMASK(23,16), value3),
 		FIELD_GET(GENMASK(15,8), value3),
-		FIELD_GET(GENMASK(7,0), value3));	
+		FIELD_GET(GENMASK(7,0), value3));
 
 	value1 = readl(disp_dev->base + DMIX_LAYER_CONFIG_0);
 	layer6_sel = FIELD_GET(GENMASK(31,28), value1);
@@ -337,7 +337,7 @@ void sp7350_dmix_ptg_set(int pattern_sel, int bg_color_yuv)
 			value1 |= SP7350_DMIX_PTG_V_DOT_SET(SP7350_DMIX_PTG_DOT_07) |
 				SP7350_DMIX_PTG_H_DOT_SET(SP7350_DMIX_PTG_DOT_07);
 			value2 |= SP7350_DMIX_PTG_BLACK;
-			break;			
+			break;
 		case SP7350_DMIX_BIST_SNOW_MAX:
 			value |= SP7350_DMIX_PTG_COLOR_BAR_SNOW |
 				SP7350_DMIX_PTG_BORDER_PIX(SP7350_DMIX_PTG_BORDER_PIX_07);
@@ -349,7 +349,7 @@ void sp7350_dmix_ptg_set(int pattern_sel, int bg_color_yuv)
 			value |= SP7350_DMIX_PTG_BORDER_PATTERN(SP7350_DMIX_PTG_REGION) |
 				SP7350_DMIX_PTG_BORDER_PIX(SP7350_DMIX_PTG_BORDER_PIX_07);
 			value2 |= bg_color_yuv;
-			break;	
+			break;
 		default:
 			value |= SP7350_DMIX_PTG_BORDER_PATTERN(SP7350_DMIX_PTG_BORDER) |
 				SP7350_DMIX_PTG_BORDER_PIX(SP7350_DMIX_PTG_BORDER_PIX_07);
@@ -547,7 +547,7 @@ void sp7350_dmix_layer_info(int layer)
 		dmix_layer_name[layer],
 		dmix_fg_sel[fg_sel],
 		layer?"--":dmix_layer_mode[mod_sel]);
-		
+
 }
 
 void sp7350_dmix_plane_alpha_config(struct sp7350_dmix_plane_alpha *plane)
@@ -613,4 +613,103 @@ void sp7350_dmix_color_adj_onoff(int enable)
 		value &= ~(SP7350_DMIX_LUMA_ADJ_EN | SP7350_DMIX_CRMA_ADJ_EN);
 
 	writel(value, disp_dev->base + DMIX_ADJUST_CONFIG_0);
+}
+
+int sp7350_dmix_color_adj_luma_cp_set(const u8 *cp_src, const u8 *cp_sdt, u32 cp_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = readl(disp_dev->base + DMIX_ADJUST_CONFIG_0);
+
+	if (cp_size != 3) {
+		return -1;
+	}
+
+	value &= ~(0xFFFF);
+	value |= cp_src[0] + (cp_sdt[0] << 8);
+	writel(value, disp_dev->base + DMIX_ADJUST_CONFIG_0);
+
+	value = 0;
+	value |= cp_src[2] + (cp_sdt[2] << 8);
+	value |= (cp_sdt[1] << 16) + (cp_sdt[1] << 24);
+	writel(value, disp_dev->base + DMIX_ADJUST_CONFIG_1);
+
+	return 0;
+
+}
+
+int sp7350_dmix_color_adj_luma_slope_set(const u16 *slope, u32 slope_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value;
+
+	if (slope_size != 4) {
+		return -1;
+	}
+
+	value = (slope[0] <<16) + slope[1];
+	writel(value, disp_dev->base + DMIX_ADJUST_CONFIG_2);
+
+	value = (slope[2] <<16) + slope[3];
+	writel(value, disp_dev->base + DMIX_ADJUST_CONFIG_3);
+
+	return 0;
+}
+int sp7350_dmix_color_adj_luma_cp_get(u8 *cp_src, u8 *cp_sdt, u32 cp_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	if (cp_size != 3) {
+		return -1;
+	}
+
+	value = readl(disp_dev->base + DMIX_ADJUST_CONFIG_0);
+	cp_src[0] = value & GENMASK(7, 0);
+	cp_sdt[0] = (value >> 8) & GENMASK(7, 0);
+
+	value = readl(disp_dev->base + DMIX_ADJUST_CONFIG_1);
+	cp_src[2] = value & GENMASK(7, 0);
+	cp_sdt[2] = (value >> 8) & GENMASK(7, 0);
+	cp_src[1] = (value >> 16) & GENMASK(7, 0);
+	cp_sdt[1] = (value >> 24) & GENMASK(7, 0);
+
+	return 0;
+}
+
+int sp7350_dmix_color_adj_luma_slope_get(u16 *slope, u32 slope_size)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	if (slope_size != 4) {
+		return -1;
+	}
+
+	value = readl(disp_dev->base + DMIX_ADJUST_CONFIG_2);
+	slope[1] = value & GENMASK(10, 0);
+	slope[0] = (value >> 16) & GENMASK(10, 0);
+
+	value = readl(disp_dev->base + DMIX_ADJUST_CONFIG_3);
+	slope[3] = value & GENMASK(10, 0);
+	slope[2] = (value >> 16) & GENMASK(10, 0);
+
+	return 0;
+}
+
+void sp7350_dmix_color_adj_crma_set(u16 satcos, u16 satsin)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = (satcos <<16) + satsin;
+	writel(value, disp_dev->base + DMIX_ADJUST_CONFIG_4);
+}
+void sp7350_dmix_color_adj_crma_get(u16 *satcos, u16 *satsin)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value = 0;
+
+	value = readl(disp_dev->base + DMIX_ADJUST_CONFIG_4);
+	*satsin = value & GENMASK(9, 0);
+	*satcos = (value >> 16) & GENMASK(9, 0);
 }

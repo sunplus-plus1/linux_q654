@@ -13,6 +13,11 @@
 #include "sp7350_display.h"
 #include "sp7350_disp_regs.h"
 
+static void sp7350_dmix_luma_adjust_selftest(void);
+static void sp7350_dmix_chroma_adjust_selftest(void);
+static void sp7350_tcon_rgb_adjust_selftest(u32 channel_sel);
+
+
 static char *spmon_skipspace(char *p)
 {
 	int i = 256;
@@ -32,7 +37,7 @@ static char *spmon_skipspace(char *p)
 	return p;
 }
 
-#if 0
+#if 1
 static char *spmon_readint(char *p, int *x)
 {
 	int base = 10;
@@ -41,7 +46,7 @@ static char *spmon_readint(char *p, int *x)
 	if (x == NULL)
 		return p;
 
-	*x = 0;
+	//*x = 0;
 
 	if (p == NULL)
 		return NULL;
@@ -118,6 +123,55 @@ static char *spmon_readint(char *p, int *x)
  *    echo "dispmon bist dmix snow" > /proc/disp_mon
  *    echo "dispmon bist dmix snowhalf" > /proc/disp_mon
  *    echo "dispmon bist dmix snowmax" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj on" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj off" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj luma" > /proc/disp_mon
+ *    echo "dispmon bist dmix adj chroma" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj ptg" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd0" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd1" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd2" > /proc/disp_mon
+ *    echo "dispmon bist tgen dtgadj osd3" > /proc/disp_mon
+ *    echo "dispmon bist tcon off" > /proc/disp_mon
+ *    echo "dispmon bist tcon gen on" > /proc/disp_mon
+ *    echo "dispmon bist tcon gen off" > /proc/disp_mon
+ *    echo "dispmon bist tcon hor1 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hor1 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hor2 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hor2 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hor3 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hor3 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon ver1 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon ver1 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon ver2 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon ver2 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon ver3 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon ver3 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv1 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv1 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv2 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv2 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv3 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv3 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv4 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv4 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv5 inter" > /proc/disp_mon
+ *    echo "dispmon bist tcon hv5 exter" > /proc/disp_mon
+ *    echo "dispmon bist tcon gamma on"  > /proc/disp_mon
+ *    echo "dispmon bist tcon gamma off" > /proc/disp_mon
+ *    echo "dispmon bist tcon gamma upd1" > /proc/disp_mon
+ *    echo "dispmon bist tcon gamma [wr|wg|wb|rr|rg|rb|rrgb]" > /proc/disp_mon
+ *    echo "dispmon bist tcon rgb selftest [R|G|B|RG|RB|GB|RGB]"  > /proc/disp_mon
+ *    echo "dispmon bist tcon rgb on" > /proc/disp_mon
+ *    echo "dispmon bist tcon rgb off" > /proc/disp_mon
+ *    echo "dispmon bist tcon dither set6bit 0 0 0"  > /proc/disp_mon
+ *    echo "dispmon bist tcon dither set8bit"  > /proc/disp_mon
+ *    echo "dispmon bist tcon dither set 0 0 0 0"  > /proc/disp_mon
+ *    echo "dispmon bist tcon dither on" > /proc/disp_mon
+ *    echo "dispmon bist tcon dither off" > /proc/disp_mon
+ *    echo "dispmon bist tcon bitswap set [RGB|RBG|GBR|GRB|BRG|BGR] [MSB|LSB]" > /proc/disp_mon
+ *    echo "dispmon bist tcon bitswap on" > /proc/disp_mon
+ *    echo "dispmon bist tcon bitswap off" > /proc/disp_mon
  *
  *  <dmix layer check/set>
  *    echo "dispmon layer info" > /proc/disp_mon
@@ -279,6 +333,53 @@ static void sunplus_debug_cmd(char *tmpbuf)
 			} else
 				pr_info("bist osd3 cmd undef\n");
 
+		} else if (!strncasecmp(tmpbuf, "tgen", 4)) {
+			tmpbuf = spmon_skipspace(tmpbuf + 4);
+			pr_info("bist tgen cmd\n");
+			if (!strncasecmp(tmpbuf, "dtgadj", 6)) {
+				int input, i;
+				int adj_value = -1;
+				tmpbuf = spmon_skipspace(tmpbuf + 6);
+				pr_info("bist tgen dtg adj\n");
+				if (!strncasecmp(tmpbuf, "ptg", 3)) {
+					pr_info("bist tgen dtgadj ptg\n");
+					input = SP7350_TGEN_DTG_ADJ_PTG;
+					tmpbuf = spmon_skipspace(tmpbuf + 3);
+				} else if (!strncasecmp(tmpbuf, "osd0", 4)) {
+					pr_info("bist tgen dtgadj osd0\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD0;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else if (!strncasecmp(tmpbuf, "osd1", 4)) {
+					pr_info("bist tgen dtgadj osd1\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD1;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else if (!strncasecmp(tmpbuf, "osd2", 4)) {
+					pr_info("bist tgen dtgadj osd2\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD2;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else if (!strncasecmp(tmpbuf, "osd3", 4)) {
+					pr_info("bist tgen dtgadj osd3\n");
+					input = SP7350_TGEN_DTG_ADJ_OSD3;
+					tmpbuf = spmon_skipspace(tmpbuf + 4);
+				} else {
+					pr_info("bist tgen dtgadj cmd undef\n");
+					return;
+				}
+				tmpbuf = spmon_readint(tmpbuf, &adj_value);
+				if (adj_value != -1) {
+					pr_info("Set[%d] adj_value %d\n", input, adj_value);
+					sp7350_tgen_input_adjust(input, adj_value);
+				}
+				else {	/* autotest */
+					for (i = 0; i <= 0x3f; i++) {
+						pr_info("Set[%d] adj_value %d\n",input, i);
+						sp7350_tgen_input_adjust(input, i);
+						msleep(300);
+					}
+				}
+			}  else
+				pr_info("bist tgen cmd undef\n");
+
 		} else if (!strncasecmp(tmpbuf, "dmix", 4)) {
 			tmpbuf = spmon_skipspace(tmpbuf + 4);
 			pr_info("bist dmix cmd\n");
@@ -289,13 +390,13 @@ static void sunplus_debug_cmd(char *tmpbuf)
 			sp7350_dmix_layer_init(SP7350_DMIX_L1, SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
 			if (!strncasecmp(tmpbuf, "region", 6)) {
 				pr_info("bist dmix region\n");
-				sp7350_dmix_ptg_set(SP7350_DMIX_BIST_REGION, 0x29f06e);	
+				sp7350_dmix_ptg_set(SP7350_DMIX_BIST_REGION, 0x29f06e);
 			} else if (!strncasecmp(tmpbuf, "snowhalf", 8)) {
 				pr_info("bist dmix snowhalf\n");
 				sp7350_dmix_ptg_set(SP7350_DMIX_BIST_SNOW_HALF, 0x29f06e);
 			} else if (!strncasecmp(tmpbuf, "snowmax", 7)) {
 				pr_info("bist dmix snowmax\n");
-				sp7350_dmix_ptg_set(SP7350_DMIX_BIST_SNOW_MAX, 0x29f06e);		
+				sp7350_dmix_ptg_set(SP7350_DMIX_BIST_SNOW_MAX, 0x29f06e);
 			} else if (!strncasecmp(tmpbuf, "snow", 4)) {
 				pr_info("bist dmix snow\n");
 				sp7350_dmix_ptg_set(SP7350_DMIX_BIST_SNOW, 0x29f06e);
@@ -330,7 +431,25 @@ static void sunplus_debug_cmd(char *tmpbuf)
 					pr_info("bist dmix bor blue(def)\n");
 					sp7350_dmix_ptg_set(SP7350_DMIX_BIST_BORDER, 0x29f06e); //BG blue
 				}
-			} else
+			}else if (!strncasecmp(tmpbuf, "adj", 3)) {
+				tmpbuf = spmon_skipspace(tmpbuf + 3);
+				pr_info("bist dmix color adj\n");
+				if (!strncasecmp(tmpbuf, "on", 2)) {
+					pr_info("bist dmix adj on\n");
+					sp7350_dmix_color_adj_onoff(1);
+				} else if (!strncasecmp(tmpbuf, "off", 3)) {
+					pr_info("bist dmix adj off\n");
+					sp7350_dmix_color_adj_onoff(0);
+				} else if (!strncasecmp(tmpbuf, "luma", 4)) {
+					pr_info("bist dmix adj luma selftest\n");
+					sp7350_dmix_luma_adjust_selftest();
+				} else if (!strncasecmp(tmpbuf, "chroma", 6)) {
+					pr_info("bist dmix adj chroma selftest\n");
+					sp7350_dmix_chroma_adjust_selftest();
+				} else
+					pr_info("bist dmix adj cmd undef\n");
+
+			}  else
 				pr_info("bist dmix cmd undef\n");
 
 		} else if (!strncasecmp(tmpbuf, "tcon", 4)) {
@@ -339,6 +458,17 @@ static void sunplus_debug_cmd(char *tmpbuf)
 			if (!strncasecmp(tmpbuf, "off", 3)) {
 				pr_info("bist tcon off\n");
 				sp7350_tcon_bist_set(0, 0);
+			} else if (!strncasecmp(tmpbuf, "gen", 3)) {
+				tmpbuf = spmon_skipspace(tmpbuf + 4);
+				if (!strncasecmp(tmpbuf, "on", 2)) {
+					pr_info("bist tcon gen pix enable\n");
+					sp7350_tcon_gen_pix_set(1);
+				} else if (!strncasecmp(tmpbuf, "off", 3)) {
+					pr_info("bist tcon gen pix disble\n");
+					sp7350_tcon_gen_pix_set(0);
+				} else
+					pr_info("bist tcon gen cmd undef\n");
+
 			} else if (!strncasecmp(tmpbuf, "hor1", 4)) {
 				tmpbuf = spmon_skipspace(tmpbuf + 4);
 				if (!strncasecmp(tmpbuf, "inter", 5)) {
@@ -460,10 +590,314 @@ static void sunplus_debug_cmd(char *tmpbuf)
 				} else
 					pr_info("bist tcon hv5 cmd undef\n");
 
+			} else if (!strncasecmp(tmpbuf, "gamma", 5)) {
+				u16 *tmptablebuf = NULL;
+				//u16 tmptable[512], tmptable2[512];
+				u16 *tmptable = NULL, *tmptable2 = NULL;
+				int i = 0;
+				int tablesize = 512;
+				int channel_val = -1;
+				int step = 4096 / tablesize;
+
+				tmptablebuf = kmalloc(tablesize*sizeof(u16)*2, GFP_KERNEL);
+				if (!tmptablebuf) {
+					pr_info("kmalloc fail!!!\n");
+					return;
+				}
+				tmptable = tmptablebuf;
+				tmptable2 = tmptablebuf + tablesize;
+
+				tmpbuf = spmon_skipspace(tmpbuf + 5);
+				if (!strncasecmp(tmpbuf, "upd1", 4)) {
+					pr_info("bist tcon gamma table update1\n");
+					for (i = 0; i < tablesize; i++) {
+						//tmptable[i] = i%256;
+						tmptable[i] = i*step;
+					}
+					for (i = 0; i < 3; i++) {
+						sp7350_tcon_gamma_table_set(i+1, tmptable, tablesize);
+						sp7350_tcon_gamma_table_get(i+1, tmptable2, tablesize);
+						if (memcmp(tmptable, tmptable2, tablesize*sizeof(u16))) {
+							pr_info("Gamma table %s update fail.\n", i==2 ? "B": i ? "G" : "R");
+							pr_info("Input gamma table:\n");
+							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+								tmptable, tablesize*sizeof(u16), true);
+							pr_info("Output gamma table:\n");
+							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+								tmptable2, tablesize*sizeof(u16), true);
+						}
+						else {
+							pr_info("Gamma table %s update success.\n", i==2 ? "B": i ? "G" : "R");
+						}
+					}
+				} else if (!strncasecmp(tmpbuf, "upd2", 4)){
+					pr_info("bist tcon gamma table update2\n");
+					for (i = 0; i < tablesize; i++) {
+						//tmptable[i] = tablesize%256 - i;
+						tmptable[i] = 0xFFF- i*step;
+					}
+					for (i = 0; i < 3; i++) {
+						sp7350_tcon_gamma_table_set(i+1, tmptable, tablesize);
+						sp7350_tcon_gamma_table_get(i+1, tmptable2, tablesize);
+						if (memcmp(tmptable, tmptable2, tablesize*sizeof(u16))) {
+							pr_info("Gamma table %s update fail.\n", i==2 ? "B": i ? "G" : "R");
+							pr_info("Input gamma table:\n");
+							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+								tmptable, tablesize*sizeof(u16), true);
+							pr_info("Output gamma table:\n");
+							print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+								tmptable2, tablesize*sizeof(u16), true);
+						}
+						else {
+							pr_info("Gamma table %s update success.\n", i==2 ? "B": i ? "G" : "R");
+						}
+					}
+				} else if (!strncasecmp(tmpbuf, "wr", 2)){
+					pr_info("bist tcon gamma table write r channel\n");
+					tmpbuf = spmon_skipspace(tmpbuf + 2);
+					tmpbuf = spmon_readint(tmpbuf, &channel_val);
+					if (channel_val != -1) {
+						pr_info("Write r channel %d\n", channel_val);
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = channel_val;
+						}
+					}
+					else {  /* use default value */
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = 0xFFF- i*step;
+						}
+					}
+					sp7350_tcon_gamma_table_set(SP7350_TCON_GM_UPDDEL_RGB_R, tmptable, tablesize);
+				} else if (!strncasecmp(tmpbuf, "wg", 2)){
+					pr_info("bist tcon gamma table write g channel\n");
+					tmpbuf = spmon_skipspace(tmpbuf + 2);
+					tmpbuf = spmon_readint(tmpbuf, &channel_val);
+					if (channel_val != -1) {
+						pr_info("Write g channel %d\n", channel_val);
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = channel_val;
+						}
+					}
+					else {  /* use default value */
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = 0xFFF- i*step;
+						}
+					}
+					sp7350_tcon_gamma_table_set(SP7350_TCON_GM_UPDDEL_RGB_G, tmptable, tablesize);
+				} else if (!strncasecmp(tmpbuf, "wb", 2)){
+					pr_info("bist tcon gamma table write b channel\n");
+					tmpbuf = spmon_skipspace(tmpbuf + 2);
+					tmpbuf = spmon_readint(tmpbuf, &channel_val);
+					if (channel_val != -1) {
+						pr_info("Write b channel %d\n", channel_val);
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = channel_val;
+						}
+					}
+					else {  /* use default value */
+						for (i = 0; i < tablesize; i++) {
+							tmptable[i] = 0xFFF- i*step;
+						}
+					}
+					sp7350_tcon_gamma_table_set(SP7350_TCON_GM_UPDDEL_RGB_B, tmptable, tablesize);
+				} else if (!strncasecmp(tmpbuf, "rr", 2)){
+					pr_info("bist tcon gamma table read r channel\n");
+					sp7350_tcon_gamma_table_get(SP7350_TCON_GM_UPDDEL_RGB_R, tmptable2, tablesize);
+					pr_info("Output gamma R table:\n");
+					print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_OFFSET, 16, 1,
+						tmptable2, tablesize*sizeof(u16), true);
+				} else if (!strncasecmp(tmpbuf, "rg", 2)){
+					pr_info("bist tcon gamma table read g channel\n");
+					sp7350_tcon_gamma_table_get(SP7350_TCON_GM_UPDDEL_RGB_G, tmptable2, tablesize);
+					pr_info("Output gamma G table:\n");
+					print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_OFFSET, 16, 1,
+						tmptable2, tablesize*sizeof(u16), true);
+				} else if (!strncasecmp(tmpbuf, "rb", 2)){
+					pr_info("bist tcon gamma table read b channel\n");
+					sp7350_tcon_gamma_table_get(SP7350_TCON_GM_UPDDEL_RGB_B, tmptable2, tablesize);
+					pr_info("Output gamma B table:\n");
+					print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_OFFSET, 16, 1,
+						tmptable2, tablesize*sizeof(u16), true);
+				} else if (!strncasecmp(tmpbuf, "rrgb", 4)){
+					pr_info("bist tcon gamma table read\n");
+					for (i = 0; i < 3; i++) {
+						sp7350_tcon_gamma_table_get(i+1, tmptable2, tablesize);
+						if (memcmp(tmptable, tmptable2, tablesize*sizeof(u16))) {
+							pr_info("Output gamma table:\n");
+							print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+								tmptable2, tablesize*sizeof(u16), true);
+						}
+					}
+				} else if (!strncasecmp(tmpbuf, "on", 2)) {
+					pr_info("bist tcon gamma table enable.\n");
+					sp7350_tcon_gamma_table_enable(1);
+				} else if (!strncasecmp(tmpbuf, "off", 3)) {
+					pr_info("bist tcon gamma table disable.\n");
+					sp7350_tcon_gamma_table_enable(0);
+				} else
+					pr_info("bist tcon gamma cmd undef\n");
+
+				kfree(tmptablebuf);
+				tmptablebuf = NULL;
+
+			} else if (!strncasecmp(tmpbuf, "rgb", 3)) {
+				u32 channel_sel = 0;
+				tmpbuf = spmon_skipspace(tmpbuf + 3);
+				if (!strncasecmp(tmpbuf, "selftest", 8)) {
+					tmpbuf = spmon_skipspace(tmpbuf + 8);
+					if (strstr(tmpbuf, "R"))
+						channel_sel |= SP7350_TCON_RGB_ADJ_CHANNEL_R_EN;
+					if (strstr(tmpbuf, "G"))
+						channel_sel |= SP7350_TCON_RGB_ADJ_CHANNEL_G_EN;
+					if (strstr(tmpbuf, "B"))
+						channel_sel |= SP7350_TCON_RGB_ADJ_CHANNEL_B_EN;
+
+					if (!channel_sel) {
+						pr_info("Invalid channel_sel!!!\n");
+					}
+					else {
+						pr_info("RGB Adjust selftest[0x%X].\n", channel_sel);
+						sp7350_tcon_rgb_adjust_selftest(channel_sel);
+					}
+				} else if (!strncasecmp(tmpbuf, "on", 2)) {
+					tmpbuf = spmon_skipspace(tmpbuf + 2);
+					if (strstr(tmpbuf, "R"))
+						channel_sel |= SP7350_TCON_RGB_ADJ_CHANNEL_R_EN;
+					if (strstr(tmpbuf, "G"))
+						channel_sel |= SP7350_TCON_RGB_ADJ_CHANNEL_G_EN;
+					if (strstr(tmpbuf, "B"))
+						channel_sel |= SP7350_TCON_RGB_ADJ_CHANNEL_B_EN;
+
+					if (!channel_sel) {
+						pr_info("Invalid channel_sel!!!\n");
+					}
+					else {
+						pr_info("RGB Adjust Enable[0x%X].\n", channel_sel);
+						sp7350_tcon_rgb_adjust_enable(channel_sel);
+					}
+
+				} else if (!strncasecmp(tmpbuf, "off", 3)) {
+					sp7350_tcon_rgb_adjust_enable(0);
+				} else
+					pr_info("bist tcon rgb cmd undef\n");
+			} else if (!strncasecmp(tmpbuf, "dither", 6)) {
+				tmpbuf = spmon_skipspace(tmpbuf + 6);
+				if (!strncasecmp(tmpbuf, "set6bit", 7)) {
+					u32 mode = 0, table_v_shift_en = 0, table_h_shift_en = 0;
+					tmpbuf = spmon_skipspace(tmpbuf + 7);
+					if (!strncasecmp(tmpbuf, "0", 1))
+						mode = SP7350_TCON_DITHER_6BIT_MODE_MATCHED;
+					else
+						mode = SP7350_TCON_DITHER_6BIT_MODE_ROBUST;
+
+					tmpbuf = spmon_skipspace(tmpbuf + 1);
+					if (!strncasecmp(tmpbuf, "0", 1))
+						table_v_shift_en = 0;
+					else
+						table_v_shift_en = 1;
+
+					tmpbuf = spmon_skipspace(tmpbuf + 1);
+					if (!strncasecmp(tmpbuf, "0", 1))
+						table_h_shift_en = 0;
+					else
+						table_h_shift_en = 1;
+
+					pr_info("DITHER set With MODE[%s] VSHIFT[%d] HSHIFT[%d].\n", mode ? "ROBUST" :"MATCHED", table_v_shift_en, table_h_shift_en);
+					sp7350_tcon_enhanced_dither_6bit_set(mode, table_v_shift_en, table_h_shift_en);
+				} else if (!strncasecmp(tmpbuf, "set8bit", 7)) {
+					sp7350_tcon_enhanced_dither_8bit_set();
+				}else if (!strncasecmp(tmpbuf, "set", 3)) {
+					u32 rgbc_sel = 0, method = 0, temporal_mode_en = 0, dot_mode = 0;
+					tmpbuf = spmon_skipspace(tmpbuf + 3);
+					if (!strncasecmp(tmpbuf, "0", 1))
+						rgbc_sel = SP7350_TCON_DITHER_RGBC_SEL_R;
+					else
+						rgbc_sel = SP7350_TCON_DITHER_RGBC_SEL_RGB;
+
+					tmpbuf = spmon_skipspace(tmpbuf + 1);
+					if (!strncasecmp(tmpbuf, "0", 1))
+						method = SP7350_TCON_DITHER_INIT_MODE_METHOD2;
+					else
+						method = SP7350_TCON_DITHER_INIT_MODE_METHOD1;
+
+					tmpbuf = spmon_skipspace(tmpbuf + 1);
+					if (!strncasecmp(tmpbuf, "0", 1))
+						temporal_mode_en = 0;
+					else
+						temporal_mode_en = 1;
+
+					tmpbuf = spmon_skipspace(tmpbuf + 1);
+					if (!strncasecmp(tmpbuf, "0", 1))
+						dot_mode = SP7350_TCON_DITHER_PANEL_DOT_MODE_1DOT;
+					else if (!strncasecmp(tmpbuf, "1", 1))
+						dot_mode = SP7350_TCON_DITHER_PANEL_DOT_MODE_H2DOT;
+					else if (!strncasecmp(tmpbuf, "2", 1))
+						dot_mode = SP7350_TCON_DITHER_PANEL_DOT_MODE_V2DOT;
+					else if (!strncasecmp(tmpbuf, "3", 1))
+						dot_mode = SP7350_TCON_DITHER_PANEL_DOT_MODE_2DOT;
+					else {
+						pr_info("Invalid DITHER panel dot mode!!!\n");
+						return;
+					}
+					pr_info("DITHER set With RGBC[%s] METHOD[%d] TEMP[%d] DOT[%s].\n",
+						rgbc_sel? "RGB":"R", method, temporal_mode_en,
+						dot_mode == SP7350_TCON_DITHER_PANEL_DOT_MODE_2DOT ? "2DOT":
+						(dot_mode == SP7350_TCON_DITHER_PANEL_DOT_MODE_V2DOT ?"V2DOT":
+						(dot_mode == SP7350_TCON_DITHER_PANEL_DOT_MODE_H2DOT?"H2DOT":"1DOT")));
+					sp7350_tcon_enhanced_dither_set(rgbc_sel, method, temporal_mode_en, dot_mode);
+				} else if (!strncasecmp(tmpbuf, "on", 2)) {
+					sp7350_tcon_enhanced_dither_enable(1);
+				} else if (!strncasecmp(tmpbuf, "off", 3)) {
+					sp7350_tcon_enhanced_dither_enable(0);
+				} else
+					pr_info("bist tcon dither cmd undef\n");
+			} else if (!strncasecmp(tmpbuf, "bitswap", 7)) {
+				u32 channel_mode = 0, bit_mode = 0;
+				char *tmp = tmpbuf;
+				tmpbuf = spmon_skipspace(tmpbuf + 7);
+				if (!strncasecmp(tmpbuf, "set", 3)) {
+					tmpbuf = spmon_skipspace(tmpbuf + 3);
+					if (!strncasecmp(tmpbuf, "RGB", 3))
+						channel_mode = SP7350_TCON_BIT_SW_CHNL_RGB;
+					else if (!strncasecmp(tmpbuf, "RBG", 3))
+						channel_mode = SP7350_TCON_BIT_SW_CHNL_RBG;
+					else if (!strncasecmp(tmpbuf, "GBR", 3))
+						channel_mode = SP7350_TCON_BIT_SW_CHNL_GBR;
+					else if (!strncasecmp(tmpbuf, "GRB", 3))
+						channel_mode = SP7350_TCON_BIT_SW_CHNL_GRB;
+					else if (!strncasecmp(tmpbuf, "BGR", 3))
+						channel_mode = SP7350_TCON_BIT_SW_CHNL_BGR;
+					else if (!strncasecmp(tmpbuf, "BRG", 3))
+						channel_mode = SP7350_TCON_BIT_SW_CHNL_BRG;
+					else {
+						pr_info("Invalid BITSWAP Channel mode!!!\n");
+						return;
+					}
+
+					tmp = tmpbuf;
+					tmpbuf = spmon_skipspace(tmpbuf + 3);
+					if (!strncasecmp(tmpbuf, "MSB", 3))
+						bit_mode = SP7350_TCON_BIT_SW_BIT_MSB;
+					else if (!strncasecmp(tmpbuf, "LSB", 3))
+						bit_mode = SP7350_TCON_BIT_SW_BIT_LSB;
+					else {
+						pr_info("Invalid BITSWAP bit mode!!!\n");
+						return;
+					}
+
+					pr_info("bitswap set With %.*s %.*s.\n", 3, tmp, 3, tmpbuf);
+					sp7350_tcon_bitswap_set(bit_mode, channel_mode);
+				} else if (!strncasecmp(tmpbuf, "on", 2)) {
+					sp7350_tcon_bitswap_enable(1);
+				} else if (!strncasecmp(tmpbuf, "off", 3)) {
+					sp7350_tcon_bitswap_enable(0);
+				} else
+					pr_info("bist tcon bitswap cmd undef\n");
 			} else
 				pr_info("bist tcon cmd undef\n");
 
-		}
+		} else
+			pr_info("bist cmd undef\n");
 	} else if (!strncasecmp(tmpbuf, "layer", 5)) {
 		tmpbuf = spmon_skipspace(tmpbuf + 5);
 
@@ -667,7 +1101,7 @@ MODULE_PARM_DESC(debug, "SP7350 display debug test");
 static int sp7350_debug_dump_regs(struct sp_disp_device *disp_dev,
 				  struct seq_file *m)
 {
-	//pr_info("%s test\n", __func__);
+	pr_info("%s test\n", __func__);
 
 	return 0;
 }
@@ -683,7 +1117,7 @@ DEFINE_SHOW_ATTRIBUTE(sp7350_dump_regs);
 static int sp7350_debug_dump_vpp_regs(struct sp_disp_device *disp_dev,
 				  struct seq_file *m)
 {
-	//pr_info("%s test\n", __func__);
+	pr_info("%s test\n", __func__);
 
 	return 0;
 }
@@ -703,6 +1137,8 @@ void sp7350_debug_init(struct sp_disp_device *disp_dev)
 
 	debug->debugfs_dir = debugfs_create_dir(dev_name(disp_dev->pdev), NULL);
 
+	pr_info("%s dev_name: [%s]\n", __func__, dev_name(disp_dev->pdev));
+
 	debugfs_create_file("sp7350_dump_regs", 0444, debug->debugfs_dir, disp_dev,
 			    &sp7350_dump_regs_fops);
 
@@ -717,3 +1153,256 @@ void sp7350_debug_cleanup(struct sp_disp_device *disp_dev)
 {
 	debugfs_remove_recursive(disp_dev->debug.debugfs_dir);
 }
+
+#define DEBUG_DMIX_ADJUST_LUMA_CP_EN  1
+static void sp7350_dmix_luma_adjust_selftest(void)
+{
+	u8 tmpcptable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u8 tmpcpsrctable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u8 tmpcpsdttable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u16 tmpslopetable[SP7350_TCON_RGB_ADJ_SLOPE_SIZE];
+	u16 tmpslopetable2[SP7350_TCON_RGB_ADJ_SLOPE_SIZE];
+	int i,j;
+
+	pr_info(" DMIX Luma Adjustment SELFTEST.\n");
+
+	for (i = 0; i < 0xff; i+=3) {
+		#if DEBUG_DMIX_ADJUST_LUMA_CP_EN
+		for (j = 0; j < SP7350_TCON_RGB_ADJ_CP_SIZE; j++) {
+			tmpcptable[j] = (i + j)%0xff;
+		}
+		#endif
+		for (j = 0; j < SP7350_TCON_RGB_ADJ_SLOPE_SIZE; j++) {
+			tmpslopetable[j] = (i * 8 + j)%0x7ff;
+		}
+		#if DEBUG_DMIX_ADJUST_LUMA_CP_EN
+		pr_info(" DMIX Luma Adjustment SELFTEST cpsrc[%02x %02x %02x], cpsdt[%02x %02x %02x], slope[%04x %04x %04x %04x].\n",
+			tmpcptable[0], tmpcptable[1], tmpcptable[2],
+			tmpcptable[0], tmpcptable[1], tmpcptable[2],
+			tmpslopetable[0], tmpslopetable[1], tmpslopetable[2], tmpslopetable[3]);
+		sp7350_dmix_color_adj_luma_cp_set( tmpcptable, tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		#else
+		pr_info(" DMIX Luma Adjustment SELFTEST slope[%04x %04x %04x %04x].\n",
+			tmpslopetable[0], tmpslopetable[1], tmpslopetable[2], tmpslopetable[3]);
+		#endif
+		sp7350_dmix_color_adj_luma_slope_set( tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		sp7350_dmix_color_adj_onoff(1);
+		msleep(300);
+		#if DEBUG_DMIX_ADJUST_LUMA_CP_EN
+		sp7350_dmix_color_adj_luma_cp_get( tmpcpsrctable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		if (memcmp(tmpcptable, tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" DMIX Luma Adjust control point source update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		if (memcmp(tmpcptable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" DMIX Luma Adjust control point destination update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		#endif
+		sp7350_dmix_color_adj_luma_slope_get(tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		if (memcmp(tmpslopetable, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE)) {
+			pr_info(" DMIX Luma Adjust slope update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			break;
+		}
+	}
+
+	/* disbable */
+	//sp7350_dmix_color_adj_onoff(0);
+}
+
+static void sp7350_dmix_chroma_adjust_selftest(void)
+{
+	int i,j;
+	u16 satcos, satsin;
+	u16 tmpsatcos, tmpsatsin;
+
+
+	for (i = 0; i < 3; i++) {
+		satcos = 0;
+		satsin = 0;
+		sp7350_dmix_color_adj_onoff(1);
+		for (j = 0; j < 0x3ff; j+=8) {
+			if (i == 0) {
+				satcos = j;
+				satsin = j;
+			}
+			else if (i == 1) {
+				satcos = j;
+			}
+			else if (i == 2) {
+				satsin = j;
+			}
+
+			pr_info(" DMIX Chroma Adjustment SELFTEST satcos[%02x], satsin[%02x ].\n", satcos, satsin);
+			sp7350_dmix_color_adj_crma_set( satcos, satcos);
+			msleep(300);
+			sp7350_dmix_color_adj_crma_get( &tmpsatcos, &tmpsatsin);
+			if (satcos != tmpsatcos || satcos != tmpsatsin) {
+				pr_info(" DMIX Chroma Adjustment get satcos[%02x], satsin[%02x ].\n", tmpsatcos, tmpsatsin);
+				break;
+			}
+		}
+		msleep(3000);
+		/* disbable */
+		sp7350_dmix_color_adj_onoff(0);
+		msleep(3000);
+	}
+
+
+}
+
+static void sp7350_tcon_rgb_adjust_selftest(u32 channel_sel)
+{
+	u8 tmpcptable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u8 tmpcpsrctable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u8 tmpcpsdttable[SP7350_TCON_RGB_ADJ_CP_SIZE];
+	u16 tmpslopetable[SP7350_TCON_RGB_ADJ_SLOPE_SIZE];
+	u16 tmpslopetable2[SP7350_TCON_RGB_ADJ_SLOPE_SIZE];
+	int i,j;
+
+	pr_info(" RGB Adjustment SELFTEST with %s%s%s Channel.\n",
+		(channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_R_EN) ? "R" : "",
+		(channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_G_EN) ? "G" : "",
+		(channel_sel & SP7350_TCON_RGB_ADJ_CHANNEL_B_EN) ? "B" : "");
+
+	for (i = 0; i < 0xff; i+=3) {
+		for (j = 0; j < SP7350_TCON_RGB_ADJ_CP_SIZE; j++) {
+			tmpcptable[j] = (i + j)%0xff;
+		}
+		for (j = 0; j < SP7350_TCON_RGB_ADJ_SLOPE_SIZE; j++) {
+			tmpslopetable[j] = (i * 8 + j)%0x7ff;
+		}
+		pr_info(" RGB Adjustment SELFTEST cpsrc[%02x %02x %02x], cpsdt[%02x %02x %02x], slope[%04x %04x %04x %04x].\n",
+			tmpcptable[0], tmpcptable[1], tmpcptable[2],
+			tmpcptable[0], tmpcptable[1], tmpcptable[2],
+			tmpslopetable[0], tmpslopetable[1], tmpslopetable[2], tmpslopetable[3]);
+		sp7350_tcon_rgb_adjust_cp_set(SP7350_TCON_RGB_ADJ_CHANNEL_R_EN, tmpcptable, tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		sp7350_tcon_rgb_adjust_cp_set(SP7350_TCON_RGB_ADJ_CHANNEL_G_EN, tmpcptable, tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		sp7350_tcon_rgb_adjust_cp_set(SP7350_TCON_RGB_ADJ_CHANNEL_B_EN, tmpcptable, tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		sp7350_tcon_rgb_adjust_slope_set(SP7350_TCON_RGB_ADJ_CHANNEL_R_EN, tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		sp7350_tcon_rgb_adjust_slope_set(SP7350_TCON_RGB_ADJ_CHANNEL_G_EN, tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		sp7350_tcon_rgb_adjust_slope_set(SP7350_TCON_RGB_ADJ_CHANNEL_B_EN, tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		//sp7350_tcon_rgb_adjust_enable(SP7350_TCON_RGB_ADJ_CHANNEL_R_EN|SP7350_TCON_RGB_ADJ_CHANNEL_G_EN|SP7350_TCON_RGB_ADJ_CHANNEL_B_EN);
+		sp7350_tcon_rgb_adjust_enable(channel_sel);
+		//udelay(1000);
+		msleep(300);
+		sp7350_tcon_rgb_adjust_cp_get(SP7350_TCON_RGB_ADJ_CHANNEL_R_EN, tmpcpsrctable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		if (memcmp(tmpcptable, tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" RGB Adjust control point source R update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		if (memcmp(tmpcptable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" RGB Adjust control point destination R update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		sp7350_tcon_rgb_adjust_cp_get(SP7350_TCON_RGB_ADJ_CHANNEL_G_EN, tmpcpsrctable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		if (memcmp(tmpcptable, tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" RGB Adjust control point source G update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		if (memcmp(tmpcptable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" RGB Adjust control point destination G update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		sp7350_tcon_rgb_adjust_cp_get(SP7350_TCON_RGB_ADJ_CHANNEL_B_EN, tmpcpsrctable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE);
+		if (memcmp(tmpcptable, tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" RGB Adjust control point source B update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsrctable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		if (memcmp(tmpcptable, tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE)) {
+			pr_info(" RGB Adjust control point destination B update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcptable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpcpsdttable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		sp7350_tcon_rgb_adjust_slope_get(SP7350_TCON_RGB_ADJ_CHANNEL_R_EN, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		if (memcmp(tmpslopetable, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE)) {
+			pr_info(" RGB Adjust slope R update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			break;
+		}
+		sp7350_tcon_rgb_adjust_slope_get(SP7350_TCON_RGB_ADJ_CHANNEL_G_EN, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		if (memcmp(tmpslopetable, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE)) {
+			pr_info(" RGB Adjust slope G update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable2, SP7350_TCON_RGB_ADJ_CP_SIZE, false);
+			break;
+		}
+		sp7350_tcon_rgb_adjust_slope_get(SP7350_TCON_RGB_ADJ_CHANNEL_B_EN, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE);
+		if (memcmp(tmpslopetable, tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE)) {
+			pr_info(" RGB Adjust slope B update fail.\n");
+			pr_info("Input:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			pr_info("Output:\n");
+			print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+				tmpslopetable2, SP7350_TCON_RGB_ADJ_SLOPE_SIZE, false);
+			break;
+		}
+	}
+
+	/* disbable */
+	sp7350_tcon_rgb_adjust_enable(0);
+}
+
