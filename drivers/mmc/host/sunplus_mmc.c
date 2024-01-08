@@ -611,6 +611,9 @@ static void spmmc_prepare_cmd(struct spmmc_host *host, struct mmc_command *cmd)
 static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 {
 	u32 value, srcdst;
+	#ifdef SPMMC_DMA_ALLOC
+	host->data = data;
+	#endif
 	//struct mmc_command *cmd = data->mrq->cmd;
 
 	writel(data->blocks - 1, &host->base->sd_page_num);
@@ -639,21 +642,37 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 		int i, count = 1;
 
 		count = dma_map_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
+#ifndef SPMMC_DMA_ALLOC
 		if (unlikely(!count || count > SPMMC_MAX_DMA_MEMORY_SECTORS)) {
 			spmmc_pr(ERROR, "error occured at dma_mapp_sg: count = %d\n", count);
 			data->error = -EINVAL;
 			return;
 		}
-		for_each_sg(data->sg, sg, count, i) {
-			dma_addr = sg_dma_address(sg);
-			dma_size = sg_dma_len(sg) / 512 - 1;
-			if (i == 0) {
-				writel(dma_addr, &host->base->dma_base_addr);
-				writel(dma_size, &host->base->sdram_sector_0_size);
-			} else {
-				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
-				writel(dma_addr, reg_addr);
-				writel(dma_size, reg_addr + 1);
+#endif
+#ifdef SPMMC_DMA_ALLOC
+		if(data->sg_len > SPMMC_MAX_DMA_MEMORY_SECTORS) {
+			if ((data->flags & MMC_DATA_WRITE)) {
+				sg_copy_to_buffer(data->sg, data->sg_len,
+						host->buffer, (data->blocks * data->blksz));
+			}
+			dma_addr = host->buf_phys_addr;
+			dma_size = data->blocks - 1;
+			writel(dma_addr, &host->base->dma_base_addr);
+			writel(dma_size, &host->base->sdram_sector_0_size);
+		} else
+#endif
+		{
+			for_each_sg(data->sg, sg, count, i) {
+				dma_addr = sg_dma_address(sg);
+				dma_size = sg_dma_len(sg) / 512 - 1;
+				if (i == 0) {
+					writel(dma_addr, &host->base->dma_base_addr);
+					writel(dma_size, &host->base->sdram_sector_0_size);
+				} else {
+					reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
+					writel(dma_addr, reg_addr);
+					writel(dma_size, reg_addr + 1);
+				}
 			}
 		}
 		value = bitfield_replace(value, 0, 1, 0); /* sdpiomode */
@@ -940,6 +959,13 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
+#ifdef SPMMC_DMA_ALLOC
+		if ((data->flags & MMC_DATA_READ) && (data->sg_len > SPMMC_MAX_DMA_MEMORY_SECTORS)) {
+			sg_copy_from_buffer(host->data->sg, host->data->sg_len,
+							host->buffer, (host->data->blocks * host->data->blksz));
+		}
+#endif
 
 		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
@@ -1566,7 +1592,7 @@ static int config_mmc_cap_store(struct spmmc_host *host, const char *arg)
 	switch (idx) {
 	case 4:
 		host->mmc->caps2 |= MMC_CAP2_HS400_ES;
-		fallthrough;	
+		fallthrough;
 	case 3:
 		host->mmc->caps2 |= MMC_CAP2_HS200;
 		fallthrough;
@@ -2318,6 +2344,18 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto probe_clk_unprepare;
 
+
+
+#ifdef SPMMC_DMA_ALLOC
+		host->buffer = dma_alloc_coherent(&pdev->dev, 80 * 32 * 512,
+						  &host->buf_phys_addr, GFP_KERNEL);
+		if (!host->buffer) {
+			ret = -ENOMEM;
+			dev_err(&pdev->dev, "buffer allocation failed\n");
+			goto probe_free_host;
+		}
+#endif
+
 	spin_lock_init(&host->lock);
 	mutex_init(&host->mrq_lock);
 	tasklet_init(&host->tsklet_finish_req, tsklet_func_finish_req, (unsigned long)host);
@@ -2328,6 +2366,16 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 		mmc->f_max = SPMMC_MAX_CLK;
 	}
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+
+#ifdef SPMMC_DMA_ALLOC
+	mmc->max_seg_size =  80 * 32 * 512;
+	/* Host controller supports up to "SPMMC_MAX_DMA_MEMORY_SECTORS"*/
+	/* a.k.a. max scattered memory segments per request*/
+	mmc->max_segs = 128;
+	mmc->max_req_size = SPMMC_MAX_BLK_COUNT * 512;
+	mmc->max_blk_size = 512; /* Limited by the max value of dma_size & data_length, set it to 512 bytes for now */
+	mmc->max_blk_count = SPMMC_MAX_BLK_COUNT; /* Limited by sd_page_num */
+#else
 	mmc->max_seg_size = SPMMC_MAX_BLK_COUNT * 512;
 	/* Host controller supports up to "SPMMC_MAX_DMA_MEMORY_SECTORS"*/
 	/* a.k.a. max scattered memory segments per request*/
@@ -2335,6 +2383,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	mmc->max_req_size = SPMMC_MAX_BLK_COUNT * 512;
 	mmc->max_blk_size = 512; /* Limited by the max value of dma_size & data_length, set it to 512 bytes for now */
 	mmc->max_blk_count = SPMMC_MAX_BLK_COUNT; /* Limited by sd_page_num */
+#endif
 
 	dev_set_drvdata(&pdev->dev, host);
 	spmmc_controller_init(host);
