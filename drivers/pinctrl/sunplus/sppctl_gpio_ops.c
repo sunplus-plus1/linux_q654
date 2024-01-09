@@ -40,6 +40,7 @@
 //(/30)*4
 #define R30_ROF(r) (((r) / 30) << 2)
 #define R30_BOF(r) ((r) % 30)
+#define R30_VAL(r, boff) (((r) >> (boff)) & BIT(0))
 
 #define IS_DVIO(pin) ((pin) >= 20 && (pin) <= 79)
 
@@ -114,22 +115,40 @@ void sppctl_gpio_first_master_set(struct gpio_chip *chip, unsigned int selector,
 	}
 }
 
-// is inv: INVERTED(1) | NORMAL(0)
-int sppctl_gpio_is_inverted(struct gpio_chip *chip, unsigned int selector)
+int sppctl_gpio_output_invert_query(struct gpio_chip *chip,
+				    unsigned int selector)
 {
 	struct sppctlgpio_chip_t *pc;
-	u16 inv_off;
 	u32 r;
 
 	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
-	inv_off = REG_OFFSET_INPUT_INVERT;
 
-	if (sppctl_gpio_get_direction(chip, selector) == 0)
-		inv_off = REG_OFFSET_OUTPUT_INVERT;
-
-	r = readl(pc->gpioxt_regs_base + inv_off + R16_ROF(selector));
+	r = readl(pc->gpioxt_regs_base + REG_OFFSET_OUTPUT_INVERT +
+		  R16_ROF(selector));
 
 	return R32_VAL(r, R16_BOF(selector));
+}
+
+int sppctl_gpio_input_invert_query(struct gpio_chip *chip,
+				   unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	r = readl(pc->gpioxt_regs_base + REG_OFFSET_INPUT_INVERT +
+		  R16_ROF(selector));
+
+	return R32_VAL(r, R16_BOF(selector));
+}
+
+int sppctl_gpio_is_inverted(struct gpio_chip *chip, unsigned int selector)
+{
+	if (sppctl_gpio_output_enable_query(chip, selector))
+		return sppctl_gpio_output_invert_query(chip, selector);
+	else
+		return sppctl_gpio_input_invert_query(chip, selector);
 }
 
 void sppctl_gpio_input_invert_set(struct gpio_chip *chip, unsigned int selector,
@@ -161,8 +180,8 @@ void sppctl_gpio_output_invert_set(struct gpio_chip *chip,
 }
 
 // is open-drain: YES(1) | NON(0)
-int sppctl_gpio_is_open_drain_mode(struct gpio_chip *chip,
-				   unsigned int selector)
+int sppctl_gpio_open_drain_mode_query(struct gpio_chip *chip,
+				      unsigned int selector)
 {
 	struct sppctlgpio_chip_t *pc;
 	u32 r;
@@ -214,6 +233,21 @@ int sppctl_gpio_schmitt_trigger_set(struct gpio_chip *chip,
 	return 0;
 }
 
+/* enable/disable schmitt trigger */
+int sppctl_gpio_schmitt_trigger_query(struct gpio_chip *chip,
+				      unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	r = readl(pc->padctl1_regs_base + REG_OFFSET_SCHMITT_TRIGGER +
+		  R32_ROF(selector));
+
+	return R32_VAL(r, R32_BOF(selector));
+}
+
 /* slew-rate control; for GPIO only */
 int sppctl_gpio_slew_rate_control_set(struct gpio_chip *chip,
 				      unsigned int selector, unsigned int value)
@@ -239,6 +273,26 @@ int sppctl_gpio_slew_rate_control_set(struct gpio_chip *chip,
 	writel(r, pc->padctl2_regs_base + REG_OFFSET_SLEW_RATE + R32_ROF(pin));
 
 	return 0;
+}
+
+/* slew-rate control; for GPIO only */
+int sppctl_gpio_slew_rate_control_query(struct gpio_chip *chip,
+					unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int pin;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	if (IS_DVIO(selector))
+		return -EINVAL;
+
+	pin = (selector > 19) ? selector - 60 : selector;
+
+	r = readl(pc->padctl2_regs_base + REG_OFFSET_SLEW_RATE + R32_ROF(pin));
+
+	return R32_VAL(r, R32_BOF(selector));
 }
 
 /* pull-up */
@@ -299,6 +353,63 @@ int sppctl_gpio_pull_up(struct gpio_chip *chip, unsigned int selector)
 	return 0;
 }
 
+/* pull-up */
+int sppctl_gpio_pull_up_query(struct gpio_chip *chip, unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int pin;
+	u32 pu;
+	u32 pd;
+	u32 pe;
+	u32 ps;
+	u32 spu;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	if (IS_DVIO(selector)) {
+		pin = selector - 20;
+
+		/* PU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_UP +
+			  R30_ROF(pin));
+		pu = R30_VAL(r, R30_BOF(pin));
+
+		/* PD*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_DOWN +
+			  R30_ROF(pin));
+		pd = R30_VAL(r, R30_BOF(pin));
+
+		if (pu == 1 && pd == 0)
+			return 1;
+		else
+			return 0;
+
+	} else {
+		pin = (selector > 19) ? selector - 60 : selector;
+
+		/* PE*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_ENABLE +
+			  R32_ROF(pin));
+		pe = R32_VAL(r, R32_BOF(pin));
+
+		/* PS*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_SELECTOR +
+			  R32_ROF(pin));
+		ps = R32_VAL(r, R32_BOF(pin));
+
+		/* SPU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_STRONG_PULL_UP +
+			  R32_ROF(pin));
+		spu = R32_VAL(r, R32_BOF(pin));
+
+		if (pe == 1 && ps == 1 && spu == 0)
+			return 1;
+		else
+			return 0;
+	}
+}
+
 /* pull-down */
 int sppctl_gpio_pull_down(struct gpio_chip *chip, unsigned int selector)
 {
@@ -351,6 +462,62 @@ int sppctl_gpio_pull_down(struct gpio_chip *chip, unsigned int selector)
 	return 0;
 }
 
+int sppctl_gpio_pull_down_query(struct gpio_chip *chip, unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int pin;
+	u32 pu;
+	u32 pd;
+	u32 pe;
+	u32 ps;
+	u32 spu;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	if (IS_DVIO(selector)) {
+		pin = selector - 20;
+
+		/* PU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_UP +
+			  R30_ROF(pin));
+		pu = R30_VAL(r, R30_BOF(pin));
+
+		/* PD*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_DOWN +
+			  R30_ROF(pin));
+		pd = R30_VAL(r, R30_BOF(pin));
+
+		if (pu == 0 && pd == 1)
+			return 1;
+		else
+			return 0;
+
+	} else {
+		pin = (selector > 19) ? selector - 60 : selector;
+
+		/* PE*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_ENABLE +
+			  R32_ROF(pin));
+		pe = R32_VAL(r, R32_BOF(pin));
+
+		/* PS*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_SELECTOR +
+			  R32_ROF(pin));
+		ps = R32_VAL(r, R32_BOF(pin));
+
+		/* SPU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_STRONG_PULL_UP +
+			  R32_ROF(pin));
+		spu = R32_VAL(r, R32_BOF(pin));
+
+		if (pe == 1 && ps == 0 && spu == 0)
+			return 1;
+		else
+			return 0;
+	}
+}
+
 /* strongly pull-up; for GPIO only */
 int sppctl_gpio_strong_pull_up(struct gpio_chip *chip, unsigned int selector)
 {
@@ -386,6 +553,44 @@ int sppctl_gpio_strong_pull_up(struct gpio_chip *chip, unsigned int selector)
 			  R32_ROF(pin));
 
 	return 0;
+}
+
+int sppctl_gpio_strong_pull_up_query(struct gpio_chip *chip,
+				     unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int pin;
+	u32 pe;
+	u32 ps;
+	u32 spu;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	if (IS_DVIO(selector))
+		return -EINVAL;
+
+	pin = (selector > 19) ? selector - 60 : selector;
+
+	/* PE*/
+	r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_ENABLE +
+		  R32_ROF(pin));
+	pe = R32_VAL(r, R32_BOF(pin));
+
+	/* PS*/
+	r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_SELECTOR +
+		  R32_ROF(pin));
+	ps = R32_VAL(r, R32_BOF(pin));
+
+	/* SPU*/
+	r = readl(pc->padctl2_regs_base + REG_OFFSET_STRONG_PULL_UP +
+		  R32_ROF(pin));
+	spu = R32_VAL(r, R32_BOF(pin));
+
+	if (pe == 1 && ps == 1 && spu == 1)
+		return 1;
+	else
+		return 0;
 }
 
 /* high-Z; */
@@ -439,6 +644,63 @@ int sppctl_gpio_high_impedance(struct gpio_chip *chip, unsigned int selector)
 	return 0;
 }
 
+int sppctl_gpio_high_impedance_query(struct gpio_chip *chip,
+				     unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int pin;
+	u32 pu;
+	u32 pd;
+	u32 pe;
+	u32 ps;
+	u32 spu;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	if (IS_DVIO(selector)) {
+		pin = selector - 20;
+
+		/* PU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_UP +
+			  R30_ROF(pin));
+		pu = R30_VAL(r, R30_BOF(pin));
+
+		/* PD*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_DOWN +
+			  R30_ROF(pin));
+		pd = R30_VAL(r, R30_BOF(pin));
+
+		if (pu == 0 && pd == 0)
+			return 1;
+		else
+			return 0;
+
+	} else {
+		pin = (selector > 19) ? selector - 60 : selector;
+
+		/* PE*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_ENABLE +
+			  R32_ROF(pin));
+		pe = R32_VAL(r, R32_BOF(pin));
+
+		/* PS*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_SELECTOR +
+			  R32_ROF(pin));
+		ps = R32_VAL(r, R32_BOF(pin));
+
+		/* SPU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_STRONG_PULL_UP +
+			  R32_ROF(pin));
+		spu = R32_VAL(r, R32_BOF(pin));
+
+		if (pe == 0 && ps == 0 && spu == 0)
+			return 1;
+		else
+			return 0;
+	}
+}
+
 /* bias disable */
 int sppctl_gpio_bias_disable(struct gpio_chip *chip, unsigned int selector)
 {
@@ -489,6 +751,63 @@ int sppctl_gpio_bias_disable(struct gpio_chip *chip, unsigned int selector)
 				  R32_ROF(pin));
 	}
 	return 0;
+}
+
+int sppctl_gpio_bias_disable_query(struct gpio_chip *chip,
+				   unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	unsigned int pin;
+	u32 pu;
+	u32 pd;
+	u32 pe;
+	u32 ps;
+	u32 spu;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	if (IS_DVIO(selector)) {
+		pin = selector - 20;
+
+		/* PU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_UP +
+			  R30_ROF(pin));
+		pu = R30_VAL(r, R30_BOF(pin));
+
+		/* PD*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_DOWN +
+			  R30_ROF(pin));
+		pd = R30_VAL(r, R30_BOF(pin));
+
+		if (pu == 0 && pd == 0)
+			return 1;
+		else
+			return 0;
+
+	} else {
+		pin = (selector > 19) ? selector - 60 : selector;
+
+		/* PE*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_ENABLE +
+			  R32_ROF(pin));
+		pe = R32_VAL(r, R32_BOF(pin));
+
+		/* PS*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_PULL_SELECTOR +
+			  R32_ROF(pin));
+		ps = R32_VAL(r, R32_BOF(pin));
+
+		/* SPU*/
+		r = readl(pc->padctl2_regs_base + REG_OFFSET_STRONG_PULL_UP +
+			  R32_ROF(pin));
+		spu = R32_VAL(r, R32_BOF(pin));
+
+		if (pe == 0 && ps == 0 && spu == 0)
+			return 1;
+		else
+			return 0;
+	}
 }
 
 //voltage mode select
@@ -800,6 +1119,104 @@ int sppctl_gpio_drive_strength_set(struct gpio_chip *chip,
 	return ret;
 }
 
+int sppctl_gpio_drive_strength_get(struct gpio_chip *chip,
+				   unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+	int ret = 0;
+	u32 ds0 = 0;
+	u32 ds1 = 0;
+	u32 ds2 = 0;
+	u32 ds3 = 0;
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+	r = readl(pc->padctl1_regs_base + REG_OFFSET_DS0 + R32_ROF(selector));
+	ds0 = R32_VAL(r, R32_BOF(selector));
+
+	r = readl(pc->padctl1_regs_base + REG_OFFSET_DS1 + R32_ROF(selector));
+	ds1 = R32_VAL(r, R32_BOF(selector));
+
+	r = readl(pc->padctl1_regs_base + REG_OFFSET_DS2 + R32_ROF(selector));
+	ds2 = R32_VAL(r, R32_BOF(selector));
+
+	r = readl(pc->padctl1_regs_base + REG_OFFSET_DS3 + R32_ROF(selector));
+	ds3 = R32_VAL(r, R32_BOF(selector));
+
+	if (IS_DVIO(selector)) {
+		if (ds3 == 0 && ds2 == 0 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_5100_IOL_6200UA;
+		else if (ds3 == 0 && ds2 == 0 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_7600_IOL_9300UA;
+		else if (ds3 == 0 && ds2 == 0 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_10100_IOL_12500UA;
+		else if (ds3 == 0 && ds2 == 0 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_12600_IOL_15600UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_20200_IOL_24900UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_22700_IOL_27900UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_25200_IOL_31000UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_27700_IOL_34100UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_30300_IOL_37200UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_32800_IOL_40300UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_35300_IOL_43400UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_37800_IOL_46400UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_DVIO_DRV_IOH_40300_IOL_49500UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_DVIO_DRV_IOH_42700_IOL_52600UA;
+		else
+			return -EINVAL;
+	} else {
+		if (ds3 == 0 && ds2 == 0 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_1100_IOL_1100UA;
+		else if (ds3 == 0 && ds2 == 0 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_1600_IOL_1700UA;
+		else if (ds3 == 0 && ds2 == 0 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_3300_IOL_3300UA;
+		else if (ds3 == 0 && ds2 == 0 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_4900_IOL_5000UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA;
+		else if (ds3 == 0 && ds2 == 1 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_11500_IOL_11600UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_13100_IOL_13200UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_14800_IOL_14800UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_16400_IOL_16500UA;
+		else if (ds3 == 1 && ds2 == 0 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_18100_IOL_18100UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 0 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_19600_IOL_19700UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 0 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_21300_IOL_21400UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 1 && ds0 == 0)
+			return SPPCTRL_GPIO_DRV_IOH_22900_IOL_23000UA;
+		else if (ds3 == 1 && ds2 == 1 && ds1 == 1 && ds0 == 1)
+			return SPPCTRL_GPIO_DRV_IOH_24600_IOL_24600UA;
+		else
+			return -EINVAL;
+	}
+}
+
 int sppctl_gpio_request(struct gpio_chip *chip, unsigned int selector)
 {
 	sppctl_gpio_first_master_set(chip, selector, MUX_FIRST_G, MUX_MASTER_G);
@@ -921,6 +1338,37 @@ int sppctl_gpio_input_enable_set(struct gpio_chip *chip, unsigned int selector,
 	return 0;
 }
 
+int sppctl_gpio_input_enable_query(struct gpio_chip *chip,
+				   unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+#if defined(SUPPORT_GPIO_AO_INT)
+	int ao_pin;
+	int mask;
+#endif
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+#if defined(SUPPORT_GPIO_AO_INT)
+	ao_pin = find_gpio_ao_int(pc, selector);
+	if (ao_pin >= 0) {
+		mask = 1 << ao_pin;
+
+		r = readl(pc->gpio_ao_int_regs_base + 0x18); // GPIO_OE
+		if (r & mask)
+			return 0;
+		else
+			return 1;
+	}
+#endif
+
+	r = readl(pc->gpioxt_regs_base + REG_OFFSET_OUTPUT_ENABLE +
+		  R16_ROF(selector));
+
+	return !R32_VAL(r, R16_BOF(selector));
+}
+
 /* output enable or disable */
 int sppctl_gpio_output_enable_set(struct gpio_chip *chip, unsigned int selector,
 				  int value)
@@ -959,6 +1407,37 @@ int sppctl_gpio_output_enable_set(struct gpio_chip *chip, unsigned int selector,
 			  R16_ROF(selector));
 
 	return 0;
+}
+
+int sppctl_gpio_output_enable_query(struct gpio_chip *chip,
+				    unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+#if defined(SUPPORT_GPIO_AO_INT)
+	int ao_pin;
+	int mask;
+#endif
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+#if defined(SUPPORT_GPIO_AO_INT)
+	ao_pin = find_gpio_ao_int(pc, selector);
+	if (ao_pin >= 0) {
+		mask = 1 << ao_pin;
+
+		r = readl(pc->gpio_ao_int_regs_base + 0x18); // GPIO_OE
+		if (r & mask)
+			return 1; /* enable */
+		else
+			return 0; /* disable */
+	}
+#endif
+
+	r = readl(pc->gpioxt_regs_base + REG_OFFSET_OUTPUT_ENABLE +
+		  R16_ROF(selector));
+
+	return R32_VAL(r, R16_BOF(selector));
 }
 
 // set to output: 0:ok: OE=1,O=value
@@ -1010,6 +1489,36 @@ int sppctl_gpio_direction_output(struct gpio_chip *chip, unsigned int selector,
 	sppctl_gpio_unmux_irq(chip, selector);
 
 	return 0;
+}
+
+// set to output: 0:ok: OE=1,O=value
+int sppctl_gpio_direction_output_query(struct gpio_chip *chip,
+				       unsigned int selector)
+{
+	struct sppctlgpio_chip_t *pc;
+#if defined(SUPPORT_GPIO_AO_INT)
+	int ao_pin;
+	int mask;
+#endif
+	u32 r;
+
+	pc = (struct sppctlgpio_chip_t *)gpiochip_get_data(chip);
+
+#if defined(SUPPORT_GPIO_AO_INT)
+	ao_pin = find_gpio_ao_int(pc, selector);
+	if (ao_pin >= 0) {
+		mask = 1 << ao_pin;
+
+		r = readl(pc->gpio_ao_int_regs_base + 0x14); // GPIO_O
+		if (r & mask)
+			return 1;
+		else
+			return 0;
+	}
+#endif
+	r = readl(pc->gpioxt_regs_base + REG_OFFSET_OUTPUT + R16_ROF(selector));
+
+	return R32_VAL(r, R16_BOF(selector));
 }
 
 // get value for signal: 0=low | 1=high | -err
@@ -1165,8 +1674,8 @@ void sppctl_gpio_dbg_show(struct seq_file *seq, struct gpio_chip *chip)
 		seq_printf(seq, " %s",
 			   (sppctl_gpio_is_inverted(chip, i) ? "inv" : "   "));
 		seq_printf(seq, " %s",
-			   (sppctl_gpio_is_open_drain_mode(chip, i) ? "oDr" :
-									    ""));
+			   (sppctl_gpio_open_drain_mode_query(chip, i) ? "oDr" :
+									       ""));
 		seq_puts(seq, "\n");
 	}
 }
