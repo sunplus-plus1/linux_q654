@@ -3,7 +3,7 @@
  * Driver for Sunplus MIPI CSI-2 Receiver
  *
  * Copyright Sunplus Technology Co., Ltd.
- * 	  All rights reserved.
+ * All rights reserved.
  *
  * Based on Renesas R-Car MIPI CSI-2 Receiver driver
  */
@@ -975,7 +975,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_async_subdev *asd)
 {
 	struct csi2_dev *priv = notifier_to_csi2(notifier);
-	int pad;
+	int pad, ret = 0;
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
@@ -991,10 +991,20 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 	dev_dbg(priv->dev, "Bound %s pad: %d\n", subdev->name, pad);
 
-	return media_create_pad_link(&subdev->entity, pad,
+	ret = media_create_pad_link(&subdev->entity, pad,
 				     &priv->subdev.entity, 0,
 				     MEDIA_LNK_FL_ENABLED |
 				     MEDIA_LNK_FL_IMMUTABLE);
+	if (ret) {
+		dev_err(priv->dev, "Error adding link from %s to %s",
+			subdev->entity.name, priv->subdev.entity.name);
+		return ret;
+	}
+
+	/* Inherit controls from subdev */
+	priv->subdev.ctrl_handler = subdev->ctrl_handler;
+
+	return 0;
 }
 
 static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,
