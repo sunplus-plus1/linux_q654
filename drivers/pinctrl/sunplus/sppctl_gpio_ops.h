@@ -33,60 +33,212 @@ void sppctl_gpio_first_master_set(struct gpio_chip *chip, unsigned int selector,
 				  enum MUX_FIRST_MG_t first_sel,
 				  enum MUX_MASTER_IG_t master_sel);
 
-// is inv: INVERTED(1) | NORMAL(0)
-int sppctl_gpio_is_inverted(struct gpio_chip *chip, unsigned int selector);
-// set (I|O)inv
+/*
+ * @value
+ *  1: Invert input signal on a pin.
+ *  0: Normalize input signal on a pin.
+ */
 void sppctl_gpio_input_invert_set(struct gpio_chip *chip, unsigned int selector,
 				  unsigned int value);
+
+/*
+ * On input signal is inverted, return 1
+ * On input signal is normal, return 0
+ */
+int sppctl_gpio_input_invert_query(struct gpio_chip *chip,
+				   unsigned int selector);
+/*
+ * @value
+ *  1: Invert output signal on a pin.
+ *  0: Normalize output signal on a pin.
+ */
 void sppctl_gpio_output_invert_set(struct gpio_chip *chip,
 				   unsigned int selector, unsigned int value);
 
-// set driving strength in uA
+/*
+ * On output signal is inverted, return 1
+ * On output signal is normal, return 0
+ */
+int sppctl_gpio_output_invert_query(struct gpio_chip *chip,
+				    unsigned int selector);
+
+/*
+ * On pin direction is output and output signal is inverted, return 1
+ * On pin direction is input and input signal is normal, return 0
+ */
+int sppctl_gpio_is_inverted(struct gpio_chip *chip, unsigned int selector);
+
+/*
+ * @value
+ *  Driving current in uA.
+ */
 int sppctl_gpio_drive_strength_set(struct gpio_chip *chip,
 				   unsigned int selector, int value);
 
-//voltage mode select
+/*
+ *  Return driving current in uA.
+ */
+int sppctl_gpio_drive_strength_get(struct gpio_chip *chip,
+				   unsigned int selector);
+
+/*
+ * @ms_group
+ *	see definition in vol_ms_group.
+ * @value
+ *  1: Select 1.8V voltage mode for DVIO.
+ *  0: Select 3.0V voltage mode for DVIO.
+ */
 int sppctl_gpio_voltage_mode_select_set(struct gpio_chip *chip,
 					enum vol_ms_group ms_group,
 					unsigned int value);
 
-// enable/disable schmitt trigger 0:disable 1:enable
+/*
+ * @value
+ *  1: Enable schmitt trigger
+ *  0: Disable schmitt trigger
+ */
 int sppctl_gpio_schmitt_trigger_set(struct gpio_chip *chip,
 				    unsigned int selector, int value);
 
-//enable/disable slew rate control 0:disable 1:enable
+/*
+ * On schmitt trigger is enabled, return 1
+ * On schmitt trigger is disabled, return 0
+ */
+int sppctl_gpio_schmitt_trigger_query(struct gpio_chip *chip,
+				      unsigned int selector);
+
+/*
+ * @value
+ *  1: Enable slew-rate-control
+ *  0: Disable slew-rate-control
+ *
+ * Notice:
+ *  This function is for GPIO only, excluding DVIO.
+ *  If selector indicates a DVIO pin, it returns -EINVAL.
+ */
 int sppctl_gpio_slew_rate_control_set(struct gpio_chip *chip,
 				      unsigned int selector,
 				      unsigned int value);
 
-/* pull-up */
+/*
+ * On slew-rate-control is enabled, return 1
+ * On slew-rate-control is disabled, return 0
+ *
+ * Notice:
+ *  This function is for GPIO only, excluding DVIO.
+ *  If selector indicates a DVIO pin, it returns -EINVAL.
+ */
+int sppctl_gpio_slew_rate_control_query(struct gpio_chip *chip,
+					unsigned int selector);
+
 int sppctl_gpio_pull_up(struct gpio_chip *chip, unsigned int selector);
 
-/* pull-down */
+/*
+ * On pull-up is enabled, return 1
+ * On pull-up is disabled, return 0
+ */
+int sppctl_gpio_pull_up_query(struct gpio_chip *chip, unsigned int selector);
+
 int sppctl_gpio_pull_down(struct gpio_chip *chip, unsigned int selector);
 
-/* strongly pull-up; for GPIO only */
+/*
+ * On pull-down is enabled, return 1
+ * On pull-down is disabled, return 0
+ */
+int sppctl_gpio_pull_down_query(struct gpio_chip *chip, unsigned int selector);
+
+/*
+ * Notice:
+ *  This function is for GPIO only, excluding DVIO.
+ *  If selector indicates a DVIO pin, it returns -EINVAL.
+ */
 int sppctl_gpio_strong_pull_up(struct gpio_chip *chip, unsigned int selector);
+
+/*
+ * On strong-pull-up is enabled, return 1
+ * On strong-pull-up is disabled, return 0
+ *
+ * Notice:
+ *  This function is for GPIO only, excluding DVIO.
+ *  If selector indicates a DVIO pin, it returns -EINVAL.
+ */
+int sppctl_gpio_strong_pull_up_query(struct gpio_chip *chip,
+				     unsigned int selector);
 
 /* high-Z; */
 int sppctl_gpio_high_impedance(struct gpio_chip *chip, unsigned int selector);
 
+/*
+ * On pin is in high-z mode, return 1
+ * On pin is not in high-z mode, return 0
+ */
+int sppctl_gpio_high_impedance_query(struct gpio_chip *chip,
+				     unsigned int selector);
+
 /* bias disable */
 int sppctl_gpio_bias_disable(struct gpio_chip *chip, unsigned int selector);
 
-/* input enable or disable */
+/*
+ * On all bias signals on a pin are diabled, return 1
+ * On not all bias signals on a pin are diabled, return 0
+ */
+int sppctl_gpio_bias_disable_query(struct gpio_chip *chip,
+				   unsigned int selector);
+
+/*
+ * @value
+ *  1: Enable input
+ *  0: Disable input
+ */
 int sppctl_gpio_input_enable_set(struct gpio_chip *chip, unsigned int selector,
 				 int value);
 
-// enable/disable output: 0:disable, 1:enable
+/*
+ * On input is enabled, return 1
+ * On input is disabled, return 0
+ */
+int sppctl_gpio_input_enable_query(struct gpio_chip *chip,
+				   unsigned int selector);
+
+/*
+ * @value
+ *  1: Enable output
+ *  0: Disable output
+ */
 int sppctl_gpio_output_enable_set(struct gpio_chip *chip, unsigned int selector,
 				  int value);
 
-// is open-drain: YES(1) | NON(0)
-int sppctl_gpio_is_open_drain_mode(struct gpio_chip *chip,
-				   unsigned int selector);
+/*
+ * On output is enabled, return 1
+ * On output is disabled, return 0
+ */
+int sppctl_gpio_output_enable_query(struct gpio_chip *chip,
+				    unsigned int selector);
+
+/*
+ * On output signal is high if output signal is not inverted, return 1
+ * On output signal is low if output signal is not inverted, return 0
+ *
+ * On output signal is low if output signal is inverted, return 1
+ * On output signal is high if output signal is inverted, return 0
+ */
+int sppctl_gpio_direction_output_query(struct gpio_chip *chip,
+				       unsigned int selector);
+
+/*
+ * @value
+ *  1: Set pin into open-drain mode
+ *  0: Set pin outfrom open-drain mode
+ */
 void sppctl_gpio_open_drain_mode_set(struct gpio_chip *chip,
 				     unsigned int selector, unsigned int value);
+
+/*
+ * On pin is in open-drain mode, return 1
+ * On pin is not in open-drain mode, return 0
+ */
+int sppctl_gpio_open_drain_mode_query(struct gpio_chip *chip,
+				      unsigned int selector);
 
 int sppctl_gpio_request(struct gpio_chip *chip, unsigned int selector);
 void sppctl_gpio_free(struct gpio_chip *chip, unsigned int selector);

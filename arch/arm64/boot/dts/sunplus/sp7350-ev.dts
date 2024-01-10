@@ -1343,7 +1343,7 @@
 			clocks = <&imx708_clk>;
 			clock-names = "inclk";
 			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-			vana2-supply = <&imx708_vana2_1v8>;/* 1.8v */
+			vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
 			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
 			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
 
@@ -2984,8 +2984,6 @@
 		max_channels = <4>;
 #if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		num_channels = <1>;
-#elif defined(OV5647_IN4)
-	num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
 		num_channels = <2>;
