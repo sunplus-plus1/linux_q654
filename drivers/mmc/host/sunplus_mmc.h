@@ -19,7 +19,7 @@
 
 #define MEASUREMENT_SIGNAL //timing measurement
 //#define SPMMC_SOFTPAD
-//#define SPMMC_DMA_ALLOC
+//#define SPMMC_DMA_ALLOC //Enable:software workaround for sector=128, Disable: HW sector=8
 
 #define SPMMC_SUPPORT_VOLTAGE_1V8
 #define SPMMC_EMMC_VCCQ_1V8
@@ -28,7 +28,12 @@
 #define SPMMC_MIN_CLK	400000
 #define SPMMC_MAX_CLK	400000000
 
-#define SPMMC_MAX_BLK_COUNT 65536
+#ifdef SPMMC_DMA_ALLOC
+#define SPMMC_SOFTWAVE_MAX_SECTORS 128
+#define SPMMC_MAX_BLK_COUNT 2560 /*2560*512=1310720Bytes, 1 sector size=1.3MB*/
+#else
+#define SPMMC_MAX_BLK_COUNT 65536 /*65536*512=33554432Bytes, 1 sector size=3.3MB*/
+#endif
 #define SPMMC_MAX_TUNABLE_DLY 7
 #define SPMMC_SYS_CLK	360000000
 #define __rsvd_regs(l) __append_suffix(l, __COUNTER__)
