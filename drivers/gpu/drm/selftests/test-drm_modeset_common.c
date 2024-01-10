@@ -16,7 +16,11 @@ static int __init test_drm_modeset_init(void)
 {
 	int err;
 
+	pr_info("Testing DRM modeset start...\n");
+
 	err = run_selftests(selftests, ARRAY_SIZE(selftests), NULL);
+
+	pr_info("Testing DRM modeset end\n");
 
 	return err > 0 ? 0 : err;
 }

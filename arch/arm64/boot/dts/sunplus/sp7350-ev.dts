@@ -1526,8 +1526,8 @@
 		#size-cells = <0>;
 
 		raspberrypi_lcd: lcd@45 {
-			compatible = "raspberrypi,7inch-touchscreen-panel";
-			//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+			//compatible = "raspberrypi,7inch-touchscreen-panel";
+			compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
 			reg = <0x45>;
 			port {
 				panel_dsi_port: endpoint {
