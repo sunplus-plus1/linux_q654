@@ -10,6 +10,8 @@ char const **unq_grps;
 size_t unique_groups_nums;
 struct grp2fp_map_t *g2fp_maps;
 
+#define IS_DVIO(pin) ((pin) >= 20 && (pin) <= 79)
+
 #define PIN_CONFIG_INPUT_INVERT (PIN_CONFIG_END + 1)
 #define PIN_CONFIG_OUTPUT_INVERT (PIN_CONFIG_END + 2)
 #define PIN_CONFIG_SLEW_RATE_CTRL (PIN_CONFIG_END + 3)
@@ -129,37 +131,122 @@ static int sppctl_pinconf_get(struct pinctrl_dev *pctldev,
 	struct gpio_chip *chip;
 	unsigned int param;
 	unsigned int arg = 0;
+	int ret = 0;
+	int tmp;
 
 	pctrl = pinctrl_dev_get_drvdata(pctldev);
 	chip = &pctrl->gpiod->chip;
 	param = pinconf_to_config_param(*config);
 
-	KDBG(pctldev->dev, "%s(%d)\n", __func__, pin_selector);
+	//KDBG(pctldev->dev, "%s(%d)%d\n", __func__, pin_selector, param);
 	switch (param) {
-	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
-		if (!sppctl_gpio_is_open_drain_mode(chip, pin_selector))
-			return -EINVAL;
+	case PIN_CONFIG_OUTPUT_ENABLE:
+		tmp = sppctl_gpio_output_enable_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
 		break;
-
 	case PIN_CONFIG_OUTPUT:
-		if (!sppctl_gpio_first_get(chip, pin_selector))
-			return -EINVAL;
-		if (!sppctl_gpio_master_get(chip, pin_selector))
-			return -EINVAL;
-		if (sppctl_gpio_get_direction(chip, pin_selector) != 0)
-			return -EINVAL;
-		arg = sppctl_gpio_get_value(chip, pin_selector);
-		break;
-	case PIN_CONFIG_DRIVE_STRENGTH:
-		break;
+		if (!sppctl_gpio_first_get(chip, pin_selector)) {
+			ret = -EINVAL;
+			break;
+		}
 
+		if (!sppctl_gpio_master_get(chip, pin_selector)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (!sppctl_gpio_output_enable_query(chip, pin_selector)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		tmp = sppctl_gpio_direction_output_query(chip, pin_selector);
+		if (tmp < 0)
+			ret = -EINVAL;
+		else
+			arg = tmp;
+		break;
+	case PIN_CONFIG_OUTPUT_INVERT:
+		tmp = sppctl_gpio_output_invert_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+		tmp = sppctl_gpio_open_drain_mode_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
+	case PIN_CONFIG_DRIVE_STRENGTH_UA:
+		tmp = sppctl_gpio_drive_strength_get(chip, pin_selector);
+		if (tmp < 0)
+			ret = -EINVAL;
+		else
+			arg = tmp;
+		break;
+	case PIN_CONFIG_INPUT_ENABLE:
+		tmp = sppctl_gpio_input_enable_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
+	case PIN_CONFIG_INPUT_INVERT:
+		tmp = sppctl_gpio_input_invert_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
+	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
+		tmp = sppctl_gpio_schmitt_trigger_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
+	case PIN_CONFIG_SLEW_RATE_CTRL:
+		tmp = sppctl_gpio_slew_rate_control_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
+	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
+		tmp = sppctl_gpio_high_impedance_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
+	case PIN_CONFIG_BIAS_PULL_UP:
+		tmp = sppctl_gpio_pull_up_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		else if (IS_DVIO(pin_selector))
+			arg = 35 * 1000;
+		else
+			arg = 48 * 1000;
+		break;
+	case PIN_CONFIG_BIAS_STRONG_PULL_UP:
+		tmp = sppctl_gpio_strong_pull_up_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		else
+			arg = 2100;
+		break;
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		tmp = sppctl_gpio_pull_down_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		else if (IS_DVIO(pin_selector))
+			arg = 28 * 1000;
+		else
+			arg = 44 * 1000;
+		break;
+	case PIN_CONFIG_BIAS_DISABLE:
+		tmp = sppctl_gpio_bias_disable_query(chip, pin_selector);
+		if (tmp <= 0)
+			ret = -EINVAL;
+		break;
 	default:
-		//KINF(pctldev->dev, "%s(%d) skipping:x%X\n", __func__, pin_selector, param);
-		return -ENOTSUPP;
+		ret = -ENOTSUPP;
+		break;
 	}
-	*config = pinconf_to_config_packed(param, arg);
+	if (!ret)
+		*config = pinconf_to_config_packed(param, arg);
 
-	return 0;
+	return ret;
 }
 
 static int sppctl_pinconf_set(struct pinctrl_dev *pctldev,
@@ -277,7 +364,45 @@ static int sppctl_pinconf_group_get(struct pinctrl_dev *pctldev,
 				    unsigned int group_selector,
 				    unsigned long *config)
 {
-	KDBG(pctldev->dev, "%s(%d)\n", __func__, group_selector);
+	unsigned long old_conf = 0;
+	unsigned long cur_conf = *config;
+	unsigned int pin;
+	int ret;
+	int i;
+	int j;
+	int k;
+
+	if (group_selector < GPIS_list_size) {
+		pin = group_selector;
+		return sppctl_pinconf_get(pctldev, pin, config);
+	}
+
+	for (i = 0; i < list_func_nums; i++) {
+		struct func_t func = list_funcs[i];
+
+		for (j = 0; j < func.gnum; j++) {
+			struct sppctlgrp_t group = func.grps[j];
+
+			if (strcmp(group.name, unq_grps[group_selector]) == 0) {
+				for (k = 0; k < group.pnum; k++) {
+					pin = group.pins[k];
+
+					ret = sppctl_pinconf_get(pctldev, pin,
+								 &cur_conf);
+					if (ret)
+						return ret;
+
+					if (k == 0)
+						old_conf = cur_conf;
+
+					if (cur_conf != old_conf)
+						return -EINVAL;
+				}
+			}
+		}
+	}
+
+	*config = cur_conf;
 
 	return 0;
 }
@@ -291,6 +416,11 @@ static int sppctl_pinconf_group_set(struct pinctrl_dev *pctldev,
 	int i;
 	int j;
 	int k;
+
+	if (group_selector < GPIS_list_size) {
+		pin = group_selector;
+		return sppctl_pinconf_set(pctldev, pin, config, num_configs);
+	}
 
 	for (i = 0; i < list_func_nums; i++) {
 		struct func_t func = list_funcs[i];
@@ -393,7 +523,7 @@ int sppctl_pinmux_get_function_groups(struct pinctrl_dev *pctldev,
 	case F_OFF_G: // pin-group
 		if (!func->grps)
 			break;
-		*num_groups = f->gnum;
+		*num_groups = func->gnum;
 		*groups = (const char *const *)func->grps_sa;
 		break;
 
@@ -403,10 +533,17 @@ int sppctl_pinmux_get_function_groups(struct pinctrl_dev *pctldev,
 		break;
 	}
 #else
-	*num_groups = unique_groups_nums;
-	*groups = unq_grps;
+	struct func_t *func = &list_funcs[selector];
+
+	if (!strcmp("GPIO", func->name)) {
+		*num_groups = GPIS_list_size;
+		*groups = sppctlgpio_list_s;
+	} else {
+		*num_groups = func->gnum;
+		*groups = (const char *const *)func->grps_sa;
+	}
 #endif
-	KDBG(pctldev->dev, "%s(fid:%d) %d\n", __func__, selector, *num_groups);
+	//KDBG(pctldev->dev, "%s(fid:%d) %d\n", __func__, selector, *num_groups);
 	return 0;
 }
 
@@ -640,8 +777,9 @@ static int sppctl_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	struct grp2fp_map_t g2fpm = g2fp_maps[selector];
 	struct func_t *func = &list_funcs[g2fpm.f_idx];
 
-	KDBG(pctldev->dev, "grp-pins g:%d f_idx:%d,g_idx:%d freg:%d...\n",
-	     selector, g2fpm.f_idx, g2fpm.g_idx, func->freg);
+	//KDBG(pctldev->dev, "grp-pins g:%d f_idx:%d,g_idx:%d freg:%d...\n",
+	//     selector, g2fpm.f_idx, g2fpm.g_idx, func->freg);
+
 	*num_pins = 0;
 
 	// MUX | GPIO | IOP: 1 pin -> 1 group

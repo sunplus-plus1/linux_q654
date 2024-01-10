@@ -530,7 +530,16 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 		}
 
 		#if 1
-		if ((disp_dev->out_res.width == 800) && (disp_dev->out_res.height == 480)) {
+		if ((disp_dev->out_res.width == 240) && (disp_dev->out_res.height == 320)) {
+			value = 0;
+			value |= 0x80000000;
+			value |= 0x00780050;
+			value |= (0x7f800000 | (0x14 << 7));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+			value = 0x07800780; //PLLH MIPITX CLK = 14.583MHz
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+		} else if ((disp_dev->out_res.width == 800) && (disp_dev->out_res.height == 480)) {
 			value = 0;
 			value |= 0x00780058;
 			value |= (0x7f800000 | (0x15 << 7));
@@ -1088,7 +1097,8 @@ static const u32 sp_mipitx_input_timing_dsi[11][10] = {
 	{1920, 1080, 0x2c,  0, 0x58,  0, 0x1, 0x4, 0x28, 1080}, /* 1080P */
 	{ 480, 1280, 0x4,  0, 0x4,  0, 0x1,0x10, 0x10, 1280}, /* 480x1280 */
 	{ 128,  128, 0x4,  0, 0x5,  0, 0x1, 0x2, 0x12,  128}, /* 128x128 */
-	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x23, 320}, /* 240x320 */
+	//{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x23, 320}, /* 240x320 */
+	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x19, 320}, /* 240x320 */
 	{3840,   64, 0x4,  0, 0x5,  0, 0x1, 0x6, 0x1c,   64}, /* 3840x64 */
 	{3840, 2880, 0x4,  0, 0x5,  0, 0x1, 0x6, 0x26, 2880}, /* 3840x2880 */
 	{ 800,  480, 0x70,  0, 0x5,  0, 0x2, 0x7, 0x15,  480}, /* 800x480 */
@@ -1134,7 +1144,8 @@ void sp7350_mipitx_video_mode_setting(void)
 
 		value = 0;
 		if ((disp_dev->mipitx_lane == 1) && (width == 240) && (height == 320))
-			value |= SP7350_MIPITX_HSA_SET(0x6) |
+			//value |= SP7350_MIPITX_HSA_SET(0x6) |
+			value |= SP7350_MIPITX_HSA_SET(sp_mipitx_input_timing_dsi[time_cnt][2]) |
 				SP7350_MIPITX_HFP_SET(sp_mipitx_input_timing_dsi[time_cnt][3]) |
 				SP7350_MIPITX_HBP_SET(sp_mipitx_input_timing_dsi[time_cnt][4]);
 		else

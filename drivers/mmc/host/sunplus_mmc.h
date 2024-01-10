@@ -19,6 +19,7 @@
 
 #define MEASUREMENT_SIGNAL //timing measurement
 //#define SPMMC_SOFTPAD
+//#define SPMMC_DMA_ALLOC
 
 #define SPMMC_SUPPORT_VOLTAGE_1V8
 #define SPMMC_EMMC_VCCQ_1V8
@@ -278,6 +279,13 @@ struct spmmc_host {
 	struct sg_mapping_iter sg_miter; /* for pio mode to access sglist */
 	int dma_use_int; /* should raise irq when dma done */
 	struct spmmc_tuning_info tuning_info;
+
+#ifdef SPMMC_DMA_ALLOC
+	struct mmc_data	*data;
+	unsigned int		*buffer;
+	unsigned int		buf_size;
+	dma_addr_t		buf_phys_addr;
+#endif
 };
 
 #endif /* #ifndef __SPMMC_H__ */

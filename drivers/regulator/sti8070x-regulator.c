@@ -23,13 +23,18 @@
 #define STI8070X_NUM_VOLTS 64
 #define STI8070X_MIN_UV 712500
 #define STI8070X_STEP_UV 12500
+#define STI8070X_MIN_SEL 0
 
-#define STI8070X_VSEL_MASK GENMASK(5, 0)
 #define STI8070X_ENABLE_MASK BIT(7)
-#define STI8070X_PGOOD_MASK BIT(7)
-
+#define STI8070X_ENABLE_VALUE 1
+#define STI8070X_DISABLE_VALUE 0
 #define STI8070X_ENABLE_TIMEUS 800
 #define STI8070X_POLL_ENABLE_TIMEUS 100
+#define STI8070X_ENABLE_IS_INVERTED 0
+
+#define STI8070X_VSEL_MASK GENMASK(5, 0)
+#define STI8070X_PGOOD_MASK BIT(7)
+
 #define STI8070X_OFF_DELAY_TIMEUS 30
 
 #define STI8070X_DISCHARGE_MASK BIT(7)
@@ -164,6 +169,7 @@ static int sti8070x_regulator_register(struct sti8070x_priv *priv)
 	reg_desc->n_voltages = STI8070X_NUM_VOLTS;
 	reg_desc->min_uV = STI8070X_MIN_UV;
 	reg_desc->uV_step = STI8070X_STEP_UV;
+	reg_desc->linear_min_sel = STI8070X_MIN_SEL;
 
 	if (priv->vsel_pin == 0)
 		reg_desc->vsel_reg = STI8070X_REG_VSEL0;
@@ -178,6 +184,12 @@ static int sti8070x_regulator_register(struct sti8070x_priv *priv)
 		reg_desc->enable_reg = STI8070X_REG_VSEL1;
 
 	reg_desc->enable_mask = STI8070X_ENABLE_MASK;
+	reg_desc->enable_val = STI8070X_ENABLE_VALUE;
+	reg_desc->disable_val = STI8070X_DISABLE_VALUE;
+	reg_desc->enable_is_inverted = STI8070X_ENABLE_IS_INVERTED;
+	reg_desc->enable_time = STI8070X_ENABLE_TIMEUS;
+	reg_desc->poll_enabled_time = STI8070X_POLL_ENABLE_TIMEUS;
+
 	reg_desc->ramp_delay_table = sti8070x_ramp_delay_table;
 	reg_desc->n_ramp_values = ARRAY_SIZE(sti8070x_ramp_delay_table);
 	reg_desc->ramp_reg = STI8070X_REG_CTRL;
@@ -186,8 +198,7 @@ static int sti8070x_regulator_register(struct sti8070x_priv *priv)
 	reg_desc->active_discharge_mask = STI8070X_DISCHARGE_MASK;
 	reg_desc->active_discharge_on = STI8070X_DISCHARGE_ON;
 	reg_desc->active_discharge_off = STI8070X_DISCHARGE_OFF;
-	reg_desc->enable_time = STI8070X_ENABLE_TIMEUS;
-	reg_desc->poll_enabled_time = STI8070X_POLL_ENABLE_TIMEUS;
+
 	reg_desc->off_on_delay = STI8070X_OFF_DELAY_TIMEUS;
 	reg_desc->of_map_mode = sti8070x_of_map_mode;
 
@@ -303,10 +314,8 @@ static int sti8070x_probe(struct i2c_client *i2c)
 	return sti8070x_regulator_register(priv);
 }
 
-static const struct of_device_id __maybe_unused sti8070x_device_table[] = {
-	{ .compatible = "tmi,sti8070x" },
-	{}
-};
+static const struct of_device_id __maybe_unused
+	sti8070x_device_table[] = { { .compatible = "tmi,sti8070x" }, {} };
 MODULE_DEVICE_TABLE(of, sti8070x_device_table);
 
 static struct i2c_driver sti8070x_driver = {
