@@ -286,10 +286,12 @@ struct spmmc_host {
 	struct spmmc_tuning_info tuning_info;
 
 #ifdef SPMMC_DMA_ALLOC
+	struct device		*dev;
 	struct mmc_data	*data;
 	unsigned int		*buffer;
 	unsigned int		buf_size;
 	dma_addr_t		buf_phys_addr;
+	dma_addr_t		buf_addr;
 #endif
 };
 
