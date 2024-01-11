@@ -2358,7 +2358,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 #ifdef SPMMC_DMA_ALLOC
 	host->dev = &pdev->dev;
-	host->buffer = devm_kmalloc(&pdev->dev, SPMMC_MAX_BLK_COUNT * 512, GFP_KERNEL);
+	host->buffer = devm_kmalloc(&pdev->dev, SPMMC_MAX_BLK_COUNT * 512, GFP_KERNEL | GFP_DMA);
 	if (!host->buffer) {
 		spmmc_pr(ERROR, "%s: failed to allocate bytes for bounce buffer, falling back to single segments\n",
 			   mmc_hostname(mmc));
