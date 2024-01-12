@@ -1,5 +1,11 @@
-config VIP9000_NPU
-	tristate "ML Inference Processor VIP9000-NPU driver"
+config v6_4_13_8
+	tristate "VIP9000-NPU driver v6.4.13.8"
 	default n
 	help
-		 Support for the ML Inference Processor VIP9000-NPU driver
+		 Support for the ML Inference Processor VIP9000-NPU driver v6.4.13.8
+
+config v6_4_15_9
+	tristate "VIP9000-NPU driver v6.4.15.9"
+	default n
+	help
+		 Support for the ML Inference Processor VIP9000-NPU driver v6.4.15.9
