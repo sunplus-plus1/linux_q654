@@ -235,10 +235,17 @@
 			no-map;
 		};
 
-		/* video v4l2 0x80000000~0x88000000, total 64M */
+		/* video v4l2 0x80000000~0x88000000, total 128M */
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
+			no-map;
+		};
+
+		/* display drm reserve memory 0x88000000 ~ 0x8fffffff, total 128M */
+		drm_disp_reserve: drm@88000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x88000000 0x0 0x18000000>;
 			no-map;
 		};
 
@@ -3471,6 +3478,12 @@
 	fb_disp_device {
 		compatible = "sunplus,sp7350-fb";
 		memory-region = <&fb_disp_reserve>;
+		status = "okay";
+	};
+
+	drm_display_engine {
+		compatible = "sunplus,sp7350-display-engine";
+		memory-region = <&drm_disp_reserve>;
 		status = "okay";
 	};
 
