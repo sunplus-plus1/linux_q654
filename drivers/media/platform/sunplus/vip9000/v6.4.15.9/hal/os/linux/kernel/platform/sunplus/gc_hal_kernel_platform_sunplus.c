@@ -270,7 +270,7 @@ gceSTATUS _SetPower(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctB
 			return gcvSTATUS_OUT_OF_RESOURCES;
 		}
 		dev_dbg(dev, "NPU HW clock enable\n");
-		udelay(200);
+		udelay(300);
 	} else {
 		/*NPU HW clock disable*/
 		clk_disable(clk);
