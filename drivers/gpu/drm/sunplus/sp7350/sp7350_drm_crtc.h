@@ -17,6 +17,8 @@ struct drm_pending_vblank_event;
 struct sp7350_drm_crtc {
 	struct drm_crtc crtc;
 
+	struct drm_crtc_state base;
+
 	struct drm_pending_vblank_event *event;
 	int dpms;
 
@@ -25,6 +27,9 @@ struct sp7350_drm_crtc {
 	unsigned int line_size;
 	bool started;
 };
+
+#define to_vkms_crtc_state(target)\
+	container_of(target, struct vkms_crtc_state, base)
 
 int sp7350_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   struct drm_plane *primary, struct drm_plane *cursor);
