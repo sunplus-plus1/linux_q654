@@ -17,59 +17,61 @@
 #include <asm/cacheflush.h>
 #include <crypto/scatterwalk.h>
 
+#define SP_CRYPTO_PRI		(0x200)
+
 //#define SP_CRYPTO_LOCAL_TEST
 //#define USE_REF
-//#define USE_ERF				// use event_ring_full intr
-//#define TRACE_WAIT_ORDER		// trace wait/wake_up order
+//#define USE_ERF		// use event_ring_full intr
+//#define TRACE_WAIT_ORDER	// trace wait/wake_up order
 
-#define CACHE_LINE_SIZE			(32)
-#define CACHE_LINE_MASK			(CACHE_LINE_SIZE - 1)
-#define CACHE_ALIGN(l)			ALIGN(l, CACHE_LINE_SIZE)
+#define CACHE_LINE_SIZE		(32)
+#define CACHE_LINE_MASK		(CACHE_LINE_SIZE - 1)
+#define CACHE_ALIGN(sz)		ALIGN(sz, CACHE_LINE_SIZE)
 
-#define TRB_SIZE			sizeof(struct trb_s)
+#define TRB_SIZE		sizeof(struct trb_s)
 
-#define AES_RING(p)			((p)->rings[0])
-#define HASH_RING(p)			((p)->rings[1])
-#define TRB_RING(p)			((p)->dd->rings[(p)->type - SP_CRYPTO_AES])
+#define AES_RING(p)		((p)->rings[0])
+#define HASH_RING(p)		((p)->rings[1])
+#define TRB_RING(p)		((p)->dd->rings[(p)->type - SP_CRYPTO_AES])
 
-#define HASH_CMD_RING_SIZE		(PAGE_SIZE / TRB_SIZE)
-#define HASH_CMD_RING_SG		(1)
-#define AES_CMD_RING_SIZE		(PAGE_SIZE / TRB_SIZE)
-#define AES_CMD_RING_SG			(1)
-#define HASH_EVENT_RING_SIZE		(HASH_CMD_RING_SIZE * HASH_CMD_RING_SG)
-#define AES_EVENT_RING_SIZE		(AES_CMD_RING_SIZE * AES_CMD_RING_SG)
+#define HASH_CMD_RING_SIZE	(PAGE_SIZE / TRB_SIZE)
+#define HASH_CMD_RING_SG	(1)
+#define AES_CMD_RING_SIZE	(PAGE_SIZE / TRB_SIZE)
+#define AES_CMD_RING_SG		(1)
+#define HASH_EVENT_RING_SIZE	(HASH_CMD_RING_SIZE * HASH_CMD_RING_SG)
+#define AES_EVENT_RING_SIZE	(AES_CMD_RING_SIZE * AES_CMD_RING_SG)
 
-#define TRB_RING_ALIGN_MASK		(32 - 1)
+#define TRB_RING_ALIGN_MASK	(32 - 1)
 
 #define BUS_SMALL_ENDIAN
-#define dev_reg				u32
-#define BITS_PER_REG			(32)
-#define SP_TRB_PARA_LEN			(12)
+#define dev_reg			u32
+#define BITS_PER_REG		(32)
+#define SP_TRB_PARA_LEN		(12)
 
-#define AUTODMA_CRCR_ADDR_MASK		(~TRB_RING_ALIGN_MASK)
-#define AUTODMA_CRCR_CP			(1 << 4)
-#define AUTODMA_CRCR_CRR		(1 << 3)
-#define AUTODMA_CRCR_CS			(1 << 1)
-#define AUTODMA_CRCR_RCS		(1 << 0)
+#define AUTODMA_CRCR_ADDR_MASK	(~TRB_RING_ALIGN_MASK)
+#define AUTODMA_CRCR_CP		(1 << 4)
+#define AUTODMA_CRCR_CRR	(1 << 3)
+#define AUTODMA_CRCR_CS		(1 << 1)
+#define AUTODMA_CRCR_RCS	(1 << 0)
 
-#define AUTODMA_RCSR_EN			(1 << 31)
-#define AUTODMA_RCSR_ERF		(1 << 30)
-#define AUTODMA_RCSR_SIZE_MASK		(0xffff)
+#define AUTODMA_RCSR_EN		(1 << 31)
+#define AUTODMA_RCSR_ERF	(1 << 30)
+#define AUTODMA_RCSR_SIZE_MASK	(0xffff)
 
 #define AUTODMA_ERBAR_ERBA_MASK	(~TRB_RING_ALIGN_MASK)
-#define AUTODMA_TRIGGER			(1)
+#define AUTODMA_TRIGGER		(1)
 
 #ifdef BUS_SMALL_ENDIAN
-#define AUTODMA_CRCR_FLAGS		(AUTODMA_CRCR_RCS | AUTODMA_CRCR_CP)
+#define AUTODMA_CRCR_FLAGS	(AUTODMA_CRCR_RCS | AUTODMA_CRCR_CP)
 #else
-#define AUTODMA_CRCR_FLAGS		(AUTODMA_CRCR_RCS)
+#define AUTODMA_CRCR_FLAGS	(AUTODMA_CRCR_RCS)
 #endif
 
-#define SP_CRYPTO_TRUE			(1)
-#define SP_CRYPTO_FALSE			(0)
+#define SP_CRYPTO_TRUE		(1)
+#define SP_CRYPTO_FALSE		(0)
 
-#define TRB_NORMAL			(1)
-#define TRB_LINK			(2)
+#define TRB_NORMAL		(1)
+#define TRB_LINK		(2)
 
 #define R(r)		readl_relaxed(&reg->r)
 #define W(r, v)		writel_relaxed(v, &reg->r)
@@ -224,28 +226,32 @@ struct crypto_ctx_s {
 #define M_SHA3_384	0x00020001
 #define M_SHA3_512	0x00030001
 #define M_GHASH		0x00000002
+#define M_SHA2		0x00000003
+#define M_SHA256	0x00000003
+#define M_SHA512	0x00010003
+#define M_POLY1305	0x00000004
 #define M_UPDATE	(0 << 7)	// 0: update
 #define M_FINAL		(1 << 7)	// 1: final
 
 #define AES_CMD_RD_IF	(1 << 8)
 #define HASH_CMD_RD_IF	(1 << 7)
-#define AES_TRB_IF		(1 << 6)
-#define HASH_TRB_IF		(1 << 5)
-#define AES_ERF_IF		(1 << 4)
-#define HASH_ERF_IF		(1 << 3)
-#define AES_DMA_IF		(1 << 2)
-#define HASH_DMA_IF		(1 << 1)
-#define RSA_DMA_IF		(1 << 0)
+#define AES_TRB_IF	(1 << 6)
+#define HASH_TRB_IF	(1 << 5)
+#define AES_ERF_IF	(1 << 4)
+#define HASH_ERF_IF	(1 << 3)
+#define AES_DMA_IF	(1 << 2)
+#define HASH_DMA_IF	(1 << 1)
+#define RSA_DMA_IF	(1 << 0)
 
 #define AES_CMD_RD_IE	(1 << 8)
 #define HASH_CMD_RD_IE	(1 << 7)
-#define AES_TRB_IE		(1 << 6)
-#define HASH_TRB_IE		(1 << 5)
-#define AES_ERF_IE		(1 << 4)
-#define HASH_ERF_IE		(1 << 3)
-#define AES_DMA_IE		(1 << 2)
-#define HASH_DMA_IE		(1 << 1)
-#define RSA_DMA_IE		(1 << 0)
+#define AES_TRB_IE	(1 << 6)
+#define HASH_TRB_IE	(1 << 5)
+#define AES_ERF_IE	(1 << 4)
+#define HASH_ERF_IE	(1 << 3)
+#define AES_DMA_IE	(1 << 2)
+#define HASH_DMA_IE	(1 << 1)
+#define RSA_DMA_IE	(1 << 0)
 
 struct sp_crypto_reg {
 
@@ -308,10 +314,11 @@ struct sp_crypto_reg {
 	 * when DMA finishes
 	 */
 	dev_reg RSADMACS;
-#define RSA_DMA_ENABLE  (1 << 0)
-#define RSA_DATA_BE     (1 << 3)
-#define RSA_DATA_LE     (0 << 3)
-#define RSA_DMA_SIZE(x) (x << 16)
+
+#define SEC_DMA_ENABLE  (1 << 0)
+#define SEC_DATA_BE     (1 << 3)
+#define SEC_DATA_LE     (0 << 3)
+#define SEC_DMA_SIZE(x) (x << 16)
 
 	/* 0.13 RSA Source Data pointer (RSASPTR)
 	 * SPTR        31:0    RW Source(X) address Z=X**Y (mod N),

@@ -5,240 +5,230 @@
  */
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/poly1305.h>
 #include <crypto/hash.h>
+#include <crypto/ghash.h>
 #include <crypto/md5.h>
-#include <crypto/scatterwalk.h>
 #include <crypto/sha.h>
+#include <crypto/sha3.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
-#include <linux/kfifo.h>
-#include <linux/delay.h>
 
 #include "sp-crypto.h"
 #include "sp-hash.h"
 
-#define SHA3_224_DIGEST_SIZE	(224 / 8)
-#define SHA3_224_BLOCK_SIZE		(200 - 2 * SHA3_224_DIGEST_SIZE)
-#define SHA3_256_DIGEST_SIZE	(256 / 8)
-#define SHA3_256_BLOCK_SIZE		(200 - 2 * SHA3_256_DIGEST_SIZE)
-#define SHA3_384_DIGEST_SIZE	(384 / 8)
-#define SHA3_384_BLOCK_SIZE		(200 - 2 * SHA3_384_DIGEST_SIZE)
-#define SHA3_512_DIGEST_SIZE	(512 / 8)
-#define SHA3_512_BLOCK_SIZE		(200 - 2 * SHA3_512_DIGEST_SIZE)
+//#define DEBUG
+#ifdef DEBUG
+#define DBG_PRNT	pr_info
+#define DBG_DUMP	dump_buf
+#else
+#define DBG_PRNT(...)
+#define DBG_DUMP(...)
+#endif
 
-#define SHA3_BUF_SIZE			(200)
-
-#define GHASH_BLOCK_SIZE		(16)
-#define GHASH_DIGEST_SIZE		(16)
-#define GHASH_KEY_SIZE			(16)
-
-#define WORKBUF_SIZE			(65536)
+#define SHA3_BUF_SIZE	(200)
+#define WORK_BUF_SIZE	(65536)
 
 struct sp_hash_ctx {
-	struct crypto_ctx_s base;
-
-	// working buffer: blocks(src) + key(ghash only) + buf(digest)
-
-	u8 *blocks;
-	dma_addr_t blocks_phy;
+	u32 mode;
 	u32 blocks_size;
-	u32 bytes; // bytes in blocks
-
-	// ghash only
-	u8 *key;
-	dma_addr_t key_phy;
-
-	u8 *buf;
-	dma_addr_t buf_phy;
-
-	u32 alg_type;
-	u32 digest_len;
-	u32 block_size;
-
-	u64 byte_count;	// for MD5 padding
+	u32 hash_offset;
+	u32 key_offset;
+	u32 bytes;	// bytes in blocks
+	u64 byte_count; // total bytes
+	u32 skip;	// first N bytes is KEY
+	u8 key[GHASH_BLOCK_SIZE]; // GHASH only
 };
 
-static int do_blocks(struct sp_hash_ctx *ctx, u32 len)
+struct sp_hash_priv {
+	/* WORKBUF: blocks + key + hash */
+	u8* va;
+	dma_addr_t pa;
+
+	bool done;
+	wait_queue_head_t wait;
+	struct mutex lock;
+} sp_hash;
+
+static struct sp_crypto_dev *crypto;
+static struct device *dev;
+static struct sp_crypto_reg *reg;
+
+static void do_blocks(struct sp_hash_ctx *ctx, u32 len, u32 flag)
 {
-	int ret = 0;
-	struct crypto_ctx_s *ctx0 = &ctx->base;
-	struct trb_s *trb;
+	DBG_PRNT("%s (%08x): %u\n", __FUNCTION__, ctx->mode | flag, len);
+	if (len) {
+		if (ctx->skip) {
+			memcpy(sp_hash.va + ctx->key_offset, sp_hash.va, ctx->skip);
+			len -= ctx->skip;
+		}
 
-	SP_CRYPTO_TRACE();
-	//dump_buf(ctx->blocks, len);
+		W(HASHPAR0, ctx->mode | flag);
+		W(HASHSPTR, sp_hash.pa + ctx->skip);
+		DBG_PRNT("HASHPAR0 = %08x\n", R(HASHPAR0));
+		DBG_PRNT("HASHPAR1 = %08x\n", R(HASHPAR1));
+		DBG_PRNT("HASHPAR2 = %08x\n", R(HASHPAR2));
+		DBG_PRNT("HASHSPTR = %08x\n", R(HASHSPTR));
+		DBG_PRNT("HASHDPTR = %08x\n", R(HASHDPTR));
+		DBG_PRNT("HASHDMACS = %08x\n", SEC_DMA_SIZE(len) | SEC_DMA_ENABLE);
 
-	trb = crypto_ctx_queue(ctx0,
-		ctx->blocks_phy,	// src
-		ctx->buf_phy,		// dst
-		ctx->buf_phy,		// iv
-		ctx->key_phy,		// key
-		len, ctx0->mode, true);
-	if (!trb)
-		return -EINTR;
+		sp_hash.done = false;
+		smp_wmb(); /* memory barrier */
+		W(HASHDMACS, SEC_DMA_SIZE(len) | SEC_DMA_ENABLE);
+		wait_event_interruptible_timeout(sp_hash.wait, sp_hash.done, 60*HZ);
 
-	SP_CRYPTO_TRACE();
-	ret = crypto_ctx_exec(ctx0);
-	//if (ret == -ERESTARTSYS) ret = 0;
-
-	return ret;
+		ctx->bytes = ctx->skip = 0;
+	}
 }
 
-static int sp_cra_init(struct crypto_tfm *tfm, u32 mode)
+static int sp_shash_init(struct shash_desc *desc)
 {
+	struct crypto_tfm *tfm = &desc->tfm->base;
 	struct sp_hash_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 bsize, len1, len2;
+	u32 bsize = crypto_tfm_alg_blocksize(tfm);
+	u32 digest_len = crypto_shash_alg(desc->tfm)->digestsize;
+	u32 hash_size, key_size;
+	u32 *hash;
 
-	SP_CRYPTO_TRACE();
+	ctx->mode = crypto_tfm_alg_priority(tfm) & ~SP_CRYPTO_PRI;
+	ctx->skip = (ctx->mode == M_POLY1305) ? POLY1305_KEY_SIZE : 0;
 
-	crypto_ctx_init(&ctx->base, SP_CRYPTO_HASH);
-	ctx->blocks = dma_alloc_coherent(SP_CRYPTO_DEV, WORKBUF_SIZE, &ctx->blocks_phy, GFP_KERNEL);
-	if (!ctx->blocks)
-		return -ENOMEM;
+	hash_size = ((ctx->mode & M_MMASK) == M_SHA3) ? SHA3_BUF_SIZE : (ctx->skip ?: digest_len);
+	key_size = (ctx->mode == M_GHASH) ? GHASH_BLOCK_SIZE : (ctx->skip ?: bsize);
 
-	ctx->base.mode = mode;
-	ctx->alg_type = crypto_tfm_alg_type(tfm);
-	ctx->block_size = bsize = crypto_tfm_alg_blocksize(tfm);
+	ctx->hash_offset = WORK_BUF_SIZE - hash_size;
+	ctx->key_offset = ctx->hash_offset - key_size;
+	ctx->blocks_size = ctx->key_offset / bsize * bsize;
+	hash = (u32 *)(sp_hash.va + ctx->hash_offset);
 
-	switch (mode) {
+	switch (ctx->mode) {
 	case M_MD5:
-		len1 = MD5_DIGEST_SIZE;
-		len2 = bsize;
+		hash[0] = MD5_H0;
+		hash[1] = MD5_H1;
+		hash[2] = MD5_H2;
+		hash[3] = MD5_H3;
 		break;
-	case M_GHASH:
-		len1 = GHASH_DIGEST_SIZE;
-		len2 = GHASH_KEY_SIZE;
+	case M_SHA256:
+		hash[0] = cpu_to_be32(SHA256_H0);
+		hash[1] = cpu_to_be32(SHA256_H1);
+		hash[2] = cpu_to_be32(SHA256_H2);
+		hash[3] = cpu_to_be32(SHA256_H3);
+		hash[4] = cpu_to_be32(SHA256_H4);
+		hash[5] = cpu_to_be32(SHA256_H5);
+		hash[6] = cpu_to_be32(SHA256_H6);
+		hash[7] = cpu_to_be32(SHA256_H7);
 		break;
-	default: // M_SHA3
-		len1 = SHA3_BUF_SIZE;
-		len2 = bsize;
+	case M_SHA512:
+		((u64*)hash)[0] = cpu_to_be64(SHA512_H0);
+		((u64*)hash)[1] = cpu_to_be64(SHA512_H1);
+		((u64*)hash)[2] = cpu_to_be64(SHA512_H2);
+		((u64*)hash)[3] = cpu_to_be64(SHA512_H3);
+		((u64*)hash)[4] = cpu_to_be64(SHA512_H4);
+		((u64*)hash)[5] = cpu_to_be64(SHA512_H5);
+		((u64*)hash)[6] = cpu_to_be64(SHA512_H6);
+		((u64*)hash)[7] = cpu_to_be64(SHA512_H7);
+		break;
+	default:
+		memset(hash, 0, hash_size);
 		break;
 	}
-	len1 = WORKBUF_SIZE - len1;
-	len2 = len1 - len2;
-	ctx->blocks_size = len2 / bsize * bsize;
 
-	ctx->buf = ctx->blocks + len1;
-	ctx->buf_phy = ctx->blocks_phy + len1;
-	ctx->key = ctx->blocks + len2;
-	ctx->key_phy = ctx->blocks_phy + len2;
+	ctx->byte_count = 0;
+	ctx->bytes = 0;
+	DBG_PRNT("[%08x] %u %u %u\n", ctx->mode, bsize, digest_len, ctx->blocks_size);
 
 	return 0;
 }
 
-static int sp_cra_md5_init(struct crypto_tfm *tfm)
+static void sp_hash_lock(struct sp_hash_ctx *ctx)
 {
-	return sp_cra_init(tfm, M_MD5);
-}
-
-static int sp_cra_ghash_init(struct crypto_tfm *tfm)
-{
-	return sp_cra_init(tfm, M_GHASH);
-}
-
-static int sp_cra_sha3_224_init(struct crypto_tfm *tfm)
-{
-	return sp_cra_init(tfm, M_SHA3_224);
-}
-
-static int sp_cra_sha3_256_init(struct crypto_tfm *tfm)
-{
-	return sp_cra_init(tfm, M_SHA3_256);
-}
-
-static int sp_cra_sha3_384_init(struct crypto_tfm *tfm)
-{
-	return sp_cra_init(tfm, M_SHA3_384);
-}
-
-static int sp_cra_sha3_512_init(struct crypto_tfm *tfm)
-{
-	return sp_cra_init(tfm, M_SHA3_512);
-}
-
-static void sp_cra_exit(struct crypto_tfm *tfm)
-{
-	struct sp_hash_ctx *ctx = crypto_tfm_ctx(tfm);
-
-	SP_CRYPTO_TRACE();
-	dma_free_coherent(SP_CRYPTO_DEV, WORKBUF_SIZE, ctx->blocks, ctx->blocks_phy);
-	crypto_ctx_exit(&ctx->base);
-}
-
-static int sp_shash_export(struct shash_desc *desc, void *out)
-{
-	struct sp_hash_ctx *ctx = crypto_tfm_ctx(&desc->tfm->base);
-
-	memcpy(out, ctx->buf, ctx->digest_len);
-	//pr_info("%s: ", __func__); dump_buf(out, ctx->digest_len);
-
-	return 0;
-}
-
-static int sp_shash_import(struct shash_desc *desc, const void *in)
-{
-	struct sp_hash_ctx *ctx = crypto_tfm_ctx(&desc->tfm->base);
-
-	memcpy(ctx->buf, in, ctx->digest_len);
-
-	return 0;
+	if (!ctx->byte_count) {
+		mutex_lock(&sp_hash.lock);
+		if (ctx->mode == M_GHASH)
+			memcpy(sp_hash.va + ctx->key_offset, ctx->key, sizeof(ctx->key));
+		W(HASHDPTR, sp_hash.pa + ctx->hash_offset);
+		W(HASHPAR1, sp_hash.pa + ctx->hash_offset);
+		W(HASHPAR2, sp_hash.pa + ctx->key_offset);
+	}
 }
 
 static int sp_shash_update(struct shash_desc *desc, const u8 *data,
 		  u32 len)
 {
-	struct sp_hash_ctx *ctx = crypto_tfm_ctx(&desc->tfm->base);
-	const u32 bsize = ctx->blocks_size;
-	u32 avail = bsize - ctx->bytes; // free bytes in blocks
-	int ret = 0;
+	if (len) {
+		struct sp_hash_ctx *ctx = crypto_tfm_ctx(&desc->tfm->base);
+		const u32 blocks_size = ctx->blocks_size;
+		u32 avail = blocks_size - ctx->bytes; // free bytes in blocks
 
-	//SP_CRYPTO_TRACE();
+		DBG_PRNT("%px[%u] %u\n", data, ctx->bytes, len);
+		sp_hash_lock(ctx);
+		ctx->byte_count += len;
 
-	ctx->byte_count += len;
+		if (avail >= len) {
+			memcpy(sp_hash.va + ctx->bytes, data, len); // append to blocks
+		} else {
+			do {
+				memcpy(sp_hash.va + ctx->bytes, data, avail); // fill blocks
+				do_blocks(ctx, blocks_size, 0);
 
-	if (avail >= len) {
-		memcpy(ctx->blocks + ctx->bytes, data, len); // append to blocks
-	} else {
-		do {
-			memcpy(ctx->blocks + ctx->bytes, data, avail); // fill blocks
-			ret = do_blocks(ctx, bsize);
-			if (ret)
-				goto out;
+				data += avail;
+				len -= avail;
 
-			data += avail;
-			len -= avail;
+				avail = blocks_size;
+			} while (len > blocks_size);
 
-			ctx->bytes = 0;
-			avail = bsize;
-		} while (len > bsize);
-
-		memcpy(ctx->blocks, data, len); // saved to blocks
+			memcpy(sp_hash.va, data, len); // saved to blocks
+		}
+		ctx->bytes += len;
 	}
-	ctx->bytes += len;
 
-out:
-	return ret;
+	return 0;
 }
 
 static int sp_shash_final(struct shash_desc *desc, u8 *out)
 {
-	struct sp_hash_ctx *ctx = crypto_tfm_ctx(&desc->tfm->base);
-	const u32 bsize = ctx->block_size;
+	struct crypto_tfm *tfm = &desc->tfm->base;
+	struct sp_hash_ctx *ctx = crypto_tfm_ctx(tfm);
+	u32 bsize = crypto_tfm_alg_blocksize(tfm);
+	u32 digest_len = crypto_shash_alg(desc->tfm)->digestsize;
 	u32 t = ctx->bytes % bsize;
-	u8 *p = ctx->blocks + ctx->bytes;
+	u8 *p = sp_hash.va + ctx->bytes;
 	int padding; // padding zero bytes
+	u32 poly1305_padding = 0;
 	int ret = 0;
 
-	SP_CRYPTO_TRACE();
+	sp_hash_lock(ctx);
 
 	// padding
-	switch (ctx->base.mode) {
+	switch (ctx->mode) {
 	case M_MD5:
+	case M_SHA256:
 		padding = (bsize * 2 - t - 1 - sizeof(u64)) % bsize;
 		*p++ = 0x80;
 		break;
+	case M_SHA512:
+		padding = (bsize * 2 - t - 1 - sizeof(u128)) % bsize;
+		*p++ = 0x80;
+		break;
 	case M_GHASH:
-		padding = t ? (bsize - t) : 0;
+		padding = (t || !ctx->byte_count) ? (bsize - t) : 0;
+		break;
+	case M_POLY1305:
+		if (ctx->byte_count < POLY1305_KEY_SIZE) {
+			ret = -ENOKEY;
+			goto out;
+		}
+		padding = (ctx->byte_count == POLY1305_KEY_SIZE) || t;
+		if (padding) {
+			poly1305_padding = (1 << 8);
+			if (ctx->byte_count == POLY1305_KEY_SIZE) {
+				padding = bsize;
+			} else {
+				padding = bsize - t - 1;
+				*p++ = 1;
+			}
+		}
 		break;
 	default: // SHA3
 		padding = bsize - t - 1;
@@ -249,280 +239,208 @@ static int sp_shash_final(struct shash_desc *desc, u8 *out)
 	memset(p, 0, padding); // padding zero
 	p += padding;
 
-	switch (ctx->base.mode) {
+	switch (ctx->mode) {
 	case M_MD5:
 		((u32 *)p)[0] = ctx->byte_count << 3;
 		((u32 *)p)[1] = ctx->byte_count >> 29;
 		p += sizeof(u64);
 		break;
+	case M_SHA256:
+		((u64 *)p)[0] = cpu_to_be64(ctx->byte_count << 3);
+		p += sizeof(u64);
+		break;
+	case M_SHA512:
+		((u64 *)p)[0] = cpu_to_be64(ctx->byte_count >> 61);
+		((u64 *)p)[1] = cpu_to_be64(ctx->byte_count << 3);
+		p += sizeof(u64) << 1;
+		break;
 	case M_GHASH:
+	case M_POLY1305:
 		break;
 	default: // SHA3
 		*(p - 1) |= 0x80;
 		break;
 	}
 
-	// process blocks
-	//pr_info("%s: ", __func__); dump_buf(ctx->block, p - ctx->block);
-	ctx->base.mode |= M_FINAL;
-	ret = do_blocks(ctx, p - ctx->blocks);
-	ctx->base.mode &= ~M_FINAL;
+	//DBG_DUMP(sp_hash.va, p - sp_hash.va);
+	do_blocks(ctx, p - sp_hash.va, M_FINAL | poly1305_padding);
 
-	mutex_unlock(&HASH_RING(ctx->base.dd)->lock);
-	if (!ret)
-		sp_shash_export(desc, out);
-
+	memcpy(out, sp_hash.va + ctx->hash_offset, digest_len);
+	//DBG_DUMP(out, digest_len);
+out:
+	mutex_unlock(&sp_hash.lock);
 	return ret;
 }
 
 static int sp_shash_ghash_setkey(struct crypto_shash *tfm,
 			const u8 *key, unsigned int keylen)
 {
-
 	struct sp_hash_ctx *ctx = crypto_tfm_ctx(&tfm->base);
 
-	SP_CRYPTO_TRACE();
-	// TODO: dirty hack code, fix me
-	if (keylen & 1) {
-		// called from crypto_gcm_setkey (gcm.c)
-		keylen &= ~1;
-		ctx->digest_len = GHASH_DIGEST_SIZE;
-	}
-
-	//dump_stack();
-	//dump_buf(key, keylen);
-	if (keylen != GHASH_KEY_SIZE) {
-		//crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		SP_CRYPTO_ERR("unsupported GHASH key length: %d\n", keylen);
+	if (keylen != GHASH_BLOCK_SIZE)
 		return -EINVAL;
-	}
 
 	memcpy(ctx->key, key, keylen);
 
 	return 0;
 }
 
-static int sp_shash_init(struct shash_desc *desc)
-{
-	struct sp_hash_ctx *ctx = crypto_tfm_ctx(&desc->tfm->base);
-	struct crypto_ctx_s *ctx0 = &ctx->base;
-
-	SP_CRYPTO_TRACE();
-	//pr_info("!!! %s: %d\n", __func__, ctx->digest_len);
-	//dump_stack();
-	if (!ctx->digest_len) {
-		// called from crypto_create_session (CIOCGSESSION)
-		ctx->digest_len = crypto_shash_alg(desc->tfm)->digestsize;
-	} else	{
-		// called from crypto_run (CIOCCRYPT) or gcm_hash (gcm.c)
-		u32 l = (ctx0->mode & M_SHA3) ? SHA3_BUF_SIZE : ctx->digest_len;
-
-		ctx->byte_count = 0;
-		ctx->bytes = 0;
-
-		if (ctx0->mode == M_MD5) {
-			((u32 *)ctx->buf)[0] = 0x67452301;
-			((u32 *)ctx->buf)[1] = 0xefcdab89;
-			((u32 *)ctx->buf)[2] = 0x98badcfe;
-			((u32 *)ctx->buf)[3] = 0x10325476;
-		} else {
-			memset(ctx->buf, 0, l);
+static struct shash_alg hash_algs[] = {
+	{
+		.digestsize	= GHASH_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.setkey		= sp_shash_ghash_setkey,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "ghash",
+			.cra_driver_name= "sp-ghash",
+			.cra_blocksize	= GHASH_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_GHASH,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
+		},
+	},
+	{
+		.digestsize	= MD5_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "md5",
+			.cra_driver_name= "sp-md5",
+			.cra_blocksize	= MD5_HMAC_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_MD5,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
+		},
+	},
+	{
+		.digestsize	= SHA3_224_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "sha3-224",
+			.cra_driver_name= "sp-sha3-224",
+			.cra_blocksize	= SHA3_224_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_224,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
+		},
+	},
+	{
+		.digestsize 	= SHA3_256_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "sha3-256",
+			.cra_driver_name= "sp-sha3-256",
+			.cra_blocksize	= SHA3_256_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_256,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
+		},
+	},
+	{
+		.digestsize	= SHA3_384_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "sha3-384",
+			.cra_driver_name= "sp-sha3-384",
+			.cra_blocksize	= SHA3_384_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_384,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
+		},
+	},
+	{
+		.digestsize	= SHA3_512_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "sha3-512",
+			.cra_driver_name= "sp-sha3-512",
+			.cra_blocksize	= SHA3_512_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_512,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
+		},
+	},
+	{
+		.digestsize	= SHA256_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "sha256",
+			.cra_driver_name= "sp-sha256",
+			.cra_blocksize	= SHA256_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_SHA256,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
 		}
-
-		// can't do mutex_lock in hash_update, we must lock it @ here
-		SP_CRYPTO_TRACE();
-		mutex_lock(&HASH_RING(ctx0->dd)->lock);
-	}
-
-	//SP_CRYPTO_INF("sp_shash_init: %08x %d %d --- %px %px %px\n", ctx->base.mode, ctx->digest_len, ctx->block_size, ctx->buf, ctx->block, ctx->base.mode == M_GHASH ? ctx->key : NULL);
-
-	return 0;
-}
-
-static struct shash_alg sp_shash_alg[] = {
-	{
-		.digestsize	=	MD5_DIGEST_SIZE,
-		.init		=	sp_shash_init,
-		.update		=	sp_shash_update,
-		.final		=	sp_shash_final,
-		.export		=	sp_shash_export,
-		.import		=	sp_shash_import,
-		.base		=	{
-			.cra_name		=	"md5",
-			.cra_driver_name =	"sp-md5",
-			.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
-			.cra_blocksize	=	MD5_HMAC_BLOCK_SIZE,
-			.cra_module		=	THIS_MODULE,
-			.cra_priority	=	300,
-			.cra_ctxsize	=	sizeof(struct sp_hash_ctx),
-			.cra_alignmask	=	0,
-			.cra_init		=	sp_cra_md5_init,
-			.cra_exit		=	sp_cra_exit,
-		},
 	},
 	{
-		.digestsize =	GHASH_DIGEST_SIZE,
-		.init		=	sp_shash_init,
-		.setkey		=	sp_shash_ghash_setkey,
-		.update		=	sp_shash_update,
-		.final		=	sp_shash_final,
-		.base		=	{
-			.cra_name		=	"ghash",
-			.cra_driver_name =	"sp-ghash",
-			.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
-			.cra_blocksize	=	GHASH_BLOCK_SIZE,
-			.cra_module		=	THIS_MODULE,
-			.cra_priority	=	300,
-			.cra_ctxsize	=	sizeof(struct sp_hash_ctx),
-			.cra_alignmask	=	0,
-			.cra_init		=	sp_cra_ghash_init,
-			.cra_exit		=	sp_cra_exit,
-		},
+		.digestsize	= SHA512_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "sha512",
+			.cra_driver_name= "sp-sha512",
+			.cra_blocksize	= SHA512_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_SHA512,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
+		}
 	},
 	{
-		.digestsize =	SHA3_224_DIGEST_SIZE,
-		.init		=	sp_shash_init,
-		.update		=	sp_shash_update,
-		.final		=	sp_shash_final,
-		.export		=	sp_shash_export,
-		.import		=	sp_shash_import,
-		.base		=	{
-			.cra_name		=	"sha3-224",
-			.cra_driver_name =	"sp-sha3-224",
-			.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
-			.cra_blocksize	=	SHA3_224_BLOCK_SIZE,
-			.cra_module		=	THIS_MODULE,
-			.cra_priority	=	300,
-			.cra_ctxsize	=	sizeof(struct sp_hash_ctx),
-			.cra_alignmask	=	0,
-			.cra_init		=	sp_cra_sha3_224_init,
-			.cra_exit		=	sp_cra_exit,
-		},
-	},
-	{
-		.digestsize =	SHA3_256_DIGEST_SIZE,
-		.init		=	sp_shash_init,
-		.update		=	sp_shash_update,
-		.final		=	sp_shash_final,
-		.export		=	sp_shash_export,
-		.import		=	sp_shash_import,
-		.base		=	{
-			.cra_name		=	"sha3-256",
-			.cra_driver_name =	"sp-sha3-256",
-			.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
-			.cra_blocksize	=	SHA3_256_BLOCK_SIZE,
-			.cra_module		=	THIS_MODULE,
-			.cra_priority	=	300,
-			.cra_ctxsize	=	sizeof(struct sp_hash_ctx),
-			.cra_alignmask	=	0,
-			.cra_init		=	sp_cra_sha3_256_init,
-			.cra_exit		=	sp_cra_exit,
-		},
-	},
-	{
-		.digestsize =	SHA3_384_DIGEST_SIZE,
-		.init		=	sp_shash_init,
-		.update		=	sp_shash_update,
-		.final		=	sp_shash_final,
-		.export		=	sp_shash_export,
-		.import		=	sp_shash_import,
-		.base		=	{
-			.cra_name		=	"sha3-384",
-			.cra_driver_name =	"sp-sha3-384",
-			.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
-			.cra_blocksize	=	SHA3_384_BLOCK_SIZE,
-			.cra_module		=	THIS_MODULE,
-			.cra_priority	=	300,
-			.cra_ctxsize	=	sizeof(struct sp_hash_ctx),
-			.cra_alignmask	=	0,
-			.cra_init		=	sp_cra_sha3_384_init,
-			.cra_exit		=	sp_cra_exit,
-		},
-	},
-	{
-		.digestsize =	SHA3_512_DIGEST_SIZE,
-		.init		=	sp_shash_init,
-		.update		=	sp_shash_update,
-		.final		=	sp_shash_final,
-		.export		=	sp_shash_export,
-		.import		=	sp_shash_import,
-		.base		=	{
-			.cra_name		=	"sha3-512",
-			.cra_driver_name =	"sp-sha3-512",
-			.cra_flags		=	CRYPTO_ALG_TYPE_SHASH,
-			.cra_blocksize	=	SHA3_512_BLOCK_SIZE,
-			.cra_module		=	THIS_MODULE,
-			.cra_priority	=	300,
-			.cra_ctxsize	=	sizeof(struct sp_hash_ctx),
-			.cra_alignmask	=	0,
-			.cra_init		=	sp_cra_sha3_512_init,
-			.cra_exit		=	sp_cra_exit,
+		.digestsize	= POLY1305_DIGEST_SIZE,
+		.init		= sp_shash_init,
+		.update		= sp_shash_update,
+		.final		= sp_shash_final,
+		.base		= {
+			.cra_name	= "poly1305",
+			.cra_driver_name= "sp-poly1305",
+			.cra_blocksize	= POLY1305_BLOCK_SIZE,
+			.cra_module	= THIS_MODULE,
+			.cra_priority	= SP_CRYPTO_PRI | M_POLY1305,
+			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
 		},
 	},
 };
 
+int sp_hash_init(void)
+{
+	if (!dev) {
+		crypto = sp_crypto_alloc_dev(SP_CRYPTO_HASH);
+		dev = crypto->device;
+		reg = crypto->reg;
+		init_waitqueue_head(&sp_hash.wait);
+		mutex_init(&sp_hash.lock);
+		sp_hash.va = dma_alloc_coherent(dev, WORK_BUF_SIZE, &sp_hash.pa, GFP_KERNEL);
+	}
+	return crypto_register_shashes(hash_algs, ARRAY_SIZE(hash_algs));
+}
+EXPORT_SYMBOL(sp_hash_init);
+
 int sp_hash_finit(void)
 {
-	SP_CRYPTO_TRACE();
-	crypto_unregister_shashes(sp_shash_alg, ARRAY_SIZE(sp_shash_alg));
+	crypto_unregister_shashes(hash_algs, ARRAY_SIZE(hash_algs));
 	return 0;
 }
 EXPORT_SYMBOL(sp_hash_finit);
 
-int sp_hash_init(void)
-{
-	SP_CRYPTO_TRACE();
-	return crypto_register_shashes(sp_shash_alg, ARRAY_SIZE(sp_shash_alg));
-}
-EXPORT_SYMBOL(sp_hash_init);
-
 void sp_hash_irq(void *devid, u32 flag)
 {
-	struct sp_crypto_dev *dev = devid;
-	struct sp_crypto_reg *reg __maybe_unused = dev->reg;
-	struct trb_ring_s *ring = HASH_RING(dev);
-
-#ifdef TRACE_WAIT_ORDER
-	SP_CRYPTO_INF(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %s:%08x %08x %08x %d\n",
-		__func__, flag, reg->HASH_ER, reg->HASHDMA_CRCR, kfifo_len(&ring->f));
-#else
-	SP_CRYPTO_INF(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> %s:%08x %08x %08x\n",
-		__func__, flag, reg->HASH_ER, reg->HASHDMA_CRCR);
-#endif
-	if (flag & HASH_TRB_IF) { // autodma/trb done
-		struct trb_s *trb = ring->head;
-
-		ring->irq_count++;
-		if (!trb->cc)
-			dump_trb(trb);
-
-		while (trb->cc) {
-			//dump_trb(trb);
-			if (trb->ioc) {
-				struct crypto_ctx_s *ctx = A2P(trb->priv, base_va);
-
-				if (ctx->type == SP_CRYPTO_HASH) {
-#ifdef TRACE_WAIT_ORDER
-					wait_queue_head_t *w;
-
-					BUG_ON(!kfifo_get(&ring->f, &w));
-					BUG_ON(w != &ctx->wait);
-#endif
-					ctx->done = true;
-					if (ctx->mode & M_FINAL)
-						wake_up(&ctx->wait);
-				} else
-					pr_info("HASH_SKIP\n");
-			}
-			trb = trb_put(ring);
-		}
+	if (flag & HASH_DMA_IF) {
+		sp_hash.done = true;
+		wake_up(&sp_hash.wait);
 	}
-#ifdef USE_ERF
-	if (flag & HASH_ERF_IF) { // event ring full
-		SP_CRYPTO_ERR("\n!!! %08x %08x\n", reg->HASHDMA_ERBAR, reg->HASHDMA_ERDPR);
-		reg->HASHDMA_RCSR |= AUTODMA_RCSR_ERF; // clear event ring full
-	}
-#endif
-	SP_CRYPTO_INF("\n");
 }
 EXPORT_SYMBOL(sp_hash_irq);

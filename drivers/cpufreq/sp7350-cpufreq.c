@@ -38,6 +38,10 @@ struct sp7350_cpu_dvfs_info {
 #define MEMCTL_SLOW	0x303
 #define MEMCTL_VDDMIN	0x321
 #define VDEFAULT	800000
+#define L3_F(f)		((f) * 4 / 5)	// L3 freq based on cpu freq
+#define MIN_F_SLOW	500000000	// min freq in slow mode
+#define MAX_F_SLOW	1200000000	// max freq in slow mode
+#define MAX_F_DEFAULT	1800000000	// max freq in default mode
 extern void sp_clkc_ca55_memctl(u32 val);
 
 static LIST_HEAD(dvfs_info_list);
@@ -62,18 +66,18 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 	struct sp7350_cpu_dvfs_info *info = policy->driver_data;
 	struct device *cpu_dev = info->cpu_dev;
 	struct dev_pm_opp *opp;
-	unsigned long freq_hz, old_freq = clk_get_rate(cpu_clk);
-	int vproc, old_vproc, ret;
+	unsigned long new_freq, old_freq = clk_get_rate(cpu_clk);
+	int new_vproc, old_vproc, ret;
 
-	freq_hz = freq_table[index].frequency * 1000;
-	//pr_debug("\n>>> %s: %lu -> %lu\n", __FUNCTION__, clk_get_rate(cpu_clk), freq_hz);
-	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_hz);
+	new_freq = freq_table[index].frequency * 1000;
+	//pr_debug("\n>>> %s: %lu -> %lu\n", __FUNCTION__, clk_get_rate(cpu_clk), new_freq);
+	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &new_freq);
 	if (IS_ERR(opp)) {
 		pr_err("cpu%d: failed to find OPP for %ld\n",
-		policy->cpu, freq_hz);
+		policy->cpu, new_freq);
 		return PTR_ERR(opp);
 	}
-	vproc = dev_pm_opp_get_voltage(opp);
+	new_vproc = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
 	if (info->proc_reg) {
@@ -87,9 +91,9 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		* If the new voltage is higher than the current voltage,
 		* scale up voltage first.
 		*/
-		if (old_vproc < vproc) {
-			//pr_debug(">>> scale up voltage from %d to %d\n", old_vproc, vproc);
-			ret = regulator_set_voltage(info->proc_reg, vproc, vproc + VOLT_TOL);
+		if (old_vproc < new_vproc) {
+			//pr_debug(">>> scale up voltage from %d to %d\n", old_vproc, new_vproc);
+			ret = regulator_set_voltage(info->proc_reg, new_vproc, new_vproc + VOLT_TOL);
 			if (ret) {
 				pr_err("cpu%d: failed to scale up voltage!\n",
 				policy->cpu);
@@ -97,23 +101,35 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 			}
 		}
 	}
-	if (old_freq < freq_hz) {
-		sp_clkc_ca55_memctl((freq_hz < 1000000000) ? MEMCTL_SLOW :
-				   ((freq_hz < 1900000000) ? MEMCTL_DEFAULT : MEMCTL_FAST));
 
-		/* Set the cpu_clk to target rate. */
-		ret = clk_set_rate(cpu_clk, freq_hz);
+	if (old_freq < new_freq) {
+		/* WORKAROUND: exit slow mode with freq @ 0.5G */
+		if (old_freq <= MAX_F_SLOW && new_freq > MAX_F_SLOW) {
+			clk_set_rate(info->l3_clk, L3_F(MIN_F_SLOW));
+			clk_set_rate(cpu_clk, MIN_F_SLOW);
+		}
+
+		sp_clkc_ca55_memctl((new_freq <= MAX_F_SLOW) ? MEMCTL_SLOW :
+				   ((new_freq <= MAX_F_DEFAULT) ? MEMCTL_DEFAULT : MEMCTL_FAST));
+
+		/* Set the cpu_clk/L3_clk to target rate. */
+		ret = clk_set_rate(cpu_clk, new_freq);
+		ret = clk_set_rate(info->l3_clk, L3_F(new_freq));
 	}
+	else if (new_freq < old_freq) {
+		/* WORKAROUND: enter slow mode with freq @ 0.5G */
+		if (old_freq > MAX_F_SLOW && new_freq <= MAX_F_SLOW) {
+			clk_set_rate(info->l3_clk, L3_F(MIN_F_SLOW));
+			clk_set_rate(cpu_clk, MIN_F_SLOW);
+			sp_clkc_ca55_memctl(MEMCTL_SLOW);
+		}
 
-	/* Also set l3_clk */
-	ret = clk_set_rate(info->l3_clk, freq_hz * 4 / 5);
+		/* Set the L3_clk/cpu_clk to target rate. */
+		ret = clk_set_rate(info->l3_clk, L3_F(new_freq));
+		ret = clk_set_rate(cpu_clk, new_freq);
 
-	if (freq_hz < old_freq) {
-		/* Set the cpu_clk to target rate. */
-		ret = clk_set_rate(cpu_clk, freq_hz);
-
-		sp_clkc_ca55_memctl((freq_hz < 1000000000) ? MEMCTL_SLOW :
-				   ((freq_hz < 1900000000) ? MEMCTL_DEFAULT : MEMCTL_FAST));
+		sp_clkc_ca55_memctl((new_freq <= MAX_F_SLOW) ? MEMCTL_SLOW :
+				   ((new_freq <= MAX_F_DEFAULT) ? MEMCTL_DEFAULT : MEMCTL_FAST));
 	}
 
 	if (info->proc_reg) {
@@ -121,9 +137,9 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		* If the new voltage is lower than the current voltage,
 		* scale down to the new voltage.
 		*/
-		if (vproc < old_vproc) {
-			//pr_debug(">>> scale down voltage from %d to %d\n", old_vproc, vproc);
-			ret = regulator_set_voltage(info->proc_reg, vproc, vproc + VOLT_TOL);
+		if (new_vproc < old_vproc) {
+			//pr_debug(">>> scale down voltage from %d to %d\n", old_vproc, new_vproc);
+			ret = regulator_set_voltage(info->proc_reg, new_vproc, new_vproc + VOLT_TOL);
 			if (ret) {
 				pr_err("cpu%d: failed to scale down voltage!\n",
 				policy->cpu);

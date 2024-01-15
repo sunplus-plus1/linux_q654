@@ -26,6 +26,8 @@
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
+//#define OV5647_IN4
+//#define IMX708_IN4
 //#define IMX219_IN5
 //#define TP2815_IN0
 //#define TP2815_IN0_1LANE
@@ -117,8 +119,6 @@
 
 		spi0 = &sp_spinor0;
 
-		usb-device0 = &udc0;
-
 		stc0 = &stc;
 		stc1 = &stc_av0;
 		stc2 = &stc_av1;
@@ -196,17 +196,17 @@
 		};
 		vdev0vring0: vdev0vring0@5bf00000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf00000 0x0 0x4000>;
+			reg = <0x0 0x5bf00000 0x0 0x10000>;
 			no-map;
 		};
-		vdev0vring1: vdev0vring1@5bf04000 {
+		vdev0vring1: vdev0vring1@5bf10000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf04000 0x0 0x4000>;
+			reg = <0x0 0x5bf10000 0x0 0x10000>;
 			no-map;
 		};
-		vdev0_reserve: vdev0_reserve@5bf08000 {
+		vdev0_reserve: vdev0_reserve@5bf20000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x5bf08000 0x0 0xf8000>;
+			reg = <0x0 0x5bf20000 0x0 0xe0000>;
 			no-map;
 		};
 
@@ -291,6 +291,18 @@
 		};
 
 		imx219_clk: camera-imx219-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+
+		ov5647_clk: camera-ov5647-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+
+		imx708_clk: camera-imx708-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
@@ -513,6 +525,8 @@
 		regulator-max-microvolt = <800000>;
 		startup-delay-us = <5000>;
 		off-on-delay-us = <5000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&npu_pwr_en_pins>;
 		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
@@ -522,6 +536,8 @@
 		regulator-name = "video_codec_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&video_codec_pwr_en_pins>;
 		gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
@@ -547,6 +563,64 @@
 		regulator-name = "camera_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+	};
+
+	ov5647_avdd_2v8: ov5647_avdd_2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	ov5647_dovdd_1v8: ov5647_dovdd_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ov5647_dvdd_1v5: ov5647_dvdd_1v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_dvdd";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
+
+	imx708_vana1_2v8: imx708_vana1_2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vana1";
+		startup-delay-us = <70000>;
+		off-on-delay-us = <30000>;
+		regulator-min-microvolt = <2700000>;
+		regulator-max-microvolt = <2700000>;
+		regulator-always-on;
+	};
+
+	imx708_vana2_1v8: imx708_vana2_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vana2";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	imx708_vdig_1v1: imx708_vdig_1v1 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vdig";
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-always-on;
+	};
+
+	imx708_vddl_1v8: imx708_vddl_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "camera_vddl";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
 
@@ -1207,7 +1281,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1235,6 +1309,52 @@
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <456000000>;
+				};
+			};
+		};
+#endif
+#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: ov5647@36 {
+			compatible = "ovti,ov5647";
+			reg = <0x36>;
+			clocks = <&ov5647_clk>;
+			avdd-supply = <&ov5647_avdd_2v8>;
+			dovdd-supply = <&ov5647_dovdd_1v8>;
+			dvdd-supply = <&ov5647_dvdd_1v5>;
+
+			port {
+				ov5647_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <297000000>;
+				};
+			};
+		};
+#endif
+#ifdef IMX708_IN4 /* Add imx708 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: imx708@1a {
+			compatible = "sony,imx708";
+			reg = <0x1a>;
+			clocks = <&imx708_clk>;
+			clock-names = "inclk";
+			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
+			vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
+			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
+			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
+
+			port {
+				imx708_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <450000000>;
 				};
 			};
 		};
@@ -1408,8 +1528,8 @@
 		#size-cells = <0>;
 
 		raspberrypi_lcd: lcd@45 {
-			//compatible = "raspberrypi,7inch-touchscreen-panel";
-			compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+			compatible = "raspberrypi,7inch-touchscreen-panel";
+			//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
 			reg = <0x45>;
 			port {
 				panel_dsi_port: endpoint {
@@ -1424,6 +1544,7 @@
 
 		lontium_lt8912b: hdmi@48 {
 			compatible = "lontium,lt8912b";
+			//compatible = "lontium,lt8912b-builtin";
 			reg = <0x48>;
 			//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
 			#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
@@ -1779,7 +1900,7 @@
 		clocks = <&clkc GMAC>;
 		clock-names = "stmmaceth";
 		clock_in_out = "output";
-		clock-frequency = <50000000>;
+		clock-frequency = <125000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
 		reset-names = "rstc_gmac", "rstc_pd_gmac";
 		pinctrl-names = "default";
@@ -1962,7 +2083,7 @@
 		clocks = <&clkc CARD_CTL1>;
 		resets = <&rstc RST_CARD_CTL1>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&sdcard_pins>;
+		pinctrl-0 = <&sdcard_pins &sdcard_cd_pins>;
 		cd-gpios = <&pctl 17 GPIO_ACTIVE_LOW>;
 		delay-val = <0x777110>;
 		bus-width = <4>;
@@ -2109,7 +2230,7 @@
 		compatible = "linux,extcon-usb-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&dwc3id_pins>;
-		id-gpio = <&pctl 99 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pctl 99 GPIO_ACTIVE_HIGH>;
 	};
 
 	usb3drd0: usb3drd0{
@@ -2135,6 +2256,10 @@
 			phys = <&u3phy0>, <&u3phy0>;
 			phy-names = "usb3-phy", "usb2-phy";
 		};
+	};
+
+	spdwc3: spdwc3@f80a1000 {
+		compatible = "sunplus,dwc3";
 	};
 
 	u3phy0: uphy@f80bd000 {
@@ -2851,7 +2976,7 @@
 		resets = <&rstc RST_MIPICSI4>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <4>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2859,7 +2984,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#ifdef IMX219_IN4
+#if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
@@ -2883,6 +3008,32 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_4: endpoint {
 					remote-endpoint = <&imx219_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&ov5647_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef IMX708_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&imx708_4>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -2941,7 +3092,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3465,14 +3616,14 @@
 			 */
 #elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
 		sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
-		sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,osd0_layer = <0 0 800 480 0xd>; /* 0x8 = RGBA8888 */
 		sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,vpp0_layer = <0 0 720 480 800 480 0x2>; /* 0x2 = YUY2 */
 		sp7350,disp_output = <800 480 0x0>; /* 0x0:MIPITX DSI */
 		sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x1:Raising Edge */
+		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
 		sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x0:Sync Pulse */
 		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
 		port {
@@ -3517,7 +3668,7 @@
 		sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
 	#endif
 		sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x1:Raising Edge */
+		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
 		sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
 		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
 #endif
@@ -3830,13 +3981,22 @@
 
 	pctl: pinctrl@f8800080 {
 		compatible = "sunplus,sp7350-pctl";
-		reg = <0x0 0xf8800080 0x0 0x2c>,
-		      <0x0 0xf88032e4 0x0 0x1c>,
-		      <0x0 0xf8803380 0x0 0x180>,
-		      <0x0 0xf8802f80 0x0 0x1c>;
-		reg-names = "moon1", "first", "gpioxt", "gpio_ao_int";
+		reg =
+			<0x0 0xf8800080 0x0 0x2c>,
+			<0x0 0xf8803280 0x0 0x60>,
+			<0x0 0xf88032e4 0x0 0x1c>,
+			<0x0 0xf8803300 0x0 0x80>,
+			<0x0 0xf8803380 0x0 0x180>,
+			<0x0 0xf8802f80 0x0 0x1c>;
+		reg-names = "moon1", "pad_ctl_1", "first", "pad_ctl_2", "gpioxt", "gpio_ao_int";
 		gpio-controller;
 		#gpio-cells = <2>;
+
+		//sunplus,ms-dvio-group-0 = "1V8";
+		//sunplus,ms-dvio-group-1 = "1V8";
+		//sunplus,ms-dvio-ao-group-0 = "1V8";
+		//sunplus,ms-dvio-ao-group-1 = "1V8";
+		//sunplus,ms-dvio-ao-group-2 = "1V8";
 
 		sunplus,ao-pin-prescale = <2500>;
 		sunplus,ao-pin-debounce = <10>;
@@ -3844,148 +4004,242 @@
 		emmc_pins: pinmux_emmc-pins {
 			function = "EMMC";
 			groups = "EMMC";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;	// for HS200
+			//drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_30300_IOL_37200UA>;	// for HS400
 		};
 
 		sdcard_pins: pinmux_sdcard-pins {
 			function = "SD_CARD";
 			groups = "SD_CARD";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;
 		};
 
-		typec_pins: pinmux_typec-pins {
-			sunplus,pins = < SPPCTL_IOPAD(98, SPPCTL_PCTL_G_GPIO, 0, 0) >;
-		};
-
-		dwc3id_pins: pinmux_usb3id-pins {
-			sunplus,pins = < SPPCTL_IOPAD(99, SPPCTL_PCTL_G_GPIO, 0, 0) >;
+		sdcard_cd_pins: pinmux_sdcard_cd-pins {
+			function = "GPIO";
+			pins = "GPIO17";
 		};
 
 		spi_nor_pins: pinmux_spi_nor-pins {
 			function = "SPI_FLASH";
 			groups = "SPI_FLASH";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+			pinconf_d0_d1 {
+				pins = "GPIO26","GPIO23";
+				bias-pull-down;
+			};
 		};
 
 		spi_nand_pins: pinmux_spi_nand-pins {
 			function = "SPI_NAND";
+#if 1 // X1
 			groups = "SPI_NAND_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+			pinconf_d0_d1 {
+				pins = "GPIO30","GPIO33";
+				bias-pull-down;
+			};
+#else // X2
+			groups = "SPI_NAND_X2";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+			pinconf_d0_d1 {
+				pins = "GPIO26","GPIO23";
+				bias-pull-down;
+			};
+#endif
 		};
 
 		para_nand_pins: pinmux_para_nand-pins {
 			function = "PARA_NAND";
 			groups = "PARA_NAND";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+		};
+
+		typec_pins: pinmux_typec-pins {
+			function = "GPIO";
+			pins = "GPIO98";
+		};
+
+		dwc3id_pins: pinmux_usb3id-pins {
+			function = "GPIO";
+			pins = "GPIO99";
+		};
+
+		npu_pwr_en_pins: pinmux_video_npu_pwr_en-pins {
+			function = "GPIO";
+			pins = "GPIO65";
+		};
+
+		video_codec_pwr_en_pins: pinmux_video_codec_pwr_en-pins {
+			function = "GPIO";
+			pins = "GPIO66";
 		};
 
 		uart0_pins: pinmux_uart0-pins {
 			function = "UART0";
 			groups = "UART0_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		uart1_pins: pinmux_uart1-pins {
 			function = "UART1";
 			groups = "UART1_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		uart1_fc_pins: pinmux_uart1_fc-pins {
 			function = "UART1_FC";
 			groups = "UART1_FC_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		uart2_pins: pinmux_uart2-pins {
 			function = "UART2";
 			groups = "UART2_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		uart2_fc_pins: pinmux_uart2_fc-pins {
 			function = "UART2_FC";
 			groups = "UART2_FC_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		uart3_pins: pinmux_uart3-pins {
 			function = "UART3";
+#if 1 // X1
 			groups = "UART3_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+#else // X2
+			groups = "UART3_X2";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+#endif
 		};
 
 		uadbg_pins: pinmux_uadbg-pins {
 			function = "UADBG";
 			groups = "UADBG";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 		};
 
 		uart6_pins: pinmux_uart6-pins {
 			function = "UART6";
 			groups = "UART6_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 		};
 
 		uart7_pins: pinmux_uart7-pins {
 			function = "UART7";
 			groups = "UART7";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 		};
 
 		spi_master0_pins: pinmux_spi_master0-pins {
 			function = "SPI_MASTER0";
+#if 1 // X1
 			groups = "SPI_MASTER0_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+#else // X2
+			groups = "SPI_MASTER0_X2";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+#endif
 		};
 		spi_master1_pins: pinmux_spi_master1-pins {
 			function = "SPI_MASTER1";
 			groups = "SPI_MASTER1_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_14800_IOL_14800UA>;
 		};
 		spi_master2_pins: pinmux_spi_master2-pins {
 			function = "SPI_MASTER2";
 			groups = "SPI_MASTER2";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_14800_IOL_14800UA>;
 		};
 		spi_master3_pins: pinmux_spi_master3-pins {
 			function = "SPI_MASTER3";
 			groups = "SPI_MASTER3_X2";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		spi_master4_pins: pinmux_spi_master4-pins {
 			function = "SPI_MASTER4";
 			groups = "SPI_MASTER4";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		spi_slave0_pins: pinmux_spi_slave0-pins {
 			function = "SPI_SLAVE0";
+#if 1 // X1
 			groups = "SPI_SLAVE0_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+#else // X2
+			groups = "SPI_SLAVE0_X2";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+#endif
 		};
 
 		i2c_combo0_pins: pinmux_i2c_combo0-pins {
 			function = "I2C_COMBO0";
 			groups = "I2C_COMBO0_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		i2c_combo1_pins: pinmux_i2c_combo1-pins {
 			function = "I2C_COMBO1";
 			groups = "I2C_COMBO1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		i2c_combo2_pins: pinmux_i2c_combo2-pins {
 			function = "I2C_COMBO2";
 			groups = "I2C_COMBO2_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 		i2c_combo3_pins: pinmux_i2c_combo3-pins {
 			function = "I2C_COMBO3";
 			groups = "I2C_COMBO3";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		i2c_combo4_pins: pinmux_i2c_combo4-pins {
 			function = "I2C_COMBO4";
 			groups = "I2C_COMBO4";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		i2c_combo5_pins: pinmux_i2c_combo5-pins {
 			function = "I2C_COMBO5";
 			groups = "I2C_COMBO5";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		i2c_combo6_pins: pinmux_i2c_combo6-pins {
 			function = "I2C_COMBO6";
 			groups = "I2C_COMBO6_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_16400_IOL_16500UA>;
 		};
 		i2c_combo7_pins: pinmux_i2c_combo7-pins {
 			function = "I2C_COMBO7";
 			groups = "I2C_COMBO7_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		i2c_combo8_pins: pinmux_i2c_combo8-pins {
 			function = "I2C_COMBO8";
 			groups = "I2C_COMBO8_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		i2c_combo9_pins: pinmux_i2c_combo9-pins {
 			function = "I2C_COMBO9";
 			groups = "I2C_COMBO9_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 
 		gmac_pins: pinmux_gmac-pins {
-			function = "GMAC";
-			groups = "GMAC_RGMII";
+			pinmux{
+				function = "GMAC";
+				groups = "GMAC_RGMII";
+			};
+			pinconf0 {
+				pins = "GPIO7","GPIO8","GPIO10","GPIO11","GPIO15","GPIO16";
+				drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_16400_IOL_16500UA>;
+			};
+			pinconf1 {
+				pins = "GPIO3","GPIO4","GPIO5","GPIO6","GPIO13","GPIO14";
+				drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA>;
+			};
+			pinconf3 {
+				pins = "GPIO9","GPIO12";
+				drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA>;
+			};
 		};
 
 		otg_pins: pinmux_otg_pins {
@@ -3996,71 +4250,102 @@
 		sdio_pins: pinmux_sdio-pins {
 			function = "SDIO";
 			groups = "SDIO";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;
 		};
 
 		pwm0_pins: pinmux_pwm0-pins {
 			function = "PWM0";
 			groups = "PWM0_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		pwm1_pins: pinmux_pwm1-pins {
 			function = "PWM1";
 			groups = "PWM1_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
 		};
 
 		pwm2_pins: pinmux_pwm2-pins {
 			function = "PWM2";
+#if 1 // X1
 			groups = "PWM2_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+#else // X2
+			groups = "PWM2_X2";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+#endif
 		};
 
 		pwm3_pins: pinmux_pwm3-pins {
 			function = "PWM3";
+#if 1 // X1
 			groups = "PWM3_X1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
+#else // X2
+			groups = "PWM3_X2";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+#endif
 		};
 
 		aud_tdmtx_xck_pins: pinmux_aud_tdmtx_xck-pins {
 			function = "AUD_TDMTX_XCK";
 			groups = "AUD_TDMTX_XCK";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		aud_dac_xck_pins: pinmux_aud_dac_xck-pins {
 			function = "AUD_DAC_XCK";
 			groups = "AUD_DAC_XCK";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		aud_dac_xck1_pins: pinmux_aud_dac_xck1-pins {
 			function = "AUD_DAC_XCK1";
 			groups = "AUD_DAC_XCK1";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_10100_IOL_12500UA>;
 		};
 		aud_au2_data0_pins: pinmux_aud_au2_data0-pins {
 			function = "AUD_AU2_DATA0";
 			groups = "AUD_AU2_DATA0";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		aud_au1_data0_pins: pinmux_aud_au1_data0-pins {
 			function = "AUD_AU1_DATA0";
 			groups = "AUD_AU1_DATA0";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_10100_IOL_12500UA>;
 		};
 		aud_au2_ck_pins: pinmux_aud_au2_ck-pins {
 			function = "AUD_AU2_CK";
 			groups = "AUD_AU2_CK";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		aud_au1_ck_pins: pinmux_aud_au1_ck-pins {
 			function = "AUD_AU1_CK";
 			groups = "AUD_AU1_CK";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_10100_IOL_12500UA>;
 		};
 		aud_au_adc_data0_pins: pinmux_aud_au_adc_data0-pins {
 			function = "AUD_AU_ADC_DATA0";
+#if 1 // X1
 			groups = "AUD_AU_ADC_DATA0_X1";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+#else // X2
+			groups = "AUD_AU_ADC_DATA0_X2";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_10100_IOL_12500UA>;
+#endif
 		};
 		aud_adc2_data0_pins: pinmux_aud_adc2_data0-pins {
 			function = "AUD_ADC2_DATA0";
 			groups = "AUD_ADC2_DATA0";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		aud_adc1_data0_pins: pinmux_aud_adc1_data0-pins {
 			function = "AUD_ADC1_DATA0";
 			groups = "AUD_ADC1_DATA0";
+			drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_10100_IOL_12500UA>;
 		};
 		aud_tdm_pins: pinmux_aud_tdm-pins {
 			function = "AUD_TDM";
 			groups = "AUD_TDM";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
 		};
 		spdif_in_pins: pinmux_spdif_in-pins {
 			function = "SPDIF_IN";

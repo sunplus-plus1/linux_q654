@@ -3,7 +3,7 @@
  * Driver for Sunplus VIN
  *
  * Copyright Sunplus Technology Co., Ltd.
- * 	  All rights reserved.
+ * All rights reserved.
  *
  * Based on Renesas R-Car VIN driver
  */
@@ -497,6 +497,15 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 				source->name, sink->name);
 			break;
 		}
+
+		/* Inherit the controls from sub-device */
+		ret = v4l2_ctrl_add_handler(&vin->group->vin[route->vin]->ctrl_handler,
+				vin->group->csi[route->csi].subdev->ctrl_handler, NULL, true);
+		if (ret < 0) {
+			dev_err(vin->dev, "Failed to inherit controls\n");
+			v4l2_ctrl_handler_free(&vin->group->vin[route->vin]->ctrl_handler);
+			return ret;
+		}
 	}
 	mutex_unlock(&vin->group->lock);
 
@@ -699,10 +708,7 @@ static int vin_init(struct vin_dev *vin)
 	if (ret)
 		return ret;
 
-	ret = vin_parse_of_graph(vin);
-	if (ret)
-		vin_group_put(vin);
-
+	/* Initialize v4l2 control and add a control */
 	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 1);
 	if (ret < 0)
 		return ret;
@@ -717,6 +723,10 @@ static int vin_init(struct vin_dev *vin)
 	}
 
 	vin->vdev.ctrl_handler = &vin->ctrl_handler;
+
+	ret = vin_parse_of_graph(vin);
+	if (ret)
+		vin_group_put(vin);
 
 	return ret;
 }
@@ -1055,7 +1065,7 @@ static const struct vin_info sp_info_sp7350 = {
 	.model = SP_Q654,
 	.use_mc = false,
 	.nv12 = false,
-	.max_width = 4096,
+	.max_width = 4608, // for imx708(12mp sensor 4608x2592)
 	.max_height = 4096,
 	.routes = sp_info_sp7350_routes,
 };

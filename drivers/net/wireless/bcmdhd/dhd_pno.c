@@ -753,7 +753,7 @@ _dhd_pno_get_channels(dhd_pub_t *dhd, uint16 *d_chan_list,
 	}
 	for (i = 0, j = 0; i < dtoh32(list->count) && i < *nchan; i++) {
 		if (IS_2G_CHANNEL(dtoh32(list->element[i]))) {
-			if (!(band & WLC_BAND_2G)) {
+			if (!(band & WLC_BAND_2G) && !(band & WLC_BAND_AUTO)) {
 				/* Skip, if not 2g */
 				continue;
 			}
@@ -761,7 +761,7 @@ _dhd_pno_get_channels(dhd_pub_t *dhd, uint16 *d_chan_list,
 		} else if (IS_5G_CHANNEL(dtoh32(list->element[i]))) {
 			bool dfs_channel = is_dfs(dhd, dtoh32(list->element[i]));
 			if ((skip_dfs && dfs_channel) ||
-				(!(band & WLC_BAND_5G) && !dfs_channel)) {
+				(!(band & WLC_BAND_5G) && !(band & WLC_BAND_AUTO) && !dfs_channel)) {
 				/* Skip the channel if:
 				* the DFS bit is NOT set & the channel is a dfs channel
 				* the band 5G is not set & the channel is a non DFS 5G channel
@@ -3027,7 +3027,8 @@ dhd_pno_get_gscan(dhd_pub_t *dhd, dhd_pno_gscan_cmd_cfg_t type,
 					for (i = 0; i < nchan; i++) {
 						p[i] = wl_channel_to_frequency(
 							(ch_list[i]),
-							CHSPEC_BAND(ch_list[i]));
+							(ch_list[i] <= CH_MAX_2G_CHANNEL?
+							WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G));
 					}
 					ret = p;
 					*len = mem_needed;
