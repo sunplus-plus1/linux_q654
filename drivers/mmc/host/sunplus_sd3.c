@@ -787,17 +787,13 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 			sg_copy_from_buffer(host->data->sg, host->data->sg_len,
 		                    host->buffer, (host->data->blocks * host->data->blksz));
 		}
-		//if(host->buf_addr != host->buf_phys_addr)
-		//	dma_unmap_single(host->dev, host->buf_addr,
-		//			(host->data->blocks * host->data->blksz), DMA_TO_DEVICE);
-	} else 
+	}
 #endif
-	{
 		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
-	}
-		spsdc_get_rsp(host, cmd);
+
+	spsdc_get_rsp(host, cmd);
 	spsdc_check_error(host, mrq);
 	if (mrq->stop) {
 		if (__send_stop_cmd(host, mrq->stop))
@@ -1362,13 +1358,13 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 		 * speedups by the help of a bounce buffer to group scattered
 		 * reads/writes together.
 		 */
-		host->buffer = devm_kmalloc(&pdev->dev,80 * SPSDC_MAX_BLK_CNT * 512, GFP_KERNEL);
+		host->buffer = devm_kmalloc(&pdev->dev, SPSDC_MAX_BLK_CNT * 512, GFP_KERNEL | GFP_DMA);
 		if (!host->buffer) {
 			pr_err("%s: failed to allocate bytes for bounce buffer, falling back to single segments\n",
 			       mmc_hostname(mmc));
 			/*
 			 * Exiting with zero here makes sure we proceed with
-			 * mmc->max_segs == 1.
+			 * mmc->max_segs == 128.
 			 */
 			goto probe_free_host;
 		}
@@ -1380,7 +1376,6 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 		ret = dma_mapping_error(&pdev->dev, host->buf_phys_addr);
 		if (ret)
 			goto probe_free_host;
-
 #endif
 
 	ret = reset_control_assert(host->rstc);
@@ -1415,10 +1410,10 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 #ifdef SPMMC_DMA_ALLOC
 	mmc->max_segs = SPSDC_MAX_SEGS;
 	//mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
-	mmc->max_seg_size = 80 * SPSDC_MAX_BLK_CNT * 512;
-	mmc->max_req_size = 80 * SPSDC_MAX_BLK_CNT * 512;
+	mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
+	mmc->max_req_size = SPSDC_MAX_BLK_CNT * 512;
 	mmc->max_blk_size = 512; /* Limited by the max value of dma_size & data_length, set it to 512 bytes for now */
-	mmc->max_blk_count = SPSDC_MAX_SEGS * SPSDC_MAX_BLK_CNT; /* Limited by sd_page_num */
+	mmc->max_blk_count = SPSDC_MAX_BLK_CNT; /* Limited by sd_page_num */
 	//pr_info("SPMMC_DMA_ALLOC\n");
 #else
 	mmc->max_segs = SPSDC_MAX_DMA_MEMORY_SECTORS;
