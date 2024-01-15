@@ -69,7 +69,7 @@ int sp7350_drm_output_init(struct sp7350_drm_device *sdev, int index)
 		goto err_crtc;
 
 	ret = drm_connector_init(dev, connector, &sp7350_drm_connector_funcs,
-				 DRM_MODE_CONNECTOR_VIRTUAL);
+				 DRM_MODE_CONNECTOR_DSI);
 	if (ret) {
 		DRM_ERROR("Failed to init connector\n");
 		goto err_connector;
@@ -77,19 +77,26 @@ int sp7350_drm_output_init(struct sp7350_drm_device *sdev, int index)
 
 	drm_connector_helper_add(connector, &sp7350_drm_conn_helper_funcs);
 
-	//ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_VIRTUAL);
 	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
 		DRM_ERROR("Failed to init encoder\n");
 		goto err_encoder;
 	}
-	encoder->possible_crtcs = 1;
+	//encoder->possible_crtcs = 1;
+	encoder->possible_crtcs = 1 << crtc->index;
+	/* FIXME !!!!!!!!!
+	 * Currently bound CRTC, only really meaningful for non-atomic
+	 * drivers.  Atomic drivers should instead check
+	 * &drm_connector_state.crtc. */
+	//encoder->crtc = crtc;
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret) {
 		DRM_ERROR("Failed to attach connector to encoder\n");
 		goto err_attach;
 	}
+
+
 
 	//ret = sp7350_drm_enable_writeback_connector(sdev);
 	//if (ret)

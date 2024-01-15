@@ -36,10 +36,12 @@
 DEFINE_DRM_GEM_CMA_FOPS(sp7350_drm_fops);
 
 static struct drm_driver sp7350_drm_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
+	//.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM,
 	//.irq_handler		= sp7350_drm_irq,
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &sp7350_drm_fops,
+
 	.name			= "sp7350-drm",
 	.desc			= "Sunplus SP7350 DRM",
 	.date			= "20240111",

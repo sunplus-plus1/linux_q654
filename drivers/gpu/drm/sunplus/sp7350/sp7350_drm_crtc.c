@@ -27,15 +27,44 @@ static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 	//.verify_crc_source	= vkms_verify_crc_source,
 };
 
-#if 0
+static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
+				  struct drm_crtc_state *state)
+{
+	/* TODO reference to vkms_crtc_atomic_check */
+	return 0;
+}
+
+static void sp7350_drm_crtc_atomic_enable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
+{
+	drm_crtc_vblank_on(crtc);
+}
+
+static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_state)
+{
+	drm_crtc_vblank_off(crtc);
+}
+
+static void sp7350_drm_crtc_atomic_begin(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
+{
+	/* TODO reference to vkms_crtc_atomic_begin */
+}
+
+static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_crtc_state)
+{
+	/* TODO reference to vkms_crtc_atomic_flush */
+}
+
 static const struct drm_crtc_helper_funcs sp7350_drm_crtc_helper_funcs = {
-	.atomic_check	= vkms_crtc_atomic_check,
-	.atomic_begin	= vkms_crtc_atomic_begin,
-	.atomic_flush	= vkms_crtc_atomic_flush,
-	.atomic_enable	= vkms_crtc_atomic_enable,
-	.atomic_disable	= vkms_crtc_atomic_disable,
+	.atomic_check	= sp7350_drm_crtc_atomic_check,
+	.atomic_begin	= sp7350_drm_crtc_atomic_begin,
+	.atomic_flush	= sp7350_drm_crtc_atomic_flush,
+	.atomic_enable	= sp7350_drm_crtc_atomic_enable,
+	.atomic_disable	= sp7350_drm_crtc_atomic_disable,
 };
-#endif
 
 int sp7350_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   struct drm_plane *primary, struct drm_plane *cursor)
@@ -50,7 +79,7 @@ int sp7350_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		return ret;
 	}
 
-	//drm_crtc_helper_add(crtc, &sp7350_drm_crtc_helper_funcs);
+	drm_crtc_helper_add(crtc, &sp7350_drm_crtc_helper_funcs);
 
 	//spin_lock_init(&vkms_out->lock);
 	//spin_lock_init(&vkms_out->composer_lock);
