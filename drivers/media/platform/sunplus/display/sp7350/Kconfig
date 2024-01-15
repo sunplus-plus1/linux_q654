@@ -27,3 +27,10 @@ config VIDEO_SP7350_DISP_PI_PANEL
 	  Say Y here, if you use raspberrypi 7inch touchscreen 800x480 DSI panel
 	  Note, this i2c controller only support dsi function
 	  Not include touchscreen function
+
+config VIDEO_SP7350_DISP_LT8912B
+	bool "Builtin LT8912B BRIDGE I2C controller"
+	depends on VIDEO_SP7350_DISP
+	default n
+	help
+	  Say Y here, if you use lontium lt8912b bridge DSI to HDMI

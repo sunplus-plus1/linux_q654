@@ -2006,7 +2006,55 @@ void stmmac_selftest_run(struct net_device *dev,
 	/* Wait for queues drain */
 	msleep(200);
 
-#ifdef ONLY_TEST_PHYLOOPBACK
+#ifdef ONLY_TEST_MAC2MAC
+	for (j = 0; j <= 100; j++) {
+		for (i = 0; i < count; i++) {
+			ret = 0;
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				break;
+			default:
+				ret = -EOPNOTSUPP;
+				break;
+			}
+
+			/*
+			* First tests will always be MAC / PHY loobpack. If any of
+			* them is not supported we abort earlier.
+			*/
+			if (ret) {
+				netdev_err(priv->dev, "Loopback is not supported\n");
+				etest->flags |= ETH_TEST_FL_FAILED;
+				break;
+			}
+
+			ret = stmmac_selftests[i].fn(priv);
+			printk("packet test result:%d \n",ret);
+			if (ret && (ret != -EOPNOTSUPP)) {
+				etest->flags |= ETH_TEST_FL_FAILED;
+				fail_count++;
+                //printk("packet test fail:%d \n",fail_count);
+			}
+
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				if ((fail_count) || (j == 100)){
+					if (fail_count) {
+						j = 101;
+						printk("ETH test fail \n");
+						buf[i] = -110;
+					}
+					else {
+						buf[i] = ret;
+					}
+				}
+				break;
+			default:
+				break;
+			}
+		}
+	}
+#elif defined ONLY_TEST_PHYLOOPBACK
 	for (j = 0; j <= 10; j++) {
 		for (i = 0; i < count; i++) {
 			ret = 0;
@@ -2060,54 +2108,6 @@ void stmmac_selftest_run(struct net_device *dev,
 						ret = phy_loopback(dev->phydev, false);
 					if (!ret)
 						break;
-				}
-				break;
-			default:
-				break;
-			}
-		}
-	}
-#elif defined ONLY_TEST_MAC2MAC
-	for (j = 0; j <= 100; j++) {
-		for (i = 0; i < count; i++) {
-			ret = 0;
-			switch (stmmac_selftests[i].lb) {
-			case STMMAC_LOOPBACK_PHY:
-				break;
-			default:
-				ret = -EOPNOTSUPP;
-				break;
-			}
-
-			/*
-			* First tests will always be MAC / PHY loobpack. If any of
-			* them is not supported we abort earlier.
-			*/
-			if (ret) {
-				netdev_err(priv->dev, "Loopback is not supported\n");
-				etest->flags |= ETH_TEST_FL_FAILED;
-				break;
-			}
-
-			ret = stmmac_selftests[i].fn(priv);
-			printk("packet test result:%d \n",ret);
-			if (ret && (ret != -EOPNOTSUPP)) {
-				etest->flags |= ETH_TEST_FL_FAILED;
-				fail_count++;
-                //printk("packet test fail:%d \n",fail_count);
-			}
-
-			switch (stmmac_selftests[i].lb) {
-			case STMMAC_LOOPBACK_PHY:
-				if ((fail_count) || (j == 100)){
-					if (fail_count) {
-						j = 101;
-						printk("ETH test fail \n");
-						buf[i] = -110;
-					}
-					else {
-						buf[i] = ret;
-					}
 				}
 				break;
 			default:

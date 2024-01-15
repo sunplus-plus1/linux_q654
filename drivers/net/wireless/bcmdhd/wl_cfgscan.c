@@ -580,7 +580,7 @@ s32 wl_inform_bss_cache(struct bcm_cfg80211 *cfg)
 		}
 	}
 
-	cnt = i;	
+	cnt = i;
 	node = cfg->g_bss_cache_ctrl.m_cache_head;
 	WL_SCAN(("cached AP count (%d)\n", wl_bss_cache_size(&cfg->g_bss_cache_ctrl)));
 	for (i=cnt; node && i<WL_AP_MAX; i++) {
@@ -1018,8 +1018,6 @@ wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 			WL_ERR(("No valid band\n"));
 			goto exit;
 		}
-		if (!dhd_conf_match_channel(cfg->pub, channel))
-			goto exit;
 		/* ----- terence 20130524: skip invalid bss */
 
 		if (!(bcmcfg_to_wiphy(cfg)->interface_modes & BIT(NL80211_IFTYPE_ADHOC))) {
@@ -1638,8 +1636,6 @@ wl_cfgscan_populate_scan_channels(struct bcm_cfg80211 *cfg,
 				(channels[i]->center_freq)));
 			continue;
 		}
-		if (!dhd_conf_match_channel(cfg->pub, channel))
-			continue;
 
 		chanspec = wl_freq_to_chanspec(channels[i]->center_freq);
 		if (chanspec == INVCHANSPEC) {
@@ -1947,8 +1943,7 @@ exit:
 			err = BCME_OK;
 		} else {
 			/* For errors other than unsupported fail the scan */
-			WL_ERR(("%s : failed to configure random mac for host scan, %d\n",
-				__FUNCTION__, err));
+			WL_ERR(("failed to configure random mac for host scan, %d\n", err));
 			err = -EAGAIN;
 		}
 	}
@@ -2373,7 +2368,7 @@ wl_cfgscan_handle_scanbusy(struct bcm_cfg80211 *cfg, struct net_device *ndev, s3
 
 #if !((LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && \
 	defined(OEM_ANDROID))
-			WL_ERR(("%s: HANG event is unsupported\n", __FUNCTION__));
+			WL_ERR(("HANG event is unsupported\n"));
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27) && OEM_ANDROID */
 #endif /* BCMDONGLEHOST */
 
@@ -4156,13 +4151,13 @@ static void wl_scan_timeout(unsigned long data)
 	dhdp->scan_timeout_occurred = TRUE;
 #ifdef BCMPCIE
 	if (!dhd_pcie_dump_int_regs(dhdp)) {
-		WL_ERR(("%s : PCIe link might be down\n", __FUNCTION__));
+		WL_ERR(("PCIe link might be down\n"));
 		dhd_bus_set_linkdown(dhdp, TRUE);
 		dhdp->hang_reason = HANG_REASON_PCIE_LINK_DOWN_EP_DETECT;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(OEM_ANDROID)
 		dhd_os_send_hang_message(dhdp);
 #else
-		WL_ERR(("%s: HANG event is unsupported\n", __FUNCTION__));
+		WL_ERR(("HANG event is unsupported\n"));
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27) && OEM_ANDROID */
 	}
 
@@ -4384,7 +4379,7 @@ wl_cfgscan_update_v3_schedscan_results(struct bcm_cfg80211 *cfg, struct net_devi
 			err = wl_cfgp2p_discover_enable_search(cfg, false);
 			if (unlikely(err)) {
 				wl_clr_drv_status(cfg, SCANNING, ndev);
-				return err;
+				goto out_err;
 			}
 			p2p_scan(cfg) = false;
 		}
@@ -4450,7 +4445,7 @@ wl_notify_sched_scan_results(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	STATIC_ASSERT(sizeof(wl_pfn_net_info_v1_t) == sizeof(wl_pfn_net_info_v2_t));
 	STATIC_ASSERT(sizeof(wl_pfn_lnet_info_v1_t) == sizeof(wl_pfn_lnet_info_v2_t));
 	STATIC_ASSERT(sizeof(wl_pfn_subnet_info_v1_t) == sizeof(wl_pfn_subnet_info_v2_t));
-	STATIC_ASSERT(OFFSETOF(wl_pfn_subnet_info_v1_t, SSID) ==
+	ASSERT(OFFSETOF(wl_pfn_subnet_info_v1_t, SSID) ==
 	              OFFSETOF(wl_pfn_subnet_info_v2_t, u.SSID));
 
 	/* Extract the version-specific items */
@@ -5033,7 +5028,8 @@ wl_cfgscan_cancel_listen_on_channel(struct bcm_cfg80211 *cfg, bool notify_user)
 	}
 
 	/* abort scan listen */
-	_wl_cfgscan_cancel_scan(cfg);
+	/* change _wl_cfgscan_cancel_scan() to wl_cfgscan_scan_abort() to fix DPP connection issue on Android 12 */
+	wl_cfgscan_scan_abort(cfg);
 
 	if (notify_user) {
 		wl_cfgscan_notify_listen_complete(cfg);

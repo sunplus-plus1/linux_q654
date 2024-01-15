@@ -44,6 +44,18 @@
 
 #ifdef SPMMC_SUPPORT_VOLTAGE_1V8
 //#define HW_VOLTAGE_1V8
+
+//#define SPMMC_DMA_ALLOC
+
+#endif
+
+#ifdef SPMMC_DMA_ALLOC
+
+#define SPSDC_MAX_SEGS 128
+#define SPSDC_MAX_BLK_CNT 2560
+#define SPSDC_MAX_BLK_SIZE  512
+#define SPSDC_MAX_REQ_SIZE SPSDC_MAX_BLK_CNT * SPSDC_MAX_BLK_SIZE
+
 #endif
 
 #define SPMMC_MAX_TUNABLE_DLY 7
@@ -383,6 +395,14 @@ struct spsdc_host {
 	int target_drv;
 	int curr_drv;
 
+#ifdef SPMMC_DMA_ALLOC
+	struct device		*dev;
+	struct mmc_data		*data;
+	unsigned int		*buffer;
+	unsigned int		buf_size;
+	dma_addr_t		buf_phys_addr;
+	dma_addr_t		buf_addr;
+#endif
 };
 
 

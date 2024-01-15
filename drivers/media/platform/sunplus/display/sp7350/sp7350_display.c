@@ -61,6 +61,12 @@ extern int rpi_touchscreen_i2c_read(struct rpi_touchscreen *ts, u8 reg);
 extern void rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts,
 				      u8 reg, u8 val);
 #endif
+#if defined(CONFIG_VIDEO_SP7350_DISP_LT8912B)
+extern struct lt8912 *g_lt;
+
+extern int lt8912_soft_power_on(struct lt8912 *lt);
+extern int lt8912_video_on(struct lt8912 *lt);
+#endif
 
 extern int sp7350_vpp_resolution_init(struct sp_disp_device *disp_dev);
 extern int sp7350_osd_resolution_init(struct sp_disp_device *disp_dev);
@@ -979,6 +985,10 @@ static int sp7350_display_resume(struct platform_device *pdev)
 		//rpi_touchscreen_i2c_write(g_ts, REG_PORTA, BIT(2));
 		rpi_touchscreen_i2c_write(g_ts, REG_PORTA, BIT(3));
 	}
+#endif
+#if defined(CONFIG_VIDEO_SP7350_DISP_LT8912B)
+	lt8912_soft_power_on(g_lt);
+	lt8912_video_on(g_lt);
 #endif
 
 	return 0;

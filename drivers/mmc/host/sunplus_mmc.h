@@ -19,6 +19,7 @@
 
 #define MEASUREMENT_SIGNAL //timing measurement
 //#define SPMMC_SOFTPAD
+//#define SPMMC_DMA_ALLOC //Enable:software workaround for sector=128, Disable: HW sector=8
 
 #define SPMMC_SUPPORT_VOLTAGE_1V8
 #define SPMMC_EMMC_VCCQ_1V8
@@ -27,7 +28,12 @@
 #define SPMMC_MIN_CLK	400000
 #define SPMMC_MAX_CLK	400000000
 
-#define SPMMC_MAX_BLK_COUNT 65536
+#ifdef SPMMC_DMA_ALLOC
+#define SPMMC_SOFTWAVE_MAX_SECTORS 128
+#define SPMMC_MAX_BLK_COUNT 2560 /*2560*512=1310720Bytes, 1 sector size=1.3MB*/
+#else
+#define SPMMC_MAX_BLK_COUNT 65536 /*65536*512=33554432Bytes, 1 sector size=3.3MB*/
+#endif
 #define SPMMC_MAX_TUNABLE_DLY 7
 #define SPMMC_SYS_CLK	360000000
 #define __rsvd_regs(l) __append_suffix(l, __COUNTER__)
@@ -278,6 +284,15 @@ struct spmmc_host {
 	struct sg_mapping_iter sg_miter; /* for pio mode to access sglist */
 	int dma_use_int; /* should raise irq when dma done */
 	struct spmmc_tuning_info tuning_info;
+
+#ifdef SPMMC_DMA_ALLOC
+	struct device		*dev;
+	struct mmc_data	*data;
+	unsigned int		*buffer;
+	unsigned int		buf_size;
+	dma_addr_t		buf_phys_addr;
+	dma_addr_t		buf_addr;
+#endif
 };
 
 #endif /* #ifndef __SPMMC_H__ */

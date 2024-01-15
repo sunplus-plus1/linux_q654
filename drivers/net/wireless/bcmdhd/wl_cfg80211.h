@@ -2849,10 +2849,11 @@ extern int wl_get_public_action(void *frame, u32 frame_len, u8 *ret_action);
 struct net_device *wl_cfg80211_get_remain_on_channel_ndev(struct bcm_cfg80211 *cfg);
 #endif /* WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST */
 
-#ifdef WL_SUPPORT_ACS
-#define ACS_MSRMNT_DELAY 1000 /* dump_obss delay in ms */
 #define IOCTL_RETRY_COUNT 5
 #define CHAN_NOISE_DUMMY -80
+
+#ifdef WL_SUPPORT_ACS
+#define ACS_MSRMNT_DELAY 1000 /* dump_obss delay in ms */
 #define OBSS_TOKEN_IDX 15
 #define IBSS_TOKEN_IDX 15
 #define TX_TOKEN_IDX 14
@@ -2958,7 +2959,7 @@ int wl_set_rssi_logging(struct net_device *dev, void *param);
 int wl_get_rssi_per_ant(struct net_device *dev, char *ifname, char *peer_mac, void *param);
 #endif /* SUPPORT_RSSI_SUM_REPORT */
 struct wireless_dev * wl_cfg80211_add_if(struct bcm_cfg80211 *cfg, struct net_device *primary_ndev,
-	wl_iftype_t wl_iftype, const char *name, u8 *mac);
+	wl_iftype_t wl_iftype, const char *name, const u8 *mac);
 extern s32 wl_cfg80211_del_if(struct bcm_cfg80211 *cfg, struct net_device *primary_ndev,
 	struct wireless_dev *wdev, char *name);
 s32 _wl_cfg80211_del_if(struct bcm_cfg80211 *cfg, struct net_device *primary_ndev,
@@ -3043,6 +3044,15 @@ do {	\
 	for (k = 0; k < arr_size; k++) {	\
 		band_chan_arr[k].flags = IEEE80211_CHAN_DISABLED;	\
 	}	\
+} while (0)
+
+#define WL_CHANNEL_COPY_FLAG(band_chan_arr)    \
+do {   \
+	u32 arr_size, k;        \
+	arr_size = ARRAYSIZE(band_chan_arr);    \
+	for (k = 0; k < arr_size; k++) {        \
+		band_chan_arr[k].orig_flags = band_chan_arr[k].flags;   \
+	}       \
 } while (0)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 9, 0))

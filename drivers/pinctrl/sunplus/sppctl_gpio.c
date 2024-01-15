@@ -1,20 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * GPIO Driver for Sunplus/Tibbo SP7021 controller
- * Copyright (C) 2020 Sunplus Tech./Tibbo Tech.
- * Author: Dvorkin Dmitry <dvorkin@tibbo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -25,28 +9,32 @@
 #include "sppctl_gpio_ops.h"
 #include "sppctl_gpio.h"
 
-__attribute((unused))
-static irqreturn_t gpio_int_0(int irq, void *data)
+__attribute((unused)) static irqreturn_t gpio_int_0(int irq, void *data)
 {
 	pr_info("register gpio int0 trigger\n");
 	return IRQ_HANDLED;
 }
 
-int sppctl_gpio_new(struct platform_device *_pd, void *_datap)
+int sppctl_gpio_new(struct platform_device *pdev, void *platform_data)
 {
-	struct device_node *np = _pd->dev.of_node, *npi;
-	struct sppctlgpio_chip_t *pc = NULL;
-	struct gpio_chip *gchip = NULL;
-	int err = 0, i = 0;
-	struct sppctl_pdata_t *_pctrlp = (struct sppctl_pdata_t *)_datap;
+	struct sppctl_pdata_t *pdata;
+	struct sppctlgpio_chip_t *pc;
+	struct gpio_chip *gchip;
+	struct device_node *npi;
+	struct device_node *np;
+	int err = 0;
+	int i = 0;
 
+	pdata = (struct sppctl_pdata_t *)platform_data;
+
+	np = pdev->dev.of_node;
 	if (!np) {
-		KERR(&(_pd->dev), "invalid devicetree node\n");
+		KERR(&pdev->dev, "invalid devicetree node\n");
 		return -EINVAL;
 	}
 
 	if (!of_device_is_available(np)) {
-		KERR(&(_pd->dev), "devicetree status is not available\n");
+		KERR(&pdev->dev, "devicetree status is not available\n");
 		return -ENODEV;
 	}
 
@@ -61,81 +49,85 @@ int sppctl_gpio_new(struct platform_device *_pd, void *_datap)
 	if (of_find_property(np, "gpio-controller", NULL))
 		i = 1;
 	if (i == 0) {
-		KERR(&(_pd->dev), "is not gpio-controller\n");
+		KERR(&pdev->dev, "is not gpio-controller\n");
 		return -ENODEV;
 	}
 
-	pc = devm_kzalloc(&(_pd->dev), sizeof(*pc), GFP_KERNEL);
+	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
 		return -ENOMEM;
-	gchip = &(pc->chip);
+	gchip = &pc->chip;
 
-	pc->base0 = _pctrlp->base0;
-	pc->base2 = _pctrlp->base2;
+	pc->gpioxt_regs_base = pdata->gpioxt_regs_base;
+	pc->first_regs_base = pdata->first_regs_base;
+	pc->padctl1_regs_base = pdata->padctl1_regs_base;
+	pc->padctl2_regs_base = pdata->padctl2_regs_base;
 #if defined(SUPPORT_GPIO_AO_INT)
-	pc->baseA = _pctrlp->baseA;
+	pc->gpio_ao_int_regs_base = pdata->gpio_ao_int_regs_base;
 #endif
-	_pctrlp->gpiod = pc;
+	pdata->gpiod = pc;
 
 #if defined(SUPPORT_GPIO_AO_INT)
 	if (of_property_read_u32(np, "sunplus,ao-pin-prescale",
-	    &pc->gpio_ao_int_prescale) == 0) {
-		writel(pc->gpio_ao_int_prescale & 0xfffff, pc->baseA); // PRESCALE
+				 &pc->gpio_ao_int_prescale) == 0) {
+		writel(pc->gpio_ao_int_prescale & 0xfffff,
+		       pc->gpio_ao_int_regs_base); // PRESCALE
 	}
 
 	if (of_property_read_u32(np, "sunplus,ao-pin-debounce",
-	    &pc->gpio_ao_int_debounce) == 0) {
-		writel(pc->gpio_ao_int_prescale & 0xff, pc->baseA + 4);// DEB_TIME
+				 &pc->gpio_ao_int_debounce) == 0) {
+		writel(pc->gpio_ao_int_prescale & 0xff,
+		       pc->gpio_ao_int_regs_base + 4); // DEB_TIME
 	}
 
 	for (i = 0; i < 32; i++)
 		pc->gpio_ao_int_pins[i] = -1;
 #endif
 
-	gchip->label =             MNAME;
-	gchip->parent =            &(_pd->dev);
-	gchip->owner =             THIS_MODULE;
-	gchip->request =           sppctlgpio_f_request;
-	gchip->free =              sppctlgpio_f_free;
-	gchip->get_direction =     sppctlgpio_f_gdi;
-	gchip->direction_input =   sppctlgpio_f_sin;
-	gchip->direction_output =  sppctlgpio_f_sou;
-	gchip->get =               sppctlgpio_f_get;
-	gchip->set =               sppctlgpio_f_set;
-	gchip->set_config =        sppctlgpio_f_scf;
-	gchip->dbg_show =          sppctlgpio_f_dsh;
-	gchip->base =              0; // it is main platform GPIO controller
-	gchip->ngpio =             GPIS_listSZ;
-	gchip->names =             sppctlgpio_list_s;
-	gchip->can_sleep =         0;
+	gchip->label = MNAME;
+	gchip->parent = &pdev->dev;
+	gchip->owner = THIS_MODULE;
+	gchip->request = sppctl_gpio_request;
+	gchip->free = sppctl_gpio_free;
+	gchip->get_direction = sppctl_gpio_get_direction;
+	gchip->direction_input = sppctl_gpio_direction_input;
+	gchip->direction_output = sppctl_gpio_direction_output;
+	gchip->get = sppctl_gpio_get_value;
+	gchip->set = sppctl_gpio_set_value;
+	gchip->set_config = sppctl_gpio_set_config;
+	gchip->dbg_show = sppctl_gpio_dbg_show;
+	gchip->base = 0; // it is main platform GPIO controller
+	gchip->ngpio = GPIS_list_size;
+	gchip->names = sppctlgpio_list_s;
+	gchip->can_sleep = 0;
 #if defined(CONFIG_OF_GPIO)
-	gchip->of_node =           np;
+	gchip->of_node = np;
 #endif
-	gchip->to_irq =            sppctlgpio_i_map;
+	gchip->to_irq = sppctl_gpio_to_irq;
 
-	_pctrlp->gpio_range.npins = gchip->ngpio;
-	_pctrlp->gpio_range.base =  gchip->base;
-	_pctrlp->gpio_range.name =  gchip->label;
-	_pctrlp->gpio_range.gc =    gchip;
+	pdata->gpio_range.npins = gchip->ngpio;
+	pdata->gpio_range.base = gchip->base;
+	pdata->gpio_range.name = gchip->label;
+	pdata->gpio_range.gc = gchip;
 
 	// FIXME: can't set pc globally
-	err = devm_gpiochip_add_data(&(_pd->dev), gchip, pc);
+	err = devm_gpiochip_add_data(&pdev->dev, gchip, pc);
 	if (err < 0) {
-		KERR(&(_pd->dev), "gpiochip add failed\n");
+		KERR(&pdev->dev, "gpiochip add failed\n");
 		return err;
 	}
 
-	spin_lock_init(&(pc->lock));
+	spin_lock_init(&pc->lock);
 
 	return 0;
 }
 
-int sppctl_gpio_del(struct platform_device *_pd, void *_datap)
+int sppctl_gpio_del(struct platform_device *pdev, void *platform_data)
 {
 	//struct sppctlgpio_chip_t *cp;
 
 	// FIXME: can't use globally now
-	//cp = platform_get_drvdata(_pd);
+	//cp = platform_get_drvdata(pdev);
 	//if (cp == NULL)
 	//	return -ENODEV;
 	//gpiochip_remove(&(cp->chip));
