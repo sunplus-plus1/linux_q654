@@ -31,12 +31,12 @@ ccflags-y += -Wall -Werror -DNO_DMA_COHERENT=1 -DUSE_VDK=1 -DEGL_API_WL=0 \
 			 -DUSE_POWER_MANAGEMENT=1 -DgcdNONPAGED_MEMORY_BUFFERABLE=1 \
 			 -DENABLE_NONPAGED_MEMORY_BUFFERABLE=1 -DNONPAGED_MEMORY_BUFFERABLE=1 -DUSE_LOADTIME_OPT=1 -DUSE_DESTRUCTOR=1 -DgcdENABLE_DRM=0 -DHOST=\""KERNEL"\"
 
-ifeq (y,$(findstring y, $(CONFIG_v6_4_13_8)))
+ifneq ($(CONFIG_v6_4_13_8),)
 driver := v6.4.13.8
 VIP9000_NPU := y
 endif
 
-ifeq (y,$(findstring y, $(CONFIG_v6_4_15_9)))
+ifneq ($(CONFIG_v6_4_15_9),)
 driver := v6.4.15.9
 VIP9000_NPU := y
 endif
