@@ -6,21 +6,27 @@
  */
 
 #include <linux/clk.h>
+#include <linux/component.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
-#include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
-#include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_irq.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "sp7350_drm_drv.h"
+#include "sp7350_drm_crtc.h"
+
 #include "sp7350_drm_kms.h"
 #include "sp7350_drm_plane.h"
 
@@ -58,7 +64,7 @@ static int sp7350_drm_pm_suspend(struct device *dev)
 {
 	struct sp7350_drm_device *sdev = dev_get_drvdata(dev);
 
-	drm_kms_helper_poll_disable(sdev->ddev);
+	drm_kms_helper_poll_disable(&sdev->ddev);
 	//sp7350_drm_crtc_suspend(&sdev->crtc);
 
 	return 0;
@@ -68,11 +74,11 @@ static int sp7350_drm_pm_resume(struct device *dev)
 {
 	struct sp7350_drm_device *sdev = dev_get_drvdata(dev);
 
-	drm_modeset_lock_all(sdev->ddev);
+	drm_modeset_lock_all(&sdev->ddev);
 	//sp7350_drm_crtc_resume(&sdev->crtc);
-	drm_modeset_unlock_all(sdev->ddev);
+	drm_modeset_unlock_all(&sdev->ddev);
 
-	drm_kms_helper_poll_enable(sdev->ddev);
+	drm_kms_helper_poll_enable(&sdev->ddev);
 	return 0;
 }
 #endif
@@ -84,22 +90,127 @@ static const struct dev_pm_ops sp7350_drm_pm_ops = {
 /* -----------------------------------------------------------------------------
  * Platform driver
  */
+//static const struct of_device_id sp7350_dma_range_matches[] = {
+//	{ .compatible = "sunplus,sp7350-dsi-dma" },
+//	{}
+//};
 
-static int sp7350_drm_remove(struct platform_device *pdev)
+static int sp7350_drm_bind(struct device *dev)
 {
-	struct sp7350_drm_device *sdev = platform_get_drvdata(pdev);
-	struct drm_device *ddev = sdev->ddev;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drm;
+	struct sp7350_drm_device *sdev;
+	//struct device_node *node;
+	//struct drm_crtc *crtc;
+	int ret = 0;
 
-	drm_dev_unregister(ddev);
-	drm_kms_helper_poll_fini(ddev);
-	drm_irq_uninstall(ddev);
-	drm_dev_put(ddev);
+#if 0 /* TODO */
+	dev->coherent_dma_mask = DMA_BIT_MASK(32);
+
+	node = of_find_matching_node_and_match(NULL, sp7350_dma_range_matches,
+						   NULL);
+	if (node) {
+		ret = of_dma_configure(dev, node, true);
+		of_node_put(node);
+
+		if (ret)
+			return ret;
+	}
+#endif
+	sdev = devm_drm_dev_alloc(dev, &sp7350_drm_driver, struct sp7350_drm_device, ddev);
+	if (IS_ERR(sdev))
+		return PTR_ERR(sdev);
+
+	drm = &sdev->ddev;
+	platform_set_drvdata(pdev, drm);
+	//INIT_LIST_HEAD(&sdev->debugfs_list);
+
+	ret = drmm_mode_config_init(drm);
+	if (ret)
+		return ret;
+
+	//ret = SP7350_drm_gem_init(drm);
+	//if (ret)
+	//	return ret;
+
+	ret = component_bind_all(dev, drm);
+	if (ret)
+		return ret;
+
+	ret = sp7350_plane_create_additional_planes(drm);
+	if (ret)
+		goto unbind_all;
+
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sp7350drmfb", false);
+
+	/* display controller init */
+	ret = sp7350_drm_modeset_init(drm);
+	if (ret < 0)
+		goto unbind_all;
+
+	/* TODO. */
+	//drm_for_each_crtc(crtc, drm)
+	//	sp7350_drm_crtc_disable(crtc);
+
+	ret = drm_dev_register(drm, 0);
+	if (ret < 0)
+		goto unbind_all;
+
+	drm_fbdev_generic_setup(drm, 16);
 
 	return 0;
+
+unbind_all:
+	component_unbind_all(dev, drm);
+
+	return ret;
+}
+
+static void sp7350_drm_unbind(struct device *dev)
+{
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	drm_dev_unregister(drm);
+
+	drm_atomic_helper_shutdown(drm);
+}
+
+static const struct component_master_ops sp7350_drm_ops = {
+	.bind = sp7350_drm_bind,
+	.unbind = sp7350_drm_unbind,
+};
+
+static struct platform_driver *const component_drivers[] = {
+	&sp7350_dsi_driver,
+	&sp7350_crtc_driver,
+};
+
+static int compare_dev(struct device *dev, void *data)
+{
+	return dev == data;
 }
 
 static int sp7350_drm_probe(struct platform_device *pdev)
 {
+	struct component_match *match = NULL;
+	struct device *dev = &pdev->dev;
+	int count = ARRAY_SIZE(component_drivers);
+	int i;
+
+	for (i = 0; i < count; i++) {
+		struct device_driver *drv = &component_drivers[i]->driver;
+		struct device *p = NULL, *d;
+
+		while ((d = platform_find_device_by_driver(p, drv))) {
+			put_device(p);
+			component_match_add(dev, &match, compare_dev, d);
+			p = d;
+		}
+		put_device(p);
+	}
+
+	return component_master_add_with_match(dev, &sp7350_drm_ops, match);
+	#if 0
 	//struct shmob_drm_platform_data *pdata = pdev->dev.platform_data;
 	//struct sp7350fb_info *sp_fbinfo;
 	struct sp7350_drm_device *sdev;
@@ -146,7 +257,7 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 	sdev->ddev = ddev;
 	ddev->dev_private = sdev;
 
-	ret = sp7350_drm_modeset_init(sdev);
+	ret = sp7350_drm_modeset_init(ddev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to initialize mode setting\n");
 		goto err_free_drm_dev;
@@ -184,6 +295,25 @@ err_free_drm_dev:
 	drm_dev_put(ddev);
 
 	return ret;
+	#endif
+}
+
+static int sp7350_drm_remove(struct platform_device *pdev)
+{
+
+	component_master_del(&pdev->dev, &sp7350_drm_ops);
+
+	#if 0
+	struct sp7350_drm_device *sdev = platform_get_drvdata(pdev);
+	struct drm_device *ddev = sdev->ddev;
+
+	drm_dev_unregister(ddev);
+	drm_kms_helper_poll_fini(ddev);
+	drm_irq_uninstall(ddev);
+	drm_dev_put(ddev);
+	#endif
+
+	return 0;
 }
 
 static const struct of_device_id sp7350_drm_drv_of_table[] = {
@@ -202,7 +332,35 @@ static struct platform_driver sp7350_drm_platform_driver = {
 	},
 };
 
-module_platform_driver(sp7350_drm_platform_driver);
+//module_platform_driver(sp7350_drm_platform_driver);
+
+static int __init sp7350_drm_register(void)
+{
+	int ret;
+
+	ret = platform_register_drivers(component_drivers,
+					ARRAY_SIZE(component_drivers));
+	if (ret)
+		return ret;
+
+	ret = platform_driver_register(&sp7350_drm_platform_driver);
+	if (ret)
+		platform_unregister_drivers(component_drivers,
+					    ARRAY_SIZE(component_drivers));
+
+	return ret;
+}
+
+static void __exit sp7350_drm_unregister(void)
+{
+	platform_unregister_drivers(component_drivers,
+				    ARRAY_SIZE(component_drivers));
+	platform_driver_unregister(&sp7350_drm_platform_driver);
+}
+
+module_init(sp7350_drm_register);
+module_exit(sp7350_drm_unregister);
+
 
 MODULE_AUTHOR("dx.jiang <dx.jiang@sunmedia.com.cn>");
 MODULE_DESCRIPTION("Sunplus SP7350 DRM Driver");

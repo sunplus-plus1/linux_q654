@@ -117,10 +117,9 @@ static const uint32_t sp7350_kms_osd_formats[] = {
 	DRM_FORMAT_R8,        /* SP7350_OSD_COLOR_MODE_8BPP ??? */
 };
 
-struct drm_plane *sp7350_drm_plane_init(struct sp7350_drm_device *sdev,
+struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
 				  enum drm_plane_type type, int index)
 {
-	struct drm_device *dev = sdev->ddev;
 	const struct drm_plane_helper_funcs *funcs;
 	struct drm_plane *plane;
 	const u32 *formats;
@@ -140,7 +139,7 @@ struct drm_plane *sp7350_drm_plane_init(struct sp7350_drm_device *sdev,
 		funcs = &sp7350_kms_primary_helper_funcs;
 	}
 
-	ret = drm_universal_plane_init(dev, plane, 1 << index,
+	ret = drm_universal_plane_init(drm, plane, 1 << index,
 					   &sp7350_drm_plane_funcs,
 					   formats, nformats,
 					   NULL, type, NULL);
@@ -152,5 +151,42 @@ struct drm_plane *sp7350_drm_plane_init(struct sp7350_drm_device *sdev,
 	drm_plane_helper_add(plane, funcs);
 
 	return plane;
+}
+
+int sp7350_plane_create_additional_planes(struct drm_device *drm)
+{
+	//struct drm_plane *cursor_plane;
+	//struct drm_crtc *crtc;
+	unsigned int i;
+
+	/* for c3v soc display controller, has 4 osd layer.
+	 * used for DRM OVERLAY???
+	 */
+	for (i = 0; i < 4; i++) {
+		struct drm_plane *plane =
+		sp7350_drm_plane_init(drm, DRM_PLANE_TYPE_OVERLAY, i);
+
+		if (IS_ERR(plane))
+			continue;
+
+		plane->possible_crtcs =
+		GENMASK(drm->mode_config.num_crtc - 1, 0);
+	}
+
+#if 0  /* TODO, NOT SUPPORT cursor */
+	drm_for_each_crtc(crtc, drm) {
+		/* Set up the legacy cursor after overlay initialization,
+		* since we overlay planes on the CRTC in the order they were
+		* initialized.
+		*/
+		cursor_plane = sp7350_drm_plane_init(drm, DRM_PLANE_TYPE_CURSOR, 0);
+		if (!IS_ERR(cursor_plane)) {
+			cursor_plane->possible_crtcs = drm_crtc_mask(crtc);
+			crtc->cursor = cursor_plane;
+		}
+	}
+#endif
+
+	return 0;
 }
 
