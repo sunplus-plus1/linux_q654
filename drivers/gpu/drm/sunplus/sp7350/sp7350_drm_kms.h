@@ -10,9 +10,6 @@
 
 #include <linux/types.h>
 
-struct sp7350_drm_device;
-
-
-int sp7350_drm_modeset_init(struct sp7350_drm_device *sdev);
+int sp7350_drm_modeset_init(struct drm_device *drm);
 
 #endif /* __SP7350_DRM_KMS_H__ */

@@ -14,10 +14,6 @@
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
 
-#include "sp7350_drm_crtc.h"
-#include "sp7350_drm_output.h"
-#include "sp7350_drm_kms.h"
-
 #define XRES_MIN    20
 #define YRES_MIN    20
 
@@ -39,13 +35,22 @@ struct sp7350_drm_device {
 
 	//spinlock_t irq_lock;		/* Protects hardware LDINTR register */
 
-	struct drm_device *ddev;
+	//struct drm_device *ddev;
+	struct drm_device ddev;
 
-	struct sp7350_drm_output output;
+	//struct sp7350_drm_output output;
 
 	//struct sp7350_drm_crtc crtc;
 	//struct sp7350_drm_encoder encoder;
 	//struct sp7350_drm_connector connector;
 };
+
+#define to_sp7350_drm_dev(target)\
+	container_of(target, struct sp7350_drm_device, ddev)
+
+/* sp7350_drm_dsi.c */
+extern struct platform_driver sp7350_dsi_driver;
+/* sp7350_drm_crtc.c */
+extern struct platform_driver sp7350_crtc_driver;
 
 #endif /* __SUNPLUS_SP7350_DRM_DRV_H__ */

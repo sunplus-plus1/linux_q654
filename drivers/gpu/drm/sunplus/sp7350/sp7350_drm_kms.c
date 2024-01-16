@@ -5,12 +5,16 @@
  * Author: dx.jiang<dx.jiang@sunmedia.com.cn>
  */
 
+
+#include <linux/clk.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "sp7350_drm_drv.h"
 
@@ -52,24 +56,34 @@ static const struct drm_mode_config_funcs sp7350_drm_mode_config_funcs = {
 	//.atomic_commit_tail = sp7350_drm_atomic_commit_tail,
 };
 
-int sp7350_drm_modeset_init(struct sp7350_drm_device *sdev)
+int sp7350_drm_modeset_init(struct drm_device *drm)
 {
 	int ret;
 
-	ret = drmm_mode_config_init(sdev->ddev);
-	if (ret)
+	//ret = drmm_mode_config_init(drm);
+	//if (ret)
+	//	return ret;
+
+	/* Set support for vblank irq fast disable, before drm_vblank_init() */
+	drm->vblank_disable_immediate = true;
+
+	drm->irq_enabled = true;
+	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
+	if (ret < 0) {
+		dev_err(drm->dev, "failed to initialize vblank\n");
 		return ret;
+	}
 
-	//drm_kms_helper_poll_init(sdev->ddev);
+	drm->mode_config.min_width = XRES_MIN;
+	drm->mode_config.min_height = YRES_MIN;
+	drm->mode_config.max_width = XRES_MAX;
+	drm->mode_config.max_height = YRES_MAX;
+	drm->mode_config.funcs = &sp7350_drm_mode_config_funcs;
+	//drm->mode_config.helper_private = &vkms_mode_config_helpers;
 
-	sdev->ddev->mode_config.min_width = XRES_MIN;
-	sdev->ddev->mode_config.min_height = YRES_MIN;
-	sdev->ddev->mode_config.max_width = XRES_MAX;
-	sdev->ddev->mode_config.max_height = YRES_MAX;
-	sdev->ddev->mode_config.funcs = &sp7350_drm_mode_config_funcs;
-	//sdev->ddev->mode_config.helper_private = &vkms_mode_config_helpers;
+	drm_mode_config_reset(drm);
 
-	return sp7350_drm_output_init(sdev, 0);
+	drm_kms_helper_poll_init(drm);
 
 	return 0;
 }

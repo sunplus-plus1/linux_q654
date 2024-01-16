@@ -70,11 +70,11 @@
 
 //#define RASPBERRYPI_DSI_PANEL
 
-#define LT8912B_HDMI_ENABLE
+//#define LT8912B_HDMI_ENABLE
 //#define LT8912B_HDMI_480X272
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
-#define LT8912B_HDMI_1080P
+//#define LT8912B_HDMI_1080P
 
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
@@ -243,7 +243,7 @@
 		};
 
 		/* display drm reserve memory 0x88000000 ~ 0x8fffffff, total 128M */
-		drm_disp_reserve: drm@88000000 {
+		drm_disp_reserve: drm_reserve@88000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x88000000 0x0 0x18000000>;
 			no-map;
@@ -1521,8 +1521,8 @@
 		i2c-sda-hold-time-ns = <2000>;
 		clock-frequency = <100000>;
 #else
-		i2c-sda-hold-time-ns = <1000>;
-		clock-frequency = <400000>;
+		//i2c-sda-hold-time-ns = <1000>;
+		//clock-frequency = <400000>;
 #endif
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo6_pins>;
@@ -3481,12 +3481,6 @@
 		status = "okay";
 	};
 
-	drm_display_engine {
-		compatible = "sunplus,sp7350-display-engine";
-		memory-region = <&drm_disp_reserve>;
-		status = "okay";
-	};
-
 	display: display@f8005c80 {
 		compatible = "sunplus,sp7350-display";
 		reg = <0x00 0xf8005c80 0x00 0xa80>, <0x00 0xf8800180 0x00 0x80>;
@@ -3691,7 +3685,7 @@
 #endif
 	};
 
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
+//#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
 	hdmi-connector {
 		compatible = "hdmi-connector";
 		label = "hdmi";
@@ -3703,7 +3697,7 @@
 			};
 		};
 	};
-#endif
+//#endif
 
 #if 0
 	dummymaster: dm@f8000700 {
@@ -4427,3 +4421,28 @@
 		};
 	};
 };
+
+#include "display-drm.dtsi"
+
+&drm_display_engine {
+	status = "okay";
+};
+&crtc0 {
+	status = "okay";
+};
+&dsi0 {
+	status = "okay";
+
+	ports {
+		/* 1 for output port */
+		port@1 {
+			reg = <1>;
+
+			dsi_out0: endpoint@0 {
+				remote-endpoint = <&lt8912b_in>;
+			};
+		};
+
+	};
+};
+
