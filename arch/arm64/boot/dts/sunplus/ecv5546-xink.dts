@@ -119,8 +119,6 @@
 
 		spi0 = &sp_spinor0;
 
-		usb-device0 = &udc0;
-
 		stc0 = &stc;
 		stc1 = &stc_av0;
 		stc2 = &stc_av1;
@@ -520,16 +518,18 @@
 		mboxes = <&mbox 0>; // for SUNPLUS_MBOX_TEST
 	};
 
-	/*npu_core_0v8: npu_0p8v {
+	npu_core_0v8: npu_0p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "npu_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
+		startup-delay-us = <5000>;
+		off-on-delay-us = <5000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&npu_pwr_en_pins>;
 		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};*/
+	};
 
 	/*video_codec_core_0v8: video_0p8v {
 		compatible = "regulator-fixed";
@@ -1345,7 +1345,7 @@
 			clocks = <&imx708_clk>;
 			clock-names = "inclk";
 			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-			vana2-supply = <&imx708_vana2_1v8>;/* 1.8v */
+			vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
 			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
 			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
 
@@ -2198,10 +2198,6 @@
 		phy-names = "uphy";
 	};
 
-	spdwc3: spdwc3@f80a1000 {
-		compatible = "sunplus,dwc3";
-	};
-
 	spsoc-pcm-driver {
 		compatible = "sunplus,audio-pcm";
 		//status = "disabled";
@@ -2258,6 +2254,10 @@
 			phys = <&u3phy0>, <&u3phy0>;
 			phy-names = "usb3-phy", "usb2-phy";
 		};
+	};
+
+	spdwc3: spdwc3@f80a1000 {
+		compatible = "sunplus,dwc3";
 	};
 
 	u3phy0: uphy@f80bd000 {
@@ -2984,8 +2984,6 @@
 		max_channels = <4>;
 #if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		num_channels = <1>;
-#elif defined(OV5647_IN4)
-	num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
 		num_channels = <2>;
@@ -3452,12 +3450,13 @@
 
 	galcore: galcore@f8140000 {
 		compatible = "galcore";
-		reg = <0x0 0xf8140000 0x0 0x20000>;
+		reg = <0x0 0xf8140000 0x0 0x20000>, <0x0 0xf880125c 0x0 0xff>;
+		reg-name = "galcore","gal_ios";
 		dev_name = "galcore";
 		memory-region = <&npu_reserve>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
-		//npu_core-supply = <&npu_core_0v8>;
+		npu_core-supply = <&npu_core_0v8>;
 		clocks = <&clkc NPU>;
 		clock-names = "clk_vip9000";
 		clock-frequency = <900000000>;
@@ -3615,7 +3614,7 @@
 			 */
 #elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
 		sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
-		sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+		sp7350,osd0_layer = <0 0 800 480 0xd>; /* 0x8 = RGBA8888 */
 		sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
@@ -4054,23 +4053,23 @@
 		};
 
 		typec_pins: pinmux_typec-pins {
-			pins = "GPIO98";
 			function = "GPIO";
+			pins = "GPIO98";
 		};
 
 		dwc3id_pins: pinmux_usb3id-pins {
-			pins = "GPIO99";
 			function = "GPIO";
+			pins = "GPIO99";
 		};
 
 		npu_pwr_en_pins: pinmux_video_npu_pwr_en-pins {
-			pins = "GPIO65";
 			function = "GPIO";
+			pins = "GPIO65";
 		};
 
 		video_codec_pwr_en_pins: pinmux_video_codec_pwr_en-pins {
-			pins = "GPIO66";
 			function = "GPIO";
+			pins = "GPIO66";
 		};
 
 		uart0_pins: pinmux_uart0-pins {
