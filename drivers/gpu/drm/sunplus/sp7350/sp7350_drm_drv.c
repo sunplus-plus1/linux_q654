@@ -181,8 +181,8 @@ static const struct component_master_ops sp7350_drm_ops = {
 };
 
 static struct platform_driver *const component_drivers[] = {
-	&sp7350_dsi_driver,
 	&sp7350_crtc_driver,
+	&sp7350_dsi_driver,
 };
 
 static int compare_dev(struct device *dev, void *data)

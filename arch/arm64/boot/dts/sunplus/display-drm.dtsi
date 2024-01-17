@@ -47,21 +47,35 @@
 		compatible = "sunplus,sp7350-display-engine";
 		memory-region = <&drm_disp_reserve>;
 		status = "disabled";
+	};
+
+	/* Display controller0 */
+	crtc0: crtc0 {
+		compatible = "sunplus,sp7350-crtc0";
+		status = "disabled";
 
 		port {
-			drm_out: endpoint {
-				remote-endpoint = <&dsi_in>;
+			crtc0_out: endpoint {
+				remote-endpoint = <&dsi_in0>;
 			};
 		};
 	};
 
-	crtc0: crtc {
-		compatible = "sunplus,sp7350-crtc0";
+	crtc1: crtc1 {
+		compatible = "sunplus,example_crtc";
 		status = "disabled";
+
+		port {
+			crtc1_out: endpoint {
+				remote-endpoint = <&dsi_in_example>;
+			};
+		};
 	};
 
 	dsi0: dsi {
 		compatible = "sunplus,sp7350-dsi0";
+		//possible-crtcs = <&crtc0 &crtc1>;
+
 		status = "disabled";
 
 		ports {
@@ -71,8 +85,11 @@
 			/* 0 for input port */
 			port@0 {
 				reg = <0>;
-				dsi_in: endpoint {
-					remote-endpoint = <&drm_out>;
+				dsi_in0: endpoint@0 {
+					remote-endpoint = <&crtc0_out>;
+				};
+				dsi_in_example: endpoint@1 {
+					remote-endpoint = <&crtc1_out>;
 				};
 			};
 		};

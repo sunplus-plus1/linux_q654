@@ -101,9 +101,21 @@ static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
 int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 		   struct drm_plane *primary, struct drm_plane *cursor)
 {
-	//struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
+	struct device_node *port;
+	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
 	struct drm_plane *primary_plane = primary;
 	int ret;
+
+	/* set crtc port so that
+	 * drm_of_find_possible_crtcs call works
+	 */
+	port = of_get_child_by_name(sp7350_crtc->pdev->dev.of_node, "port");
+	if (!port) {
+		DRM_ERROR("no port node found in %pOF\n", sp7350_crtc->pdev->dev.of_node);
+		return -EINVAL;
+	}
+	of_node_put(port);
+	crtc->port = port;
 
 	if (!primary_plane) {
 		/* For now, we create just the primary and the legacy cursor
