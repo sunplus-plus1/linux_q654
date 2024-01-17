@@ -2260,6 +2260,7 @@
 
 	spdwc3: spdwc3@f80a1000 {
 		compatible = "sunplus,dwc3";
+		reg = <0x0 0xf80a1000 0x0 0xe000>;
 	};
 
 	u3phy0: uphy@f80bd000 {
