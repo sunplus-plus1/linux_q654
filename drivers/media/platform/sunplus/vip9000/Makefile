@@ -33,12 +33,12 @@ ccflags-y += -Wall -Werror -DNO_DMA_COHERENT=1 -DUSE_VDK=1 -DEGL_API_WL=0 \
 
 ifneq ($(CONFIG_v6_4_13_8),)
 driver := v6.4.13.8
-VIP9000_NPU := $(CONFIG_v6_4_13_8)
+VIP9000_NPU := $(CONFIG_VIP9000_NPU_DRIVERS)
 endif
 
 ifneq ($(CONFIG_v6_4_15_9),)
 driver := v6.4.15.9
-VIP9000_NPU := $(CONFIG_v6_4_15_9)
+VIP9000_NPU := $(CONFIG_VIP9000_NPU_DRIVERS)
 endif
 
 ccflags-y += $(EXTRA_CCFLAGS)
