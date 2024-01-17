@@ -471,6 +471,7 @@ static int sp7350_drm_encoder_init(struct device *dev,
 	}
 
 	encoder->possible_crtcs = crtc_mask;
+	DRM_INFO("crtc_mask:0x%X\n", crtc_mask);
 	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
 		DRM_ERROR("failed to init dsi encoder\n");
@@ -577,10 +578,11 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	 * Get the endpoint node. In our case, dsi has one output port1
 	 * to which the external HDMI bridge is connected.
 	 */
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
-					  &panel, &dsi->bridge);
+	//ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &panel, &dsi->bridge);
+	//ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, NULL, &dsi->bridge);
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
 	if (ret) {
-		DRM_ERROR("drm_of_find_panel_or_bridge failed -%d\n", -ret);
+		DRM_ERROR("drm_of_find_panel_or_bridge failed %d\n", ret);
 		/* If the bridge or panel pointed by dev->of_node is not
 		 * enabled, just return 0 here so that we don't prevent the DRM
 		 * dev from being registered. Of course that means the DSI
