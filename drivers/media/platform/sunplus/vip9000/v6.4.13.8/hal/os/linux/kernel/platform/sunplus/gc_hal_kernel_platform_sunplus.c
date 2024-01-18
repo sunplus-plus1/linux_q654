@@ -77,6 +77,7 @@ static void __iomem *npu_ios_reg_base;
 static struct clk *clk;
 static struct regulator *vcc_reg;
 static struct reset_control *dec_rstc;
+static bool isPowerOn;
 
 static void npu_iso_contrl(int enable)
 {
@@ -98,9 +99,138 @@ static void npu_sms_reset(void)
 	writel(0x5807, npu_sms_reset_reg_base);
 }
 
+static gceSTATUS npu_power_on(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu)
+{
+	int ret = gcvSTATUS_FALSE;
+	struct device *dev = &platform->device->dev;
+
+	if (isPowerOn) {
+		dev_dbg(dev, "%s %d %d is already enabled\n", __func__, devIndex, gpu);
+		return gcvSTATUS_TRUE;
+	}
+
+	if (IS_ERR(vcc_reg)) {
+		dev_err(dev, "failed to get regulator\n");
+		return gcvSTATUS_FALSE;
+	}
+	if (IS_ERR(clk)) {
+		dev_err(dev, "failed to get clock source\n");
+		return PTR_ERR(clk);
+	}
+
+	if (IS_ERR(dec_rstc)) {
+		dev_err(dev, "failed to retrieve reset controller\n");
+		return PTR_ERR(dec_rstc);
+	}
+
+	dev_dbg(dev, "%s %d %d enable\n", __func__, devIndex, gpu);
+
+	/*NPU Power on*/
+	if (!regulator_is_enabled(vcc_reg)) {
+		ret = regulator_enable(vcc_reg);
+		if (ret != 0) {
+			dev_err(dev, "regulator get failed: %d\n", ret);
+			return ret;
+		}
+		dev_dbg(dev, "regulator enable success\n");
+	}
+
+	/*disable NPU ISO (Register G36. ISO_CTRL_ENABLE [4])*/
+	npu_iso_contrl(0);
+	dev_dbg(dev, "NPU ISO disable\n");
+
+#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
+	/*NPU HW reset SMS*/
+	npu_sms_reset();
+	dev_dbg(dev, "NPU HW reset SMS\n");
+#endif
+
+	/*NPU HW reset deassert*/
+	ret = reset_control_deassert(dec_rstc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset line\n");
+		return ret;
+	}
+	dev_dbg(dev, "NPU HW reset deassert\n");
+
+	/*NPU HW clock enable*/
+	ret = clk_enable(clk);
+	if (ret) {
+		dev_err(dev, "enabled clock failed\n");
+		return gcvSTATUS_OUT_OF_RESOURCES;
+	}
+	dev_dbg(dev, "NPU HW clock enable\n");
+
+	isPowerOn = true;
+	udelay(300);
+
+	dev_dbg(dev, "%s enable ret %d\n", __func__, ret);
+
+	return ret;
+}
+
+static gceSTATUS npu_power_off(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu)
+{
+	int ret = gcvSTATUS_FALSE;
+	struct device *dev = &platform->device->dev;
+
+	if (!isPowerOn) {
+		dev_dbg(dev, "%s %d %d is already disabled\n", __func__, devIndex, gpu);
+		return gcvSTATUS_TRUE;
+	}
+
+	if (IS_ERR(vcc_reg)) {
+		dev_err(dev, "failed to get regulator\n");
+		return gcvSTATUS_FALSE;
+	}
+	if (IS_ERR(clk)) {
+		dev_err(dev, "failed to get clock source\n");
+		return PTR_ERR(clk);
+	}
+
+	if (IS_ERR(dec_rstc)) {
+		dev_err(dev, "failed to retrieve reset controller\n");
+		return PTR_ERR(dec_rstc);
+	}
+
+	dev_dbg(dev, "%s %d %d disable\n", __func__, devIndex, gpu);
+
+	/*NPU HW clock disable*/
+	clk_disable(clk);
+	dev_dbg(dev, "NPU HW clock disabled\n");
+
+	/*NPU HW Reset assert*/
+	ret = reset_control_assert(dec_rstc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset line\n");
+		return ret;
+	}
+	dev_dbg(dev, "NPU HW reset assert\n");
+
+	/*enable NPU ISO (Register G36. ISO_CTRL_ENABLE [4])*/
+	npu_iso_contrl(1);
+	dev_dbg(dev, "NPU ISO enable\n");
+
+	/*NPU Power off*/
+	if (regulator_is_enabled(vcc_reg)) {
+		ret = regulator_disable(vcc_reg);
+		if (ret != 0)
+			dev_err(dev, "regulator get failed: %d\n", ret);
+		else
+			dev_dbg(dev, "regulator disable success\n");
+	}
+
+	isPowerOn = false;
+
+	dev_dbg(dev, "%s disable ret %d\n", __func__, ret);
+
+	return ret;
+}
+
+
 gceSTATUS
 _AdjustParam(
-	IN gcsPLATFORM * platform,
+	IN gcsPLATFORM *platform,
 	OUT gcsMODULE_PARAMETERS * args
 	)
 {
@@ -135,7 +265,7 @@ _AdjustParam(
 	return ret;
 }
 
-gceSTATUS _GetPower(IN gcsPLATFORM * platform)
+gceSTATUS _GetPower(IN gcsPLATFORM *platform)
 {
 	int ret = gcvSTATUS_OK;
 	struct device *dev = &platform->device->dev;
@@ -182,6 +312,7 @@ gceSTATUS _GetPower(IN gcsPLATFORM * platform)
 		return gcvSTATUS_OUT_OF_RESOURCES;
 	}
 
+	isPowerOn = false;
 	dev_info(dev, "NPU get power success\n");
 
 	return gcvSTATUS_OK;
@@ -191,14 +322,14 @@ gceSTATUS _PutPower(gcsPLATFORM *platform)
 {
 	struct device *dev = &platform->device->dev;
 
+	if (isPowerOn)
+		npu_power_off(platform, 0, 0);
+
 	/*NPU HW clock disable*/
 	if (IS_ERR(clk)) {
 		dev_err(dev, "Can't find clock source\n");
 		return PTR_ERR(clk);
 	}
-
-	clk_unprepare(clk);
-	dev_dbg(dev, "NPU clock unprepare\n");
 
 	clk = NULL;
 	vcc_reg = NULL;
@@ -216,91 +347,10 @@ gceSTATUS _PutPower(gcsPLATFORM *platform)
 
 gceSTATUS _SetPower(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctBOOL enable)
 {
-	int ret = gcvSTATUS_FALSE;
-	struct device *dev = &platform->device->dev;
-
-	if (IS_ERR(vcc_reg)) {
-		dev_err(dev, "failed to get regulator\n");
-		return gcvSTATUS_FALSE;
-	}
-	if (IS_ERR(clk)) {
-		dev_err(dev, "failed to get clock source\n");
-		return PTR_ERR(clk);
-	}
-
-	if (IS_ERR(dec_rstc)) {
-		dev_err(dev, "failed to retrieve reset controller\n");
-		return PTR_ERR(dec_rstc);
-	}
-
-	dev_dbg(dev, "%s %d %d %s\n", __func__, devIndex, gpu, enable?"enable":"disable");
-	if (enable) {
-		/*NPU Power on*/
-		if (!regulator_is_enabled(vcc_reg)) {
-			ret = regulator_enable(vcc_reg);
-			if (ret != 0) {
-				dev_err(dev, "regulator get failed: %d\n", ret);
-				return ret;
-			}
-			dev_dbg(dev, "regulator enable success\n");
-		}
-
-		/*disable NPU ISO (Register G36. ISO_CTRL_ENABLE [4])*/
-		npu_iso_contrl(0);
-		dev_dbg(dev, "NPU ISO disable\n");
-
-#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
-		/*NPU HW reset SMS*/
-		npu_sms_reset();
-		dev_dbg(dev, "NPU HW reset SMS\n");
-#endif
-
-		/*NPU HW reset deassert*/
-		ret = reset_control_deassert(dec_rstc);
-		if (ret) {
-			dev_err(dev, "failed to deassert reset line\n");
-			return ret;
-		}
-		dev_dbg(dev, "NPU HW reset deassert\n");
-
-		/*NPU HW clock enable*/
-		ret = clk_enable(clk);
-		if (ret) {
-			dev_err(dev, "enabled clock failed\n");
-			return gcvSTATUS_OUT_OF_RESOURCES;
-		}
-		dev_dbg(dev, "NPU HW clock enable\n");
-		udelay(300);
-	} else {
-		/*NPU HW clock disable*/
-		clk_disable(clk);
-		dev_dbg(dev, "NPU HW clock disabled\n");
-
-		/*NPU HW Reset assert*/
-		ret = reset_control_assert(dec_rstc);
-		if (ret) {
-			dev_err(dev, "failed to deassert reset line\n");
-			return ret;
-		}
-		dev_dbg(dev, "NPU HW reset assert\n");
-
-		/*enable NPU ISO (Register G36. ISO_CTRL_ENABLE [4])*/
-		npu_iso_contrl(1);
-		dev_dbg(dev, "NPU ISO enable\n");
-
-		/*NPU Power off*/
-		if (regulator_is_enabled(vcc_reg)) {
-			ret = regulator_disable(vcc_reg);
-			if (ret != 0)
-				dev_err(dev, "regulator get failed: %d\n", ret);
-			else
-				dev_dbg(dev, "regulator disable success\n");
-		}
-	}
-
-	dev_dbg(dev, "%s %s ret=%d\n", __func__, enable?"enable":"disable", ret);
-
-	return ret;
+	if (enable)
+		return npu_power_on(platform, devIndex, gpu);
+	else
+		return npu_power_off(platform, devIndex, gpu);
 }
 
 gceSTATUS _SetClock(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu, gctBOOL enable)
@@ -390,11 +440,12 @@ gceSTATUS _Reset(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu)
 	}
 	dev_info(dev, "NPU HW clock enable\n");
 
+	isPowerOn = true;
+
 	return gcvSTATUS_OK;
 }
 
 static struct _gcsPLATFORM_OPERATIONS default_ops = {
-
 	.adjustParam   = _AdjustParam,
 	.getPower  = _GetPower,
 	.putPower = _PutPower,
@@ -439,3 +490,4 @@ int gckPLATFORM_Terminate(struct _gcsPLATFORM *platform)
 
 	return 0;
 }
+
