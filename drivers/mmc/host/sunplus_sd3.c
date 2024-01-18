@@ -1406,7 +1406,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 
 		host->buf_phys_addr = dma_map_single(&pdev->dev,
 						   host->buffer,
-						   80 * SPSDC_MAX_BLK_CNT * 512,
+						   SPSDC_MAX_BLK_CNT * 512,
 						   DMA_BIDIRECTIONAL);
 		ret = dma_mapping_error(&pdev->dev, host->buf_phys_addr);
 		if (ret)
