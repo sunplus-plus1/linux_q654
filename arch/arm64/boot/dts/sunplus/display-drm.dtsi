@@ -103,6 +103,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
+/*
 	raspberrypi_lcd: lcd@45 {
 		//compatible = "raspberrypi,7inch-touchscreen-panel";
 		compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
@@ -113,6 +114,7 @@
 			};
 		};
 	};
+*/
 
 	lontium_lt8912b: hdmi@48 {
 		compatible = "lontium,lt8912b";
