@@ -211,16 +211,24 @@ err_crtc:
 
 static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 {
-
+	DRM_INFO("encoder disable:%s\n", encoder->name);
 }
 static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 {
+	DRM_INFO("encoder enable:%s\n", encoder->name);
+}
 
+static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *encoder,
+					    struct drm_connector *connector)
+{
+	DRM_INFO("encoder %s detect connector:%s\n", encoder->name, connector->name);
+	return connector->status;
 }
 
 static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 				     const struct mipi_dsi_msg *msg)
 {
+	DRM_INFO("sp7350_dsi_host_transfer\n");
 #if 0  /* [TODO]Set and send DSI PACKET for C3V DISPLAY */
 	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 	struct mipi_dsi_packet packet;
@@ -399,6 +407,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 {
 	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 
+	DRM_INFO("sp7350_dsi_host_attach\n");
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
 	dsi->mode_flags = device->mode_flags;
@@ -438,6 +447,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 static int sp7350_dsi_host_detach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
+	DRM_INFO("sp7350_dsi_host_detach\n");
 	return 0;
 }
 
@@ -451,6 +461,7 @@ static const struct mipi_dsi_host_ops sp7350_dsi_host_ops = {
 static const struct drm_encoder_helper_funcs sp7350_dsi_encoder_helper_funcs = {
 	.disable = sp7350_dsi_encoder_disable,
 	.enable = sp7350_dsi_encoder_enable,
+	.detect = sp7350_dsi_encoder_detect,
 };
 
 static const struct of_device_id sp7350_dsi_dt_match[] = {
@@ -624,6 +635,15 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 		dev_err(dev, "bridge attach failed: %d\n", ret);
 		return ret;
 	}
+
+	/* FIXME, use firmware EDID for lt8912b */
+	#if IS_ENABLED(CONFIG_DRM_LOAD_EDID_FIRMWARE) && IS_ENABLED(CONFIG_DRM_LONTIUM_LT8912B)
+	{
+		DRM_WARN("Use firmware EDID edid/1920x1080.bin for lt8912b output\n");
+		__drm_set_edid_firmware_path("edid/1920x1080.bin");
+	}
+	#endif
+
 	/* Disable the atomic helper calls into the bridge.  We
 	 * manually call the bridge pre_enable / enable / etc. calls
 	 * from our driver, since we need to sequence them within the

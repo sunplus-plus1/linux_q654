@@ -453,7 +453,12 @@ lt8912_connector_mode_valid(struct drm_connector *connector,
 static int lt8912_connector_get_modes(struct drm_connector *connector)
 {
 	struct edid *edid;
+	/*FIXME, why default rertun -1???  */
+	#if IS_ENABLED(CONFIG_DRM_LOAD_EDID_FIRMWARE)
+	int ret = 0;
+	#else
 	int ret = -1;
+	#endif
 	int num = 0;
 	struct lt8912 *lt = connector_to_lt8912(connector);
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
