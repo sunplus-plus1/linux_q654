@@ -3991,11 +3991,11 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		//sunplus,ms-dvio-group-0 = "1V8";
-		//sunplus,ms-dvio-group-1 = "1V8";
-		//sunplus,ms-dvio-ao-group-0 = "1V8";
-		//sunplus,ms-dvio-ao-group-1 = "1V8";
-		//sunplus,ms-dvio-ao-group-2 = "1V8";
+		sunplus,ms-dvio-group-0 = "1V8";
+		sunplus,ms-dvio-group-1 = "1V8";
+		sunplus,ms-dvio-ao-group-0 = "1V8";
+		sunplus,ms-dvio-ao-group-1 = "1V8";
+		sunplus,ms-dvio-ao-group-2 = "1V8";
 
 		sunplus,ao-pin-prescale = <2500>;
 		sunplus,ao-pin-debounce = <10>;
