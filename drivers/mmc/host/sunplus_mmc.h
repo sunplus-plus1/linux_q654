@@ -19,7 +19,7 @@
 
 #define MEASUREMENT_SIGNAL //timing measurement
 //#define SPMMC_SOFTPAD
-//#define SPMMC_DMA_ALLOC //Enable:software workaround for sector=128, Disable: HW sector=8
+#define SPMMC_DMA_ALLOC //Enable:software workaround for sector=128, Disable: HW sector=8
 
 #define SPMMC_SUPPORT_VOLTAGE_1V8
 #define SPMMC_EMMC_VCCQ_1V8
@@ -290,6 +290,7 @@ struct spmmc_host {
 	struct mmc_data	*data;
 	unsigned int		*buffer;
 	unsigned int		buf_size;
+	unsigned int		xfer_len;
 	dma_addr_t		buf_phys_addr;
 	dma_addr_t		buf_addr;
 #endif

@@ -637,6 +637,9 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 		struct scatterlist *sg;
 		dma_addr_t dma_addr;
 		unsigned int dma_size;
+		#ifdef SPMMC_DMA_ALLOC
+		unsigned int sg_xlen;
+		#endif
 		u32 *reg_addr;
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 		int i, count = 1;
@@ -648,38 +651,63 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 			data->error = -EINVAL;
 			return;
 		}
+#else
+		if (unlikely(!count)) {
+			spmmc_pr(ERROR, "error occured at dma_mapp_sg: count = %d\n", count);
+			data->error = -EINVAL;
+			return;
+		}
+
 #endif
 #ifdef SPMMC_DMA_ALLOC
-		if(data->sg_len > SPMMC_MAX_DMA_MEMORY_SECTORS) {
-			if ((data->flags & MMC_DATA_WRITE)) {
-				sg_copy_to_buffer(data->sg, data->sg_len,
-					  	host->buffer, (data->blocks * data->blksz));
-							/* Switch ownership to the DMA */
-				dma_sync_single_for_device(host->mmc->parent,
+		if(data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) {
+			host->xfer_len = data->blocks * data->blksz;
+			count = 8;
+		}
+		for_each_sg(data->sg, sg, count, i) {
+			dma_addr = sg_dma_address(sg);
+			sg_xlen = sg_dma_len(sg);
+			dma_size = sg_xlen / data->blksz - 1;
+			if (i == 0) {
+				writel(dma_addr, &host->base->dma_base_addr);
+				writel(dma_size, &host->base->sdram_sector_0_size);
+				host->xfer_len -= sg_xlen;
+			} else if(i < 7){
+				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
+				writel(dma_addr, reg_addr);
+				writel(dma_size, reg_addr + 1);
+				host->xfer_len -= sg_xlen;
+			} else {
+				if (data->flags & MMC_DATA_WRITE) {
+					sg_copy_to_buffer(sg, data->sg_len-7,
+						host->buffer, host->xfer_len);
+					/* Switch ownership to the DMA */
+					dma_sync_single_for_device(host->dev,
 							host->buf_phys_addr,
-							(data->blocks * data->blksz),
+							host->xfer_len,
 							mmc_get_dma_dir(data));
-			}
-			host->buf_addr = host->buf_phys_addr;
-			dma_size = data->blocks - 1;
-			writel(host->buf_addr , &host->base->dma_base_addr);
-			writel(dma_size, &host->base->sdram_sector_0_size);
-		} else
-#endif
-		{
-			for_each_sg(data->sg, sg, count, i) {
-				dma_addr = sg_dma_address(sg);
-				dma_size = sg_dma_len(sg) / 512 - 1;
-				if (i == 0) {
-					writel(dma_addr, &host->base->dma_base_addr);
-					writel(dma_size, &host->base->sdram_sector_0_size);
-				} else {
-					reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
-					writel(dma_addr, reg_addr);
-					writel(dma_size, reg_addr + 1);
 				}
+				dma_addr = host->buf_phys_addr;
+				dma_size = host->xfer_len / data->blksz - 1;
+				//pr_info("c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
+				writel(dma_addr, &host->base->sdram_sector_7_addr);
+				writel(dma_size, &host->base->sdram_sector_7_size);
 			}
 		}
+#else
+		for_each_sg(data->sg, sg, count, i) {
+			dma_addr = sg_dma_address(sg);
+			dma_size = sg_dma_len(sg) / 512 - 1;
+			if (i == 0) {
+				writel(dma_addr, &host->base->dma_base_addr);
+				writel(dma_size, &host->base->sdram_sector_0_size);
+			} else {
+				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
+				writel(dma_addr, reg_addr);
+				writel(dma_size, reg_addr + 1);
+			}
+		}
+#endif
 		value = bitfield_replace(value, 0, 1, 0); /* sdpiomode */
 		writel(value, &host->base->sd_config0);
 		/* enable interrupt if needed */
@@ -955,6 +983,10 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 {
 	struct mmc_command *cmd;
 	struct mmc_data *data;
+#ifdef SPMMC_DMA_ALLOC	
+	struct scatterlist *sg;
+	int i, count;
+#endif
 
 	if (!mrq)
 		return;
@@ -966,18 +998,22 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 #ifdef SPMMC_DMA_ALLOC
-		if(data->sg_len > SPMMC_MAX_DMA_MEMORY_SECTORS) {
-			if (data->flags & MMC_DATA_READ) {
-				dma_sync_single_for_cpu(host->mmc->parent,
-							host->buf_phys_addr,
-							(host->data->blocks * host->data->blksz),
-							DMA_FROM_DEVICE);
-				sg_copy_from_buffer(host->data->sg, host->data->sg_len,
-			                    host->buffer, (host->data->blocks * host->data->blksz));
+		if((data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
+			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
+			count = 8;
+			for_each_sg(data->sg, sg, count, i) {
+				if (i == 7) {
+					dma_sync_single_for_cpu(host->dev,
+						host->buf_phys_addr,
+						host->xfer_len,
+						DMA_FROM_DEVICE);
+					sg_copy_from_buffer(sg, data->sg_len -7,
+							host->buffer, host->xfer_len);
+				}
 			}
-		} else 
+		}
 #endif
-			dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
+		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
 	if(cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK){
