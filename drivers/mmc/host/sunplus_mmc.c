@@ -983,7 +983,7 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 {
 	struct mmc_command *cmd;
 	struct mmc_data *data;
-#ifdef SPMMC_DMA_ALLOC	
+#ifdef SPMMC_DMA_ALLOC
 	struct scatterlist *sg;
 	int i, count;
 #endif
@@ -1038,6 +1038,8 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 
 	cmd = mrq->cmd;
 	data = mrq->data;
+	spmmc_get_rsp(host, cmd);
+	spmmc_wait_finish(host);
 
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
@@ -1045,8 +1047,7 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
-	spmmc_get_rsp(host, cmd);
-	spmmc_wait_finish(host);
+
 	spmmc_check_error(host, mrq);
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
@@ -2404,7 +2405,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 		 */
 		goto probe_free_host;
 	}
-			
+
 	host->buf_phys_addr = dma_map_single(&pdev->dev,
 							   host->buffer,
 							   SPMMC_MAX_BLK_COUNT * 512,
@@ -2413,7 +2414,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	if (ret) {
 		spmmc_pr(ERROR, "map error\n");
 		goto probe_free_host;
-	}	
+	}
 #endif
 
 	spin_lock_init(&host->lock);
@@ -2428,7 +2429,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
 #ifdef SPMMC_DMA_ALLOC
-	mmc->max_seg_size =  SPMMC_MAX_BLK_COUNT * 512; 
+	mmc->max_seg_size =  SPMMC_MAX_BLK_COUNT * 512;
 	/* Host controller supports up to "SPMMC_SOFTWAVE_MAX_SECTORS"*/
 	/* a.k.a. max scattered memory segments per request*/
 	mmc->max_segs = SPMMC_SOFTWAVE_MAX_SECTORS;
