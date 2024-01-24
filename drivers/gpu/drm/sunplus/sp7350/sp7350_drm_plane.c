@@ -16,19 +16,19 @@
 #include "sp7350_drm_vgem.h"
 
 static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
-	.update_plane		= drm_atomic_helper_update_plane,
-	.disable_plane		= drm_atomic_helper_disable_plane,
-	.destroy		= drm_plane_cleanup,
-	//.reset			= sp7350_drm_plane_reset,
-	//.atomic_duplicate_state = sp7350_drm_plane_duplicate_state,
-	//.atomic_destroy_state	= sp7350_drm_plane_destroy_state,
+	.update_plane	= drm_atomic_helper_update_plane,
+	.disable_plane	= drm_atomic_helper_disable_plane,
+	.destroy = drm_plane_cleanup,
+	.reset = drm_atomic_helper_plane_reset,
+	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
 static void sp7350_kms_plane_atomic_update(struct drm_plane *plane,
 					 struct drm_plane_state *old_state)
 {
-
-
+	/* TODO reference to ade_plane_atomic_update */
+	DRM_INFO("[TODO]sp7350_kms_plane_atomic_update\n");
 }
 
 static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
@@ -62,6 +62,7 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
+#if 0
 static int sp7350_kms_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
@@ -90,12 +91,13 @@ static void sp7350_kms_cleanup_fb(struct drm_plane *plane,
 	gem_obj = drm_gem_fb_get_obj(old_state->fb, 0);
 	sp7350_vgem_vunmap(gem_obj);
 }
+#endif
 
 static const struct drm_plane_helper_funcs sp7350_kms_primary_helper_funcs = {
 	.atomic_update		= sp7350_kms_plane_atomic_update,
 	.atomic_check		=sp7350_kms_plane_atomic_check,
-	.prepare_fb 	= sp7350_kms_prepare_fb,
-	.cleanup_fb 	= sp7350_kms_cleanup_fb,
+	//.prepare_fb 	= sp7350_kms_prepare_fb,
+	//.cleanup_fb 	= sp7350_kms_cleanup_fb,
 };
 
 static const uint32_t sp7350_kms_formats[] = {
@@ -169,8 +171,7 @@ int sp7350_plane_create_additional_planes(struct drm_device *drm)
 		if (IS_ERR(plane))
 			continue;
 
-		plane->possible_crtcs =
-		GENMASK(drm->mode_config.num_crtc - 1, 0);
+		plane->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
 	}
 
 #if 0  /* TODO, NOT SUPPORT cursor */
