@@ -11,6 +11,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_graph.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -42,8 +45,8 @@
 DEFINE_DRM_GEM_CMA_FOPS(sp7350_drm_fops);
 
 static struct drm_driver sp7350_drm_driver = {
-	//.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM,
+	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
+	//.driver_features	= DRIVER_MODESET | DRIVER_GEM,
 	//.irq_handler		= sp7350_drm_irq,
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &sp7350_drm_fops,
@@ -66,7 +69,8 @@ static int sp7350_drm_pm_suspend(struct device *dev)
 
 	drm_kms_helper_poll_disable(&sdev->ddev);
 	//sp7350_drm_crtc_suspend(&sdev->crtc);
-
+	//drm_fb_helper_set_suspend_unlocked
+	//drm_mode_config_helper_suspend
 	return 0;
 }
 
@@ -100,23 +104,21 @@ static int sp7350_drm_bind(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm;
 	struct sp7350_drm_device *sdev;
-	//struct device_node *node;
 	//struct drm_crtc *crtc;
 	int ret = 0;
 
-#if 0 /* TODO */
-	dev->coherent_dma_mask = DMA_BIT_MASK(32);
-
-	node = of_find_matching_node_and_match(NULL, sp7350_dma_range_matches,
-						   NULL);
-	if (node) {
-		ret = of_dma_configure(dev, node, true);
-		of_node_put(node);
-
-		if (ret)
+	/* using device-specific reserved memorym,
+	   defined at dts with label drm_disp_reserve */
+	ret = of_reserved_mem_device_init(dev);
+	if (!ret) {
+		dev_info(dev, "using device-specific reserved memory\n");
+		ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
+		if (ret) {
+			dev_err(dev, "32-bit consistent DMA enable failed\n");
 			return ret;
+		}
 	}
-#endif
+
 	sdev = devm_drm_dev_alloc(dev, &sp7350_drm_driver, struct sp7350_drm_device, ddev);
 	if (IS_ERR(sdev))
 		return PTR_ERR(sdev);

@@ -209,6 +209,66 @@ err_crtc:
 }
 #endif
 
+static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
+					struct drm_encoder *encoder,
+					const struct drm_display_mode *mode)
+{
+	/* TODO reference to dsi_encoder_phy_mode_valid */
+	DRM_INFO("[TODO]_sp7350_dsi_encoder_phy_mode_valid\n");
+
+	return MODE_OK;
+}
+
+static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *encoder,
+					const struct drm_display_mode *mode)
+
+{
+	const struct drm_crtc_helper_funcs *crtc_funcs = NULL;
+	struct drm_crtc *crtc = NULL;
+	struct drm_display_mode adj_mode;
+	enum drm_mode_status ret;
+
+	/*
+	 * The crtc might adjust the mode, so go through the
+	 * possible crtcs (technically just one) and call
+	 * mode_fixup to figure out the adjusted mode before we
+	 * validate it.
+	 */
+	drm_for_each_crtc(crtc, encoder->dev) {
+		/*
+		 * reset adj_mode to the mode value each time,
+		 * so we don't adjust the mode twice
+		 */
+		drm_mode_copy(&adj_mode, mode);
+
+		crtc_funcs = crtc->helper_private;
+		if (crtc_funcs && crtc_funcs->mode_fixup)
+			if (!crtc_funcs->mode_fixup(crtc, mode, &adj_mode))
+				return MODE_BAD;
+
+		ret = _sp7350_dsi_encoder_phy_mode_valid(encoder, &adj_mode);
+		if (ret != MODE_OK)
+			return ret;
+	}
+	return MODE_OK;
+}
+
+static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
+				 struct drm_display_mode *mode,
+				 struct drm_display_mode *adj_mode)
+{
+	/* TODO reference to dsi_encoder_mode_set */
+	DRM_INFO("[TODO]sp7350_dsi_encoder_mode_set\n");
+}
+
+static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
+				    struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state)
+{
+	/* do nothing */
+	return 0;
+}
+
 static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	DRM_INFO("encoder disable:%s\n", encoder->name);
@@ -459,6 +519,9 @@ static const struct mipi_dsi_host_ops sp7350_dsi_host_ops = {
 
 
 static const struct drm_encoder_helper_funcs sp7350_dsi_encoder_helper_funcs = {
+	.atomic_check	= sp7350_dsi_encoder_atomic_check,
+	.mode_valid	= sp7350_dsi_encoder_mode_valid,
+	.mode_set	= sp7350_dsi_encoder_mode_set,
 	.disable = sp7350_dsi_encoder_disable,
 	.enable = sp7350_dsi_encoder_enable,
 	.detect = sp7350_dsi_encoder_detect,

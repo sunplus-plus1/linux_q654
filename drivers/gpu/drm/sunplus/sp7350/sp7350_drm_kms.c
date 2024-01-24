@@ -53,6 +53,8 @@ static void sp7350_drm_atomic_commit_tail(struct drm_atomic_state *old_state)
 #endif
 static const struct drm_mode_config_funcs sp7350_drm_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
+	.atomic_check = drm_atomic_helper_check,
+	.atomic_commit = drm_atomic_helper_commit,
 	//.atomic_commit_tail = sp7350_drm_atomic_commit_tail,
 };
 
@@ -67,7 +69,8 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	/* Set support for vblank irq fast disable, before drm_vblank_init() */
 	drm->vblank_disable_immediate = true;
 
-	drm->irq_enabled = true;
+	//drm->irq_enabled = true;
+	drm->irq_enabled = false;
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		dev_err(drm->dev, "failed to initialize vblank\n");
