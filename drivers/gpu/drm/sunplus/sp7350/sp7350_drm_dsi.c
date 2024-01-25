@@ -214,7 +214,7 @@ static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 					const struct drm_display_mode *mode)
 {
 	/* TODO reference to dsi_encoder_phy_mode_valid */
-	DRM_INFO("[TODO]_sp7350_dsi_encoder_phy_mode_valid\n");
+	DRM_INFO("[TODO]%s\n", __func__);
 
 	return MODE_OK;
 }
@@ -227,6 +227,8 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 	struct drm_crtc *crtc = NULL;
 	struct drm_display_mode adj_mode;
 	enum drm_mode_status ret;
+
+	DRM_INFO("%s\n", __func__);
 
 	/*
 	 * The crtc might adjust the mode, so go through the
@@ -258,7 +260,7 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 				 struct drm_display_mode *adj_mode)
 {
 	/* TODO reference to dsi_encoder_mode_set */
-	DRM_INFO("[TODO]sp7350_dsi_encoder_mode_set\n");
+	DRM_INFO("[TODO]%s\n", __func__);
 }
 
 static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
@@ -266,29 +268,30 @@ static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	/* do nothing */
+	DRM_INFO("%s\n", __func__);
 	return 0;
 }
 
 static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 {
-	DRM_INFO("encoder disable:%s\n", encoder->name);
+	DRM_INFO("[TODO]%s %s\n", __func__, encoder->name);
 }
 static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 {
-	DRM_INFO("encoder enable:%s\n", encoder->name);
+	DRM_INFO("[TODO]%s %s\n", __func__, encoder->name);
 }
 
 static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *encoder,
 					    struct drm_connector *connector)
 {
-	DRM_INFO("encoder %s detect connector:%s\n", encoder->name, connector->name);
+	DRM_INFO("[TODO]%s encoder %s detect connector:%s\n", __func__, encoder->name, connector->name);
 	return connector->status;
 }
 
 static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 				     const struct mipi_dsi_msg *msg)
 {
-	DRM_INFO("sp7350_dsi_host_transfer\n");
+	DRM_INFO("[TODO]%s\n", __func__);
 #if 0  /* [TODO]Set and send DSI PACKET for C3V DISPLAY */
 	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 	struct mipi_dsi_packet packet;
@@ -467,7 +470,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 {
 	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 
-	DRM_INFO("sp7350_dsi_host_attach\n");
+	DRM_INFO("%s\n", __func__);
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
 	dsi->mode_flags = device->mode_flags;
@@ -507,7 +510,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 static int sp7350_dsi_host_detach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
-	DRM_INFO("sp7350_dsi_host_detach\n");
+	DRM_INFO("[TODO]%s\n", __func__);
 	return 0;
 }
 
