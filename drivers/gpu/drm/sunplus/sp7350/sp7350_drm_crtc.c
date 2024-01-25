@@ -55,7 +55,7 @@ static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
 				  struct drm_crtc_state *state)
 {
 	/* TODO reference to vkms_crtc_atomic_check */
-	DRM_INFO("[TODO]sp7350_drm_crtc_atomic_check\n");
+	DRM_INFO("[TODO]%s\n", __func__);
 	return 0;
 }
 
@@ -64,6 +64,7 @@ static void sp7350_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_on(crtc);
+	DRM_INFO("[TODO]%s\n", __func__);
 }
 
 static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -71,22 +72,24 @@ static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_off(crtc);
+	DRM_INFO("[TODO]%s\n", __func__);
 }
 
 static void sp7350_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
 	/* TODO reference to vkms_crtc_atomic_begin */
-	DRM_INFO("[TODO]sp7350_drm_crtc_atomic_begin\n");
+	DRM_INFO("[TODO]%s\n", __func__);
 }
 
 static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
 	/* TODO reference to vkms_crtc_atomic_flush */
-	//DRM_INFO("[TODO]sp7350_drm_crtc_atomic_flush\n");
-	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
+	//struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
 	struct drm_pending_vblank_event *event = crtc->state->event;
+
+	DRM_INFO("%s\n", __func__);
 
 	if (event) {
 		crtc->state->event = NULL;

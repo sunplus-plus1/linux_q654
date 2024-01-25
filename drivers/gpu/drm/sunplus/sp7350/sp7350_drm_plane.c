@@ -8,12 +8,86 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 
-
 #include "sp7350_drm_drv.h"
-#include "sp7350_drm_vgem.h"
+
+//#include "sp7350_display.h"
+#include <media/sunplus/disp/sp7350/sp7350_disp_osd.h>
+#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_vpp.h"
+#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_dmix.h"
+
+/* sp7350-hw-format translate table */
+struct sp7350_plane_format {
+	u32 pixel_format;
+	u32 hw_format;
+};
+
+static const uint32_t sp7350_kms_formats[] = {
+	DRM_FORMAT_UYVY,  /* SP7350_VPP_IMGREAD_DATA_FMT_UYVY */
+	DRM_FORMAT_YUYV,  /* SP7350_VPP_IMGREAD_DATA_FMT_YUY2 ??? */
+	DRM_FORMAT_NV12,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV12 */
+	DRM_FORMAT_NV16,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV16 */
+	DRM_FORMAT_NV24,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV24 */
+};
+
+static const uint32_t sp7350_kms_osd_formats[] = {
+	DRM_FORMAT_RGB565,    /* SP7350_OSD_COLOR_MODE_RGB565 */
+	DRM_FORMAT_RGBA8888,  /* SP7350_OSD_COLOR_MODE_RGBA8888 */
+	DRM_FORMAT_ARGB8888,  /* SP7350_OSD_COLOR_MODE_ARGB8888 */
+	DRM_FORMAT_RGBA4444,  /* SP7350_OSD_COLOR_MODE_RGBA4444 */
+	DRM_FORMAT_ARGB4444,  /* SP7350_OSD_COLOR_MODE_ARGB4444 */
+	DRM_FORMAT_ARGB1555,  /* SP7350_OSD_COLOR_MODE_ARGB1555 */
+	DRM_FORMAT_YUYV,      /* SP7350_OSD_COLOR_MODE_YUY2 ??? */
+	DRM_FORMAT_R8,        /* SP7350_OSD_COLOR_MODE_8BPP ??? */
+};
+
+static const struct sp7350_plane_format sp7350_vpp_formats[] = {
+	{ DRM_FORMAT_UYVY, SP7350_VPP_IMGREAD_DATA_FMT_UYVY },
+	{ DRM_FORMAT_YUYV, SP7350_VPP_IMGREAD_DATA_FMT_YUY2 },
+	{ DRM_FORMAT_NV12, SP7350_VPP_IMGREAD_DATA_FMT_NV12 },
+	{ DRM_FORMAT_NV16, SP7350_VPP_IMGREAD_DATA_FMT_NV16 },
+	{ DRM_FORMAT_NV24, SP7350_VPP_IMGREAD_DATA_FMT_NV24 },
+};
+
+static const struct sp7350_plane_format sp7350_osd_formats[] = {
+	{ DRM_FORMAT_R8, SP7350_OSD_COLOR_MODE_8BPP },
+	/* 16bpp RGB: */
+	{ DRM_FORMAT_RGB565, SP7350_OSD_COLOR_MODE_RGB565 },
+	{ DRM_FORMAT_ARGB1555, SP7350_OSD_COLOR_MODE_ARGB1555 },
+	{ DRM_FORMAT_YUYV,   SP7350_OSD_COLOR_MODE_YUY2 },
+	{ DRM_FORMAT_RGBA4444, SP7350_OSD_COLOR_MODE_RGBA4444 },
+	{ DRM_FORMAT_ARGB4444, SP7350_OSD_COLOR_MODE_ARGB4444 },
+	/* 32bpp [A]RGB: */
+	{ DRM_FORMAT_RGBA8888, SP7350_OSD_COLOR_MODE_RGBA8888 },
+	{ DRM_FORMAT_ARGB8888, SP7350_OSD_COLOR_MODE_ARGB8888 },
+};
+#define SP7350_FORMAT_UNSUPPORT 0xF
+
+/* convert from fourcc format to sp7530 vpp/osd format */
+static u32 sp7350_get_format(u32 pixel_format, enum drm_plane_type type)
+{
+	int i;
+
+	if (type == DRM_PLANE_TYPE_PRIMARY) {
+		for (i = 0; i < ARRAY_SIZE(sp7350_vpp_formats); i++)
+			if (sp7350_vpp_formats[i].pixel_format == pixel_format)
+				return sp7350_vpp_formats[i].hw_format;
+	}
+	else {
+		for (i = 0; i < ARRAY_SIZE(sp7350_osd_formats); i++)
+			if (sp7350_osd_formats[i].pixel_format == pixel_format)
+				return sp7350_osd_formats[i].hw_format;
+	}
+
+	/* not found */
+	DRM_ERROR("Not found pixel format!!fourcc_format= %d\n",
+		  pixel_format);
+	return SP7350_FORMAT_UNSUPPORT;
+}
 
 static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
@@ -27,8 +101,65 @@ static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
 static void sp7350_kms_plane_atomic_update(struct drm_plane *plane,
 					 struct drm_plane_state *old_state)
 {
-	/* TODO reference to ade_plane_atomic_update */
-	DRM_INFO("[TODO]sp7350_kms_plane_atomic_update\n");
+	struct drm_plane_state *state = plane->state;
+	struct drm_gem_cma_object *obj = NULL;
+
+	/* reference to ade_plane_atomic_update */
+	DRM_INFO("%s\n", __func__);
+	/* get data_addr1 for HW */
+	//u32 stride = state->fb->pitches[0];
+	//u32 addr = (u32)obj->paddr + (state->src_y >> 16) * stride;
+	if (!state->fb) {
+		/* do nothing */
+		return;
+	}
+
+	obj = drm_fb_cma_get_gem_obj(state->fb, 0);
+	if (!obj || !obj->paddr) {
+		DRM_ERROR("drm_fb_cma_get_gem_obj fail.\n");
+		return;
+	}
+
+	if (plane->type == DRM_PLANE_TYPE_PRIMARY) {
+		/* FOR VPP Layer */
+
+		/* FIXME, for test only!!!
+		   dmix_layer_init should be called at driver binding or probe,
+		   but now sp7350 drm must run with display driver.
+		 */
+		sp7350_dmix_layer_set(SP7350_DMIX_OSD0, SP7350_DMIX_TRANSPARENT);
+		sp7350_dmix_layer_set(SP7350_DMIX_OSD1, SP7350_DMIX_TRANSPARENT);
+		sp7350_dmix_layer_set(SP7350_DMIX_OSD2, SP7350_DMIX_TRANSPARENT);
+		sp7350_dmix_layer_set(SP7350_DMIX_OSD3, SP7350_DMIX_TRANSPARENT);
+		sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
+
+		sp7350_vpp_imgread_set((u32)obj->paddr,
+				state->src_x >> 16, state->src_y >> 16,
+				state->src_w >> 16, state->src_h >> 16,
+				sp7350_get_format(state->fb->format->format, plane->type));
+
+		/* FIXME, img_dest and output set fixed 1920x1080,
+			should adjust with crtc or connector size */
+		sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
+				state->src_w >> 16, state->src_h >> 16,
+				state->src_w >> 16, state->src_h >> 16,
+				state->src_w >> 16, state->src_h >> 16);
+	}
+	else {
+		/* FOR OSD Layer */
+		struct sp7350fb_info info;
+
+		info.color_mode = sp7350_get_format(state->fb->format->format, plane->type);
+		info.width = state->src_w >> 16;
+		info.height = state->src_h >> 16;
+		info.buf_addr_phy = (u32)obj->paddr;
+
+		sp7350_osd_layer_set(&info, plane->index -1);
+
+		/* FIXME, for test only!!! */
+		sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + plane->index -1, SP7350_DMIX_BLENDING);
+
+	}
 }
 
 static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
@@ -37,6 +168,8 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 	bool can_position = false;
 	int ret;
+
+	DRM_INFO("%s\n", __func__);
 
 	if (!state->fb || WARN_ON(!state->crtc))
 		return 0;
@@ -98,25 +231,6 @@ static const struct drm_plane_helper_funcs sp7350_kms_primary_helper_funcs = {
 	.atomic_check		=sp7350_kms_plane_atomic_check,
 	//.prepare_fb 	= sp7350_kms_prepare_fb,
 	//.cleanup_fb 	= sp7350_kms_cleanup_fb,
-};
-
-static const uint32_t sp7350_kms_formats[] = {
-	DRM_FORMAT_UYVY,  /* SP7350_VPP_IMGREAD_DATA_FMT_UYVY */
-	DRM_FORMAT_YUYV,  /* SP7350_VPP_IMGREAD_DATA_FMT_YUY2 ??? */
-	DRM_FORMAT_NV12,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV12 */
-	DRM_FORMAT_NV16,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV16 */
-	DRM_FORMAT_NV24,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV24 */
-};
-
-static const uint32_t sp7350_kms_osd_formats[] = {
-	DRM_FORMAT_RGB565,    /* SP7350_OSD_COLOR_MODE_RGB565 */
-	DRM_FORMAT_RGBA8888,  /* SP7350_OSD_COLOR_MODE_RGBA8888 */
-	DRM_FORMAT_ARGB8888,  /* SP7350_OSD_COLOR_MODE_ARGB8888 */
-	DRM_FORMAT_RGBA4444,  /* SP7350_OSD_COLOR_MODE_RGBA4444 */
-	DRM_FORMAT_ARGB4444,  /* SP7350_OSD_COLOR_MODE_ARGB4444 */
-	DRM_FORMAT_ARGB1555,  /* SP7350_OSD_COLOR_MODE_ARGB1555 */
-	DRM_FORMAT_YUYV,      /* SP7350_OSD_COLOR_MODE_YUY2 ??? */
-	DRM_FORMAT_R8,        /* SP7350_OSD_COLOR_MODE_8BPP ??? */
 };
 
 struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
