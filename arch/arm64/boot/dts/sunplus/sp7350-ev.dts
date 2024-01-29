@@ -3473,13 +3473,13 @@
 	video_codec_emem {
 		compatible = "sunplus,sp7350-hantro-emem";
 		memory-region = <&video_codec_encode>;
-		//video_codec-supply = <&video_codec_core_0v8>;
+		video_codec-supply = <&video_codec_core_0v8>;
 	};
 
 	video_codec_dmem {
 		compatible = "sunplus,sp7350-hantro-dmem";
 		memory-region = <&video_codec_decode>;
-		//video_codec-supply = <&video_codec_core_0v8>;
+		video_codec-supply = <&video_codec_core_0v8>;
 	};
 
 	video_codec_v4l2 {
