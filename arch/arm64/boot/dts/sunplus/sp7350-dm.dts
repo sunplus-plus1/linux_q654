@@ -3652,7 +3652,7 @@
 			 */
 #elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
 		sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
-		sp7350,osd0_layer = <0 0 800 480 0xd>; /* 0x8 = RGBA8888 */
+		sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
 		sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
