@@ -30,20 +30,20 @@ properties:
         1: force pwm mode
     items:
       enum: [0, 1]
-  
+
   tmi,sel-pin-status:
     description: |
       set SEL pin's level. If this property is omitted, 0 is set by default.
         0:SEL pin is on low level.
         1:SEL pin is on high level.
-    
+
   gpio:
     description: |
       gpio to use for enable control.
-      If Enable pin is connect to a fixed power pin(like,VCC), 
+      If Enable pin is connect to a fixed power pin(like,VCC),
       this property should be omitted.
     maxItems: 1
-    
+
 allOf:
   - $ref: regulator.yaml#
 
@@ -60,9 +60,9 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      regulator@80 {
+      regulator@40 {
         compatible = "tmi,sti8070x";
-        reg = <0x80>;
+        reg = <0x40>;
         regulator-name = "sti8070x-buck";
         regulator-min-microvolt = <712500>;
         regulator-max-microvolt = <1500000>;
@@ -77,9 +77,9 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      regulator@82 {
+      regulator@41 {
         compatible = "tmi,sti8070x";
-        reg = <0x82>;
+        reg = <0x41>;
         regulator-name = "sti8070x-buck";
         regulator-min-microvolt = <712500>;
         regulator-max-microvolt = <1500000>;
@@ -94,9 +94,9 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      regulator@C0 {
+      regulator@60 {
         compatible = "tmi,sti8070x";
-        reg = <0xC0>;
+        reg = <0x60>;
         regulator-name = "sti8070x-buck";
         regulator-min-microvolt = <712500>;
         regulator-max-microvolt = <1500000>;
