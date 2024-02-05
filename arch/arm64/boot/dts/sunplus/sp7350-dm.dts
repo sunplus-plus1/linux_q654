@@ -321,12 +321,12 @@
 
 		opp-5 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <670000>;
+			opp-microvolt = <712500>;
 		};
 
 		opp-10 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <700000>;
+			opp-microvolt = <712500>;
 		};
 
 		opp-15 {
@@ -376,7 +376,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_0>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -389,7 +389,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_1>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -402,7 +402,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_2>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -415,7 +415,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_3>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -1622,13 +1622,13 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
-		rt5759_vproc_reg: regulator@62 {
-			compatible = "richtek,rt5759";
-			reg = <0x62>;
-			regulator-name = "rt5759-buck";
-			regulator-min-microvolt = <630000>;
+		sti8070x_vproc_reg: regulator@60 {
+			compatible = "tmi,sti8070x";
+			reg = <0x60>;
+			regulator-name = "sti8070x-buck";
+			regulator-min-microvolt = <712500>;
 			regulator-max-microvolt = <1100000>;
-			regulator-allowed-modes = <0 1>;	// 0: auto mode (PSKIP), 1: force pwm mode
+			regulator-allowed-modes = <0 1>;	// 0: auto mode (PFM) 1: force pwm mode
 			regulator-initial-mode = <1>;
 			regulator-always-on;
 		};

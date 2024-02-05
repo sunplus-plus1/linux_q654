@@ -26,7 +26,7 @@
 #define STI8070X_MIN_SEL 0
 
 #define STI8070X_ENABLE_MASK BIT(7)
-#define STI8070X_ENABLE_VALUE 1
+#define STI8070X_ENABLE_VALUE BIT(7)
 #define STI8070X_DISABLE_VALUE 0
 #define STI8070X_ENABLE_TIMEUS 800
 #define STI8070X_POLL_ENABLE_TIMEUS 100
@@ -38,7 +38,7 @@
 #define STI8070X_OFF_DELAY_TIMEUS 30
 
 #define STI8070X_DISCHARGE_MASK BIT(7)
-#define STI8070X_DISCHARGE_ON 1
+#define STI8070X_DISCHARGE_ON BIT(7)
 #define STI8070X_DISCHARGE_OFF 0
 
 #define STI8070X_PFM_MODE 0
@@ -113,7 +113,7 @@ static unsigned int sti8070x_get_mode(struct regulator_dev *rdev)
 	if (priv->vsel_pin == 0)
 		reg = STI8070X_REG_VSEL0;
 	else
-		reg = STI8070X_REG_VSEL0;
+		reg = STI8070X_REG_VSEL1;
 
 	ret = regmap_read(regmap, reg, &regval);
 	if (ret)
