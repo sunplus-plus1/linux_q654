@@ -4016,6 +4016,18 @@
 		#mbox-cells = <1>;
 	};
 
+	running_led {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&running_leds_pins>;
+		system-led {
+			label = "system-led";
+			gpios = <&pctl 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
 	pctl: pinctrl@f8800080 {
 		compatible = "sunplus,sp7350-pctl";
 		reg =
@@ -4451,6 +4463,11 @@
 			function = "GPIO_AO_INT3";
 			groups = "GPIO_AO_INT3_X1";
 			sunplus,ao-pins = < SPPCTL_AOIOPAD(31, 0) >;
+		};
+
+		running_leds_pins: pinmux_running_leds-pins {
+			function = "GPIO";
+			pins = "GPIO0";
 		};
 	};
 };
