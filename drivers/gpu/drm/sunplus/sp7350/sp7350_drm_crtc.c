@@ -207,15 +207,23 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 
 	sp7350_drm_crtc->pdev = pdev;
 
-#if 0  /* TODO: setting for C3V DISPLAY REGISTER */
-	sp7350_drm_crtc->regs = vc4_ioremap_regs(pdev, 0);
+	/* setting for C3V DISPLAY REGISTER */
+	/*
+	 * get reg base resource
+	 */
+	sp7350_drm_crtc->regs = sp7350_display_ioremap_regs(0);
 	if (IS_ERR(sp7350_drm_crtc->regs))
-		return PTR_ERR(sp7350_drm_crtc->regs);
+		return dev_err_probe(&pdev->dev, PTR_ERR(sp7350_drm_crtc->regs), "reg base not found\n");
+
+	sp7350_drm_crtc->ao_moon3 = sp7350_display_ioremap_regs(1);
+	if (IS_ERR(sp7350_drm_crtc->ao_moon3))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sp7350_drm_crtc->ao_moon3), "reg ao_moon3 not found\n");
 
 	sp7350_drm_crtc->regset.base = sp7350_drm_crtc->regs;
-	sp7350_drm_crtc->regset.regs = crtc_regs;
-	sp7350_drm_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
-#endif
+	sp7350_drm_crtc->ao_moon3_regset.base = sp7350_drm_crtc->ao_moon3;
+	/* TODO: setting debugfs_regset32 for C3V DISPLAY REGISTER */
+	//sp7350_drm_crtc->regset.regs = crtc_regs;
+	//sp7350_drm_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
 
 	ret = sp7350_drm_crtc_init(drm, crtc, NULL, NULL);
 	if (ret)

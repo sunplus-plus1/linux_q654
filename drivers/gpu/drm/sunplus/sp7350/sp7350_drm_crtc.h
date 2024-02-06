@@ -44,8 +44,10 @@ struct sp7350_drm_encoder {
 struct sp7350_drm_crtc {
 	struct drm_crtc crtc;
 	struct platform_device *pdev;
+	void __iomem *regs;
+	void __iomem *ao_moon3;
 
-	struct drm_crtc_state base;
+	//struct drm_crtc_state base;
 
 	struct drm_pending_vblank_event *event;
 
@@ -56,7 +58,8 @@ struct sp7350_drm_crtc {
 	u8 lut_g[256];
 	u8 lut_b[256];
 
-	//struct debugfs_regset32 regset;
+	struct debugfs_regset32 regset;
+	struct debugfs_regset32 ao_moon3_regset;
 };
 
 #define to_sp7350_drm_crtc(target)\
@@ -70,5 +73,7 @@ int sp7350_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 void sp7350_drm_crtc_finish_page_flip(struct sp7350_drm_crtc *scrtc);
 void sp7350_drm_crtc_suspend(struct sp7350_drm_crtc *scrtc);
 void sp7350_drm_crtc_resume(struct sp7350_drm_crtc *scrtc);
+
+extern void __iomem *sp7350_display_ioremap_regs(int index);
 
 #endif /* __SUNPLUS_SP7350_DRM_CRTC_H__ */
