@@ -4,6 +4,8 @@
  *
  * Author: dx.jiang<dx.jiang@sunmedia.com.cn>
  */
+
+#include <linux/delay.h>
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -28,6 +30,8 @@
 
 #include "sp7350_drm_crtc.h"
 //#include "sp7350_drm_plane.h"
+//#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_regs.h"
+#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_mipitx.h"
 
 # define DSI_PFORMAT_RGB565          0
 # define DSI_PFORMAT_RGB666_PACKED   1
@@ -83,7 +87,7 @@ struct sp7350_drm_dsi {
 	struct completion xfer_completion;
 	int xfer_result;
 
-	//struct debugfs_regset32 regset;
+	struct debugfs_regset32 regset;
 };
 
 #define host_to_dsi(host) container_of(host, struct sp7350_drm_dsi, dsi_host)
@@ -95,7 +99,7 @@ struct sp7350_dsi_encoder {
 };
 
 #define to_sp7350_dsi_encoder(target)\
-	container_of(target, struct sp7350_dsi_encoder, base)
+	container_of(target, struct sp7350_dsi_encoder, base.base)
 
 #if 0
 static void sp7350_drm_connector_destroy(struct drm_connector *connector)
@@ -209,6 +213,106 @@ err_crtc:
 }
 #endif
 
+#if 0
+#define MIPITX_CMD_FIFO_FULL 0x00000001
+#define MIPITX_CMD_FIFO_EMPTY 0x00000010
+#define MIPITX_DATA_FIFO_FULL 0x00000100
+#define MIPITX_DATA_FIFO_EMPTY 0x00001000
+void _check_cmd_fifo_full(struct sp7350_drm_dsi *dsi)
+{
+	int mipitx_fifo_timeout = 0;
+	u32 value = 0;
+
+	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
+	//pr_info("fifo_status 0x%08x\n", value);
+	while((value & MIPITX_CMD_FIFO_FULL) == MIPITX_CMD_FIFO_FULL) {
+		if(mipitx_fifo_timeout > 10000) //over 1 second
+		{
+			pr_info("cmd fifo full timeout\n");
+			break;
+		}
+		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
+		++mipitx_fifo_timeout;
+		udelay(100);
+	}
+}
+
+void _check_data_fifo_full(struct sp7350_drm_dsi *dsi)
+{
+	int mipitx_fifo_timeout = 0;
+	u32 value = 0;
+
+	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
+	//pr_info("fifo_status 0x%08x\n", value);
+	while((value & MIPITX_DATA_FIFO_FULL) == MIPITX_DATA_FIFO_FULL) {
+		if(mipitx_fifo_timeout > 10000) //over 1 second
+		{
+			pr_info("data fifo full timeout\n");
+			break;
+		}
+		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
+		++mipitx_fifo_timeout;
+		udelay(100);
+	}
+}
+
+/*
+ * MIPI DSI (Display Command Set) for SP7350
+ */
+static void _sp7350_dcs_write_buf(struct sp7350_drm_dsi *dsi, const void *data, size_t len)
+{
+	int i;
+	u8 *data1;
+	u32 value, data_cnt;
+
+	data1 = (u8 *)data;
+
+	udelay(100);
+	if (len == 0) {
+		_check_cmd_fifo_full(dsi);
+		value = 0x00000003;
+		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
+	} else if (len == 1) {
+		_check_cmd_fifo_full(dsi);
+		value = 0x00000013 | (data1[0] << 8);
+		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
+	} else if (len == 2) {
+		_check_cmd_fifo_full(dsi);
+		value = 0x00000023 | (data1[0] << 8) | (data1[1] << 16);
+		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
+	} else if ((len >= 3) && (len <= 64)) {
+		_check_cmd_fifo_full(dsi);
+		value = 0x00000029 | ((u32)len << 8);
+		writel(value, dsi->regs + MIPITX_LPKT_HEAD); //G204.10
+
+		if (len % 4) data_cnt = ((u32)len / 4) + 1;
+		else data_cnt = ((u32)len / 4);
+
+		for (i = 0; i < data_cnt; i++) {
+			_check_data_fifo_full(dsi);
+			value = 0x00000000;
+			#if 1
+			if (i * 4 + 0 < len) value |= (data1[i * 4 + 0] << 0);
+			if (i * 4 + 1 < len) value |= (data1[i * 4 + 1] << 8);
+			if (i * 4 + 2 < len) value |= (data1[i * 4 + 2] << 16);
+			if (i * 4 + 3 < len) value |= (data1[i * 4 + 3] << 24);
+			#else
+			if (i * 4 + 0 >= len) data1[i * 4 + 0] = 0x00;
+			if (i * 4 + 1 >= len) data1[i * 4 + 1] = 0x00;
+			if (i * 4 + 2 >= len) data1[i * 4 + 2] = 0x00;
+			if (i * 4 + 3 >= len) data1[i * 4 + 3] = 0x00;
+			value |= ((data1[i * 4 + 3] << 24) | (data1[i * 4 + 2] << 16) |
+				 (data1[i * 4 + 1] << 8) | (data1[i * 4 + 0] << 0));
+			#endif
+			pr_info("W G204.11 MIPITX_LPKT_PAYLOAD 0x%08x\n", value);
+			writel(value, dsi->regs + MIPITX_LPKT_PAYLOAD); //G204.11
+		}
+	} else {
+		pr_info("data length over %ld\n", len);
+	}
+}
+#endif
+
 static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 					struct drm_encoder *encoder,
 					const struct drm_display_mode *mode)
@@ -274,11 +378,40 @@ static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 {
-	DRM_INFO("[TODO]%s %s\n", __func__, encoder->name);
+	struct drm_bridge *iter;
+	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
+	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
+
+	DRM_INFO("%s %s\n", __func__, encoder->name);
+
+	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
+		if (iter->funcs->disable)
+			iter->funcs->disable(iter);
+
+		if (iter == dsi->bridge)
+			break;
+	}
+
+	list_for_each_entry_from(iter, &dsi->bridge_chain, chain_node) {
+		if (iter->funcs->post_disable)
+			iter->funcs->post_disable(iter);
+	}
 }
+
 static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 {
-	DRM_INFO("[TODO]%s %s\n", __func__, encoder->name);
+	struct drm_bridge *iter;
+	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
+	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
+
+	DRM_INFO("%s %s\n", __func__, encoder->name);
+
+	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
+		if (iter->funcs->pre_enable)
+			iter->funcs->pre_enable(iter);
+		if (iter->funcs->enable)
+			iter->funcs->enable(iter);
+	}
 }
 
 static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *encoder,
@@ -291,178 +424,19 @@ static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *e
 static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 				     const struct mipi_dsi_msg *msg)
 {
-	DRM_INFO("[TODO]%s\n", __func__);
-#if 0  /* [TODO]Set and send DSI PACKET for C3V DISPLAY */
-	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
-	struct mipi_dsi_packet packet;
-	u32 pkth = 0, pktc = 0;
-	int i, ret = 0;
-	bool is_long = mipi_dsi_packet_format_is_long(msg->type);
-	u32 cmd_fifo_len = 0, pix_fifo_len = 0;
+	//struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 
-	mipi_dsi_create_packet(&packet, msg);
+	/* reference to vc4_dsi_host_transfer */
+	//DRM_INFO("%s\n", __func__);
 
-	pkth |= VC4_SET_FIELD(packet.header[0], DSI_TXPKT1H_BC_DT);
-	pkth |= VC4_SET_FIELD(packet.header[1] |
-			      (packet.header[2] << 8),
-			      DSI_TXPKT1H_BC_PARAM);
+	//print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
+	//	msg->tx_buf, msg->tx_len, false);
 
-	if (is_long) {
-		/* Divide data across the various FIFOs we have available.
-		 * The command FIFO takes byte-oriented data, but is of
-		 * limited size. The pixel FIFO (never actually used for
-		 * pixel data in reality) is word oriented, and substantially
-		 * larger. So, we use the pixel FIFO for most of the data,
-		 * sending the residual bytes in the command FIFO at the start.
-		 *
-		 * With this arrangement, the command FIFO will never get full.
-		 */
-		if (packet.payload_length <= 16) {
-			cmd_fifo_len = packet.payload_length;
-			pix_fifo_len = 0;
-		} else {
-			cmd_fifo_len = (packet.payload_length %
-					DSI_PIX_FIFO_WIDTH);
-			pix_fifo_len = ((packet.payload_length - cmd_fifo_len) /
-					DSI_PIX_FIFO_WIDTH);
-		}
+	/* simple for send packet only! */
+	sp7350_dcs_write_buf(msg->tx_buf, msg->tx_len);
+	//_sp7350_dcs_write_buf(dsi, msg->tx_buf, msg->tx_len);
 
-		WARN_ON_ONCE(pix_fifo_len >= DSI_PIX_FIFO_DEPTH);
-
-		pkth |= VC4_SET_FIELD(cmd_fifo_len, DSI_TXPKT1H_BC_CMDFIFO);
-	}
-
-	if (msg->rx_len) {
-		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_CMD_CTRL_RX,
-				      DSI_TXPKT1C_CMD_CTRL);
-	} else {
-		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_CMD_CTRL_TX,
-				      DSI_TXPKT1C_CMD_CTRL);
-	}
-
-	for (i = 0; i < cmd_fifo_len; i++)
-		DSI_PORT_WRITE(TXPKT_CMD_FIFO, packet.payload[i]);
-	for (i = 0; i < pix_fifo_len; i++) {
-		const u8 *pix = packet.payload + cmd_fifo_len + i * 4;
-
-		DSI_PORT_WRITE(TXPKT_PIX_FIFO,
-			       pix[0] |
-			       pix[1] << 8 |
-			       pix[2] << 16 |
-			       pix[3] << 24);
-	}
-
-	if (msg->flags & MIPI_DSI_MSG_USE_LPM)
-		pktc |= DSI_TXPKT1C_CMD_MODE_LP;
-	if (is_long)
-		pktc |= DSI_TXPKT1C_CMD_TYPE_LONG;
-
-	/* Send one copy of the packet.  Larger repeats are used for pixel
-	 * data in command mode.
-	 */
-	pktc |= VC4_SET_FIELD(1, DSI_TXPKT1C_CMD_REPEAT);
-
-	pktc |= DSI_TXPKT1C_CMD_EN;
-	if (pix_fifo_len) {
-		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_NO_SECONDARY,
-				      DSI_TXPKT1C_DISPLAY_NO);
-	} else {
-		pktc |= VC4_SET_FIELD(DSI_TXPKT1C_DISPLAY_NO_SHORT,
-				      DSI_TXPKT1C_DISPLAY_NO);
-	}
-
-	/* Enable the appropriate interrupt for the transfer completion. */
-	dsi->xfer_result = 0;
-	reinit_completion(&dsi->xfer_completion);
-	if (dsi->variant->port == 0) {
-		DSI_PORT_WRITE(INT_STAT,
-			       DSI0_INT_CMDC_DONE_MASK | DSI1_INT_PHY_DIR_RTF);
-		if (msg->rx_len) {
-			DSI_PORT_WRITE(INT_EN, (DSI0_INTERRUPTS_ALWAYS_ENABLED |
-						DSI0_INT_PHY_DIR_RTF));
-		} else {
-			DSI_PORT_WRITE(INT_EN,
-				       (DSI0_INTERRUPTS_ALWAYS_ENABLED |
-					VC4_SET_FIELD(DSI0_INT_CMDC_DONE_NO_REPEAT,
-						      DSI0_INT_CMDC_DONE)));
-		}
-	} else {
-		DSI_PORT_WRITE(INT_STAT,
-			       DSI1_INT_TXPKT1_DONE | DSI1_INT_PHY_DIR_RTF);
-		if (msg->rx_len) {
-			DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
-						DSI1_INT_PHY_DIR_RTF));
-		} else {
-			DSI_PORT_WRITE(INT_EN, (DSI1_INTERRUPTS_ALWAYS_ENABLED |
-						DSI1_INT_TXPKT1_DONE));
-		}
-	}
-
-	/* Send the packet. */
-	DSI_PORT_WRITE(TXPKT1H, pkth);
-	DSI_PORT_WRITE(TXPKT1C, pktc);
-
-	if (!wait_for_completion_timeout(&dsi->xfer_completion,
-					 msecs_to_jiffies(1000))) {
-		dev_err(&dsi->pdev->dev, "transfer interrupt wait timeout");
-		dev_err(&dsi->pdev->dev, "instat: 0x%08x\n",
-			DSI_PORT_READ(INT_STAT));
-		ret = -ETIMEDOUT;
-	} else {
-		ret = dsi->xfer_result;
-	}
-
-	DSI_PORT_WRITE(INT_EN, DSI_PORT_BIT(INTERRUPTS_ALWAYS_ENABLED));
-
-	if (ret)
-		goto reset_fifo_and_return;
-
-	if (ret == 0 && msg->rx_len) {
-		u32 rxpkt1h = DSI_PORT_READ(RXPKT1H);
-		u8 *msg_rx = msg->rx_buf;
-
-		if (rxpkt1h & DSI_RXPKT1H_PKT_TYPE_LONG) {
-			u32 rxlen = VC4_GET_FIELD(rxpkt1h,
-						  DSI_RXPKT1H_BC_PARAM);
-
-			if (rxlen != msg->rx_len) {
-				DRM_ERROR("DSI returned %db, expecting %db\n",
-					  rxlen, (int)msg->rx_len);
-				ret = -ENXIO;
-				goto reset_fifo_and_return;
-			}
-
-			for (i = 0; i < msg->rx_len; i++)
-				msg_rx[i] = DSI_READ(DSI1_RXPKT_FIFO);
-		} else {
-			/* FINISHME: Handle AWER */
-
-			msg_rx[0] = VC4_GET_FIELD(rxpkt1h,
-						  DSI_RXPKT1H_SHORT_0);
-			if (msg->rx_len > 1) {
-				msg_rx[1] = VC4_GET_FIELD(rxpkt1h,
-							  DSI_RXPKT1H_SHORT_1);
-			}
-		}
-	}
-
-	return ret;
-
-reset_fifo_and_return:
-	DRM_ERROR("DSI transfer failed, resetting: %d\n", ret);
-
-	DSI_PORT_WRITE(TXPKT1C, DSI_PORT_READ(TXPKT1C) & ~DSI_TXPKT1C_CMD_EN);
-	udelay(1);
-	DSI_PORT_WRITE(CTRL,
-		       DSI_PORT_READ(CTRL) |
-		       DSI_PORT_BIT(CTRL_RESET_FIFOS));
-
-	DSI_PORT_WRITE(TXPKT1C, 0);
-	DSI_PORT_WRITE(INT_EN, DSI_PORT_BIT(INTERRUPTS_ALWAYS_ENABLED));
-	return ret;
-#else
 	return 0;
-#endif
 }
 
 static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
@@ -542,13 +516,15 @@ static int sp7350_drm_encoder_init(struct device *dev,
 	int ret;
 	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 
+	DRM_INFO("%s\n", __func__);
+
 	if (!crtc_mask) {
 		DRM_ERROR("failed to find crtc mask\n");
 		return -EINVAL;
 	}
 
 	encoder->possible_crtcs = crtc_mask;
-	DRM_INFO("crtc_mask:0x%X\n", crtc_mask);
+	DRM_DEBUG("crtc_mask:0x%X\n", crtc_mask);
 	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
 		DRM_ERROR("failed to init dsi encoder\n");
@@ -587,11 +563,11 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	sp7350_dsi_encoder->dsi = dsi;
 	dsi->encoder = &sp7350_dsi_encoder->base.base;
 
-#if 0  /* TODO: setting for C3V DISPLAY REGISTER */
-	dsi->regs = sp7350_ioremap_regs(pdev, 0);
+	dsi->regs = sp7350_display_ioremap_regs(0);
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 
+#if 0  /* TODO: setting for C3V DISPLAY REGISTER */
 	dsi->regset.base = dsi->regs;
 	dsi->regset.regs = dsi->variant->regs;
 	dsi->regset.nregs = dsi->variant->nregs;
@@ -659,7 +635,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	//ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, NULL, &dsi->bridge);
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
 	if (ret) {
-		DRM_ERROR("drm_of_find_panel_or_bridge failed %d\n", ret);
+		DRM_ERROR("drm_of_find_panel_or_bridge failed -%d\n", -ret);
 		/* If the bridge or panel pointed by dev->of_node is not
 		 * enabled, just return 0 here so that we don't prevent the DRM
 		 * dev from being registered. Of course that means the DSI

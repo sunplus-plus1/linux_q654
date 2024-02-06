@@ -1,45 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /* Copyright (c) 2018-2024 Sunplus */
 
-/*
-		hdmi: hdmi@7e902000 {
-			compatible = "brcm,bcm2835-hdmi";
-			reg = <0x7e902000 0x600>,
-			      <0x7e808000 0x100>;
-			interrupts = <2 8>, <2 9>;
-			ddc = <&i2c2>;
-			clocks = <&clocks BCM2835_PLLH_PIX>,
-				 <&clocks BCM2835_CLOCK_HSM>;
-			clock-names = "pixel", "hdmi";
-			dmas = <&dma 17>;
-			dma-names = "audio-rx";
-			status = "disabled";
-		};
-		vc4: gpu {
-			compatible = "brcm,bcm2835-vc4";
-		};
-
-		dsi1: dsi@7e700000 {
-			compatible = "brcm,bcm2835-dsi1";
-			reg = <0x7e700000 0x8c>;
-			interrupts = <2 12>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			#clock-cells = <1>;
-
-			clocks = <&clocks BCM2835_PLLD_DSI1>,
-				 <&clocks BCM2835_CLOCK_DSI1E>,
-				 <&clocks BCM2835_CLOCK_DSI1P>;
-			clock-names = "phy", "escape", "pixel";
-
-			clock-output-names = "dsi1_byte",
-					     "dsi1_ddr2",
-					     "dsi1_ddr";
-
-			status = "disabled";
-		};
-*/
-
 / {
 	/* No compatible */
 
@@ -96,96 +57,7 @@
 	};
 };
 
-&i2c6 {
-	i2c-sda-hold-time-ns = <2000>;
-	clock-frequency = <100000>;
-
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-/*
-	raspberrypi_lcd: lcd@45 {
-		//compatible = "raspberrypi,7inch-touchscreen-panel";
-		compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
-		reg = <0x45>;
-		port {
-			panel_dsi_port: endpoint {
-			remote-endpoint = <&dsi_out0>;
-			};
-		};
-	};
-*/
-
-	lontium_lt8912b: hdmi@48 {
-		compatible = "lontium,lt8912b";
-		//compatible = "lontium,lt8912b-builtin";
-		reg = <0x48>;
-		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
-		#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
-		hdmi-timing = <0x0>;
-		#elif defined(LT8912B_HDMI_720P)
-		hdmi-timing = <0x2>;
-		#else
-		hdmi-timing = <0x3>;
-		#endif
-		/*
-		 * 0x0: 720x480
-		 * 0x2: 1280x720
-		 * 0x3: 1920x1080
-		 */
-		status = "okay";
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				lt8912b_in: endpoint {
-					remote-endpoint = <&dsi_out0>;
-					data-lanes = <1 2 3 4>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				lt8912b_out: endpoint {
-					remote-endpoint = <&hdmi_con_out>;
-				};
-			};
-		};
-	};
-};
-
-&display {
-	sp7350,dev_name = "LT8912B-HDMI";
-#if defined(LT8912B_HDMI_480X272)
-	sp7350,osd0_layer = <0 0 480 272 0x8>; /* 0x8 = RGB565 */
-	sp7350,vpp0_layer = <0 0 720 480 480 272 0x2>; /* 0x2 = YUY2 */
-	sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
-#elif defined(LT8912B_HDMI_480P)
-	sp7350,osd0_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd1_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd2_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd3_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
-	sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
-#elif defined(LT8912B_HDMI_720P)
-	sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
-	sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
-#else
-	sp7350,osd0_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd1_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd2_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sp7350,osd3_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sp7350,vpp0_layer = <0 0 720 480 1920 1080 0x2>; /* 0x2 = YUY2 */
-	sp7350,disp_output = <1920 1080 0x0>; /* 0x0:MIPITX DSI */
-#endif
-	sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-	sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
-	sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
-	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-};
+//TODO: select output device, maybe auto selected.
+#include "display-panel-raspberrypi.dtsi"
+//#include "display-bridge-lt8912b.dtsi"
 

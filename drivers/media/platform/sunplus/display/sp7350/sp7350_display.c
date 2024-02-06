@@ -120,7 +120,7 @@ static irqreturn_t sp7350_display_irq_fs(int irq, void *param)
 
 		if (!disp_dev->dev[i])
 			continue;
-		
+
 		if (layer->skip_first_int) {
 			layer->skip_first_int = 0;
 			continue;
@@ -292,7 +292,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 		disp_dev->osd_res[0].y_ofs = osd0_res[1];
 		disp_dev->osd_res[0].width = osd0_res[2];
 		disp_dev->osd_res[0].height = osd0_res[3];
-		disp_dev->osd_res[0].color_mode = osd0_res[4];	
+		disp_dev->osd_res[0].color_mode = osd0_res[4];
 	}
 
 	/*
@@ -575,6 +575,24 @@ static const char * const sp7350_disp_rtsc[] = {
 	"rstc_tcon", "rstc_tgen", "rstc_vpost0", "rstc_vscl0"
 };
 
+/* Helper function for DRM driver, mapping the regs on a platform device. */
+void __iomem *sp7350_display_ioremap_regs(int index)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+
+	if (!disp_dev) {
+		pr_warn("Failed to map registers: sp7350_display not register!\n");
+		return NULL;
+	}
+
+	if (index) {
+		return disp_dev->ao_moon3;
+	}
+	else {
+		return disp_dev->base;
+	}
+}
+
 static int sp7350_display_probe(struct platform_device *pdev)
 {
 	int num_irq = of_irq_count(pdev->dev.of_node);
@@ -689,7 +707,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	sp7350_dmix_init();
 
 	sp7350_tgen_init();
-	
+
 	sp7350_tcon_init();
 
 	sp7350_osd_init();
@@ -812,7 +830,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	else
 		sp7350_mipitx_phy_init_csi();
 
-	
+
 #if defined(CONFIG_VIDEO_SP7350_DISP_DEBUG)
 	/*
 	 * init debug fs
@@ -986,6 +1004,7 @@ static int sp7350_display_resume(struct platform_device *pdev)
 		rpi_touchscreen_i2c_write(g_ts, REG_PORTA, BIT(3));
 	}
 #endif
+
 #if defined(CONFIG_VIDEO_SP7350_DISP_LT8912B)
 	lt8912_soft_power_on(g_lt);
 	lt8912_video_on(g_lt);

@@ -360,7 +360,8 @@ static void __exit sp7350_drm_unregister(void)
 	platform_driver_unregister(&sp7350_drm_platform_driver);
 }
 
-module_init(sp7350_drm_register);
+//module_init(sp7350_drm_register);
+late_initcall(sp7350_drm_register);
 module_exit(sp7350_drm_unregister);
 
 
