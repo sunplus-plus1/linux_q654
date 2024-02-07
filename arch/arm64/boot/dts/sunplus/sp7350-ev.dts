@@ -23,13 +23,13 @@
 //#define MIPI_CSI_4VC
 //#define IMX219_IN0
 //#define IMX219_IN1
-//#define OV5647_IN1
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
-//#define OV5647_IN4
-//#define IMX708_IN4
 //#define IMX219_IN5
+//#define IMX708_IN4
+//#define OV5640_IN4
+//#define OV5647_IN4
 //#define TP2815_IN0
 //#define TP2815_IN0_1LANE
 //#define TP2815_IN0_2VC
@@ -71,11 +71,11 @@
 
 //#define RASPBERRYPI_DSI_PANEL
 
-#define LT8912B_HDMI_ENABLE
+//#define LT8912B_HDMI_ENABLE
 //#define LT8912B_HDMI_480X272
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
-#define LT8912B_HDMI_1080P
+//#define LT8912B_HDMI_1080P
 
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
@@ -181,13 +181,14 @@
 			reg = <0x0 0x100000 0x0 0x100000>;
 			no-map;
 		};
-		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
-		mipicsirx_reserve: mipicsirx@4f400000 {
+
+		/* mipi-csi rx reserve memory: 0x4f600000~0x5bdfffff, total 200M */
+		mipicsirx_reserve: mipicsirx@4f600000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x4f400000 0x0 0x0c800000>; // 4M alignment
-			reusable;
+			reg = <0x0 0x4f600000 0x0 0x0c800000>;
+			no-map;
 		};
-		/* 0x5bc0000-0x5be00000, total 2M no use */
+
 		/* remoteproc reserve memory: 0x5be00000-0x5befffff, total 1M */
 		vdev0buffer: vdev0buffer@5be00000 {
 			compatible = "shared-dma-pool";
@@ -235,10 +236,17 @@
 			no-map;
 		};
 
-		/* video v4l2 0x80000000~0x88000000, total 64M */
+		/* video v4l2 0x80000000~0x88000000, total 128M */
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
+			no-map;
+		};
+
+		/* display drm reserve memory 0x88000000 ~ 0x8fffffff, total 128M */
+		drm_disp_reserve: drm_reserve@88000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x88000000 0x0 0x18000000>;
 			no-map;
 		};
 
@@ -300,6 +308,12 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <25000000>;
+		};
+
+		ov5640_clk: camera-ov5640-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
 		};
 
 		imx708_clk: camera-imx708-clk {
@@ -523,8 +537,6 @@
 		regulator-name = "npu_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
-		startup-delay-us = <5000>;
-		off-on-delay-us = <5000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&npu_pwr_en_pins>;
 		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
@@ -564,6 +576,30 @@
 		regulator-name = "camera_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+	};
+
+	ov5640_avdd_2p8v: ov5640_avdd_2p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	ov5640_dovdd_1p8v: ov5640_dovdd_1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "DOVDD";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ov5640_dvdd_1p5v: ov5640_dvdd_1p5v {
+		compatible = "regulator-fixed";
+		regulator-name = "DVDD";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
 	};
 
@@ -1145,7 +1181,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1) || defined(TP2815_IN3) || defined(OV5647_IN1)
+#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1304,7 +1340,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4)|| defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1336,28 +1372,6 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_4: ov5647@36 {
-			compatible = "ovti,ov5647";
-			reg = <0x36>;
-			clocks = <&ov5647_clk>;
-			avdd-supply = <&ov5647_avdd_2v8>;
-			dovdd-supply = <&ov5647_dovdd_1v8>;
-			dvdd-supply = <&ov5647_dvdd_1v5>;
-
-			port {
-				ov5647_4: endpoint {
-					remote-endpoint = <&csi2_4>;
-					data-lanes = <1 2>;
-					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <297000000>;
-				};
-			};
-		};
-#endif
 #ifdef IMX708_IN4 /* Add imx708 subnode in i2c2 */
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1378,6 +1392,50 @@
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <450000000>;
+				};
+			};
+		};
+#endif
+#ifdef OV5640_IN4 /* Add ov5647 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: ov5640@3c {
+			compatible = "ovti,ov5640";
+			reg = <0x3c>;
+			clocks = <&ov5640_clk>;
+			clock-names = "xclk";
+			AVDD-supply = <&ov5640_avdd_2p8v>;
+			DOVDD-supply = <&ov5640_dovdd_1p8v>;
+			DVDD-supply = <&ov5640_dvdd_1p5v>;
+
+			port {
+				ov5640_4: endpoint {
+				remote-endpoint = <&csi2_4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				};
+			};
+		};
+#endif
+#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: ov5647@36 {
+			compatible = "ovti,ov5647";
+			reg = <0x36>;
+			clocks = <&ov5647_clk>;
+			avdd-supply = <&ov5647_avdd_2v8>;
+			dovdd-supply = <&ov5647_dovdd_1v8>;
+			dvdd-supply = <&ov5647_dvdd_1v5>;
+
+			port {
+				ov5647_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <297000000>;
 				};
 			};
 		};
@@ -1551,8 +1609,8 @@
 		#size-cells = <0>;
 
 		raspberrypi_lcd: lcd@45 {
-			compatible = "raspberrypi,7inch-touchscreen-panel";
-			//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+			//compatible = "raspberrypi,7inch-touchscreen-panel";
+			compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
 			reg = <0x45>;
 			port {
 				panel_dsi_port: endpoint {
@@ -2283,7 +2341,7 @@
 
 	spdwc3: spdwc3@f80a1000 {
 		compatible = "sunplus,dwc3";
-		reg = <0x0 0xf80a1000 0x0 0xe000>;
+reg = <0x0 0xf80a1000 0x0 0xe000>;
 	};
 
 	u3phy0: uphy@f80bd000 {
@@ -2473,7 +2531,7 @@
 		resets = <&rstc RST_MIPICSI1>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <1>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
+#if defined(IMX219_IN1) || defined(TP2815_IN1)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2481,7 +2539,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#if defined(IMX219_IN1) || defined(OV5647_IN1)
+#ifdef IMX219_IN1
 		num_channels = <1>;
 #elif defined(TP2815_IN1)
 	#ifdef TP2815_IN1_2VC
@@ -2576,7 +2634,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <2>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
+#if defined(IMX219_IN1) || defined(TP2815_IN1)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3013,7 +3071,7 @@
 		resets = <&rstc RST_MIPICSI4>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <4>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3021,7 +3079,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4)  || defined(OV5647_IN4)
 		num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
@@ -3051,19 +3109,6 @@
 				};
 			};
 #endif
-#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
-			port@0 {
-				reg = <0>;
-
-				/* MIPI CSI-2 bus endpoint */
-				csi2_4: endpoint {
-					remote-endpoint = <&ov5647_4>;
-					bus-type = <4>;
-					clock-lanes = <0>;
-					data-lanes = <1 2>;
-				};
-			};
-#endif
 #ifdef IMX708_IN4 /* Add OV5647 subnode in i2c2 */
 			port@0 {
 				reg = <0>;
@@ -3071,6 +3116,31 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_4: endpoint {
 					remote-endpoint = <&imx708_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5640_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&ov5640_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&ov5647_4>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -3129,7 +3199,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
