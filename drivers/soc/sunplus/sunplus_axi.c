@@ -973,7 +973,7 @@ static int sp_axi_platform_driver_probe(struct platform_device *pdev)
 	FUNC_DEBUG();
 	axi_monitor = devm_kzalloc(&pdev->dev, sizeof(struct sp_axi_t), GFP_KERNEL);
 	if (axi_monitor == NULL) {
-		DBG_INFO("sp_iop_t malloc fail\n");
+		DBG_INFO("sp_axi_t malloc fail\n");
 		ret	= -ENOMEM;
 		goto fail_kmalloc;
 	}

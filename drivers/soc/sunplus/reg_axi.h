@@ -1,47 +1,6 @@
 #ifndef __REG_AXI_H__
 #define __REG_AXI_H__
-#ifdef CONFIG_SOC_SP7021
-#include <mach/io_map.h>
-#endif 
-typedef struct regs_iop_moon0_t_ {
-	volatile unsigned int stamp;         /* 00 */
-	volatile unsigned int clken[10];     /* 01~10 */
-	volatile unsigned int gclken[10];    /* 11~20 */
-	volatile unsigned int reset[10];     /* 21~30 */
-	volatile unsigned int sfg_cfg_mode;  /* 31 */
-} regs_iop_moon0_t;
 
-
-
-typedef	struct regs_iop_t_{
-	volatile unsigned int iop_control;                /* 00 */
-	volatile unsigned int iop_reg1;                /* 01 */
-	volatile unsigned int iop_bp;                /* 02 */
-	volatile unsigned int iop_regsel;                  /* 03 */
-	volatile unsigned int iop_regout;                  /* 04 */
-	volatile unsigned int iop_reg5;                  /* 05 */
-	volatile unsigned int iop_resume_pcl;                    /* 06 */
-	volatile unsigned int iop_resume_pch;            /* 07 */
-	volatile unsigned int iop_data0;               /* 08 */
-	volatile unsigned int iop_data1;               /* 09 */
-	volatile unsigned int iop_data2;              /* 10 */
-	volatile unsigned int iop_data3;             /* 11 */
-	volatile unsigned int iop_data4;             /* 12 */
-	volatile unsigned int iop_data5;               /* 13 */
-	volatile unsigned int iop_data6;                 /* 14 */
-	volatile unsigned int iop_data7;                /* 15 */
-	volatile unsigned int iop_data8;                 /* 16 */
-	volatile unsigned int iop_data9;                 /* 17 */
-	volatile unsigned int iop_data10;         /* 18 */
-	volatile unsigned int iop_data11;        /* 19 */
-	volatile unsigned int iop_base_adr_l;           /* 20 */
-	volatile unsigned int iop_base_adr_h;          /* 21 */
-	volatile unsigned int Memory_bridge_control;           /* 22 */
-	volatile unsigned int iop_regmap_adr_l;           /* 23 */
-	volatile unsigned int iop_regmap_adr_h;  /* 24 */
-	volatile unsigned int iop_direct_adr;              /* 25*/
-	volatile unsigned int reserved[6];              /* 26~31 */
-}regs_iop_t;
 
 typedef	struct regs_axi_t_{
 	volatile unsigned int axi_control;                /* 00 */

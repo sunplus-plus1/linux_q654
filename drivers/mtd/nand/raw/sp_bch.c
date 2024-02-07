@@ -772,8 +772,6 @@ static const struct dev_pm_ops sp_bch_pm_ops = {
 };
 
 static const struct of_device_id sp_bch_of_match[] = {
-	{ .compatible = "sunplus,sp7021-bch" },
-	{ .compatible = "sunplus,q645-bch" },
 	{ .compatible = "sunplus,sp7350-bch" },
 	{},
 };
