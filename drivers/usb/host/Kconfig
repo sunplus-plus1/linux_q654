@@ -620,7 +620,7 @@ config USB_OCTEON_OHCI
 
 config USB_OHCI_SUNPLUS
 	tristate "OHCI support for Sunplus USB controller"
-	depends on SOC_SP7021 || SOC_Q645 || SOC_SP7350
+	depends on SOC_SP7350
 	select USB_OHCI_HCD_PLATFORM
 	select PHY_SUNPLUS_USB
 	help
