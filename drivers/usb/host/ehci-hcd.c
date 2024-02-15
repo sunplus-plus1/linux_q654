@@ -1782,7 +1782,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_grlib_driver
 #endif
 
-#ifdef CONFIG_USB_EHCI_HCD
+#ifdef CONFIG_USB_EHCI_SUNPLUS
 #include "ehci-sunplus.c"
 #endif
 
