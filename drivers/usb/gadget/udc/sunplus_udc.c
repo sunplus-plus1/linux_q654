@@ -191,19 +191,20 @@ static void pwr_uphy_pll(int enable)
 	temp = readl(uphy0_regs + GLO_CTRL2_OFFSET);
 
 	if (enable) {
-		temp &= (~PLL_PD_SEL & ~PLL_PD);
+		temp &= ~PLL_PD;
 		writel(temp, uphy0_regs + GLO_CTRL2_OFFSET);
+		udelay(100);
 
 		writel(readl(uphy0_regs + GLO_CTRL1_OFFSET) & ~CLK120_27_SEL,
 							uphy0_regs + GLO_CTRL1_OFFSET);
 
 		UDC_LOGD("uphy pll power-up\n");
 	} else {
-		temp |= (PLL_PD_SEL | PLL_PD);
-		writel(temp, uphy0_regs + GLO_CTRL2_OFFSET);
-
 		writel(readl(uphy0_regs + GLO_CTRL1_OFFSET) | CLK120_27_SEL,
 							uphy0_regs + GLO_CTRL1_OFFSET);
+
+		temp |= PLL_PD;
+		writel(temp, uphy0_regs + GLO_CTRL2_OFFSET);
 
 		UDC_LOGD("uphy pll power-down\n");
 	}
@@ -908,7 +909,10 @@ static void hal_udc_analysis_event_trb(struct trb_data *event_trb, struct sp_udc
 		case UDC_SUSPEND:
 			UDC_LOGL("udc suspend\n");
 
-#ifndef CONFIG_USB_SUNPLUS_OTG
+#ifdef CONFIG_USB_SUNPLUS_OTG
+			if (USBx->DEVC_STS & VBUS)
+				pwr_uphy_pll(0);
+#else
 			pwr_uphy_pll(0);
 #endif
 
