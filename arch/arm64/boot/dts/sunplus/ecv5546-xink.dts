@@ -23,6 +23,7 @@
 //#define MIPI_CSI_4VC
 //#define IMX219_IN0
 //#define IMX219_IN1
+//#define OV5647_IN1
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
@@ -119,8 +120,6 @@
 
 		spi0 = &sp_spinor0;
 
-		usb-device0 = &udc0;
-
 		stc0 = &stc;
 		stc1 = &stc_av0;
 		stc2 = &stc_av1;
@@ -182,14 +181,13 @@
 			reg = <0x0 0x100000 0x0 0x100000>;
 			no-map;
 		};
-
-		/* mipi-csi rx reserve memory: 0x4f600000~0x5bdfffff, total 200M */
-		mipicsirx_reserve: mipicsirx@4f600000 {
+		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
+		mipicsirx_reserve: mipicsirx@4f400000 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x4f600000 0x0 0x0c800000>;
-			no-map;
+			reg = <0x0 0x4f400000 0x0 0x0c800000>; // 4M alignment
+			reusable;
 		};
-
+		/* 0x5bc0000-0x5be00000, total 2M no use */
 		/* remoteproc reserve memory: 0x5be00000-0x5befffff, total 1M */
 		vdev0buffer: vdev0buffer@5be00000 {
 			compatible = "shared-dma-pool";
@@ -520,16 +518,18 @@
 		mboxes = <&mbox 0>; // for SUNPLUS_MBOX_TEST
 	};
 
-	/*npu_core_0v8: npu_0p8v {
+	npu_core_0v8: npu_0p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "npu_core";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
+		startup-delay-us = <5000>;
+		off-on-delay-us = <5000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&npu_pwr_en_pins>;
 		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};*/
+	};
 
 	/*video_codec_core_0v8: video_0p8v {
 		compatible = "regulator-fixed";
@@ -1144,7 +1144,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1) || defined(TP2815_IN3)
+#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1) || defined(TP2815_IN3) || defined(OV5647_IN1)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1268,6 +1268,28 @@
 			};
 		};
 #endif
+#ifdef OV5647_IN1 /* Add ov5647 subnode in i2c1 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_1: ov5647@36 {
+			compatible = "ovti,ov5647";
+			reg = <0x36>;
+			clocks = <&ov5647_clk>;
+			avdd-supply = <&ov5647_avdd_2v8>;
+			dovdd-supply = <&ov5647_dovdd_1v8>;
+			dvdd-supply = <&ov5647_dvdd_1v5>;
+
+			port {
+				ov5647_1: endpoint {
+					remote-endpoint = <&csi2_1>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <297000000>;
+				};
+			};
+		};
+#endif
 	};
 
 	i2c2: i2c@f882a000 {
@@ -1345,7 +1367,7 @@
 			clocks = <&imx708_clk>;
 			clock-names = "inclk";
 			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-			vana2-supply = <&imx708_vana2_1v8>;/* 1.8v */
+			vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
 			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
 			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
 
@@ -2198,10 +2220,6 @@
 		phy-names = "uphy";
 	};
 
-	spdwc3: spdwc3@f80a1000 {
-		compatible = "sunplus,dwc3";
-	};
-
 	spsoc-pcm-driver {
 		compatible = "sunplus,audio-pcm";
 		//status = "disabled";
@@ -2258,6 +2276,11 @@
 			phys = <&u3phy0>, <&u3phy0>;
 			phy-names = "usb3-phy", "usb2-phy";
 		};
+	};
+
+	spdwc3: spdwc3@f80a1000 {
+		compatible = "sunplus,dwc3";
+		reg = <0x0 0xf80a1000 0x0 0xe000>;
 	};
 
 	u3phy0: uphy@f80bd000 {
@@ -2447,7 +2470,7 @@
 		resets = <&rstc RST_MIPICSI1>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <1>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1)
+#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2455,7 +2478,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#ifdef IMX219_IN1
+#if defined(IMX219_IN1) || defined(OV5647_IN1)
 		num_channels = <1>;
 #elif defined(TP2815_IN1)
 	#ifdef TP2815_IN1_2VC
@@ -2479,6 +2502,19 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_1: endpoint {
 					remote-endpoint = <&imx219_1>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5647_IN1 /* Add imx219 subnode in i2c1 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_1: endpoint {
+					remote-endpoint = <&ov5647_1>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -2537,7 +2573,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <2>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1)
+#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2984,8 +3020,6 @@
 		max_channels = <4>;
 #if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		num_channels = <1>;
-#elif defined(OV5647_IN4)
-	num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
 		num_channels = <2>;
@@ -3452,12 +3486,13 @@
 
 	galcore: galcore@f8140000 {
 		compatible = "galcore";
-		reg = <0x0 0xf8140000 0x0 0x20000>;
+		reg = <0x0 0xf8140000 0x0 0x20000>, <0x0 0xf880125c 0x0 0xff>;
+		reg-name = "galcore","gal_ios";
 		dev_name = "galcore";
 		memory-region = <&npu_reserve>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
-		//npu_core-supply = <&npu_core_0v8>;
+		npu_core-supply = <&npu_core_0v8>;
 		clocks = <&clkc NPU>;
 		clock-names = "clk_vip9000";
 		clock-frequency = <900000000>;
@@ -3991,11 +4026,11 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		//sunplus,ms-dvio-group-0 = "1V8";
-		//sunplus,ms-dvio-group-1 = "1V8";
-		//sunplus,ms-dvio-ao-group-0 = "1V8";
-		//sunplus,ms-dvio-ao-group-1 = "1V8";
-		//sunplus,ms-dvio-ao-group-2 = "1V8";
+		sunplus,ms-dvio-group-0 = "1V8";
+		sunplus,ms-dvio-group-1 = "1V8";
+		sunplus,ms-dvio-ao-group-0 = "1V8";
+		sunplus,ms-dvio-ao-group-1 = "1V8";
+		sunplus,ms-dvio-ao-group-2 = "1V8";
 
 		sunplus,ao-pin-prescale = <2500>;
 		sunplus,ao-pin-debounce = <10>;
@@ -4054,23 +4089,23 @@
 		};
 
 		typec_pins: pinmux_typec-pins {
-			pins = "GPIO98";
 			function = "GPIO";
+			pins = "GPIO98";
 		};
 
 		dwc3id_pins: pinmux_usb3id-pins {
-			pins = "GPIO99";
 			function = "GPIO";
+			pins = "GPIO99";
 		};
 
 		npu_pwr_en_pins: pinmux_video_npu_pwr_en-pins {
-			pins = "GPIO65";
 			function = "GPIO";
+			pins = "GPIO65";
 		};
 
 		video_codec_pwr_en_pins: pinmux_video_codec_pwr_en-pins {
-			pins = "GPIO66";
 			function = "GPIO";
+			pins = "GPIO66";
 		};
 
 		uart0_pins: pinmux_uart0-pins {

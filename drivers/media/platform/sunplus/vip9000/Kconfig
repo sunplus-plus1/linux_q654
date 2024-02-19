@@ -1,5 +1,17 @@
-config VIP9000_NPU
-	tristate "ML Inference Processor VIP9000-NPU driver"
-	default n
+choice
+	prompt "NPU Version choice"
+	default v6_4_15_9
 	help
-		 Support for the ML Inference Processor VIP9000-NPU driver
+	  This option sets NPU version. If in doubt, use the default version.
+
+config v6_4_13_8
+	bool "VIP9000-NPU driver v6.4.13.8"
+	help
+		Support for the ML Inference Processor VIP9000-NPU driver v6.4.13.8
+
+config v6_4_15_9
+	bool "VIP9000-NPU driver v6.4.15.9"
+	help
+		Support for the ML Inference Processor VIP9000-NPU driver v6.4.15.9
+
+endchoice
