@@ -44,7 +44,15 @@
 
 #ifdef SPMMC_SUPPORT_VOLTAGE_1V8
 //#define HW_VOLTAGE_1V8
+
+//#define SPMMC_DMA_ALLOC
+
 #endif
+
+#define SPSDC_MAX_SEGS 128
+#define SPSDC_MAX_BLK_CNT 2560
+#define SPSDC_MAX_BLK_SIZE  512
+#define SPSDC_MAX_REQ_SIZE SPSDC_MAX_BLK_CNT * SPSDC_MAX_BLK_SIZE
 
 #define SPMMC_MAX_TUNABLE_DLY 7
 #define SPMMC_TIMEOUT_US 50000000
@@ -382,6 +390,14 @@ struct spsdc_host {
 	struct sg_mapping_iter sg_miter; /* for pio mode to access sglist */
 	int target_drv;
 	int curr_drv;
+
+	struct device		*dev;
+	struct mmc_data		*data;
+	unsigned int		*buffer;
+	unsigned int		buf_size;
+	unsigned int		xfer_len;
+	dma_addr_t		buf_phys_addr;
+	dma_addr_t		buf_addr;
 
 };
 
