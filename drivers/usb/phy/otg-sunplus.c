@@ -21,7 +21,7 @@
 
 #ifdef CONFIG_USB_SP_UDC
 extern void detech_start(void);
-extern void device_run_stop_ctrl(int);
+extern void device_run_stop_ctrl(int, int);
 
 static u32 start_srp = false;
 #endif
@@ -609,7 +609,7 @@ static irqreturn_t otg_irq(int irq, void *dev_priv)
 		writel(val, &otg_host->regs_otg->otg_device_ctrl);
 
 #if defined(CONFIG_USB_SP_UDC)
-		device_run_stop_ctrl(0);
+		device_run_stop_ctrl(0, 0);
 #endif
 
 		otg_host->fsm.a_wait_bcon_tmout = 1;
@@ -645,14 +645,14 @@ static irqreturn_t otg_irq(int irq, void *dev_priv)
 
 #if defined(CONFIG_USB_SP_UDC)
 			otg_id_pin = 0;
-			device_run_stop_ctrl(0);
+			device_run_stop_ctrl(0, 0);
 #endif
 		} else {
 			writel(~OTG_SIM & (OTG_SRP | OTG_20),
 				  			&otg_host->regs_otg->mode_select);
 #if defined(CONFIG_USB_SP_UDC)
 			otg_id_pin = 1;
-			device_run_stop_ctrl(1);
+			device_run_stop_ctrl(1, 1);
 #endif
 		}
 	}
