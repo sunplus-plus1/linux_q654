@@ -32,6 +32,7 @@
 
 #include "sp7350_drm_kms.h"
 #include "sp7350_drm_plane.h"
+#include "sp7350_drm_fbdev.h"
 
 /* -----------------------------------------------------------------------------
  * Hardware initialization
@@ -158,7 +159,10 @@ static int sp7350_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto unbind_all;
 
-	drm_fbdev_generic_setup(drm, 16);
+	//drm_fbdev_generic_setup(drm, 16);
+	ret = sp7350_drm_fbdev_init(drm, 16);
+	if (ret)
+		goto unbind_all;
 
 	return 0;
 
@@ -173,6 +177,7 @@ static void sp7350_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
+	//sp7350_drm_fbdev_fini(drm);
 
 	drm_atomic_helper_shutdown(drm);
 }
