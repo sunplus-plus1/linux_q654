@@ -298,10 +298,10 @@
 			clock-frequency = <24000000>;
 		};
 
-		ov5647_clk: camera-ov5647-clk {
+		imx708_clk: camera-imx708-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <25000000>;
+			clock-frequency = <24000000>;
 		};
 
 		ov5640_clk: camera-ov5640-clk {
@@ -310,10 +310,10 @@
 			clock-frequency = <24000000>;
 		};
 
-		imx708_clk: camera-imx708-clk {
+		ov5647_clk: camera-ov5647-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <24000000>;
+			clock-frequency = <25000000>;
 		};
 
 		tp2815_clk: camera-tp2815-clk {
@@ -553,7 +553,7 @@
 
 	imx219_vana_2v8: 2p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana";
+		regulator-name = "imx219_vana";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		regulator-always-on;
@@ -561,7 +561,7 @@
 
 	imx219_vdig_1v8: 1p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vdig";
+		regulator-name = "imx219_vdig";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
@@ -569,7 +569,7 @@
 
 	imx219_vddl_1v2: 1p2v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vddl";
+		regulator-name = "imx219_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		regulator-always-on;
@@ -577,7 +577,7 @@
 
 	ov5640_avdd_2p8v: ov5640_avdd_2p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "AVDD";
+		regulator-name = "ov5640_avdd";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		regulator-always-on;
@@ -585,7 +585,7 @@
 
 	ov5640_dovdd_1p8v: ov5640_dovdd_1p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "DOVDD";
+		regulator-name = "ov5640_dovdd";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -593,7 +593,7 @@
 
 	ov5640_dvdd_1p5v: ov5640_dvdd_1p5v {
 		compatible = "regulator-fixed";
-		regulator-name = "DVDD";
+		regulator-name = "ov5640_dvdd";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
@@ -601,7 +601,7 @@
 
 	ov5647_avdd_2v8: ov5647_avdd_2v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_avdd";
+		regulator-name = "ov5647_avdd";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		regulator-always-on;
@@ -609,7 +609,7 @@
 
 	ov5647_dovdd_1v8: ov5647_dovdd_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_dovdd";
+		regulator-name = "ov5647_dovdd";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -617,7 +617,7 @@
 
 	ov5647_dvdd_1v5: ov5647_dvdd_1v5 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_dvdd";
+		regulator-name = "ov5647_dvdd";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
@@ -625,7 +625,7 @@
 
 	imx708_vana1_2v8: imx708_vana1_2v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana1";
+		regulator-name = "imx708_vana1";
 		startup-delay-us = <70000>;
 		off-on-delay-us = <30000>;
 		regulator-min-microvolt = <2700000>;
@@ -635,7 +635,7 @@
 
 	imx708_vana2_1v8: imx708_vana2_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana2";
+		regulator-name = "imx708_vana2";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -643,7 +643,7 @@
 
 	imx708_vdig_1v1: imx708_vdig_1v1 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vdig";
+		regulator-name = "imx708_vdig";
 		regulator-min-microvolt = <1100000>;
 		regulator-max-microvolt = <1100000>;
 		regulator-always-on;
@@ -651,7 +651,7 @@
 
 	imx708_vddl_1v8: imx708_vddl_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vddl";
+		regulator-name = "imx708_vddl";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
