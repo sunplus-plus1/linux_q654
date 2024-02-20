@@ -2145,8 +2145,9 @@ status = "disabled";
 		nvmem-cells = <&disc_vol>;
 		#phy-cells = <0>;
 		sunplus,disc-vol-addr-off = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&otg_pins>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&otg_pins>;
+		vbus-en-gpios = <&pctl 18 GPIO_ACTIVE_LOW>;
 	};
 
 	ehci0: usb@f8102100 {
