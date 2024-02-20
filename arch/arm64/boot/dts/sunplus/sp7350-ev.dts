@@ -1336,7 +1336,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4)|| defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2337,7 +2337,7 @@
 
 	spdwc3: spdwc3@f80a1000 {
 		compatible = "sunplus,dwc3";
-reg = <0x0 0xf80a1000 0x0 0xe000>;
+		reg = <0x0 0xf80a1000 0x0 0xe000>;
 	};
 
 	u3phy0: uphy@f80bd000 {
@@ -3075,7 +3075,7 @@ reg = <0x0 0xf80a1000 0x0 0xe000>;
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4)  || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4)
 		num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
