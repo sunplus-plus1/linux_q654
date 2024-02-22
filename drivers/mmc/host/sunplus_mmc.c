@@ -637,6 +637,9 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 		struct scatterlist *sg;
 		dma_addr_t dma_addr;
 		unsigned int dma_size;
+		#ifdef SPMMC_DMA_ALLOC
+		unsigned int sg_xlen;
+		#endif
 		u32 *reg_addr;
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 		int i, count = 1;
@@ -648,33 +651,63 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 			data->error = -EINVAL;
 			return;
 		}
+#else
+		if (unlikely(!count)) {
+			spmmc_pr(ERROR, "error occured at dma_mapp_sg: count = %d\n", count);
+			data->error = -EINVAL;
+			return;
+		}
+
 #endif
 #ifdef SPMMC_DMA_ALLOC
-		if(data->sg_len > SPMMC_MAX_DMA_MEMORY_SECTORS) {
-			if ((data->flags & MMC_DATA_WRITE)) {
-				sg_copy_to_buffer(data->sg, data->sg_len,
-						host->buffer, (data->blocks * data->blksz));
-			}
-			dma_addr = host->buf_phys_addr;
-			dma_size = data->blocks - 1;
-			writel(dma_addr, &host->base->dma_base_addr);
-			writel(dma_size, &host->base->sdram_sector_0_size);
-		} else
-#endif
-		{
-			for_each_sg(data->sg, sg, count, i) {
-				dma_addr = sg_dma_address(sg);
-				dma_size = sg_dma_len(sg) / 512 - 1;
-				if (i == 0) {
-					writel(dma_addr, &host->base->dma_base_addr);
-					writel(dma_size, &host->base->sdram_sector_0_size);
-				} else {
-					reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
-					writel(dma_addr, reg_addr);
-					writel(dma_size, reg_addr + 1);
+		if(data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) {
+			host->xfer_len = data->blocks * data->blksz;
+			count = 8;
+		}
+		for_each_sg(data->sg, sg, count, i) {
+			dma_addr = sg_dma_address(sg);
+			sg_xlen = sg_dma_len(sg);
+			dma_size = sg_xlen / data->blksz - 1;
+			if (i == 0) {
+				writel(dma_addr, &host->base->dma_base_addr);
+				writel(dma_size, &host->base->sdram_sector_0_size);
+				host->xfer_len -= sg_xlen;
+			} else if(i < 7){
+				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
+				writel(dma_addr, reg_addr);
+				writel(dma_size, reg_addr + 1);
+				host->xfer_len -= sg_xlen;
+			} else {
+				if (data->flags & MMC_DATA_WRITE) {
+					sg_copy_to_buffer(sg, data->sg_len-7,
+						host->buffer, host->xfer_len);
+					/* Switch ownership to the DMA */
+					dma_sync_single_for_device(host->dev,
+							host->buf_phys_addr,
+							host->xfer_len,
+							mmc_get_dma_dir(data));
 				}
+				dma_addr = host->buf_phys_addr;
+				dma_size = host->xfer_len / data->blksz - 1;
+				//pr_info("c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
+				writel(dma_addr, &host->base->sdram_sector_7_addr);
+				writel(dma_size, &host->base->sdram_sector_7_size);
 			}
 		}
+#else
+		for_each_sg(data->sg, sg, count, i) {
+			dma_addr = sg_dma_address(sg);
+			dma_size = sg_dma_len(sg) / 512 - 1;
+			if (i == 0) {
+				writel(dma_addr, &host->base->dma_base_addr);
+				writel(dma_size, &host->base->sdram_sector_0_size);
+			} else {
+				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
+				writel(dma_addr, reg_addr);
+				writel(dma_size, reg_addr + 1);
+			}
+		}
+#endif
 		value = bitfield_replace(value, 0, 1, 0); /* sdpiomode */
 		writel(value, &host->base->sd_config0);
 		/* enable interrupt if needed */
@@ -950,6 +983,10 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 {
 	struct mmc_command *cmd;
 	struct mmc_data *data;
+#ifdef SPMMC_DMA_ALLOC
+	struct scatterlist *sg;
+	int i, count;
+#endif
 
 	if (!mrq)
 		return;
@@ -961,12 +998,21 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 #ifdef SPMMC_DMA_ALLOC
-		if ((data->flags & MMC_DATA_READ) && (data->sg_len > SPMMC_MAX_DMA_MEMORY_SECTORS)) {
-			sg_copy_from_buffer(host->data->sg, host->data->sg_len,
-							host->buffer, (host->data->blocks * host->data->blksz));
+		if((data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
+			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
+			count = 8;
+			for_each_sg(data->sg, sg, count, i) {
+				if (i == 7) {
+					dma_sync_single_for_cpu(host->dev,
+						host->buf_phys_addr,
+						host->xfer_len,
+						DMA_FROM_DEVICE);
+					sg_copy_from_buffer(sg, data->sg_len -7,
+							host->buffer, host->xfer_len);
+				}
+			}
 		}
 #endif
-
 		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
@@ -992,6 +1038,8 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 
 	cmd = mrq->cmd;
 	data = mrq->data;
+	spmmc_get_rsp(host, cmd);
+	spmmc_wait_finish(host);
 
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
@@ -999,8 +1047,7 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
-	spmmc_get_rsp(host, cmd);
-	spmmc_wait_finish(host);
+
 	spmmc_check_error(host, mrq);
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
@@ -2347,13 +2394,27 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 
 #ifdef SPMMC_DMA_ALLOC
-		host->buffer = dma_alloc_coherent(&pdev->dev, 80 * 32 * 512,
-						  &host->buf_phys_addr, GFP_KERNEL);
-		if (!host->buffer) {
-			ret = -ENOMEM;
-			dev_err(&pdev->dev, "buffer allocation failed\n");
-			goto probe_free_host;
-		}
+	host->dev = &pdev->dev;
+	host->buffer = devm_kmalloc(&pdev->dev, SPMMC_MAX_BLK_COUNT * 512, GFP_KERNEL | GFP_DMA);
+	if (!host->buffer) {
+		spmmc_pr(ERROR, "%s: failed to allocate bytes for bounce buffer, falling back to single segments\n",
+			   mmc_hostname(mmc));
+		/*
+		 * Exiting with zero here makes sure we proceed with
+		 * mmc->max_segs == 1.
+		 */
+		goto probe_free_host;
+	}
+
+	host->buf_phys_addr = dma_map_single(&pdev->dev,
+							   host->buffer,
+							   SPMMC_MAX_BLK_COUNT * 512,
+							   DMA_BIDIRECTIONAL);
+	ret = dma_mapping_error(&pdev->dev, host->buf_phys_addr);
+	if (ret) {
+		spmmc_pr(ERROR, "map error\n");
+		goto probe_free_host;
+	}
 #endif
 
 	spin_lock_init(&host->lock);
@@ -2368,10 +2429,10 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
 #ifdef SPMMC_DMA_ALLOC
-	mmc->max_seg_size =  80 * 32 * 512;
-	/* Host controller supports up to "SPMMC_MAX_DMA_MEMORY_SECTORS"*/
+	mmc->max_seg_size =  SPMMC_MAX_BLK_COUNT * 512;
+	/* Host controller supports up to "SPMMC_SOFTWAVE_MAX_SECTORS"*/
 	/* a.k.a. max scattered memory segments per request*/
-	mmc->max_segs = 128;
+	mmc->max_segs = SPMMC_SOFTWAVE_MAX_SECTORS;
 	mmc->max_req_size = SPMMC_MAX_BLK_COUNT * 512;
 	mmc->max_blk_size = 512; /* Limited by the max value of dma_size & data_length, set it to 512 bytes for now */
 	mmc->max_blk_count = SPMMC_MAX_BLK_COUNT; /* Limited by sd_page_num */
