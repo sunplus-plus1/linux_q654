@@ -111,12 +111,11 @@ static void sp7350_kms_plane_atomic_update(struct drm_plane *plane,
 	//u32 addr = (u32)obj->paddr + (state->src_y >> 16) * stride;
 
 	int src_x,src_y,src_w,src_h;
-	#if 1
 	src_x = state->src_x >> 16;
 	src_y = state->src_y >> 16;
 	src_w = state->src_w >> 16;
 	src_h = state->src_h >> 16;
-	#endif
+
 	
 	DRM_INFO("%s crtc_x:%d\n", __func__,state->crtc_x);
 	DRM_INFO("%s crtc_y:%d\n", __func__,state->crtc_y);
@@ -157,44 +156,16 @@ static void sp7350_kms_plane_atomic_update(struct drm_plane *plane,
 		sp7350_dmix_layer_set(SP7350_DMIX_OSD3, SP7350_DMIX_TRANSPARENT);
 		*/
 		sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
-		
-
-		
-
-		/**sp7350_vpp_imgread_set((u32)obj->paddr,
-				src_x, src_y,
-				src_w, src_h,
-				sp7350_get_format(state->fb->format->format, plane->type));*/
-
-		/* FIXME, img_dest and output set fixed 1920x1080,
-			should adjust with crtc or connector size */
-		/**sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
-				state->src_w >> 16, state->src_h >> 16,
-				state->src_w >> 16, state->src_h >> 16,
-				state->src_w >> 16, state->src_h >> 16);*/
-		/**
-		sp7350_vpp_vscl_set(state->crtc_x, state->crtc_y,
-				state->src_w >> 16, state->src_h >> 16,
-				state->crtc_w, state->crtc_h,
-				state->crtc_w, state->crtc_h);*/
-
-				
-
 
 		sp7350_vpp_imgread_set((u32)obj->paddr,
 				src_x, src_y,
 				src_w, src_h,
 				sp7350_get_format(state->fb->format->format, plane->type));
-		sp7350_vpp_vscl_set2(src_x, src_y,
+		sp7350_vpp_vscl_set(src_x, src_y,
 				src_w, src_h,
 				state->crtc_w, state->crtc_h,
 				1920, 1080,
 				state->crtc_x, state->crtc_y);
-		/**sp7350_vpp_vscl_set2(src_x, src_y,
-				1920, 1080,
-				1920-src_x, 1080 - src_y,
-				1920, 1080,
-				state->crtc_x, state->crtc_y);*/
 				
 				
 	}
@@ -211,6 +182,15 @@ static void sp7350_kms_plane_atomic_update(struct drm_plane *plane,
 
 		/* FIXME, for test only!!! */
 		sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + plane->index -1, SP7350_DMIX_BLENDING);
+		/**
+		DRM_INFO("%s plane->index:%d\n", __func__,plane->index);
+		struct sp7350_dmix_plane_alpha dmix_plane;
+		dmix_plane.layer = SP7350_DMIX_L6 - plane->index -1;
+		dmix_plane.enable = 1;
+		dmix_plane.fix_alpha = 1;
+		dmix_plane.alpha_value = 50;
+
+		sp7350_dmix_plane_alpha_config(&dmix_plane);*/
 
 	}
 }
