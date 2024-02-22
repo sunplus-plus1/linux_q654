@@ -140,9 +140,11 @@ static int sp7350_drm_bind(struct device *dev)
 	if (ret)
 		return ret;
 
+#if !DRM_PRIMARY_PLANE_ONLY
 	ret = sp7350_plane_create_additional_planes(drm);
 	if (ret)
 		goto unbind_all;
+#endif
 
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sp7350drmfb", false);
 
@@ -159,10 +161,13 @@ static int sp7350_drm_bind(struct device *dev)
 	if (ret < 0)
 		goto unbind_all;
 
-	//drm_fbdev_generic_setup(drm, 16);
+	#if DRM_PRIMARY_PLANE_WITH_OSD
+	drm_fbdev_generic_setup(drm, 16);
+	#else
 	ret = sp7350_drm_fbdev_init(drm, 16);
 	if (ret)
 		goto unbind_all;
+	#endif
 
 	return 0;
 
