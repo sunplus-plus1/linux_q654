@@ -367,6 +367,7 @@ void check_cmd_fifo_empty(void);
 void check_data_fifo_full(void);
 void check_data_fifo_empty(void);
 void sp7350_mipitx_panel_init(int mipitx_dev_id, int width, int height);
+void sp7350_dcs_write_buf(const void *data, size_t len);
 
 /*
  * SP7350 MIPITX PHY Control Settings

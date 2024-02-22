@@ -7,4 +7,6 @@ sp7350-drm-y := \
 	sp7350_drm_dsi.o  \
 	sp7350_drm_drv.o
 
+sp7350-drm-$(CONFIG_DRM_FBDEV_EMULATION) += sp7350_drm_fbdev.o
+
 obj-$(CONFIG_DRM_SP7350) += sp7350-drm.o
