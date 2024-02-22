@@ -194,12 +194,14 @@ static irqreturn_t sp7350_display_irq_fs(int irq, void *param)
 					sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 							layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
 							disp_dev->vpp_res[0].img_dest_w, disp_dev->vpp_res[0].img_dest_h,
-							disp_dev->out_res.width, disp_dev->out_res.height);
+							disp_dev->out_res.width, disp_dev->out_res.height,
+							0,0);
 					#else
 					sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 							disp_dev->vpp_res[0].crop_w, disp_dev->vpp_res[0].crop_h,
 							layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
-							disp_dev->out_res.width, disp_dev->out_res.height);
+							disp_dev->out_res.width, disp_dev->out_res.height,
+							0,0);
 					#endif
 				}
 
