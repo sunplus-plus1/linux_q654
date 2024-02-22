@@ -14,6 +14,24 @@
 #include <drm/drm.h>
 #include <drm/drm_gem.h>
 
+/* NOTES: Enable this!
+ * This may not be a good solution, but it is indeed an effective one.
+ * Becease:(VPP not support rgb pixel format)
+ * 1. legacy fbdev compatible /dev/fb0 with osd0.
+ * 2. work well with xorg-server for rgb format.
+ ****************
+ * VPP Layer map to overlay plane-1 for media plane usage.
+ * Maps list:
+ * DRM-Layer | primary   | overlay-1  |  overlay-2  |  overlay-3  |   cursor???
+ * planeId   | plane-0   |  plane-1   |   plane-2   |  plane-3    |  plane-4???
+ * HW-Later  |  OSD3     |   VPP0     |   OSD2      |   OSD1      |   OSD0???
+ * usage     |  desktop  |   media    |   menu-1    |    menu-2   |    cursor
+ *  z-order???
+ */
+#define  DRM_PRIMARY_PLANE_WITH_OSD  1
+
+#define  DRM_PRIMARY_PLANE_ONLY  0
+
 #define XRES_MIN    20
 #define YRES_MIN    20
 
