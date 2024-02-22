@@ -18,12 +18,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-#ccflags-y += -Wall -g -DDEBUG -DETHOSN_NS
-#ccflags-y += -Wall -g -Werror -DDEBUG -DETHOSN_NS
-#ccflags-y += -Wall -g -Werror -DDEBUG $(EXTRA_CCFLAGS)
-#ccflags-y += -Wall -g -Werror -DDEBUG
-# ccflags-y += -Wall -Werror $(EXTRA_CCFLAGS)
-
 ccflags-y += -Wall -Werror -DNO_DMA_COHERENT=1 -DUSE_VDK=1 -DEGL_API_WL=0 \
 			 -DEGL_API_FB=1 -DEGL_API_DFB=0 -DEGL_API_DRI=0 -DEGL_API_X=0 \
 			 -DEGL_API_GBM=0 -DX11_DRI3=0 -DEGL_API_NULLWS=0 -DgcdSTATIC_LINK=0 \
@@ -36,56 +30,65 @@ ccflags-y += -Wall -Werror -DNO_DMA_COHERENT=1 -DUSE_VDK=1 -DEGL_API_WL=0 \
 			 -DVSI_USE_VXC_BINARY=1 -DUSE_VXC_BINARY=1 -DUSE_OVXLIB=1 -DUSE_3D_VG=1 \
 			 -DUSE_POWER_MANAGEMENT=1 -DgcdNONPAGED_MEMORY_BUFFERABLE=1 \
 			 -DENABLE_NONPAGED_MEMORY_BUFFERABLE=1 -DNONPAGED_MEMORY_BUFFERABLE=1 -DUSE_LOADTIME_OPT=1 -DUSE_DESTRUCTOR=1 -DgcdENABLE_DRM=0 -DHOST=\""KERNEL"\"
+
+ifneq ($(CONFIG_v6_4_13_8),)
+driver := v6.4.13.8
+VIP9000_NPU := $(CONFIG_VIP9000_NPU_DRIVERS)
+endif
+
+ifneq ($(CONFIG_v6_4_15_9),)
+driver := v6.4.15.9
+VIP9000_NPU := $(CONFIG_VIP9000_NPU_DRIVERS)
+endif
+
 ccflags-y += $(EXTRA_CCFLAGS)
-#ccflags-y += -I$(src)/hal/inc
-ccflags-y += -I$(src)/hal/kernel/inc
-ccflags-y += -I$(src)/hal/kernel
-ccflags-y += -I$(src)/hal/kernel/arch
-ccflags-y += -I$(src)/hal/kernel/inc
-ccflags-y += -I$(src)/hal/os/linux/kernel
-ccflags-y += -I$(src)/hal/security_v1/
-ccflags-y += -I$(src)/hal/os/linux/kernel/allocator/default/
+ccflags-y += -I$(src)/$(driver)/hal/kernel/inc
+ccflags-y += -I$(src)/$(driver)/hal/kernel
+ccflags-y += -I$(src)/$(driver)/hal/kernel/arch
+ccflags-y += -I$(src)/$(driver)/hal/kernel/inc
+ccflags-y += -I$(src)/$(driver)/hal/os/linux/kernel
+ccflags-y += -I$(src)/$(driver)/hal/security_v1/
+ccflags-y += -I$(src)/$(driver)/hal/os/linux/kernel/allocator/default/
 
-obj-$(CONFIG_VIP9000_NPU) += galcore.o
-#obj-y += hal/kernel/inc
+obj-$(VIP9000_NPU) += galcore.o
 
-galcore-objs := hal/os/linux/kernel/gc_hal_kernel_device.o \
-				hal/os/linux/kernel/gc_hal_kernel_linux.o \
-				hal/os/linux/kernel/gc_hal_kernel_math.o \
-				hal/os/linux/kernel/gc_hal_kernel_os.o \
-				hal/os/linux/kernel/gc_hal_kernel_iommu.o \
-				hal/os/linux/kernel/gc_hal_kernel_debug.o \
-				hal/os/linux/kernel/gc_hal_kernel_debugfs.o \
-				hal/os/linux/kernel/gc_hal_kernel_allocator.o \
-				hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_user_memory.o \
-				hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_dma.o \
-				hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_gfp.o \
-				hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_reserved_mem.o \
-				hal/os/linux/kernel/gc_hal_kernel_driver.o \
-				hal/os/linux/kernel/platform/sunplus/gc_hal_kernel_platform_sunplus.o \
-				hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_dmabuf.o \
-				hal/os/linux/kernel/gc_hal_kernel_drm.o \
-				hal/kernel/gc_hal_kernel.o \
-				hal/kernel/gc_hal_kernel_command.o \
-				hal/kernel/gc_hal_kernel_db.o \
-				hal/kernel/gc_hal_kernel_event.o \
-				hal/kernel/gc_hal_kernel_heap.o \
-				hal/kernel/gc_hal_kernel_mmu.o \
-				hal/kernel/gc_hal_kernel_video_memory.o \
-				hal/kernel/gc_hal_kernel_power.o \
-				hal/kernel/gc_hal_kernel_security_v1.o \
-				hal/kernel/gc_hal_kernel_preemption.o \
-				hal/kernel/arch/gc_hal_kernel_context.o \
-				hal/kernel/arch/gc_hal_kernel_hardware.o \
-				hal/kernel/arch/gc_hal_kernel_hardware_func.o \
-				hal/kernel/arch/gc_hal_kernel_hardware_func_flop_reset.o \
-				hal/kernel/arch/gc_hal_kernel_hardware_async_fe.o \
-				hal/kernel/arch/gc_hal_kernel_hardware_mc_fe.o \
-				hal/kernel/arch/gc_hal_kernel_hardware_waitlink_fe.o \
-				hal/kernel/arch/gc_hal_kernel_recorder.o \
-				hal/os/linux/kernel/gc_hal_kernel_sync.o \
-				hal/os/linux/kernel/gc_hal_kernel_security_channel_emulator.o \
-				hal/security_v1/gc_hal_ta.o \
-				hal/security_v1/gc_hal_ta_hardware.o \
-				hal/security_v1/gc_hal_ta_mmu.o \
-				hal/security_v1/os/emulator/gc_hal_ta_emulator.o
+galcore-objs := $(driver)/hal/os/linux/kernel/gc_hal_kernel_device.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_linux.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_math.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_os.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_iommu.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_debug.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_debugfs.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_allocator.o \
+				$(driver)/hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_user_memory.o \
+				$(driver)/hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_dma.o \
+				$(driver)/hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_gfp.o \
+				$(driver)/hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_reserved_mem.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_driver.o \
+				$(driver)/hal/os/linux/kernel/platform/sunplus/gc_hal_kernel_platform_sunplus.o \
+				$(driver)/hal/os/linux/kernel/allocator/default/gc_hal_kernel_allocator_dmabuf.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_drm.o \
+				$(driver)/hal/kernel/gc_hal_kernel.o \
+				$(driver)/hal/kernel/gc_hal_kernel_command.o \
+				$(driver)/hal/kernel/gc_hal_kernel_db.o \
+				$(driver)/hal/kernel/gc_hal_kernel_event.o \
+				$(driver)/hal/kernel/gc_hal_kernel_heap.o \
+				$(driver)/hal/kernel/gc_hal_kernel_mmu.o \
+				$(driver)/hal/kernel/gc_hal_kernel_video_memory.o \
+				$(driver)/hal/kernel/gc_hal_kernel_power.o \
+				$(driver)/hal/kernel/gc_hal_kernel_security_v1.o \
+				$(driver)/hal/kernel/gc_hal_kernel_preemption.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_context.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_hardware.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_hardware_func.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_hardware_func_flop_reset.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_hardware_async_fe.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_hardware_mc_fe.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_hardware_waitlink_fe.o \
+				$(driver)/hal/kernel/arch/gc_hal_kernel_recorder.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_sync.o \
+				$(driver)/hal/os/linux/kernel/gc_hal_kernel_security_channel_emulator.o \
+				$(driver)/hal/security_v1/gc_hal_ta.o \
+				$(driver)/hal/security_v1/gc_hal_ta_hardware.o \
+				$(driver)/hal/security_v1/gc_hal_ta_mmu.o \
+				$(driver)/hal/security_v1/os/emulator/gc_hal_ta_emulator.o
