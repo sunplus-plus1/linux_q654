@@ -271,16 +271,6 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 		}
 	} else {
 		value |= MII_WRITE;
-		#ifdef CONFIG_OF
-		if ((phyreg == MII_BMCR) && (priv->device->of_node != NULL)) {
-			if ((data & BMCR_RESET) && (of_get_property(priv->device->of_node,
-				"no-reset", NULL) != NULL))
-				data &= ~BMCR_RESET;
-			if ((data & BMCR_ANRESTART) && (of_get_property(priv->device->of_node,
-				"no-anrestart", NULL) != NULL))
-				data &= ~BMCR_ANRESTART;
-		}
-		#endif
 	}
 
 	/* Wait until any existing MII operation is complete */
