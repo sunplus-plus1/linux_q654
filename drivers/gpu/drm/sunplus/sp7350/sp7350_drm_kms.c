@@ -88,10 +88,6 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 {
 	int ret;
 
-	//ret = drmm_mode_config_init(drm);
-	//if (ret)
-	//	return ret;
-
 	/* Set support for vblank irq fast disable, before drm_vblank_init() */
 	drm->vblank_disable_immediate = true;
 
@@ -116,15 +112,6 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	drm_mode_config_reset(drm);
 
 	drm_kms_helper_poll_init(drm);
-
-#if 0
-	/* set all osd layer transparent, must init first!!!! */
-	sp7350_dmix_layer_init(SP7350_DMIX_L6, SP7350_DMIX_OSD0, SP7350_DMIX_TRANSPARENT);
-	sp7350_dmix_layer_init(SP7350_DMIX_L5, SP7350_DMIX_OSD1, SP7350_DMIX_TRANSPARENT);
-	sp7350_dmix_layer_init(SP7350_DMIX_L4, SP7350_DMIX_OSD2, SP7350_DMIX_TRANSPARENT);
-	sp7350_dmix_layer_init(SP7350_DMIX_L3, SP7350_DMIX_OSD3, SP7350_DMIX_TRANSPARENT);
-	sp7350_dmix_layer_init(SP7350_DMIX_L1, SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
-#endif
 
 	return 0;
 }

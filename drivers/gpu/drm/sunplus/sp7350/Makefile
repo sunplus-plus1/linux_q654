@@ -2,7 +2,6 @@
 sp7350-drm-y := \
 	sp7350_drm_plane.o \
 	sp7350_drm_kms.o \
-	sp7350_drm_vgem.o \
 	sp7350_drm_crtc.o \
 	sp7350_drm_dsi.o  \
 	sp7350_drm_drv.o
