@@ -460,7 +460,6 @@ static const struct drm_fb_helper_funcs sp7350_drm_fb_helper_funcs = {
 	.fb_probe =	sp7350_drm_fbdev_create,
 };
 
-#if 1
 static void sp7350_drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 {
 	struct fb_info *fbi = fb_helper->fbdev;
@@ -556,7 +555,6 @@ static const struct drm_client_funcs sp7350_drm_fbdev_client_funcs = {
 	.restore	= sp7350_drm_fbdev_client_restore,
 	.hotplug	= sp7350_drm_fbdev_client_hotplug,
 };
-#endif
 
 int sp7350_drm_fbdev_init(struct drm_device *dev,
 			     unsigned int preferred_bpp)
@@ -573,7 +571,6 @@ int sp7350_drm_fbdev_init(struct drm_device *dev,
 		return -1;
 	}
 
-#if 1
 	ret = drm_client_init(dev, &helper->client, "fbdev", &sp7350_drm_fbdev_client_funcs);
 	if (ret) {
 		kfree(helper);
@@ -593,45 +590,6 @@ int sp7350_drm_fbdev_init(struct drm_device *dev,
 		drm_dbg_kms(dev, "client hotplug ret=%d\n", ret);
 
 	drm_client_register(&helper->client);
-#else
-	drm_fb_helper_prepare(dev, helper, &sp7350_drm_fb_helper_funcs);
-
-	ret = drm_fb_helper_init(dev, helper);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev,
-			      "failed to initialize drm fb helper.\n");
-		return ret;
-	}
-
-	ret = drm_fb_helper_initial_config(helper, preferred_bpp);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev->dev,
-			      "failed to set up hw configuration. ret=%d\n", ret);
-		goto err_setup;
-	}
-	return 0;
-
-err_setup:
-	drm_fb_helper_fini(helper);
-
-#endif
 	return ret;
 }
 
-#if 0
-void sp7350_drm_fbdev_fini(struct drm_device *dev)
-{
-	struct drm_framebuffer *fb;
-
-	/* release drm framebuffer and real buffer */
-	if (dev->fb_helper->fb && dev->fb_helper->fb->funcs) {
-		fb = dev->fb_helper->fb;
-		if (fb)
-			drm_framebuffer_remove(fb);
-	}
-
-	drm_fb_helper_unregister_fbi(dev->fb_helper);
-
-	drm_fb_helper_fini(dev->fb_helper);
-}
-#endif

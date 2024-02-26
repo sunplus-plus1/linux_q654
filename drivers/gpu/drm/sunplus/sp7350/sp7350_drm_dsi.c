@@ -29,8 +29,6 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #include "sp7350_drm_crtc.h"
-//#include "sp7350_drm_plane.h"
-//#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_regs.h"
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_mipitx.h"
 
 # define DSI_PFORMAT_RGB565          0
@@ -100,218 +98,6 @@ struct sp7350_dsi_encoder {
 
 #define to_sp7350_dsi_encoder(target)\
 	container_of(target, struct sp7350_dsi_encoder, base.base)
-
-#if 0
-static void sp7350_drm_connector_destroy(struct drm_connector *connector)
-{
-	drm_connector_cleanup(connector);
-}
-
-static const struct drm_connector_funcs sp7350_drm_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = sp7350_drm_connector_destroy,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static int sp7350_drm_conn_get_modes(struct drm_connector *connector)
-{
-	int count;
-
-	count = drm_add_modes_noedid(connector, XRES_MAX, YRES_MAX);
-	drm_set_preferred_mode(connector, XRES_DEF, YRES_DEF);
-
-	return count;
-}
-
-static const struct drm_connector_helper_funcs sp7350_drm_conn_helper_funcs = {
-	.get_modes    = sp7350_drm_conn_get_modes,
-};
-
-int sp7350_drm_output_init(struct sp7350_drm_device *sdev, int index)
-{
-	struct sp7350_drm_output *output = &sdev->output;
-	struct drm_device *dev = sdev->ddev;
-	struct drm_connector *connector = &output->connector;
-	struct drm_encoder *encoder = &output->encoder;
-	struct drm_crtc *crtc = &output->crtc;
-	struct drm_plane *primary;
-	//unsigned int i;
-	int ret;
-
-	primary = sp7350_drm_plane_init(sdev, DRM_PLANE_TYPE_PRIMARY, index);
-	if (IS_ERR(primary))
-		return PTR_ERR(primary);
-
-#if 0
-	for (i = 0; i < 4; ++i) {
-		primary = sp7350_drm_plane_init(sdev, DRM_PLANE_TYPE_OVERLAY, index);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to create plane %u\n", i);
-			goto err_modeset_cleanup;
-		}
-	}
-#endif
-
-	ret = sp7350_drm_crtc_init(dev, crtc, primary, NULL);
-	if (ret)
-		goto err_crtc;
-
-	ret = drm_connector_init(dev, connector, &sp7350_drm_connector_funcs,
-				 DRM_MODE_CONNECTOR_DSI);
-	if (ret) {
-		DRM_ERROR("Failed to init connector\n");
-		goto err_connector;
-	}
-
-	drm_connector_helper_add(connector, &sp7350_drm_conn_helper_funcs);
-
-	ret = drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_DSI);
-	if (ret) {
-		DRM_ERROR("Failed to init encoder\n");
-		goto err_encoder;
-	}
-	//encoder->possible_crtcs = 1;
-	encoder->possible_crtcs = 1 << crtc->index;
-	/* FIXME !!!!!!!!!
-	 * Currently bound CRTC, only really meaningful for non-atomic
-	 * drivers.  Atomic drivers should instead check
-	 * &drm_connector_state.crtc. */
-	//encoder->crtc = crtc;
-
-	ret = drm_connector_attach_encoder(connector, encoder);
-	if (ret) {
-		DRM_ERROR("Failed to attach connector to encoder\n");
-		goto err_attach;
-	}
-
-
-
-	//ret = sp7350_drm_enable_writeback_connector(sdev);
-	//if (ret)
-	//	DRM_ERROR("Failed to init writeback connector\n");
-
-	drm_mode_config_reset(dev);
-
-	return 0;
-
-err_attach:
-	drm_encoder_cleanup(encoder);
-
-err_encoder:
-	drm_connector_cleanup(connector);
-
-err_connector:
-	drm_crtc_cleanup(crtc);
-
-err_crtc:
-
-	drm_plane_cleanup(primary);
-
-	return ret;
-}
-#endif
-
-#if 0
-#define MIPITX_CMD_FIFO_FULL 0x00000001
-#define MIPITX_CMD_FIFO_EMPTY 0x00000010
-#define MIPITX_DATA_FIFO_FULL 0x00000100
-#define MIPITX_DATA_FIFO_EMPTY 0x00001000
-void _check_cmd_fifo_full(struct sp7350_drm_dsi *dsi)
-{
-	int mipitx_fifo_timeout = 0;
-	u32 value = 0;
-
-	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-	//pr_info("fifo_status 0x%08x\n", value);
-	while((value & MIPITX_CMD_FIFO_FULL) == MIPITX_CMD_FIFO_FULL) {
-		if(mipitx_fifo_timeout > 10000) //over 1 second
-		{
-			pr_info("cmd fifo full timeout\n");
-			break;
-		}
-		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-		++mipitx_fifo_timeout;
-		udelay(100);
-	}
-}
-
-void _check_data_fifo_full(struct sp7350_drm_dsi *dsi)
-{
-	int mipitx_fifo_timeout = 0;
-	u32 value = 0;
-
-	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-	//pr_info("fifo_status 0x%08x\n", value);
-	while((value & MIPITX_DATA_FIFO_FULL) == MIPITX_DATA_FIFO_FULL) {
-		if(mipitx_fifo_timeout > 10000) //over 1 second
-		{
-			pr_info("data fifo full timeout\n");
-			break;
-		}
-		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-		++mipitx_fifo_timeout;
-		udelay(100);
-	}
-}
-
-/*
- * MIPI DSI (Display Command Set) for SP7350
- */
-static void _sp7350_dcs_write_buf(struct sp7350_drm_dsi *dsi, const void *data, size_t len)
-{
-	int i;
-	u8 *data1;
-	u32 value, data_cnt;
-
-	data1 = (u8 *)data;
-
-	udelay(100);
-	if (len == 0) {
-		_check_cmd_fifo_full(dsi);
-		value = 0x00000003;
-		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
-	} else if (len == 1) {
-		_check_cmd_fifo_full(dsi);
-		value = 0x00000013 | (data1[0] << 8);
-		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
-	} else if (len == 2) {
-		_check_cmd_fifo_full(dsi);
-		value = 0x00000023 | (data1[0] << 8) | (data1[1] << 16);
-		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
-	} else if ((len >= 3) && (len <= 64)) {
-		_check_cmd_fifo_full(dsi);
-		value = 0x00000029 | ((u32)len << 8);
-		writel(value, dsi->regs + MIPITX_LPKT_HEAD); //G204.10
-
-		if (len % 4) data_cnt = ((u32)len / 4) + 1;
-		else data_cnt = ((u32)len / 4);
-
-		for (i = 0; i < data_cnt; i++) {
-			_check_data_fifo_full(dsi);
-			value = 0x00000000;
-			#if 1
-			if (i * 4 + 0 < len) value |= (data1[i * 4 + 0] << 0);
-			if (i * 4 + 1 < len) value |= (data1[i * 4 + 1] << 8);
-			if (i * 4 + 2 < len) value |= (data1[i * 4 + 2] << 16);
-			if (i * 4 + 3 < len) value |= (data1[i * 4 + 3] << 24);
-			#else
-			if (i * 4 + 0 >= len) data1[i * 4 + 0] = 0x00;
-			if (i * 4 + 1 >= len) data1[i * 4 + 1] = 0x00;
-			if (i * 4 + 2 >= len) data1[i * 4 + 2] = 0x00;
-			if (i * 4 + 3 >= len) data1[i * 4 + 3] = 0x00;
-			value |= ((data1[i * 4 + 3] << 24) | (data1[i * 4 + 2] << 16) |
-				 (data1[i * 4 + 1] << 8) | (data1[i * 4 + 0] << 0));
-			#endif
-			pr_info("W G204.11 MIPITX_LPKT_PAYLOAD 0x%08x\n", value);
-			writel(value, dsi->regs + MIPITX_LPKT_PAYLOAD); //G204.11
-		}
-	} else {
-		pr_info("data length over %ld\n", len);
-	}
-}
-#endif
 
 static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 					struct drm_encoder *encoder,
@@ -567,72 +353,12 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 
-#if 0  /* TODO: setting for C3V DISPLAY REGISTER */
-	dsi->regset.base = dsi->regs;
-	dsi->regset.regs = dsi->variant->regs;
-	dsi->regset.nregs = dsi->variant->nregs;
-
-	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
-		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
-			DSI_PORT_READ(ID), DSI_ID_VALUE);
-		return -ENODEV;
-	}
-#endif
-
 	init_completion(&dsi->xfer_completion);
-
-#if 0  /* TODO: set with C3V actullay */
-	/* At startup enable error-reporting interrupts and nothing else. */
-	DSI_PORT_WRITE(INT_EN, DSI1_INTERRUPTS_ALWAYS_ENABLED);
-	/* Clear any existing interrupt state. */
-	DSI_PORT_WRITE(INT_STAT, DSI_PORT_READ(INT_STAT));
-
-	if (dsi->reg_dma_mem)
-		ret = devm_request_threaded_irq(dev, platform_get_irq(pdev, 0),
-						vc4_dsi_irq_defer_to_thread_handler,
-						vc4_dsi_irq_handler,
-						IRQF_ONESHOT,
-						"vc4 dsi", dsi);
-	else
-		ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
-				       vc4_dsi_irq_handler, 0, "vc4 dsi", dsi);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get interrupt: %d\n", ret);
-		return ret;
-	}
-
-	dsi->escape_clock = devm_clk_get(dev, "escape");
-	if (IS_ERR(dsi->escape_clock)) {
-		ret = PTR_ERR(dsi->escape_clock);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get escape clock: %d\n", ret);
-		return ret;
-	}
-
-	dsi->pll_phy_clock = devm_clk_get(dev, "phy");
-	if (IS_ERR(dsi->pll_phy_clock)) {
-		ret = PTR_ERR(dsi->pll_phy_clock);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get phy clock: %d\n", ret);
-		return ret;
-	}
-
-	dsi->pixel_clock = devm_clk_get(dev, "pixel");
-	if (IS_ERR(dsi->pixel_clock)) {
-		ret = PTR_ERR(dsi->pixel_clock);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get pixel clock: %d\n", ret);
-		return ret;
-	}
-#endif
 
 	/*
 	 * Get the endpoint node. In our case, dsi has one output port1
 	 * to which the external HDMI bridge is connected.
 	 */
-	//ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &panel, &dsi->bridge);
-	//ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, NULL, &dsi->bridge);
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
 	if (ret) {
 		DRM_ERROR("drm_of_find_panel_or_bridge failed -%d\n", -ret);
@@ -654,19 +380,6 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 		if (IS_ERR(dsi->bridge))
 			return PTR_ERR(dsi->bridge);
 	}
-
-#if 0  /* TODO: set with C3V actullay */
-	/* The esc clock rate is supposed to always be 100Mhz. */
-	ret = clk_set_rate(dsi->escape_clock, 100 * 1000000);
-	if (ret) {
-		dev_err(dev, "Failed to set esc clock: %d\n", ret);
-		return ret;
-	}
-
-	ret = sp7350_dsi_init_phy_clocks(dsi);
-	if (ret)
-		return ret;
-#endif
 
 	ret = sp7350_drm_encoder_init(dev, drm, dsi->encoder);
 	if (ret)

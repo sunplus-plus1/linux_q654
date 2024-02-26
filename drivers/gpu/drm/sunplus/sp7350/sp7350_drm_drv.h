@@ -55,12 +55,6 @@ struct sp7350_drm_device {
 
 	//struct drm_device *ddev;
 	struct drm_device ddev;
-
-	//struct sp7350_drm_output output;
-
-	//struct sp7350_drm_crtc crtc;
-	//struct sp7350_drm_encoder encoder;
-	//struct sp7350_drm_connector connector;
 };
 
 #define to_sp7350_drm_dev(target)\

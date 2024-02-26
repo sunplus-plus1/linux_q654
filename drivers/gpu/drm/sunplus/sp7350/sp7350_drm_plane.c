@@ -336,49 +336,15 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-#if 0
-static int sp7350_kms_prepare_fb(struct drm_plane *plane,
-			   struct drm_plane_state *state)
-{
-	struct drm_gem_object *gem_obj;
-	int ret;
-
-	if (!state->fb)
-		return 0;
-
-	gem_obj = drm_gem_fb_get_obj(state->fb, 0);
-	ret = sp7350_vgem_vmap(gem_obj);
-	if (ret)
-		DRM_ERROR("vmap failed: %d\n", ret);
-
-	return drm_gem_fb_prepare_fb(plane, state);
-}
-
-static void sp7350_kms_cleanup_fb(struct drm_plane *plane,
-				struct drm_plane_state *old_state)
-{
-	struct drm_gem_object *gem_obj;
-
-	if (!old_state->fb)
-		return;
-
-	gem_obj = drm_gem_fb_get_obj(old_state->fb, 0);
-	sp7350_vgem_vunmap(gem_obj);
-}
-#endif
 
 static const struct drm_plane_helper_funcs sp7350_kms_vpp_helper_funcs = {
 	.atomic_update		= sp7350_kms_plane_vpp_atomic_update,
 	.atomic_check		=sp7350_kms_plane_atomic_check,
-	//.prepare_fb 	= sp7350_kms_prepare_fb,
-	//.cleanup_fb 	= sp7350_kms_cleanup_fb,
 };
 
 static const struct drm_plane_helper_funcs sp7350_kms_osd_helper_funcs = {
 	.atomic_update		= sp7350_kms_plane_osd_atomic_update,
 	.atomic_check		=sp7350_kms_plane_atomic_check,
-	//.prepare_fb 	= sp7350_kms_prepare_fb,
-	//.cleanup_fb 	= sp7350_kms_cleanup_fb,
 };
 struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
 				  enum drm_plane_type type, int index)

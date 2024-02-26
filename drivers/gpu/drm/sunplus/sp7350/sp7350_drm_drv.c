@@ -92,14 +92,6 @@ static const struct dev_pm_ops sp7350_drm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sp7350_drm_pm_suspend, sp7350_drm_pm_resume)
 };
 
-/* -----------------------------------------------------------------------------
- * Platform driver
- */
-//static const struct of_device_id sp7350_dma_range_matches[] = {
-//	{ .compatible = "sunplus,sp7350-dsi-dma" },
-//	{}
-//};
-
 static int sp7350_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -131,10 +123,6 @@ static int sp7350_drm_bind(struct device *dev)
 	ret = drmm_mode_config_init(drm);
 	if (ret)
 		return ret;
-
-	//ret = SP7350_drm_gem_init(drm);
-	//if (ret)
-	//	return ret;
 
 	ret = component_bind_all(dev, drm);
 	if (ret)
@@ -222,108 +210,12 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 	}
 
 	return component_master_add_with_match(dev, &sp7350_drm_ops, match);
-	#if 0
-	//struct shmob_drm_platform_data *pdata = pdev->dev.platform_data;
-	//struct sp7350fb_info *sp_fbinfo;
-	struct sp7350_drm_device *sdev;
-	struct drm_device *ddev;
-	//struct resource *res;
-	//unsigned int i;
-	int ret;
-
-	//if (pdata == NULL) {
-	//	dev_err(&pdev->dev, "no platform data\n");
-	//	return -EINVAL;
-	//}
-	pr_debug("%s: drm probe ...\n", __func__);
-
-	/*
-	 * Allocate and initialize the driver private data, I/O resources and
-	 * clocks.
-	 */
-	sdev = devm_kzalloc(&pdev->dev, sizeof(*sdev), GFP_KERNEL);
-	if (sdev == NULL)
-		return -ENOMEM;
-
-	sdev->dev = &pdev->dev;
-	//sdev->pdata = pdata;
-	sdev->platform = pdev;
-	//spin_lock_init(&sdev->irq_lock);
-
-	platform_set_drvdata(pdev, sdev);
-
-	//res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	//sdev->mmio = devm_ioremap_resource(&pdev->dev, res);
-	//if (IS_ERR(sdev->mmio))
-	//	return PTR_ERR(sdev->mmio);
-
-	//ret = shmob_drm_init_interface(sdev);
-	//if (ret < 0)
-	//	return ret;
-
-	/* Allocate and initialize the DRM device. */
-	ddev = drm_dev_alloc(&sp7350_drm_driver, &pdev->dev);
-	if (IS_ERR(ddev))
-		return PTR_ERR(ddev);
-
-	sdev->ddev = ddev;
-	ddev->dev_private = sdev;
-
-	ret = sp7350_drm_modeset_init(ddev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize mode setting\n");
-		goto err_free_drm_dev;
-	}
-
-	ret = drm_vblank_init(ddev, 1);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to initialize vblank\n");
-		goto err_modeset_cleanup;
-	}
-
-	//ret = drm_irq_install(ddev, platform_get_irq(pdev, 0));
-	//if (ret < 0) {
-	//	dev_err(&pdev->dev, "failed to install IRQ handler\n");
-	//	goto err_modeset_cleanup;
-	//}
-
-	/*
-	 * Register the DRM device with the core and the connectors with
-	 * sysfs.
-	 */
-	ret = drm_dev_register(ddev, 0);
-	if (ret < 0)
-		goto err_irq_uninstall;
-
-	pr_debug("%s: drm probe done\n", __func__);
-
-	return 0;
-
-err_irq_uninstall:
-	//drm_irq_uninstall(ddev);
-err_modeset_cleanup:
-	drm_kms_helper_poll_fini(ddev);
-err_free_drm_dev:
-	drm_dev_put(ddev);
-
-	return ret;
-	#endif
 }
 
 static int sp7350_drm_remove(struct platform_device *pdev)
 {
 
 	component_master_del(&pdev->dev, &sp7350_drm_ops);
-
-	#if 0
-	struct sp7350_drm_device *sdev = platform_get_drvdata(pdev);
-	struct drm_device *ddev = sdev->ddev;
-
-	drm_dev_unregister(ddev);
-	drm_kms_helper_poll_fini(ddev);
-	drm_irq_uninstall(ddev);
-	drm_dev_put(ddev);
-	#endif
 
 	return 0;
 }
@@ -343,8 +235,6 @@ static struct platform_driver sp7350_drm_platform_driver = {
 		.pm	= &sp7350_drm_pm_ops,
 	},
 };
-
-//module_platform_driver(sp7350_drm_platform_driver);
 
 static int __init sp7350_drm_register(void)
 {
