@@ -1315,7 +1315,8 @@ static void hal_udc_fill_ep_desc(struct sp_udc *udc, struct udc_endpoint *ep)
 		tmp_ep0_desc->cfgs = AUTO_RESPONSE;					/* auto response configure setting */
 		tmp_ep0_desc->cfgm = AUTO_RESPONSE;					/* auto response configure setting */
 		tmp_ep0_desc->speed = udc->def_run_full_speed ? UDC_FULL_SPEED : UDC_HIGH_SPEED; /* high speed */
-		tmp_ep0_desc->aset = AUTO_SET_CONF | AUTO_SET_INF | AUTO_SET_ADDR;	/* auto setting config & interface & address */
+		tmp_ep0_desc->aset = AUTO_SET_ADDR;					/* auto address */
+											/* auto setting config & interface are not suggested */
 		tmp_ep0_desc->dcs = udc->event_ccs;					/* set cycle bit 1 */
 		tmp_ep0_desc->sofic = 0;
 		tmp_ep0_desc->dptr = SHIFT_LEFT_BIT4(ep->ep_transfer_ring.trb_pa);
@@ -1984,13 +1985,8 @@ static int hal_udc_setup(struct sp_udc *udc, const struct usb_ctrlrequest *ctrl)
 	/* enable auto set flag */
 	udc->aset_flag = false;
 
-	if ((USB_REQ_SET_CONFIGURATION == ctrl->bRequest
-		&& (USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE) == ctrl->bRequestType)
-		|| (USB_REQ_SET_INTERFACE == ctrl->bRequest
-			&& (USB_DIR_OUT | USB_RECIP_INTERFACE) == ctrl->bRequestType)
-		|| (USB_REQ_SET_ADDRESS == ctrl->bRequest && (USB_DIR_OUT) == ctrl->bRequestType)) {
+	if ((USB_REQ_SET_ADDRESS == ctrl->bRequest) && (USB_DIR_OUT == ctrl->bRequestType))
 		udc->aset_flag = true;
-	}
 
 	value = udc->driver->setup(gadget, ctrl);
 	if (value >= 0)
