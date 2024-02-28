@@ -22,40 +22,6 @@
 //#include "sp7350_display.h"
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_dmix.h"
 
-/* -----------------------------------------------------------------------------
- * Format helpers
- */
-#if 0 /* TODO:NOT SUPPORT ATOMIC COMMIT NOW! */
-static void sp7350_drm_atomic_commit_tail(struct drm_atomic_state *old_state)
-{
-	struct drm_device *dev = old_state->dev;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state;
-	int i;
-
-	drm_atomic_helper_commit_modeset_disables(dev, old_state);
-
-	drm_atomic_helper_commit_planes(dev, old_state, 0);
-
-	drm_atomic_helper_commit_modeset_enables(dev, old_state);
-
-	drm_atomic_helper_fake_vblank(old_state);
-
-	drm_atomic_helper_commit_hw_done(old_state);
-
-	drm_atomic_helper_wait_for_flip_done(dev, old_state);
-
-	//for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-	//	struct vkms_crtc_state *vkms_state =
-	//		to_vkms_crtc_state(old_crtc_state);
-
-	//	flush_work(&vkms_state->composer_work);
-	//}
-
-	drm_atomic_helper_cleanup_planes(dev, old_state);
-}
-#endif
-
 static struct drm_framebuffer *
 sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		    const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -65,7 +31,7 @@ sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 				      mode_cmd->modifier[0])) {
 		struct drm_format_name_buf format_name;
 
-		drm_dbg_kms(dev,
+		DRM_DEV_DEBUG_DRIVER(dev->dev,
 			    "unsupported pixel format %s / modifier 0x%llx\n",
 			    drm_get_format_name(mode_cmd->pixel_format,
 						&format_name),
@@ -77,11 +43,9 @@ sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 }
 
 static const struct drm_mode_config_funcs sp7350_drm_mode_config_funcs = {
-	//.fb_create = drm_gem_fb_create,
 	.fb_create = sp7350_drm_gem_fb_create,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
-	//.atomic_commit_tail = sp7350_drm_atomic_commit_tail,
 };
 
 int sp7350_drm_modeset_init(struct drm_device *drm)
@@ -95,7 +59,7 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	drm->irq_enabled = false;
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
-		dev_err(drm->dev, "failed to initialize vblank\n");
+		DRM_DEV_ERROR(drm->dev, "failed to initialize vblank\n");
 		return ret;
 	}
 

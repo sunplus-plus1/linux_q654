@@ -18,27 +18,6 @@
 
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_plane.h"
-#if 0
-static int sp7350_drm_crtc_enable_vblank(struct drm_crtc *crtc)
-{
-	/* TODO reference to ade_crtc_enable_vblank */
-	DRM_INFO("[TODO]crtc_enable_vblank\n");
-
-	/* FIXME, NO HW INTERRUPT IN DRM NOW!!!!
-	   This vblank irq should be call at irq_handler, and vblank irq should be init
-	   at component_master bind by devm_request_irq. */
-	/* vblank irq */
-	drm_crtc_handle_vblank(crtc);
-
-	return 0;
-}
-
-static void sp7350_drm_crtc_disable_vblank(struct drm_crtc *crtc)
-{
-	/* TODO reference to ade_crtc_disable_vblank */
-	DRM_INFO("[TODO]crtc_disable_vblank\n");
-}
-#endif
 
 static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 	.destroy	= drm_crtc_cleanup,
@@ -47,15 +26,13 @@ static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 	.reset		= drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
-	//.enable_vblank	= sp7350_drm_crtc_enable_vblank,
-	//.disable_vblank	= sp7350_drm_crtc_disable_vblank,
 };
 
 static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
 				  struct drm_crtc_state *state)
 {
 	/* TODO reference to vkms_crtc_atomic_check */
-	DRM_INFO("[TODO]%s\n", __func__);
+	DRM_DEBUG_DRIVER("[TODO]\n");
 	return 0;
 }
 
@@ -64,7 +41,7 @@ static void sp7350_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_on(crtc);
-	DRM_INFO("[TODO]%s\n", __func__);
+	DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -72,14 +49,14 @@ static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_off(crtc);
-	DRM_INFO("[TODO]%s\n", __func__);
+	DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static void sp7350_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 				   struct drm_crtc_state *old_crtc_state)
 {
 	/* TODO reference to vkms_crtc_atomic_begin */
-	DRM_INFO("[TODO]%s\n", __func__);
+	DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -89,7 +66,7 @@ static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	//struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
-	DRM_INFO("%s\n", __func__);
+	DRM_DEBUG_DRIVER("Start\n");
 
 	if (event) {
 		crtc->state->event = NULL;
@@ -149,7 +126,7 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	 */
 	port = of_get_child_by_name(sp7350_crtc->pdev->dev.of_node, "port");
 	if (!port) {
-		DRM_ERROR("no port node found in %pOF\n", sp7350_crtc->pdev->dev.of_node);
+		DRM_DEV_ERROR(drm->dev,"no port node found in %pOF\n", sp7350_crtc->pdev->dev.of_node);
 		return -EINVAL;
 	}
 	of_node_put(port);
@@ -164,7 +141,7 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 		 */
 		primary_plane = sp7350_drm_plane_init(drm, DRM_PLANE_TYPE_PRIMARY, 0);
 		if (IS_ERR(primary_plane)) {
-			dev_err(drm->dev, "failed to construct primary plane\n");
+			DRM_DEV_ERROR(drm->dev, "failed to construct primary plane\n");
 			return PTR_ERR(primary_plane);
 		}
 	}
@@ -172,7 +149,7 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	ret = drm_crtc_init_with_planes(drm, crtc, primary_plane, cursor,
 					&sp7350_drm_crtc_funcs, NULL);
 	if (ret) {
-		DRM_ERROR("Failed to init CRTC\n");
+		DRM_DEV_ERROR(drm->dev, "Failed to init CRTC\n");
 		return ret;
 	}
 	drm_crtc_helper_add(crtc, &sp7350_drm_crtc_helper_funcs);

@@ -186,6 +186,8 @@ static irqreturn_t sp7350_display_irq_fs(int irq, void *param)
 							disp_dev->vpp_res[0].y_ofs,
 							layer->fmt.fmt.pix.width,
 							layer->fmt.fmt.pix.height,
+							layer->fmt.fmt.pix.width,
+							layer->fmt.fmt.pix.height,
 							yuv_fmt);
 					/*
 					 * set vpp layer for vscl block
@@ -193,15 +195,15 @@ static irqreturn_t sp7350_display_irq_fs(int irq, void *param)
 					#ifdef SP_DISP_VPP_SCALE_NEW
 					sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 							layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
+							0,0,
 							disp_dev->vpp_res[0].img_dest_w, disp_dev->vpp_res[0].img_dest_h,
-							disp_dev->out_res.width, disp_dev->out_res.height,
-							0,0);
+							disp_dev->out_res.width, disp_dev->out_res.height);
 					#else
 					sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 							disp_dev->vpp_res[0].crop_w, disp_dev->vpp_res[0].crop_h,
+							0,0,
 							layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
-							disp_dev->out_res.width, disp_dev->out_res.height,
-							0,0);
+							disp_dev->out_res.width, disp_dev->out_res.height);
 					#endif
 				}
 

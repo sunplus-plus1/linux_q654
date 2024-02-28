@@ -96,82 +96,10 @@ static u32 sp7350_get_format(u32 pixel_format, int type)
 	}
 
 	/* not found */
-	DRM_ERROR("Not found pixel format!!fourcc_format= %d\n",
+	DRM_DEBUG_DRIVER("Not found pixel format!!fourcc_format= %d\n",
 		  pixel_format);
 	return SP7350_FORMAT_UNSUPPORT;
 }
-
-#if 0  /* unused function. */
-static bool sp7350_kms_format_mod_supported(struct drm_plane *plane,
-				     uint32_t format,
-				     uint64_t modifier)
-{
-
-	DRM_INFO("%s[%d]format:0x%X, modifier:%lld\n", __func__, __LINE__, format, modifier);
-
-	/* Support T_TILING for RGB formats only. */
-	switch (format) {
-	case DRM_FORMAT_XRGB8888:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_ARGB8888:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_ABGR8888:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_XBGR8888:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_RGB565:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_BGR565:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_XRGB1555:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-		switch (fourcc_mod_broadcom_mod(modifier)) {
-		case DRM_FORMAT_MOD_LINEAR:
-		case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED:
-			return true;
-		default:
-			return false;
-		}
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV21:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-		switch (fourcc_mod_broadcom_mod(modifier)) {
-		case DRM_FORMAT_MOD_LINEAR:
-		case DRM_FORMAT_MOD_BROADCOM_SAND64:
-		case DRM_FORMAT_MOD_BROADCOM_SAND128:
-		case DRM_FORMAT_MOD_BROADCOM_SAND256:
-			return true;
-		default:
-			return false;
-		}
-	case DRM_FORMAT_RGBX1010102:
-	case DRM_FORMAT_BGRX1010102:
-	case DRM_FORMAT_RGBA1010102:
-	case DRM_FORMAT_BGRA1010102:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_YUV422:
-	case DRM_FORMAT_YVU422:
-	case DRM_FORMAT_YUV420:
-	case DRM_FORMAT_YVU420:
-			DRM_INFO("%s[%d]\n", __func__, __LINE__);
-
-	case DRM_FORMAT_NV16:
-	case DRM_FORMAT_NV61:
-	default:
-		return (modifier == DRM_FORMAT_MOD_LINEAR);
-	}
-}
-#endif
 
 static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
@@ -180,7 +108,6 @@ static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
-	//.format_mod_supported = sp7350_kms_format_mod_supported,
 };
 
 static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
@@ -188,15 +115,9 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_cma_object *obj = NULL;
-	struct drm_crtc *crtc = plane->crtc;
-	int output_w,output_h;
-	/* reference to ade_plane_atomic_update */
-	DRM_INFO("%s\n", __func__);
-	/* get data_addr1 for HW */
-	//u32 stride = state->fb->pitches[0];
-	//u32 addr = (u32)obj->paddr + (state->src_y >> 16) * stride;
 
-	if (!state->fb) {
+	/* reference to ade_plane_atomic_update */
+	if (!state->fb || !state->crtc) {
 		/* do nothing */
 		sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
 		return;
@@ -204,52 +125,26 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 
 	obj = drm_fb_cma_get_gem_obj(state->fb, 0);
 	if (!obj || !obj->paddr) {
-		DRM_ERROR("drm_fb_cma_get_gem_obj fail.\n");
+		DRM_DEBUG_DRIVER("drm_fb_cma_get_gem_obj fail.\n");
 		return;
 	}
 
-	DRM_INFO(" src x,y:(%d, %d)  w,h:(%d, %d) \n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d) \n crtc x,y:(%d, %d)  w,h:(%d, %d)",
 		      state->src_x>> 16, state->src_y>> 16, state->src_w >> 16, state->src_h >> 16,
 		      state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
-	if(state->crtc){
-
-			DRM_INFO(" \nplane crtc mode w,h:(%d, %d) \n",
-					  state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
-			output_w = state->crtc->mode.hdisplay;
-			output_h = state->crtc->mode.vdisplay;
-	}else{
-
-		DRM_INFO(" \nstate crtc is null\n");
-		#ifdef CONFIG_DRM_PANEL_RASPBERRYPI_TOUCHSCREEN
-			output_w = 800;
-			output_h = 480;
-		#else
-			output_w = 1920;
-			output_h = 1080;
-		#endif
-
-	}
-
 	sp7350_vpp_imgread_set((u32)obj->paddr,
 			state->src_x >> 16, state->src_y >> 16,
-			output_w,output_h,
-			//state->src_w >> 16, state->src_h >> 16,
+			state->src_w >> 16, state->src_h >> 16,
+			state->fb->width, state->fb->height,
 			sp7350_get_format(state->fb->format->format, 1));
 
-	/* FIXME, img_dest and output set fixed 1920x1080,
-		should adjust with crtc or connector size */
 	sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
 				state->src_w >> 16, state->src_h >> 16,
+				state->crtc_x, state->crtc_y,
 				state->crtc_w, state->crtc_h,
-				output_w,output_h,
-				state->crtc_x, state->crtc_y);
+				state->crtc->mode.hdisplay,state->crtc->mode.vdisplay);
 
-	/* FOR VPP Layer */
-	/* FIXME, for test only!!!
-	   dmix_layer_init should be called at driver binding or probe,
-	   but now sp7350 drm must run with display driver.
-	 */
 	sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 }
 
@@ -259,14 +154,11 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_cma_object *obj = NULL;
+	struct sp7350fb_info info;
 	int osd_layer_sel = 0;
+	struct drm_format_name_buf format_name;
 
 	/* reference to ade_plane_atomic_update */
-	DRM_INFO("%s\n", __func__);
-	/* get data_addr1 for HW */
-	//u32 stride = state->fb->pitches[0];
-	//u32 addr = (u32)obj->paddr + (state->src_y >> 16) * stride;
-
 #if !DRM_PRIMARY_PLANE_WITH_OSD
 	osd_layer_sel = plane->index -1;
 #else
@@ -282,12 +174,12 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		case 2: osd_layer_sel = 2; break;
 		case 0: osd_layer_sel = 3; break;
 		default:
-			DRM_ERROR("Invalid osd layer select index!!!.\n");
+			DRM_DEBUG_DRIVER("Invalid osd layer select index!!!.\n");
 			return;
 	}
 #endif
 
-	if (!state->fb) {
+	if (!state->fb || !state->crtc) {
 		/* disable this plane */
 		sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_TRANSPARENT);
 		return;
@@ -295,29 +187,20 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	obj = drm_fb_cma_get_gem_obj(state->fb, 0);
 	if (!obj || !obj->paddr) {
-		DRM_ERROR("drm_fb_cma_get_gem_obj fail.\n");
+		DRM_DEBUG_DRIVER("drm_fb_cma_get_gem_obj fail.\n");
 		return;
 	}
 
-	{
-		/* FOR OSD Layer */
-		struct sp7350fb_info info;
+	info.color_mode = sp7350_get_format(state->fb->format->format, 0);
+	info.width = state->src_w >> 16;
+	info.height = state->src_h >> 16;
+	info.buf_addr_phy = (u32)obj->paddr;
 
-		info.color_mode = sp7350_get_format(state->fb->format->format, 0);
-		info.width = state->src_w >> 16;
-		info.height = state->src_h >> 16;
-		info.buf_addr_phy = (u32)obj->paddr;
+	DRM_DEBUG_DRIVER("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
+		      drm_get_format_name(state->fb->format->format, &format_name),
+		      state->fb->modifier, info.color_mode);
 
-		{
-			struct drm_format_name_buf format_name;
-
-			DRM_INFO("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
-				      drm_get_format_name(state->fb->format->format, &format_name),
-				      state->fb->modifier, info.color_mode);
-		}
-
-		sp7350_osd_layer_set(&info, osd_layer_sel);
-	}
+	sp7350_osd_layer_set(&info, osd_layer_sel);
 
 	sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
 }
@@ -328,25 +211,25 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 	bool can_position = false;
 
-	DRM_INFO("%s\n", __func__);
 
 	if (!state->fb || WARN_ON(!state->crtc)){
-		DRM_INFO("%s ddd return 0\n", __func__);
+		DRM_DEBUG_DRIVER("%s return 0\n", __func__);
 		return 0;
 	}
 
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_state)){
-		DRM_INFO("%s is err\n", __func__);
+		DRM_DEBUG_DRIVER("%s is err\n", __func__);
 		return PTR_ERR(crtc_state);
 
 	}
 	if (plane->type == DRM_PLANE_TYPE_CURSOR)
 		can_position = true;
 
+	DRM_DEBUG_DRIVER("atomic check end\n");
+
 	return 0;
 }
-
 
 static const struct drm_plane_helper_funcs sp7350_kms_vpp_helper_funcs = {
 	.atomic_update		= sp7350_kms_plane_vpp_atomic_update,

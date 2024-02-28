@@ -281,7 +281,7 @@ EXPORT_SYMBOL(sp7350_vpp_bist_set);
 #define SP7350_VPP_FACTOR_METHOD	0
 
 #ifdef SP_DISP_VPP_SCALE_NEW
-int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int img_src_w, int img_src_h, int yuv_fmt)
+int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int img_src_w, int img_src_h, int input_w, int input_h, int yuv_fmt)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	u32 value;
@@ -329,26 +329,27 @@ int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int img_src_w, int img_
 	value = 0;
 	if ((yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_YUY2) ||
 		 (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_UYVY))
-		value |= (0 << 16) | (img_src_w * 2);
+		value |= (0 << 16) | (input_w * 2);
 	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV12)
 		//value |= ((img_src_w / 2) << 16) | (img_src_w);
-		value |= (img_src_w << 16) | (img_src_w);
+		value |= (input_w << 16) | (input_w);
 	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV16)
-		value |= (0 << 16) | (img_src_w);
+		value |= (0 << 16) | (input_w);
 	else if (yuv_fmt == SP7350_VPP_IMGREAD_DATA_FMT_NV24)
-		value |= ((img_src_w * 2) << 16) | (img_src_w);
+		value |= ((input_w * 2) << 16) | (input_w);
 	else
-		value |= (0 << 16) | (img_src_w * 2);
+		value |= (0 << 16) | (input_w * 2);
 	writel(value, disp_dev->base + IMGREAD_LINE_STRIDE_SIZE);
 
 	writel((u32)data_addr1,
 		disp_dev->base + IMGREAD_DATA_ADDRESS_1);
-	writel((u32)data_addr1 + (img_src_w * img_src_h),
+	writel((u32)data_addr1 + (input_w * input_h),
 		disp_dev->base + IMGREAD_DATA_ADDRESS_2);
 
 	//pr_info("  imgread (%d, %d)\n", img_src_w, img_src_h);
 	//pr_info("    luma=0x%08x, chroma=0x%08x\n",
 	//	data_addr1, data_addr1 + (img_src_w * img_src_h));
+	//pr_info("  imgread  Offset (%d, %d) ILEN (%d, %d)\n", x, y, img_src_w, img_src_h);
 
 	return 0;
 }
@@ -429,7 +430,7 @@ EXPORT_SYMBOL(sp7350_vpp_imgread_set);
 #endif
 
 #ifdef SP_DISP_VPP_SCALE_NEW
-int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest_w, int img_dest_h, int output_w, int output_h,int img_dest_x,int img_dest_y)
+int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest_x, int img_dest_y, int img_dest_w, int img_dest_h, int output_w, int output_h)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	u64 factor64, factor_init64;
@@ -437,7 +438,7 @@ int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest
 	u32 source_w, source_h;
 	u32 value;
 
-	pr_info("vpp vscl setting\n");
+	//pr_info("vpp vscl setting\n");
 
 	#if (SP7350_VPP_SCALE_METHOD == 1) //method 1 , set imgread xstart&ystart
 	x = 0;
@@ -461,7 +462,7 @@ int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest
 	crop_ylen = img_src_h - y;
 
 	/* FIXME: For DRM Driver, L3 with VPP0 for overlay(media) plane, L1 with OSD3 for primary plane. */
-	#ifdef CONFIG_DRM_SP7350
+	#if  0//CONFIG_DRM_SP7350
 	writel(output_w, disp_dev->base + VSCL_ACTRL_I_XLEN);
 	writel(output_h, disp_dev->base + VSCL_ACTRL_I_YLEN);
 	#else
@@ -483,14 +484,15 @@ int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest
 	writel(crop_xlen - x, disp_dev->base + VSCL_ACTRL_S_XLEN);
 	writel(crop_ylen - y, disp_dev->base + VSCL_ACTRL_S_YLEN);
 	#endif
+	writel(img_dest_x, disp_dev->base + VSCL_DCTRL_D_XSTART);
+	writel(img_dest_y, disp_dev->base + VSCL_DCTRL_D_YSTART);
 	writel(img_dest_w, disp_dev->base + VSCL_DCTRL_D_XLEN);
 	writel(img_dest_h, disp_dev->base + VSCL_DCTRL_D_YLEN);
 
 	writel(output_w, disp_dev->base + VSCL_DCTRL_O_XLEN);
 	writel(output_h, disp_dev->base + VSCL_DCTRL_O_YLEN);
-	writel(img_dest_x, disp_dev->base + VSCL_DCTRL_D_XSTART);
-	writel(img_dest_y, disp_dev->base + VSCL_DCTRL_D_YSTART);
-	pr_info("  vscl img_dest x,y: (%d, %d) \n", img_dest_x, img_dest_y);
+
+	//pr_info("  vscl img_dest x,y: (%d, %d) \n", img_dest_x, img_dest_y);
 	//pr_info("  vscl (%d, %d) \n", crtc_x, crtc_y);
 
 	/*
@@ -575,6 +577,9 @@ int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest
 
 	//pr_info("  Offset (%d, %d) IN (%d, %d), OUT (%d, %d)\n", x, y, source_w, source_h, img_dest_w, img_dest_h);
 
+	//pr_info("  IN  Offset (%d, %d) ILEN (%d, %d), IN  (%d, %d)\n", x, y, source_w, source_h, source_w, source_h);
+	//pr_info("  OUT Offset (%d, %d) ILEN (%d, %d), OUT (%d, %d)\n", img_dest_x, img_dest_y, img_dest_w, img_dest_h, output_w, output_h);
+
 	//pr_info("    (x-axis, y-axis) = (%02d.%03d x,%02d.%03d x) \n",
 	//	img_dest_w/source_w, (img_dest_w * 1000 / source_w)-(img_dest_w/source_w)*1000,
 	//	img_dest_h/source_h, (img_dest_h * 1000 / source_h)-(img_dest_h/source_h)*1000);
@@ -583,7 +588,7 @@ int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest
 }
 EXPORT_SYMBOL(sp7350_vpp_vscl_set);
 #else
-int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int input_w, int input_h, int output_w, int output_h,int img_dest_x,int img_dest_y)
+int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int input_w, int input_h, int img_dest_x, int img_dest_y, int output_w, int output_h)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	u64 factor64, factor_init64;
@@ -791,6 +796,8 @@ int sp7350_vpp_resolution_init(struct sp_disp_device *disp_dev)
 			disp_dev->vpp_res[0].y_ofs,
 			disp_dev->vpp_res[0].img_src_w,
 			disp_dev->vpp_res[0].img_src_h,
+			disp_dev->vpp_res[0].img_src_w,
+			disp_dev->vpp_res[0].img_src_h,
 			disp_dev->vpp_res[0].color_mode);
 	#else
 	sp7350_vpp_imgread_set((u32)virt_to_phys(&vpp0_data_array),
@@ -830,6 +837,8 @@ int sp7350_vpp_restore(struct sp_disp_device *disp_dev)
 	sp7350_vpp_imgread_set((u32)virt_to_phys(&vpp0_data_array),
 			disp_dev->vpp_res[0].x_ofs,
 			disp_dev->vpp_res[0].y_ofs,
+			disp_dev->vpp_res[0].img_src_w,
+			disp_dev->vpp_res[0].img_src_h,
 			disp_dev->vpp_res[0].img_src_w,
 			disp_dev->vpp_res[0].img_src_h,
 			disp_dev->vpp_res[0].color_mode);
