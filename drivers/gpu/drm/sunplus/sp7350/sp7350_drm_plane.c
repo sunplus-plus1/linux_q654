@@ -188,7 +188,8 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_cma_object *obj = NULL;
-
+	struct drm_crtc *crtc = plane->crtc;
+	int output_w,output_h;
 	/* reference to ade_plane_atomic_update */
 	DRM_INFO("%s\n", __func__);
 	/* get data_addr1 for HW */
@@ -211,14 +212,28 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		      state->src_x>> 16, state->src_y>> 16, state->src_w >> 16, state->src_h >> 16,
 		      state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
+	if(state->crtc){
+
+			DRM_INFO(" \nplane crtc mode w,h:(%d, %d) \n",
+					  state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
+			output_w = state->crtc->mode.hdisplay;
+			output_h = state->crtc->mode.vdisplay;
+	}else{
+
+		DRM_INFO(" \nstate crtc is null\n");
+		#ifdef CONFIG_DRM_PANEL_RASPBERRYPI_TOUCHSCREEN
+			output_w = 800;
+			output_h = 480;
+		#else
+			output_w = 1920;
+			output_h = 1080;
+		#endif
+
+	}
+
 	sp7350_vpp_imgread_set((u32)obj->paddr,
 			state->src_x >> 16, state->src_y >> 16,
-			/* FIXME!!! */
-			#ifdef CONFIG_DRM_PANEL_RASPBERRYPI_TOUCHSCREEN
-			800, 480,
-			#else
-			1920, 1080,
-			#endif
+			output_w,output_h,
 			//state->src_w >> 16, state->src_h >> 16,
 			sp7350_get_format(state->fb->format->format, 1));
 
@@ -227,12 +242,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
 				state->src_w >> 16, state->src_h >> 16,
 				state->crtc_w, state->crtc_h,
-				/* FIXME!!! */
-				#ifdef CONFIG_DRM_PANEL_RASPBERRYPI_TOUCHSCREEN
-				800, 480,
-				#else
-				1920, 1080,
-				#endif
+				output_w,output_h,
 				state->crtc_x, state->crtc_y);
 
 	/* FOR VPP Layer */
@@ -242,6 +252,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	 */
 	sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 }
+
 
 static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 					 struct drm_plane_state *old_state)
