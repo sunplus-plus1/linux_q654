@@ -64,4 +64,7 @@
 #define	PTP_SSIR_SSINC_MAX		0xff
 #define	GMAC4_PTP_SSIR_SSINC_SHIFT	16
 
+/* Don't disable PTP ref clock while using RBUS clock to avoid system hang */
+#define PTP_REF_CLK_USE_RBUS 1
+
 #endif	/* __STMMAC_PTP_H__ */
