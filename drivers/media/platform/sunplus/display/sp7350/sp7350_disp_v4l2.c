@@ -61,7 +61,7 @@ static int sp_disp_open(struct file *file)
 	ret = v4l2_fh_open(file);
 	if (ret)
 		pr_err("v4l2_fh_open failed!\n");
-	
+
 	mutex_unlock(&disp_dev->lock);
 
 	return ret;
@@ -261,7 +261,7 @@ static int sp_start_streaming(struct vb2_queue *vq, unsigned int count)
 		else if (layer->fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_YUYV)
 			yuv_fmt = 0x2;
 		else if (layer->fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_UYVY)
-			yuv_fmt = 0x1;			
+			yuv_fmt = 0x1;
 		else
 			yuv_fmt = 0x2;
 
@@ -273,6 +273,8 @@ static int sp_start_streaming(struct vb2_queue *vq, unsigned int count)
 				disp_dev->vpp_res[0].y_ofs,
 				layer->fmt.fmt.pix.width,
 				layer->fmt.fmt.pix.height,
+				layer->fmt.fmt.pix.width,
+				layer->fmt.fmt.pix.height,
 				yuv_fmt);
 		/*
 		 * set vpp layer for vscl block
@@ -280,15 +282,15 @@ static int sp_start_streaming(struct vb2_queue *vq, unsigned int count)
 		#ifdef SP_DISP_VPP_SCALE_NEW
 		sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 				layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
+				0,0,
 				disp_dev->vpp_res[0].img_dest_w, disp_dev->vpp_res[0].img_dest_h,
-				disp_dev->out_res.width, disp_dev->out_res.height,
-				0,0);
+				disp_dev->out_res.width, disp_dev->out_res.height);
 		#else
 		sp7350_vpp_vscl_set(disp_dev->vpp_res[0].x_ofs, disp_dev->vpp_res[0].y_ofs,
 				disp_dev->vpp_res[0].crop_w, disp_dev->vpp_res[0].crop_h,
+				0,0,
 				layer->fmt.fmt.pix.width, layer->fmt.fmt.pix.height,
-				disp_dev->out_res.width, disp_dev->out_res.height,
-				0,0);
+				disp_dev->out_res.width, disp_dev->out_res.height);
 		#endif
 	}
 

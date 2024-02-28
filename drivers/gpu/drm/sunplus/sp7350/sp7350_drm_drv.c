@@ -104,10 +104,10 @@ static int sp7350_drm_bind(struct device *dev)
 	   defined at dts with label drm_disp_reserve */
 	ret = of_reserved_mem_device_init(dev);
 	if (!ret) {
-		dev_info(dev, "using device-specific reserved memory\n");
+		DRM_DEV_DEBUG_DRIVER(dev, "using device-specific reserved memory\n");
 		ret = dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 		if (ret) {
-			dev_err(dev, "32-bit consistent DMA enable failed\n");
+			DRM_DEV_ERROR(dev, "32-bit consistent DMA enable failed\n");
 			return ret;
 		}
 	}
@@ -170,7 +170,6 @@ static void sp7350_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	drm_dev_unregister(drm);
-	//sp7350_drm_fbdev_fini(drm);
 
 	drm_atomic_helper_shutdown(drm);
 }

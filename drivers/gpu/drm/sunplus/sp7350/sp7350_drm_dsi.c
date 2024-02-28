@@ -104,7 +104,7 @@ static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 					const struct drm_display_mode *mode)
 {
 	/* TODO reference to dsi_encoder_phy_mode_valid */
-	DRM_INFO("[TODO]%s\n", __func__);
+	DRM_DEBUG_DRIVER("[TODO]\n");
 
 	return MODE_OK;
 }
@@ -118,7 +118,7 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 	struct drm_display_mode adj_mode;
 	enum drm_mode_status ret;
 
-	DRM_INFO("%s\n", __func__);
+	DRM_DEBUG_DRIVER("[Start]\n");
 
 	/*
 	 * The crtc might adjust the mode, so go through the
@@ -150,7 +150,7 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 				 struct drm_display_mode *adj_mode)
 {
 	/* TODO reference to dsi_encoder_mode_set */
-	DRM_INFO("[TODO]%s\n", __func__);
+	DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
@@ -158,7 +158,7 @@ static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	/* do nothing */
-	DRM_INFO("%s\n", __func__);
+	DRM_DEBUG_DRIVER("[do nothing]\n");
 	return 0;
 }
 
@@ -168,7 +168,7 @@ static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
 
-	DRM_INFO("%s %s\n", __func__, encoder->name);
+	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
 	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
 		if (iter->funcs->disable)
@@ -190,7 +190,7 @@ static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
 
-	DRM_INFO("%s %s\n", __func__, encoder->name);
+	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
 	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
 		if (iter->funcs->pre_enable)
@@ -203,7 +203,7 @@ static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *encoder,
 					    struct drm_connector *connector)
 {
-	DRM_INFO("[TODO]%s encoder %s detect connector:%s\n", __func__, encoder->name, connector->name);
+	DRM_DEBUG_DRIVER("[TODO]encoder %s detect connector:%s\n", encoder->name, connector->name);
 	return connector->status;
 }
 
@@ -230,7 +230,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 {
 	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 
-	DRM_INFO("%s\n", __func__);
+	DRM_DEBUG_DRIVER("[Start]\n");
 	dsi->lanes = device->lanes;
 	dsi->channel = device->channel;
 	dsi->mode_flags = device->mode_flags;
@@ -253,13 +253,13 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 		dsi->divider = 16 / dsi->lanes;
 		break;
 	default:
-		dev_err(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
+		DRM_DEV_ERROR(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
 			dsi->format);
 		return 0;
 	}
 
 	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
-		dev_err(&dsi->pdev->dev,
+		DRM_DEV_ERROR(&dsi->pdev->dev,
 			"Only VIDEO mode panels supported currently.\n");
 		return 0;
 	}
@@ -270,7 +270,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 static int sp7350_dsi_host_detach(struct mipi_dsi_host *host,
 			       struct mipi_dsi_device *device)
 {
-	DRM_INFO("[TODO]%s\n", __func__);
+	DRM_DEBUG_DRIVER("[TODO]\n");
 	return 0;
 }
 
@@ -302,18 +302,17 @@ static int sp7350_drm_encoder_init(struct device *dev,
 	int ret;
 	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 
-	DRM_INFO("%s\n", __func__);
 
 	if (!crtc_mask) {
-		DRM_ERROR("failed to find crtc mask\n");
+		DRM_DEV_ERROR(dev, "failed to find crtc mask\n");
 		return -EINVAL;
 	}
 
 	encoder->possible_crtcs = crtc_mask;
-	DRM_DEBUG("crtc_mask:0x%X\n", crtc_mask);
+	DRM_DEV_DEBUG_DRIVER(dev, "crtc_mask:0x%X\n", crtc_mask);
 	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
-		DRM_ERROR("failed to init dsi encoder\n");
+		DRM_DEV_ERROR(dev, "failed to init dsi encoder\n");
 		return ret;
 	}
 
@@ -361,7 +360,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	 */
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
 	if (ret) {
-		DRM_ERROR("drm_of_find_panel_or_bridge failed -%d\n", -ret);
+		DRM_DEV_ERROR(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
 		/* If the bridge or panel pointed by dev->of_node is not
 		 * enabled, just return 0 here so that we don't prevent the DRM
 		 * dev from being registered. Of course that means the DSI
@@ -387,14 +386,14 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 
 	ret = drm_bridge_attach(dsi->encoder, dsi->bridge, NULL, 0);
 	if (ret) {
-		dev_err(dev, "bridge attach failed: %d\n", ret);
+		DRM_DEV_ERROR(dev, "bridge attach failed: %d\n", ret);
 		return ret;
 	}
 
 	/* FIXME, use firmware EDID for lt8912b */
 	#if IS_ENABLED(CONFIG_DRM_LOAD_EDID_FIRMWARE) && IS_ENABLED(CONFIG_DRM_LONTIUM_LT8912B)
 	{
-		DRM_WARN("Use firmware EDID edid/1920x1080.bin for lt8912b output\n");
+		DRM_DEV_DEBUG_DRIVER(dev, "Use firmware EDID edid/1920x1080.bin for lt8912b output\n");
 		__drm_set_edid_firmware_path("edid/1920x1080.bin");
 	}
 	#endif
