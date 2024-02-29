@@ -136,6 +136,7 @@ int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int w, int h, int yuv_f
 int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int img_dest_x,int img_dest_y, int input_w, int input_h, int output_w, int output_h);
 #endif
 int sp7350_vpp_vpost_set(int x, int y, int input_w, int input_h, int output_w, int output_h);
+int sp7350_vpp_vpost_opif_set(int act_x, int act_y, int act_w, int act_h, int output_w, int output_h);
 
 /*
  * SP7350 VPP register store/restore

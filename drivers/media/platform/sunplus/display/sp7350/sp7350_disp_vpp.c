@@ -780,6 +780,56 @@ int sp7350_vpp_vpost_set(int x, int y, int input_w, int input_h, int output_w, i
 }
 EXPORT_SYMBOL(sp7350_vpp_vpost_set);
 
+int sp7350_vpp_vpost_opif_set(int act_x, int act_y, int act_w, int act_h, int output_w, int output_h)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value;
+
+	/*
+	 * VPOST SETTING
+	 */
+	value = readl(disp_dev->base + VPOST_CONFIG);
+	value |= SP7350_VPP_VPOST_OPIF_EN;
+	writel(value, disp_dev->base + VPOST_CONFIG);
+
+	value = readl(disp_dev->base + VPOST_OPIF_CONFIG);
+	//value |= SP7350_VPP_VPOST_WIN_ALPHA_EN;
+	//value |= SP7350_VPP_VPOST_WIN_YUV_EN;
+	value |= SP7350_VPP_VPOST_WIN_ALPHA_EN | SP7350_VPP_VPOST_WIN_YUV_EN;
+	writel(value, disp_dev->base + VPOST_OPIF_CONFIG);
+
+	/*set alpha value*/
+	value = readl(disp_dev->base + VPOST_OPIF_ALPHA);
+	value &= ~(SP7350_VPP_VPOST_WIN_ALPHA_MASK | SP7350_VPP_VPOST_VPP_ALPHA_MASK);
+	value |= (SP7350_VPP_VPOST_WIN_ALPHA_SET(0) |
+		SP7350_VPP_VPOST_VPP_ALPHA_SET(SP7350_VPP_VPOST_VPP_ALPHA_VALUE));
+	writel(value, disp_dev->base + VPOST_OPIF_ALPHA);
+
+	/*set mask region*/
+	value = readl(disp_dev->base + VPOST_OPIF_MSKTOP);
+	value &= ~SP7350_VPP_VPOST_OPIF_TOP_MASK;
+	value |= SP7350_VPP_VPOST_OPIF_TOP_SET(act_y);
+	writel(value, disp_dev->base + VPOST_OPIF_MSKTOP);
+
+	value = readl(disp_dev->base + VPOST_OPIF_MSKBOT);
+	value &= ~SP7350_VPP_VPOST_OPIF_BOT_MASK;
+	value |= SP7350_VPP_VPOST_OPIF_BOT_SET(output_h -act_h - act_y);
+	writel(value, disp_dev->base + VPOST_OPIF_MSKBOT);
+
+	value = readl(disp_dev->base + VPOST_OPIF_MSKLEFT);
+	value &= ~SP7350_VPP_VPOST_OPIF_LEFT_MASK;
+	value |= SP7350_VPP_VPOST_OPIF_LEFT_SET(act_x);
+	writel(value, disp_dev->base + VPOST_OPIF_MSKLEFT);
+
+	value = readl(disp_dev->base + VPOST_OPIF_MSKRIGHT);
+	value &= ~SP7350_VPP_VPOST_OPIF_RIGHT_MASK;
+	value |= SP7350_VPP_VPOST_OPIF_RIGHT_SET(output_w - act_w - act_x);
+	writel(value, disp_dev->base + VPOST_OPIF_MSKRIGHT);
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_vpp_vpost_opif_set);
+
 int sp7350_vpp_resolution_init(struct sp_disp_device *disp_dev)
 {
 	/*

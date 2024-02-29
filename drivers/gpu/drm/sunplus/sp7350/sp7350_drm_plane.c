@@ -145,6 +145,16 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 				state->crtc_w, state->crtc_h,
 				state->crtc->mode.hdisplay,state->crtc->mode.vdisplay);
 
+	if (state->crtc_x || state->crtc_y ||
+		state->crtc->mode.hdisplay != state->crtc_w || state->crtc->mode.vdisplay != state->crtc_h) {
+		/* default setting for VPP OPIF(MASK function) */
+		sp7350_vpp_vpost_opif_set(state->crtc_x, state->crtc_y,
+				state->crtc_w, state->crtc_h,
+				state->crtc->mode.hdisplay,state->crtc->mode.vdisplay);
+		/* for support letterbox boundary smoothly cropping,
+			should update opif setting with another plane window size. */
+	}
+
 	sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 }
 
