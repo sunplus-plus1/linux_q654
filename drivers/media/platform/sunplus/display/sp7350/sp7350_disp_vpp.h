@@ -128,13 +128,15 @@ void sp7350_vpp_bist_set(int img_vscl_sel, int bist_en, int vpp_bist_type);
  */
 void sp7350_vpp_layer_onoff(int onoff);
 #if 1//def SP_DISP_VPP_SCALE_NEW
-int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int img_src_w, int img_src_h, int yuv_fmt);
-int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest_w, int img_dest_h, int output_w, int output_h);
+int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int img_src_w, int img_src_h, int input_w, int input_h, int yuv_fmt);
+int sp7350_vpp_vscl_set(int x, int y, int img_src_w, int img_src_h, int img_dest_x,int img_dest_y, int img_dest_w, int img_dest_h, int output_w, int output_h);
+
 #else
 int sp7350_vpp_imgread_set(u32 data_addr1, int x, int y, int w, int h, int yuv_fmt);
-int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int input_w, int input_h, int output_w, int output_h);
+int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int img_dest_x,int img_dest_y, int input_w, int input_h, int output_w, int output_h);
 #endif
 int sp7350_vpp_vpost_set(int x, int y, int input_w, int input_h, int output_w, int output_h);
+int sp7350_vpp_vpost_opif_set(int act_x, int act_y, int act_w, int act_h, int output_w, int output_h);
 
 /*
  * SP7350 VPP register store/restore

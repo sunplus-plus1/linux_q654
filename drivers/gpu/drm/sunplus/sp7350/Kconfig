@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config DRM_SP7350
+	tristate "DRM Support for SUNPLUS SP7350"
+	depends on DRM
+	depends on VIDEO_DEV && SOC_SP7350
+	select DRM_MIPI_DSI
+	select DRM_KMS_HELPER
+	select DRM_KMS_CMA_HELPER
+	select DRM_GEM_CMA_HELPER
+	default y
+	help
+		Support for the SUNPLUS SP7350 DRM driver.
+

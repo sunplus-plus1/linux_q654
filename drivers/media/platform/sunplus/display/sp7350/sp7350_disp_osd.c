@@ -29,7 +29,7 @@ extern unsigned char osd3_data_array;
 
 void sp7350_osd_init(void)
 {
-	
+
 	struct sp_disp_device *disp_dev = gdisp_dev;
 
 	init_waitqueue_head(&disp_dev->osd_wait);
@@ -318,7 +318,7 @@ void sp7350_osd_header_init(void)
 			return;
 		}
 	}
-	
+
 }
 EXPORT_SYMBOL(sp7350_osd_header_init);
 
@@ -362,7 +362,7 @@ void sp7350_osd_header_show(void)
 	pr_info("  --- osd header ---\n");
 	for (i = 0; i < 8; i++)
 	pr_info("  0x%08x 0x%08x 0x%08x 0x%08x\n",
-		SWAP32(osd0_header[i]), SWAP32(osd1_header[i]), SWAP32(osd2_header[i]), SWAP32(osd3_header[i]));		
+		SWAP32(osd0_header[i]), SWAP32(osd1_header[i]), SWAP32(osd2_header[i]), SWAP32(osd3_header[i]));
 
 	pr_info("  --- osd width ofs ---\n");
 	pr_info("  0x%08x 0x%08x 0x%08x 0x%08x\n",
@@ -594,7 +594,7 @@ void sp7350_osd_layer_set(struct sp7350fb_info *info, int osd_layer_sel)
 	if ((disp_dev->dev[osd_layer_sel]) &&
 		(info->color_mode == SP7350_OSD_COLOR_MODE_8BPP)) {
 		if (disp_dev->dev[osd_layer_sel]->fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_GREY) {
-			
+
 			for (i = 0; i < 256; i++)
 				osd_palette[i] = SWAP32(disp_osd_8bpp_pal_grey[i]); //8bpp grey scale table (argb)
 
@@ -631,6 +631,132 @@ void sp7350_osd_layer_set(struct sp7350fb_info *info, int osd_layer_sel)
 	#endif
 }
 EXPORT_SYMBOL(sp7350_osd_layer_set);
+
+void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_layer_sel)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+
+	u32 tmp_width, tmp_height, tmp_color_mode;
+	u32 tmp_alpha = 0, value = 0;
+	u32 *osd_header, *osd_palette;
+	int i;
+
+	if (!disp_dev->osd_hdr[osd_layer_sel])
+		return;
+
+	osd_header = (u32 *)disp_dev->osd_hdr[osd_layer_sel];
+	osd_palette = (u32 *)disp_dev->osd_hdr[osd_layer_sel] + 32;
+
+	/*
+	 * Fill OSD Layer Header info
+	 */
+	tmp_color_mode = info->color_mode;
+	//tmp_alpha = SP7350_OSD_HDR_BL | SP7350_OSD_HDR_ALPHA;
+	value |= (tmp_color_mode << 24) | SP7350_OSD_HDR_BS | tmp_alpha;
+	if (info->color_mode == SP7350_OSD_COLOR_MODE_8BPP)
+		value |= SP7350_OSD_HDR_CULT;
+	osd_header[0] = SWAP32(value);
+
+	/* Fill disp_v_size & disp_h_size */
+	tmp_width = info->region_info.act_width;
+	tmp_height = info->region_info.act_height;
+	osd_header[1] = SWAP32(tmp_height << 16 | tmp_width << 0);
+
+	/* Fill disp_start_row & disp_start_column */
+	tmp_width = info->region_info.act_x;
+	tmp_height = info->region_info.act_y;
+	osd_header[2] = SWAP32(tmp_height << 16 | tmp_width << 0);
+
+	/* Fill color key value */
+	osd_header[3] = 0;
+
+	/* Fill DATA_start_row & DATA_start_column */
+	tmp_width = info->region_info.start_x;
+	tmp_height = info->region_info.start_y;
+	osd_header[4] = SWAP32(tmp_height << 16 | tmp_width << 0);
+
+	/* Fill DATA_width and csc_mode_sel */
+	value = 0;
+	value |= info->region_info.buf_width;
+	if (info->color_mode == SP7350_OSD_COLOR_MODE_YUY2)
+		value |= SP7350_OSD_HDR_CSM_SET(SP7350_OSD_CSM_BYPASS);
+	else
+		value |= SP7350_OSD_HDR_CSM_SET(SP7350_OSD_CSM_RGB_BT601);
+	osd_header[5] = SWAP32(value);
+
+	/* Fill NEXT LINE header address NULL */
+	osd_header[6] = SWAP32(0xFFFFFFE0);
+
+	/* Fill OSD buffer data address */
+	osd_header[7] = SWAP32((u32)info->buf_addr_phy);
+
+	/*
+	 * update sp7350 osd layer register
+	 */
+	value = 0;
+	value = OSD_CTRL_COLOR_MODE_RGB
+		| OSD_CTRL_CLUT_FMT_ARGB
+		| OSD_CTRL_LATCH_EN
+		| OSD_CTRL_A32B32_EN
+		| OSD_CTRL_FIFO_DEPTH;
+	writel(value, disp_dev->base + (osd_layer_sel << 7) + OSD_CTRL);
+
+	writel(disp_dev->osd_hdr_phy[osd_layer_sel],
+		disp_dev->base + (osd_layer_sel << 7) + OSD_BASE_ADDR);
+
+	writel(disp_dev->osd_res[osd_layer_sel].x_ofs,
+		disp_dev->base + (osd_layer_sel << 7) + OSD_HVLD_OFFSET);
+	writel(disp_dev->osd_res[osd_layer_sel].y_ofs,
+		disp_dev->base + (osd_layer_sel << 7) + OSD_VVLD_OFFSET);
+
+	writel(disp_dev->out_res.width,
+		disp_dev->base + (osd_layer_sel << 7) + OSD_HVLD_WIDTH);
+	writel(disp_dev->out_res.height,
+		disp_dev->base + (osd_layer_sel << 7) + OSD_VVLD_HEIGHT);
+
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + OSD_BIST_CTRL);
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + OSD_3D_H_OFFSET);
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + OSD_SRC_DECIMATION_SEL);
+	writel(1, disp_dev->base + (osd_layer_sel << 7) + OSD_EN);
+
+	//GPOST bypass
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + GPOST_CONFIG);
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + GPOST_MASTER_EN);
+	writel(0x8010, disp_dev->base + (osd_layer_sel << 7) + GPOST_BG1);
+	writel(0x0080, disp_dev->base + (osd_layer_sel << 7) + GPOST_BG2);
+
+	//GPOST PQ disable
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + GPOST_CONTRAST_CONFIG);
+
+	/*
+	 * in case of color_mode 8bpp, load grey or color palette
+	 */
+	if ((disp_dev->dev[osd_layer_sel]) &&
+		(info->color_mode == SP7350_OSD_COLOR_MODE_8BPP)) {
+		if (disp_dev->dev[osd_layer_sel]->fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_GREY) {
+
+			for (i = 0; i < 256; i++)
+				osd_palette[i] = SWAP32(disp_osd_8bpp_pal_grey[i]); //8bpp grey scale table (argb)
+
+		} else if (disp_dev->dev[osd_layer_sel]->fmt.fmt.pix.pixelformat == V4L2_PIX_FMT_PAL8) {
+
+			for (i = 0; i < 256; i++)
+				osd_palette[i] = SWAP32(disp_osd_8bpp_pal_color[i]); //8bpp 256 color table (argb)
+
+		}
+	}
+
+	#if 0
+	pr_info("  --- osd%d header ---\n", osd_layer_sel);
+	pr_info("  0x%08x 0x%08x 0x%08x 0x%08x\n",
+		SWAP32(osd_header[0]), SWAP32(osd_header[1]), SWAP32(osd_header[2]), SWAP32(osd_header[3]));
+	pr_info("  0x%08x 0x%08x 0x%08x 0x%08x\n",
+		SWAP32(osd_header[4]), SWAP32(osd_header[5]), SWAP32(osd_header[6]), SWAP32(osd_header[7]));
+	//for (i = 0; i < 8; i++)
+	//	pr_info("osd_header[%d] 0x%08x\n", i, SWAP32(osd_header[i]));
+	#endif
+}
+EXPORT_SYMBOL(sp7350_osd_layer_set_by_region);
 
 int sp7350_osd_resolution_init(struct sp_disp_device *disp_dev)
 {
