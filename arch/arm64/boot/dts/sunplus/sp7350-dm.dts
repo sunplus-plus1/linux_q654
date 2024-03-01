@@ -21,21 +21,16 @@
 //#define SPI_LOOPBACK_MTTEST
 
 //#define MIPI_CSI_4VC
-//#define IMX219_IN0
-//#define IMX219_IN1
-//#define OV5647_IN1
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
-//#define OV5647_IN4
-//#define IMX708_IN4
 //#define IMX219_IN5
-//#define TP2815_IN0
-//#define TP2815_IN0_1LANE
-//#define TP2815_IN0_2VC
-//#define TP2815_IN1
-//#define TP2815_IN1_1LANE
-//#define TP2815_IN1_2VC
+//#define IMX708_IN3
+//#define IMX708_IN4
+//#define OV5640_IN3
+//#define OV5640_IN4
+//#define OV5647_IN3
+//#define OV5647_IN4
 //#define TP2815_IN2
 //#define TP2815_IN2_1LANE
 //#define TP2815_IN2_2LANES
@@ -185,6 +180,7 @@
 			reg = <0x0 0x100000 0x0 0x100000>;
 			no-map;
 		};
+
 		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
 		mipicsirx_reserve: mipicsirx@4f400000 {
 			compatible = "shared-dma-pool";
@@ -239,7 +235,7 @@
 			no-map;
 		};
 
-		/* video v4l2 0x80000000~0x88000000, total 64M */
+		/* video v4l2 0x80000000~0x88000000, total 384M */
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
@@ -307,16 +303,22 @@
 			clock-frequency = <24000000>;
 		};
 
-		ov5647_clk: camera-ov5647-clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <25000000>;
-		};
-
 		imx708_clk: camera-imx708-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
+		};
+
+		ov5640_clk: camera-ov5640-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+
+		ov5647_clk: camera-ov5647-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
 		};
 
 		tp2815_clk: camera-tp2815-clk {
@@ -332,12 +334,12 @@
 
 		opp-5 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <670000>;
+			opp-microvolt = <712500>;
 		};
 
 		opp-10 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <700000>;
+			opp-microvolt = <712500>;
 		};
 
 		opp-15 {
@@ -387,7 +389,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_0>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -400,7 +402,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_1>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -413,7 +415,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_2>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -426,7 +428,7 @@
 			enable-method = "psci";
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
-			proc-supply = <&rt5759_vproc_reg>;
+			proc-supply = <&sti8070x_vproc_reg>;
 			operating-points-v2 = <&cpu_opp_table>;
 			next-level-cache = <&L2_3>;
 			cpu-idle-states = <&CPU_SLEEP>;
@@ -551,11 +553,12 @@
 		pinctrl-0 = <&video_codec_pwr_en_pins>;
 		gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		status = "disabled";
 	};
 
 	imx219_vana_2v8: 2p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana";
+		regulator-name = "imx219_vana";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		regulator-always-on;
@@ -563,7 +566,7 @@
 
 	imx219_vdig_1v8: 1p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vdig";
+		regulator-name = "imx219_vdig";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
@@ -571,15 +574,39 @@
 
 	imx219_vddl_1v2: 1p2v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vddl";
+		regulator-name = "imx219_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		regulator-always-on;
 	};
 
+	ov5640_avdd_2p8v: ov5640_avdd_2p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "ov5640_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	ov5640_dovdd_1p8v: ov5640_dovdd_1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "ov5640_dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ov5640_dvdd_1p5v: ov5640_dvdd_1p5v {
+		compatible = "regulator-fixed";
+		regulator-name = "ov5640_dvdd";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
+
 	ov5647_avdd_2v8: ov5647_avdd_2v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_avdd";
+		regulator-name = "ov5647_avdd";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		regulator-always-on;
@@ -587,7 +614,7 @@
 
 	ov5647_dovdd_1v8: ov5647_dovdd_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_dovdd";
+		regulator-name = "ov5647_dovdd";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -595,7 +622,7 @@
 
 	ov5647_dvdd_1v5: ov5647_dvdd_1v5 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_dvdd";
+		regulator-name = "ov5647_dvdd";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
@@ -603,7 +630,7 @@
 
 	imx708_vana1_2v8: imx708_vana1_2v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana1";
+		regulator-name = "imx708_vana1";
 		startup-delay-us = <70000>;
 		off-on-delay-us = <30000>;
 		regulator-min-microvolt = <2700000>;
@@ -613,7 +640,7 @@
 
 	imx708_vana2_1v8: imx708_vana2_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana2";
+		regulator-name = "imx708_vana2";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -621,7 +648,7 @@
 
 	imx708_vdig_1v1: imx708_vdig_1v1 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vdig";
+		regulator-name = "imx708_vdig";
 		regulator-min-microvolt = <1100000>;
 		regulator-max-microvolt = <1100000>;
 		regulator-always-on;
@@ -629,7 +656,7 @@
 
 	imx708_vddl_1v8: imx708_vddl_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vddl";
+		regulator-name = "imx708_vddl";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -1004,7 +1031,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo0_pins>;
-#if defined(IMX219_IN0) || defined(IMX219_IN2) || defined(TP2815_IN0) || defined(TP2815_IN2)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1018,11 +1045,11 @@
 			reg = <0x40000050>;
 		};
 #endif
-#ifdef IMX219_IN0 /* Add imx219 subnode in i2c0 */
+#ifdef IMX219_IN4 /* Add imx219 subnode in i2c0 */
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		camera_0: sensor@10 {
+		camera_4: sensor@10 {
 			compatible = "sony,imx219";
 			reg = <0x10>;
 			clocks = <&imx219_clk>;
@@ -1035,8 +1062,8 @@
 			//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
 
 			port {
-				imx219_0: endpoint {
-					remote-endpoint = <&csi2_0>;
+				imx219_4: endpoint {
+					remote-endpoint = <&csi2_4>;
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <456000000>;
@@ -1044,41 +1071,83 @@
 			};
 		};
 #endif
-#ifdef IMX219_IN2 /* Add imx219 subnode in i2c0 */
+#ifdef IMX708_IN4 /* Add imx708 subnode in i2c0 */
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		camera_2: sensor@10 {
-			compatible = "sony,imx219";
-			reg = <0x10>;
-			clocks = <&imx219_clk>;
-			VANA-supply = <&imx219_vana_2v8>;
-			VDIG-supply = <&imx219_vdig_1v8>;
-			VDDL-supply = <&imx219_vddl_1v2>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&camera_0_pins>;
-			//power-gpios = <&pctl 71 GPIO_ACTIVE_HIGH>;
-			//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
+		camera_4: imx708@1a {
+			compatible = "sony,imx708";
+			reg = <0x1a>;
+			clocks = <&imx708_clk>;
+			clock-names = "inclk";
+			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
+			vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
+			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
+			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
 
 			port {
-				imx219_2: endpoint {
-					remote-endpoint = <&csi2_2>;
+				imx708_4: endpoint {
+					remote-endpoint = <&csi2_4>;
 					data-lanes = <1 2>;
 					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <456000000>;
+					link-frequencies = /bits/ 64 <450000000>;
 				};
 			};
 		};
 #endif
-#ifdef TP2815_IN0 /* Add tp2815 subnode in i2c0 */
+#ifdef OV5640_IN4 /* Add ov5647 subnode in i2c0 */
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		camera_0: sensor@44 {
+		camera_4: ov5640@3c {
+			compatible = "ovti,ov5640";
+			reg = <0x3c>;
+			clocks = <&ov5640_clk>;
+			clock-names = "xclk";
+			AVDD-supply = <&ov5640_avdd_2p8v>;
+			DOVDD-supply = <&ov5640_dovdd_1p8v>;
+			DVDD-supply = <&ov5640_dvdd_1p5v>;
+
+			port {
+				ov5640_4: endpoint {
+				remote-endpoint = <&csi2_4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				};
+			};
+		};
+#endif
+#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c0 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: ov5647@36 {
+			compatible = "ovti,ov5647";
+			reg = <0x36>;
+			clocks = <&ov5647_clk>;
+			avdd-supply = <&ov5647_avdd_2v8>;
+			dovdd-supply = <&ov5647_dovdd_1v8>;
+			dvdd-supply = <&ov5647_dvdd_1v5>;
+
+			port {
+				ov5647_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <297000000>;
+				};
+			};
+		};
+#endif
+#ifdef TP2815_IN4 /* Add tp2815 subnode in i2c0 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: sensor@44 {
 			compatible = "Techpoint,tp2815";
 			reg = <0x44>;
 			clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN0_2VC
+	#ifdef TP2815_IN4_2VC
 			input-channel = <2>;
 	#else
 			input-channel = <1>;
@@ -1090,49 +1159,13 @@
 			//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
 
 			port {
-				tp2815_0: endpoint {
-					remote-endpoint = <&csi2_0>;
-	#ifdef TP2815_IN0_1LANE
+				tp2815_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+	#ifdef TP2815_IN4_1LANE
 					data-lanes = <1>;
 	#else
 					data-lanes = <1 2>;
 	#endif
-					clock-continuous;
-					link-frequencies = /bits/ 64 <456000000>;
-				};
-			};
-		};
-#endif
-#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c0 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_2: sensor@44 {
-			compatible = "Techpoint,tp2815";
-			reg = <0x44>;
-			clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN2_2VC
-			input-channel = <2>;
-	#else
-			input-channel = <1>;
-	#endif
-			input-standard = <0>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&camera_0_pins>;
-			//power-gpios = <&pctl 71 GPIO_ACTIVE_HIGH>;
-			//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
-
-			port {
-				tp2815_2: endpoint {
-					remote-endpoint = <&csi2_2>;
-	#ifdef TP2815_IN2_1LANE
-					data-lanes = <1>;
-	#elif defined(TP2815_IN2_2LANES)
-					data-lanes = <1 2>;
-	#else
-					data-lanes = <1 2 3 4>;
-	#endif
-
 					clock-continuous;
 					link-frequencies = /bits/ 64 <456000000>;
 				};
@@ -1155,38 +1188,12 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1) || defined(TP2815_IN3) || defined(OV5647_IN1)
+#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
 #endif
 
-#ifdef IMX219_IN1 /* Add imx219 subnode in i2c1 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_1: sensor@10 {
-			compatible = "sony,imx219";
-			reg = <0x10>;
-			clocks = <&imx219_clk>;
-			VANA-supply = <&imx219_vana_2v8>;
-			VDIG-supply = <&imx219_vdig_1v8>;
-			VDDL-supply = <&imx219_vddl_1v2>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&camera_1_pins>;
-			//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-			//reset-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
-
-			port {
-				imx219_1: endpoint {
-					remote-endpoint = <&csi2_1>;
-					data-lanes = <1 2>;
-					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <456000000>;
-				};
-			};
-		};
-#endif
 #ifdef IMX219_IN3 /* Add imx219 subnode in i2c1 */
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1208,39 +1215,6 @@
 					remote-endpoint = <&csi2_3>;
 					data-lanes = <1 2>;
 					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <456000000>;
-				};
-			};
-		};
-#endif
-#ifdef TP2815_IN1 /* Add tp2815 subnode in i2c1 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_1: sensor@44 {
-			compatible = "Techpoint,tp2815";
-			reg = <0x44>;
-			clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN1_2VC
-			input-channel = <2>;
-	#else
-			input-channel = <1>;
-	#endif
-			input-standard = <0>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&camera_1_pins>;
-			//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-			//reset-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
-
-			port {
-				tp2815_1: endpoint {
-					remote-endpoint = <&csi2_1>;
-	#ifdef TP2815_IN1_1LANE
-					data-lanes = <1>;
-	#else
-					data-lanes = <1 2>;
-	#endif
-					clock-continuous;
 					link-frequencies = /bits/ 64 <456000000>;
 				};
 			};
@@ -1279,11 +1253,11 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN1 /* Add ov5647 subnode in i2c1 */
+#ifdef OV5647_IN3 /* Add ov5647 subnode in i2c1 */
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		camera_1: ov5647@36 {
+		camera_3: ov5647@36 {
 			compatible = "ovti,ov5647";
 			reg = <0x36>;
 			clocks = <&ov5647_clk>;
@@ -1292,11 +1266,57 @@
 			dvdd-supply = <&ov5647_dvdd_1v5>;
 
 			port {
-				ov5647_1: endpoint {
-					remote-endpoint = <&csi2_1>;
+				ov5647_3: endpoint {
+					remote-endpoint = <&csi2_3>;
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <297000000>;
+				};
+			};
+		};
+#endif
+#ifdef OV5640_IN3 /* Add ov5647 subnode in i2c1 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_3: ov5640@3c {
+			compatible = "ovti,ov5640";
+			reg = <0x3c>;
+			clocks = <&ov5640_clk>;
+			clock-names = "xclk";
+			AVDD-supply = <&ov5640_avdd_2p8v>;
+			DOVDD-supply = <&ov5640_dovdd_1p8v>;
+			DVDD-supply = <&ov5640_dvdd_1p5v>;
+
+			port {
+				ov5640_3: endpoint {
+				remote-endpoint = <&csi2_3>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				};
+			};
+		};
+#endif
+#ifdef IMX708_IN3 /* Add imx708 subnode in i2c1 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_3: imx708@1a {
+			compatible = "sony,imx708";
+			reg = <0x1a>;
+			clocks = <&imx708_clk>;
+			clock-names = "inclk";
+			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
+			vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
+			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
+			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
+
+			port {
+				imx708_3: endpoint {
+					remote-endpoint = <&csi2_3>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <450000000>;
 				};
 			};
 		};
@@ -1314,17 +1334,17 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN2) || defined(TP2815_IN2)
 		status = "okay";
 #else
 		status = "disabled";
 #endif
 
-#ifdef IMX219_IN4 /* Add imx219 subnode in i2c2 */
+#ifdef IMX219_IN2 /* Add imx219 subnode in i2c2 */
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		camera_4: sensor@10 {
+		camera_2: sensor@10 {
 			compatible = "sony,imx219";
 			reg = <0x10>;
 			clocks = <&imx219_clk>;
@@ -1337,8 +1357,8 @@
 			//reset-gpios = <&pctl 80 GPIO_ACTIVE_HIGH>;
 
 			port {
-				imx219_4: endpoint {
-					remote-endpoint = <&csi2_4>;
+				imx219_2: endpoint {
+					remote-endpoint = <&csi2_2>;
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <456000000>;
@@ -1346,61 +1366,15 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
+#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c2 */
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		camera_4: ov5647@36 {
-			compatible = "ovti,ov5647";
-			reg = <0x36>;
-			clocks = <&ov5647_clk>;
-			avdd-supply = <&ov5647_avdd_2v8>;
-			dovdd-supply = <&ov5647_dovdd_1v8>;
-			dvdd-supply = <&ov5647_dvdd_1v5>;
-
-			port {
-				ov5647_4: endpoint {
-					remote-endpoint = <&csi2_4>;
-					data-lanes = <1 2>;
-					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <297000000>;
-				};
-			};
-		};
-#endif
-#ifdef IMX708_IN4 /* Add imx708 subnode in i2c2 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_4: imx708@1a {
-			compatible = "sony,imx708";
-			reg = <0x1a>;
-			clocks = <&imx708_clk>;
-			clock-names = "inclk";
-			vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-			vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
-			vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
-			vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
-
-			port {
-				imx708_4: endpoint {
-					remote-endpoint = <&csi2_4>;
-					data-lanes = <1 2>;
-					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <450000000>;
-				};
-			};
-		};
-#endif
-#ifdef TP2815_IN4 /* Add tp2815 subnode in i2c2 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_4: sensor@44 {
+		camera_2: sensor@44 {
 			compatible = "Techpoint,tp2815";
 			reg = <0x44>;
 			clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN4_2VC
+	#ifdef TP2815_IN2_2VC
 			input-channel = <2>;
 	#else
 			input-channel = <1>;
@@ -1412,9 +1386,9 @@
 			//reset-gpios = <&pctl 80 GPIO_ACTIVE_HIGH>;
 
 			port {
-				tp2815_4: endpoint {
-					remote-endpoint = <&csi2_4>;
-	#ifdef TP2815_IN4_1LANE
+				tp2815_2: endpoint {
+					remote-endpoint = <&csi2_2>;
+	#ifdef TP2815_IN2_1LANE
 					data-lanes = <1>;
 	#else
 					data-lanes = <1 2>;
@@ -1438,73 +1412,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo3_pins>;
-#if defined(IMX219_IN5) || defined(TP2815_IN5)
-		status = "okay";
-#else
 		status = "disabled";
-#endif
-
-#ifdef IMX219_IN5 /* Add imx219 subnode in i2c3 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_5: sensor@10 {
-			compatible = "sony,imx219";
-			reg = <0x10>;
-			clocks = <&imx219_clk>;
-			VANA-supply = <&imx219_vana_2v8>;
-			VDIG-supply = <&imx219_vdig_1v8>;
-			VDDL-supply = <&imx219_vddl_1v2>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&camera_5_pins>;
-			//power-gpios = <&pctl 81 GPIO_ACTIVE_HIGH>;
-			//reset-gpios = <&pctl 82 GPIO_ACTIVE_HIGH>;
-
-			port {
-				imx219_5: endpoint {
-					remote-endpoint = <&csi2_5>;
-					data-lanes = <1 2>;
-					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <456000000>;
-				};
-			};
-		};
-#endif
-#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c3 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_5: sensor@44 {
-			compatible = "Techpoint,tp2815";
-			reg = <0x44>;
-			clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN5_4VC
-			input-channel = <4>;
-	#elif defined(TP2815_IN5_2VC)
-			input-channel = <2>;
-	#else
-			input-channel = <1>;
-	#endif
-			input-standard = <0>;
-			//pinctrl-names = "default";
-			//pinctrl-0 = <&camera_5_pins>;
-			//power-gpios = <&pctl 81 GPIO_ACTIVE_HIGH>;
-			//reset-gpios = <&pctl 82 GPIO_ACTIVE_HIGH>;
-
-			port {
-				tp2815_5: endpoint {
-					remote-endpoint = <&csi2_5>;
-	#ifdef TP2815_IN5_2LANES
-					data-lanes = <1 2>;
-	#else
-					data-lanes = <1 2 3 4>;
-	#endif
-					clock-continuous;
-					link-frequencies = /bits/ 64 <456000000>;
-				};
-			};
-		};
-#endif
 	};
 
 	i2c4: i2c@f882c000 {
@@ -1514,34 +1422,6 @@
 		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc I2CM4>;
 		resets = <&rstc RST_I2CM4>;
-		i2c-sda-hold-time-ns = <1000>;
-		clock-frequency = <400000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c_combo4_pins>;
-		status = "disabled";
-	};
-
-	i2c5: i2c@f882d000 {
-		compatible = "snps,designware-i2c";
-		reg =<0x0 0xf882d000 0x0 0x100>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc I2CM5>;
-		resets = <&rstc RST_I2CM5>;
-		i2c-sda-hold-time-ns = <1000>;
-		clock-frequency = <400000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c_combo5_pins>;
-		status = "disabled";
-	};
-
-	i2c6: i2c@f882e000 {
-		compatible = "snps,designware-i2c";
-		reg =<0x0 0xf882e000 0x0 0x100>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc I2CM6>;
-		resets = <&rstc RST_I2CM6>;
 #if defined(LT8912B_HDMI_ENABLE) || defined(RASPBERRYPI_DSI_PANEL)
 		/* fix setting for lt8912b & raspberrypi_lcd */
 		//i2c-scl-rising-time-ns = <0>;
@@ -1617,6 +1497,100 @@
 #endif
 	};
 
+	i2c5: i2c@f882d000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882d000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM5>;
+		resets = <&rstc RST_I2CM5>;
+		i2c-sda-hold-time-ns = <1000>;
+		clock-frequency = <400000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_combo5_pins>;
+		status = "disabled";
+	};
+
+	i2c6: i2c@f882e000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882e000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM6>;
+		resets = <&rstc RST_I2CM6>;
+		i2c-sda-hold-time-ns = <1000>;
+		clock-frequency = <400000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_combo6_pins>;
+#if defined(IMX219_IN5) || defined(TP2815_IN5)
+		status = "okay";
+#else
+		status = "disabled";
+#endif
+
+#ifdef IMX219_IN5 /* Add imx219 subnode in i2c6 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_5: sensor@10 {
+			compatible = "sony,imx219";
+			reg = <0x10>;
+			clocks = <&imx219_clk>;
+			VANA-supply = <&imx219_vana_2v8>;
+			VDIG-supply = <&imx219_vdig_1v8>;
+			VDDL-supply = <&imx219_vddl_1v2>;
+			//pinctrl-names = "default";
+			//pinctrl-0 = <&camera_5_pins>;
+			//power-gpios = <&pctl 81 GPIO_ACTIVE_HIGH>;
+			//reset-gpios = <&pctl 82 GPIO_ACTIVE_HIGH>;
+
+			port {
+				imx219_5: endpoint {
+					remote-endpoint = <&csi2_5>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <456000000>;
+				};
+			};
+		};
+#endif
+#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c6 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_5: sensor@44 {
+			compatible = "Techpoint,tp2815";
+			reg = <0x44>;
+			clocks = <&tp2815_clk>;
+	#ifdef TP2815_IN5_4VC
+			input-channel = <4>;
+	#elif defined(TP2815_IN5_2VC)
+			input-channel = <2>;
+	#else
+			input-channel = <1>;
+	#endif
+			input-standard = <0>;
+			//pinctrl-names = "default";
+			//pinctrl-0 = <&camera_5_pins>;
+			//power-gpios = <&pctl 81 GPIO_ACTIVE_HIGH>;
+			//reset-gpios = <&pctl 82 GPIO_ACTIVE_HIGH>;
+
+			port {
+				tp2815_5: endpoint {
+					remote-endpoint = <&csi2_5>;
+	#ifdef TP2815_IN5_2LANES
+					data-lanes = <1 2>;
+	#else
+					data-lanes = <1 2 3 4>;
+	#endif
+					clock-continuous;
+					link-frequencies = /bits/ 64 <456000000>;
+				};
+			};
+		};
+#endif
+	};
+
 	i2c7: i2c@f882f000 {
 		compatible = "snps,designware-i2c";
 		reg =<0x0 0xf882f000 0x0 0x100>;
@@ -1632,13 +1606,13 @@
 
 		#address-cells = <1>;
 		#size-cells = <0>;
-		rt5759_vproc_reg: regulator@62 {
-			compatible = "richtek,rt5759";
-			reg = <0x62>;
-			regulator-name = "rt5759-buck";
-			regulator-min-microvolt = <630000>;
+		sti8070x_vproc_reg: regulator@60 {
+			compatible = "tmi,sti8070x";
+			reg = <0x60>;
+			regulator-name = "sti8070x-buck";
+			regulator-min-microvolt = <712500>;
 			regulator-max-microvolt = <1100000>;
-			regulator-allowed-modes = <0 1>;	// 0: auto mode (PSKIP), 1: force pwm mode
+			regulator-allowed-modes = <0 1>;	// 0: auto mode (PFM) 1: force pwm mode
 			regulator-initial-mode = <1>;
 			regulator-always-on;
 		};
@@ -1818,8 +1792,8 @@
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 		wakeup-source;
-		clocks = <&clkc GMAC>;
-		clock-names = "stmmaceth";
+		clocks = <&clkc GMAC>, <&clkc RBUS>;
+		clock-names = "stmmaceth", "ptp_ref";
 		clock_in_out = "output";
 		clock-frequency = <125000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
@@ -1864,8 +1838,8 @@
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 		wakeup-source;
-		clocks = <&clkc GMAC>;
-		clock-names = "stmmaceth";
+		clocks = <&clkc GMAC>, <&clkc RBUS>;
+		clock-names = "stmmaceth", "ptp_ref";
 		clock_in_out = "output";
 		clock-frequency = <50000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
@@ -1930,8 +1904,8 @@
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 		wakeup-source;
-		clocks = <&clkc GMAC>;
-		clock-names = "stmmaceth";
+		clocks = <&clkc GMAC>, <&clkc RBUS>;
+		clock-names = "stmmaceth", "ptp_ref";
 		clock_in_out = "output";
 		clock-frequency = <125000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
@@ -2183,8 +2157,9 @@
 		nvmem-cells = <&disc_vol>;
 		#phy-cells = <0>;
 		sunplus,disc-vol-addr-off = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&otg_pins>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&otg_pins>;
+		vbus-en-gpios = <&pctl 18 GPIO_ACTIVE_LOW>;
 	};
 
 	ehci0: usb@f8102100 {
@@ -2309,345 +2284,6 @@
 		pinctrl-0 = <&typec_pins>;
 		typec-gpios = <&pctl 98 GPIO_ACTIVE_HIGH>;
 		#phy-cells = <0>;
-	};
-
-	mipicsirx0: csirx@f8005280 {
-		compatible = "sunplus,sp7350-mipicsi-rx";
-		reg = <0x0 0xf8005280 0x0 0x80>;
-		reg-names = "mipicsi";
-		clocks = <&clkc MIPICSI0>;
-		clock-names = "clk_mipicsi";
-		resets = <&rstc RST_MIPICSI0>;
-		reset-names = "rstc_mipicsi";
-		sunplus,id = <0>;
-#if defined(IMX219_IN0) || defined(TP2815_IN0)
-		status = "okay";
-#else
-		status = "disabled";
-#endif
-
-		/* Virtual channel related properties */
-		max_channels = <4>;
-#ifdef IMX219_IN0
-		num_channels = <1>;
-#elif defined(TP2815_IN0)
-	#ifdef TP2815_IN0_2VC
-		num_channels = <2>;
-	#else
-		num_channels = <1>;
-	#endif
-#else
-		num_channels = <2>;
-#endif
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN0 /* Add imx219 subnode in i2c0 */
-			port@0 {
-				reg = <0>;
-
-				/* MIPI CSI-2 bus endpoint */
-				csi2_0: endpoint {
-					remote-endpoint = <&imx219_0>;
-					bus-type = <4>;
-					clock-lanes = <0>;
-					data-lanes = <1 2>;
-				};
-			};
-#endif
-#ifdef TP2815_IN0 /* Add tp2815 subnode in i2c0 */
-			port@0 {
-				reg = <0>;
-
-				/* MIPI CSI-2 bus endpoint */
-				csi2_0: endpoint {
-					remote-endpoint = <&tp2815_0>;
-					bus-type = <4>;
-					clock-lanes = <0>;
-	#ifdef TP2815_IN0_1LANE
-					data-lanes = <1>;
-	#else
-					data-lanes = <1 2>;
-	#endif
-				};
-			};
-#endif
-
-			/* Output port node, multiple endpoints, connected to VIN modules */
-			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				reg = <1>;
-
-				csi0vin0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vin0csi0>;
-				};
-
-				csi0vin1: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vin1csi0>;
-				};
-			};
-		};
-	};
-
-	vin0: video@f8005580 {
-		compatible = "sunplus,sp7350-vin";
-		reg = <0x0 0xf8005580 0x0 0x80>;
-		reg-names = "csiiw";
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "fs_irq", "fe_irq";
-		clocks = <&clkc VI0_CSIIW0>;
-		clock-names = "clk_csiiw";
-		resets = <&rstc RST_VI0_CSIIW0>;
-		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
-		sunplus,id = <0>;
-#if defined(IMX219_IN0) || defined(TP2815_IN0)
-		status = "okay";
-#else
-		status = "disabled";
-#endif
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* Input port node, default mode, connected to CSI-2 receivers */
-			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				reg = <1>;
-
-				vin0csi0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&csi0vin0>;
-				};
-			};
-		};
-	};
-
-	vin1: video@f8005600 {
-		compatible = "sunplus,sp7350-vin";
-		reg = <0x0 0xf8005600 0x0 0x80>;
-		reg-names = "csiiw";
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "fs_irq", "fe_irq";
-		clocks = <&clkc VI0_CSIIW1>;
-		clock-names = "clk_csiiw";
-		resets = <&rstc RST_VI0_CSIIW1>;
-		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
-		sunplus,id = <1>;
-#if defined(TP2815_IN0) && defined(TP2815_IN0_2VC)
-		status = "okay";
-#else
-		status = "disabled";
-#endif
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* Input port node, default mode, connected to CSI-2 receivers */
-			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				reg = <1>;
-
-				vin1csi0: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&csi0vin1>;
-				};
-			};
-		};
-	};
-
-	mipicsirx1: csirx@f8005300 {
-		compatible = "sunplus,sp7350-mipicsi-rx";
-		reg = <0x0 0xf8005300 0x0 0x80>;
-		reg-names = "mipicsi";
-		clocks = <&clkc MIPICSI1>;
-		clock-names = "clk_mipicsi";
-		resets = <&rstc RST_MIPICSI1>;
-		reset-names = "rstc_mipicsi";
-		sunplus,id = <1>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
-		status = "okay";
-#else
-		status = "disabled";
-#endif
-
-		/* Virtual channel related properties */
-		max_channels = <4>;
-#if defined(IMX219_IN1) || defined(OV5647_IN1)
-		num_channels = <1>;
-#elif defined(TP2815_IN1)
-	#ifdef TP2815_IN1_2VC
-		num_channels = <2>;
-	#else
-		num_channels = <1>;
-	#endif
-#else
-		num_channels = <2>;
-#endif
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN1 /* Add imx219 subnode in i2c1 */
-			port@0 {
-				reg = <0>;
-
-				/* MIPI CSI-2 bus endpoint */
-				csi2_1: endpoint {
-					remote-endpoint = <&imx219_1>;
-					bus-type = <4>;
-					clock-lanes = <0>;
-					data-lanes = <1 2>;
-				};
-			};
-#endif
-#ifdef OV5647_IN1 /* Add imx219 subnode in i2c1 */
-			port@0 {
-				reg = <0>;
-
-				/* MIPI CSI-2 bus endpoint */
-				csi2_1: endpoint {
-					remote-endpoint = <&ov5647_1>;
-					bus-type = <4>;
-					clock-lanes = <0>;
-					data-lanes = <1 2>;
-				};
-			};
-#endif
-#ifdef TP2815_IN1 /* Add tp2815 subnode in i2c1 */
-			port@0 {
-				reg = <0>;
-
-				/* MIPI CSI-2 bus endpoint */
-				csi2_1: endpoint {
-					remote-endpoint = <&tp2815_1>;
-					bus-type = <4>;
-					clock-lanes = <0>;
-	#ifdef TP2815_IN1_1LANE
-					data-lanes = <1>;
-	#else
-					data-lanes = <1 2>;
-	#endif
-				};
-			};
-#endif
-
-			/* Output port node, multiple endpoints, connected to VIN modules */
-			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				reg = <1>;
-
-				csi1vin2: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vin2csi1>;
-				};
-
-				csi1vin3: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vin3csi1>;
-				};
-			};
-		};
-	};
-
-	vin2: video@f8005680 {
-		compatible = "sunplus,sp7350-vin";
-		reg = <0x0 0xf8005680 0x0 0x80>;
-		reg-names = "csiiw";
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "fs_irq", "fe_irq";
-		clocks = <&clkc VI1_CSIIW0>;
-		clock-names = "clk_csiiw";
-		resets = <&rstc RST_VI1_CSIIW0>;
-		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
-		sunplus,id = <2>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
-		status = "okay";
-#else
-		status = "disabled";
-#endif
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* Input port node, default mode, connected to CSI-2 receivers */
-			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				reg = <1>;
-
-				vin2csi1: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&csi1vin2>;
-				};
-			};
-		};
-	};
-
-	vin3: video@f8005700 {
-		compatible = "sunplus,sp7350-vin";
-		reg = <0x0 0xf8005700 0x0 0x80>;
-		reg-names = "csiiw";
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "fs_irq", "fe_irq";
-		clocks = <&clkc VI1_CSIIW1>;
-		clock-names = "clk_csiiw";
-		resets = <&rstc RST_VI1_CSIIW1>;
-		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
-		sunplus,id = <3>;
-#if defined(TP2815_IN1) && defined(TP2815_IN1_2VC)
-		status = "okay";
-#else
-		status = "disabled";
-#endif
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* Input port node, default mode, connected to CSI-2 receivers */
-			port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				reg = <1>;
-
-				vin3csi1: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&csi1vin3>;
-				};
-			};
-		};
 	};
 
 	mipicsirx2: csirx@f8005380 {
@@ -2845,7 +2481,7 @@
 		resets = <&rstc RST_MIPICSI3>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <3>;
-#if defined(IMX219_IN3) || defined(TP2815_IN3)
+#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2853,7 +2489,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#ifdef IMX219_IN3
+#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3)
 		num_channels = <1>;
 #elif defined(TP2815_IN3)
 	#ifdef TP2815_IN3_2VC
@@ -2877,6 +2513,45 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_3: endpoint {
 					remote-endpoint = <&imx219_3>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5640_IN3 /* Add imx219 subnode in i2c1 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_3: endpoint {
+					remote-endpoint = <&ov5640_3>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5647_IN3 /* Add imx219 subnode in i2c1 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_3: endpoint {
+					remote-endpoint = <&ov5647_3>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef IMX708_IN3 /* Add IMX708 subnode in i2c1 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_3: endpoint {
+					remote-endpoint = <&imx708_3>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -2936,7 +2611,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <6>;
-#if defined(IMX219_IN3) || defined(TP2815_IN3)
+#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3023,7 +2698,7 @@
 		resets = <&rstc RST_MIPICSI4>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <4>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3031,7 +2706,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4)
 		num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
@@ -3048,7 +2723,7 @@
 			#size-cells = <0>;
 
 			/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN4 /* Add imx219 subnode in i2c2 */
+#ifdef IMX219_IN4 /* Add imx219 subnode in i2c0 */
 			port@0 {
 				reg = <0>;
 
@@ -3061,7 +2736,20 @@
 				};
 			};
 #endif
-#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
+#ifdef OV5640_IN4 /* Add OV5647 subnode in i2c0 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&ov5640_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c0 */
 			port@0 {
 				reg = <0>;
 
@@ -3074,7 +2762,7 @@
 				};
 			};
 #endif
-#ifdef IMX708_IN4 /* Add OV5647 subnode in i2c2 */
+#ifdef IMX708_IN4 /* Add OV5647 subnode in i2c0 */
 			port@0 {
 				reg = <0>;
 
@@ -3087,7 +2775,7 @@
 				};
 			};
 #endif
-#ifdef TP2815_IN4 /* Add tp2815 subnode in i2c2 */
+#ifdef TP2815_IN4 /* Add tp2815 subnode in i2c0 */
 			port@0 {
 				reg = <0>;
 
@@ -3139,7 +2827,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3252,7 +2940,7 @@
 				};
 			};
 #endif
-#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c3 */
+#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c6 */
 			port@0 {
 				reg = <0>;
 
@@ -4026,6 +3714,18 @@
 		#mbox-cells = <1>;
 	};
 
+	running_led {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&running_leds_pins>;
+		system-led {
+			label = "system-led";
+			gpios = <&pctl 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
 	pctl: pinctrl@f8800080 {
 		compatible = "sunplus,sp7350-pctl";
 		reg =
@@ -4461,6 +4161,11 @@
 			function = "GPIO_AO_INT3";
 			groups = "GPIO_AO_INT3_X1";
 			sunplus,ao-pins = < SPPCTL_AOIOPAD(31, 0) >;
+		};
+
+		running_leds_pins: pinmux_running_leds-pins {
+			function = "GPIO";
+			pins = "GPIO0";
 		};
 	};
 };

@@ -230,7 +230,7 @@ static int sp_uphy_power_on(struct phy *phy)
 	mdelay(1);
 
 	pll_pwr_on = readl(usbphy->phy_regs + GLO_CTRL2_OFFSET);
-	pll_pwr_on &= (~PLL_PD_SEL & ~PLL_PD);
+	pll_pwr_on &= (~PLL_PD);
 	writel(pll_pwr_on, usbphy->phy_regs + GLO_CTRL2_OFFSET);
 
 	/* OTG power up */
@@ -261,7 +261,7 @@ static int sp_uphy_power_off(struct phy *phy)
 
 	/* PLL power down */
 	temp = readl(usbphy->phy_regs + GLO_CTRL2_OFFSET);
-	temp |= PLL_PD_SEL | PLL_PD;
+	temp |= PLL_PD;
 	writel(temp, usbphy->phy_regs + GLO_CTRL2_OFFSET);
 
 	/* USB clock = 27MHz */

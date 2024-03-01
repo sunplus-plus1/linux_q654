@@ -767,7 +767,9 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 
 static void stmmac_release_ptp(struct stmmac_priv *priv)
 {
+#if (!defined CONFIG_SOC_SP7350) || (!defined PTP_REF_CLK_USE_RBUS)
 	clk_disable_unprepare(priv->plat->clk_ptp_ref);
+#endif
 	stmmac_ptp_unregister(priv);
 }
 
@@ -2810,9 +2812,11 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 static void stmmac_hw_teardown(struct net_device *dev)
 {
+#if (!defined CONFIG_SOC_SP7350) || (!defined PTP_REF_CLK_USE_RBUS)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	clk_disable_unprepare(priv->plat->clk_ptp_ref);
+#endif
 }
 
 /**
@@ -5279,7 +5283,9 @@ int stmmac_suspend(struct device *dev)
 		stmmac_mac_set(priv, priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
 		/* Disable clock in case of PWM is off */
+#if (!defined CONFIG_SOC_SP7350) || (!defined PTP_REF_CLK_USE_RBUS)
 		clk_disable_unprepare(priv->plat->clk_ptp_ref);
+#endif
 		clk_disable_unprepare(priv->plat->pclk);
 		clk_disable_unprepare(priv->plat->stmmac_clk);
 		reset_control_assert(priv->plat->stmmac_rst);

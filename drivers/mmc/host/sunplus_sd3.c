@@ -795,13 +795,18 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 	cmd = mrq->cmd;
 	data = mrq->data;
 
+	spsdc_get_rsp(host, cmd);
+
+	if (!(host->use_int || host->dma_use_int))
+			spsdc_wait_finish(host);
+
 	if (data && SPSDC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 #ifdef SPMMC_DMA_ALLOC
 	if(data->sg_len > SPSDC_MAX_DMA_MEMORY_SECTORS) {
 		if (data->flags & MMC_DATA_READ) {
-			dma_sync_single_for_cpu(host->mmc->parent,
+			dma_sync_single_for_cpu(host->dev,
 						host->buf_phys_addr,
 						(host->data->blocks * host->data->blksz),
 						DMA_FROM_DEVICE);
@@ -827,10 +832,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 		dma_unmap_sg(host->dev, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
-	spsdc_get_rsp(host, cmd);
 
-	if (!(host->use_int || host->dma_use_int))
-			spsdc_wait_finish(host);
 	spsdc_check_error(host, mrq);
 	if (mrq->stop) {
 		if (__send_stop_cmd(host, mrq->stop))

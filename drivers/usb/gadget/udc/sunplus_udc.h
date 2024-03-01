@@ -127,6 +127,7 @@
 #define EHB				(1<<3)			/* DEVC_ERDP */
 #define DESI				(0x7)			/* DEVC_ERDP */
 #define VBUS_DIS 			(1<<16)			/* DEVC_CTRL */
+#define VBUS				(1<<16)			/* DEVC_STS */
 #define EINT				(1<<1)			/* DEVC_STS */
 #define VBUS_CI				(1<<0)			/* DEVC_STS */
 #define CLEAR_INT_VBUS			(0x3)			/* DEVC_STS */
