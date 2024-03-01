@@ -55,6 +55,9 @@
 //#define AP6256_WIFI
 //#define AP6256_BT
 
+//#define CONFIG_DISP_DRM_SUPPORT
+
+#ifndef CONFIG_DISP_DRM_SUPPORT
 //#define DISP_MIPITX_CSI
 //#define DISP_MIPITX_CSI_480P
 //#define DISP_MIPITX_CSI_720P
@@ -76,6 +79,7 @@
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
 #define LT8912B_HDMI_1080P
+#endif
 
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
@@ -239,6 +243,13 @@
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
+			no-map;
+		};
+
+		/* display drm reserve memory 0x88000000 ~ 0x8fffffff, total 384M */
+		drm_disp_reserve: drm_reserve@88000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x88000000 0x0 0x18000000>;
 			no-map;
 		};
 
@@ -4453,3 +4464,7 @@
 		};
 	};
 };
+
+#ifdef CONFIG_DISP_DRM_SUPPORT
+#include "display-drm.dtsi"
+#endif
