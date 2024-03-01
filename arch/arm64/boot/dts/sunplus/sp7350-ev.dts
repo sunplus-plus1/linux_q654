@@ -56,6 +56,9 @@
 //#define AP6256_WIFI
 //#define AP6256_BT
 
+//#define CONFIG_DISP_DRM_SUPPORT
+
+#ifndef CONFIG_DISP_DRM_SUPPORT
 //#define DISP_MIPITX_CSI
 //#define DISP_MIPITX_CSI_480P
 //#define DISP_MIPITX_CSI_720P
@@ -77,6 +80,7 @@
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
 #define LT8912B_HDMI_1080P
+#endif
 
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
@@ -241,6 +245,13 @@
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
+			no-map;
+		};
+
+		/* display drm reserve memory 0x88000000 ~ 0x8fffffff, total 384M */
+		drm_disp_reserve: drm_reserve@88000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x88000000 0x0 0x18000000>;
 			no-map;
 		};
 
@@ -1593,8 +1604,8 @@
 		i2c-sda-hold-time-ns = <2000>;
 		clock-frequency = <100000>;
 #else
-		i2c-sda-hold-time-ns = <1000>;
-		clock-frequency = <400000>;
+		//i2c-sda-hold-time-ns = <1000>;
+		//clock-frequency = <400000>;
 #endif
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo6_pins>;
@@ -1605,8 +1616,8 @@
 		#size-cells = <0>;
 
 		raspberrypi_lcd: lcd@45 {
-			compatible = "raspberrypi,7inch-touchscreen-panel";
-			//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+			//compatible = "raspberrypi,7inch-touchscreen-panel";
+			compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
 			reg = <0x45>;
 			port {
 				panel_dsi_port: endpoint {
@@ -4520,3 +4531,8 @@
 		};
 	};
 };
+
+#ifdef CONFIG_DISP_DRM_SUPPORT
+#include "display-drm.dtsi"
+#endif
+

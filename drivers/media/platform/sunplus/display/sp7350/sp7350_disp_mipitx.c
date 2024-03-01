@@ -58,7 +58,7 @@ void sp7350_mipitx_decrypt_info(void)
 		FIELD_GET(GENMASK(31,24), value),
 		FIELD_GET(GENMASK(23,16), value),
 		FIELD_GET(GENMASK(11,0), value));
-	
+
 	value = readl(disp_dev->base + MIPITX_VM_VT0_CTRL); //G204.01
 	pr_info("  Param (VSA/VFP/VBP)=(%04ld %04ld %04ld)\n",
 		FIELD_GET(GENMASK(23,16), value),
@@ -70,9 +70,9 @@ void sp7350_mipitx_decrypt_info(void)
 		FIELD_GET(GENMASK(15,0), value), FIELD_GET(GENMASK(15,0), value));
 
 	value = readl(disp_dev->base + MIPITX_FORMAT_CTRL); //G204.12
-	pr_info("  video fmt VTF(tim)=%s\n", 
+	pr_info("  video fmt VTF(tim)=%s\n",
 		mipitx_video_fmt[FIELD_GET(GENMASK(13,12), value)]);
-	pr_info("  video fmt VPF(pkt)=%s\n", 
+	pr_info("  video fmt VPF(pkt)=%s\n",
 		mipitx_video_pkt[FIELD_GET(GENMASK(6,4), value)]);
 
 	value = readl(disp_dev->base + MIPITX_WORD_CNT); //G204.19
@@ -166,7 +166,7 @@ void sp7350_mipitx_resolution_chk(void)
 		FIELD_GET(GENMASK(31,24), value),
 		FIELD_GET(GENMASK(23,16), value),
 		FIELD_GET(GENMASK(11,0), value));
-	
+
 	value = readl(disp_dev->base + MIPITX_VM_VT0_CTRL); //G204.01
 	pr_info("  Param (VSA/VFP/VBP)=(%04ld %04ld %04ld)\n",
 		FIELD_GET(GENMASK(23,16), value),
@@ -178,9 +178,9 @@ void sp7350_mipitx_resolution_chk(void)
 		FIELD_GET(GENMASK(15,0), value), FIELD_GET(GENMASK(15,0), value));
 
 	value = readl(disp_dev->base + MIPITX_FORMAT_CTRL); //G204.12
-	pr_info("  video fmt VTF(tim)=%s\n", 
+	pr_info("  video fmt VTF(tim)=%s\n",
 		mipitx_video_fmt[FIELD_GET(GENMASK(13,12), value)]);
-	pr_info("  video fmt VPF(pkt)=%s\n", 
+	pr_info("  video fmt VPF(pkt)=%s\n",
 		mipitx_video_pkt[FIELD_GET(GENMASK(6,4), value)]);
 
 	value = readl(disp_dev->base + MIPITX_WORD_CNT); //G204.19
@@ -263,7 +263,7 @@ void sp7350_mipitx_timing_get(void)
 		FIELD_GET(GENMASK(31,24), value),
 		FIELD_GET(GENMASK(23,16), value),
 		FIELD_GET(GENMASK(11,0), value));
-	
+
 	value = readl(disp_dev->base + MIPITX_VM_VT0_CTRL); //G204.01
 	pr_info("  Param (VSA/VFP/VBP)=(%04ld %04ld %04ld)\n",
 		FIELD_GET(GENMASK(23,16), value),
@@ -275,9 +275,9 @@ void sp7350_mipitx_timing_get(void)
 		FIELD_GET(GENMASK(15,0), value), FIELD_GET(GENMASK(15,0), value));
 
 	value = readl(disp_dev->base + MIPITX_FORMAT_CTRL); //G204.12
-	pr_info("  video fmt VTF(tim)=%s\n", 
+	pr_info("  video fmt VTF(tim)=%s\n",
 		mipitx_video_fmt[FIELD_GET(GENMASK(13,12), value)]);
-	pr_info("  video fmt VPF(pkt)=%s\n", 
+	pr_info("  video fmt VPF(pkt)=%s\n",
 		mipitx_video_pkt[FIELD_GET(GENMASK(6,4), value)]);
 
 	value = readl(disp_dev->base + MIPITX_WORD_CNT); //G204.19
@@ -336,12 +336,12 @@ void sp7350_mipitx_pllclk_get(void)
 	value1 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_14);
 	value2 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_25);
 
-	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) * 
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) *
 		(FIELD_GET(GENMASK(14,7), value1) + 64)) /
 		(FIELD_GET(GENMASK(2,1), value1)?2:1);
-	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
+	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
-	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
+	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
 
 	pr_info("     PLLH FVCO %04d MHz , pix_clk %03d.%02d MHz\n",
@@ -378,30 +378,30 @@ void sp7350_mipitx_txpll_get(void)
 
 	value1 = readl(disp_dev->base + MIPITX_ANALOG_CTRL6); //G205.11
 
-	tmp_value1 = 25 * ((FIELD_GET(GENMASK(4,4), value1)?2:1) * 
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(4,4), value1)?2:1) *
 		(FIELD_GET(GENMASK(13,8), value1))) /
 		(sp7350_txpll_prediv_int[FIELD_GET(GENMASK(1,0), value1)]);
 
-	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) * 
+	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
-	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) * 
+	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
-	pr_info("    TXPLL FVCO %04d MHz , bit_clk %03d.%02d MHz\n", 
+	pr_info("    TXPLL FVCO %04d MHz , bit_clk %03d.%02d MHz\n",
 		tmp_value1, tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
-	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) * 
+	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
-	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) * 
+	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
-	pr_info("    TXPLL ---- ---- --- , byteclk %03d.%02d MHz\n", 
+	pr_info("    TXPLL ---- ---- --- , byteclk %03d.%02d MHz\n",
 		tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
 	value2 = readl(disp_dev->base + MIPITX_LP_CK); //G204.04
-	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) * 
+	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
-	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) * 
+	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
-	pr_info("    TXPLL ---- ---- --- , LPCDclk %03d.%02d MHz\n", 
+	pr_info("    TXPLL ---- ---- --- , LPCDclk %03d.%02d MHz\n",
 		tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
 }
@@ -444,7 +444,7 @@ void sp7350_mipitx_pllclk_init(void)
 	writel(value1, disp_dev->base + MIPITX_ANALOG_CTRL6); //G205.11
 	writel(value2, disp_dev->base + MIPITX_ANALOG_CTRL7); //G205.12
 	/*
-	 *                      600  
+	 *                      600
 	 * MIPITX LP CLK = ------------ = 8.3MHz
 	 *                   8 * div9
 	 */
@@ -747,7 +747,7 @@ void sp7350_mipitx_gpio_set(void)
 /*
  * MIPI DSI (Display Command Set) for SP7350
  */
-static void sp7350_dcs_write_buf(const void *data, size_t len)
+void sp7350_dcs_write_buf(const void *data, size_t len)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	int i;
@@ -780,12 +780,10 @@ static void sp7350_dcs_write_buf(const void *data, size_t len)
 		for (i = 0; i < data_cnt; i++) {
 			check_data_fifo_full();
 			value = 0x00000000;
-			if (i * 4 + 0 >= len) data1[i * 4 + 0] = 0x00;
-			if (i * 4 + 1 >= len) data1[i * 4 + 1] = 0x00;
-			if (i * 4 + 2 >= len) data1[i * 4 + 2] = 0x00;
-			if (i * 4 + 3 >= len) data1[i * 4 + 3] = 0x00;
-			value |= ((data1[i * 4 + 3] << 24) | (data1[i * 4 + 2] << 16) |
-				 (data1[i * 4 + 1] << 8) | (data1[i * 4 + 0] << 0));
+			if (i * 4 + 0 < len) value |= (data1[i * 4 + 0] << 0);
+			if (i * 4 + 1 < len) value |= (data1[i * 4 + 1] << 8);
+			if (i * 4 + 2 < len) value |= (data1[i * 4 + 2] << 16);
+			if (i * 4 + 3 < len) value |= (data1[i * 4 + 3] << 24);
 			writel(value, disp_dev->base + MIPITX_LPKT_PAYLOAD); //G204.11
 		}
 	} else {
@@ -970,7 +968,7 @@ void sp7350_mipitx_phy_init(void)
 	else if (disp_dev->mipitx_lane == 4)
 		value = 0x11000031; //lane num = 4 and DSI_EN and ANALOG_EN
 	writel(value, disp_dev->base + MIPITX_CORE_CTRL); //G204.15
-	
+
 	value = 0x00000000;
 	if (disp_dev->mipitx_sync_timing)
 		value |= SP7350_MIPITX_FORMAT_VTF_SET(SP7350_MIPITX_VTF_SYNC_EVENT);

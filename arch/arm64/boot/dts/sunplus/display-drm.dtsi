@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/* Copyright (c) 2018-2024 Sunplus */
+
+/ {
+	/* No compatible */
+
+	drm_display_engine: drm {
+		compatible = "sunplus,sp7350-display-engine";
+		memory-region = <&drm_disp_reserve>;
+		status = "disabled";
+	};
+
+	/* Display controller0 */
+	crtc0: crtc0 {
+		compatible = "sunplus,sp7350-crtc0";
+		status = "disabled";
+
+		port {
+			crtc0_out: endpoint {
+				remote-endpoint = <&dsi_in0>;
+			};
+		};
+	};
+
+	crtc1: crtc1 {
+		compatible = "sunplus,example_crtc";
+		status = "disabled";
+
+		port {
+			crtc1_out: endpoint {
+				remote-endpoint = <&dsi_in_example>;
+			};
+		};
+	};
+
+	dsi0: dsi {
+		compatible = "sunplus,sp7350-dsi0";
+		//possible-crtcs = <&crtc0 &crtc1>;
+
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* 0 for input port */
+			port@0 {
+				reg = <0>;
+				dsi_in0: endpoint@0 {
+					remote-endpoint = <&crtc0_out>;
+				};
+				dsi_in_example: endpoint@1 {
+					remote-endpoint = <&crtc1_out>;
+				};
+			};
+		};
+	};
+};
+
+//TODO: select output device, maybe auto selected.
+//#include "display-panel-raspberrypi.dtsi"
+#include "display-bridge-lt8912b.dtsi"
+

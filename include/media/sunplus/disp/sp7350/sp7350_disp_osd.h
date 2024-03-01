@@ -83,6 +83,8 @@ struct sp7350_osd_region_info {
 	u32 start_y;
 	u32 act_width;
 	u32 act_height;
+	u32 act_x;
+	u32 act_y;
 };
 
 /*
@@ -125,7 +127,7 @@ struct sp7350fb_colormode {
 
 struct sp7350fb_info {
 	/*
-	 * get width/height/color_mode 
+	 * get width/height/color_mode
 	 * from dts
 	 */
 	unsigned int width;		/* buffer width */
@@ -179,6 +181,7 @@ void sp7350_osd_header_save(void);
 void sp7350_osd_header_restore(int osd_layer_sel);
 void sp7350_osd_header_update(struct sp7350fb_info *info, int osd_layer_sel);
 void sp7350_osd_layer_set(struct sp7350fb_info *info, int osd_layer_sel);
+void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_layer_sel);
 //void sp7350_osd_layer_clear(void);
 /*
  * SP7350 OSD REGION functions

@@ -1131,7 +1131,11 @@ static int __init test_drm_cmdline_init(void)
 {
 	int err;
 
+	pr_info("Testing DRM cmdline start...\n");
+
 	err = run_selftests(selftests, ARRAY_SIZE(selftests), NULL);
+
+	pr_info("Testing DRM cmdline end\n");
 
 	return err > 0 ? 0 : err;
 }
