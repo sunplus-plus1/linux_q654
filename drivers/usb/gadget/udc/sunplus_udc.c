@@ -30,6 +30,8 @@ static u32 dev_otg_status = 1;
 static u32 dev_otg_status;
 	#endif
 module_param(dev_otg_status, uint, 0644);
+#else
+static char device_mode = false;
 #endif
 
 #define DRIVER_NAME "sp-udc"
@@ -191,19 +193,20 @@ static void pwr_uphy_pll(int enable)
 	temp = readl(uphy0_regs + GLO_CTRL2_OFFSET);
 
 	if (enable) {
-		temp &= (~PLL_PD_SEL & ~PLL_PD);
+		temp &= ~PLL_PD;
 		writel(temp, uphy0_regs + GLO_CTRL2_OFFSET);
+		udelay(100);
 
 		writel(readl(uphy0_regs + GLO_CTRL1_OFFSET) & ~CLK120_27_SEL,
 							uphy0_regs + GLO_CTRL1_OFFSET);
 
 		UDC_LOGD("uphy pll power-up\n");
 	} else {
-		temp |= (PLL_PD_SEL | PLL_PD);
-		writel(temp, uphy0_regs + GLO_CTRL2_OFFSET);
-
 		writel(readl(uphy0_regs + GLO_CTRL1_OFFSET) | CLK120_27_SEL,
 							uphy0_regs + GLO_CTRL1_OFFSET);
+
+		temp |= PLL_PD;
+		writel(temp, uphy0_regs + GLO_CTRL2_OFFSET);
 
 		UDC_LOGD("uphy pll power-down\n");
 	}
@@ -908,7 +911,10 @@ static void hal_udc_analysis_event_trb(struct trb_data *event_trb, struct sp_udc
 		case UDC_SUSPEND:
 			UDC_LOGL("udc suspend\n");
 
-#ifndef CONFIG_USB_SUNPLUS_OTG
+#ifdef CONFIG_USB_SUNPLUS_OTG
+			if (USBx->DEVC_STS & VBUS)
+				pwr_uphy_pll(0);
+#else
 			pwr_uphy_pll(0);
 #endif
 
@@ -1225,6 +1231,11 @@ static irqreturn_t sp_udc_irq(int dummy, void *_dev)
 		tasklet_schedule(&udc->event_task);
 	} else if (USBx->DEVC_STS & VBUS_CI) {
 		USBx->DEVC_STS |= VBUS_CI;
+
+#ifdef CONFIG_USB_SUNPLUS_OTG
+		if (USBx->DEVC_STS & ~VBUS)
+			pwr_uphy_pll(1);
+#endif
 	}
 	spin_unlock(&udc->lock);
 
@@ -1304,7 +1315,8 @@ static void hal_udc_fill_ep_desc(struct sp_udc *udc, struct udc_endpoint *ep)
 		tmp_ep0_desc->cfgs = AUTO_RESPONSE;					/* auto response configure setting */
 		tmp_ep0_desc->cfgm = AUTO_RESPONSE;					/* auto response configure setting */
 		tmp_ep0_desc->speed = udc->def_run_full_speed ? UDC_FULL_SPEED : UDC_HIGH_SPEED; /* high speed */
-		tmp_ep0_desc->aset = AUTO_SET_CONF | AUTO_SET_INF | AUTO_SET_ADDR;	/* auto setting config & interface & address */
+		tmp_ep0_desc->aset = AUTO_SET_ADDR;					/* auto address */
+											/* auto setting config & interface are not suggested */
 		tmp_ep0_desc->dcs = udc->event_ccs;					/* set cycle bit 1 */
 		tmp_ep0_desc->sofic = 0;
 		tmp_ep0_desc->dptr = SHIFT_LEFT_BIT4(ep->ep_transfer_ring.trb_pa);
@@ -1549,7 +1561,9 @@ int32_t hal_udc_device_connect(struct sp_udc *udc)
 	udc->event_ccs = 1;
 
 	USBx->DEVC_STS = CLEAR_INT_VBUS;
+#ifndef CONFIG_USB_SUNPLUS_OTG
 	USBx->DEVC_CTRL = VBUS_DIS;
+#endif
 
 	/* fill register */
 	/* event ring segnmet unmber */
@@ -1765,6 +1779,7 @@ int32_t hal_udc_endpoint_unconfigure(struct sp_udc *udc, uint8_t ep_addr)
 	volatile struct udc_reg *USBx = udc->reg;
 
 	UDC_LOGI("unconfig EP %x\n", ep_addr);
+
 	ep_num = EP_NUM(ep_addr);
 	ep = &udc->ep_data[ep_num];
 
@@ -1970,13 +1985,8 @@ static int hal_udc_setup(struct sp_udc *udc, const struct usb_ctrlrequest *ctrl)
 	/* enable auto set flag */
 	udc->aset_flag = false;
 
-	if ((USB_REQ_SET_CONFIGURATION == ctrl->bRequest
-		&& (USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE) == ctrl->bRequestType)
-		|| (USB_REQ_SET_INTERFACE == ctrl->bRequest
-			&& (USB_DIR_OUT | USB_RECIP_INTERFACE) == ctrl->bRequestType)
-		|| (USB_REQ_SET_ADDRESS == ctrl->bRequest && (USB_DIR_OUT) == ctrl->bRequestType)) {
+	if ((USB_REQ_SET_ADDRESS == ctrl->bRequest) && (USB_DIR_OUT == ctrl->bRequestType))
 		udc->aset_flag = true;
-	}
 
 	value = udc->driver->setup(gadget, ctrl);
 	if (value >= 0)
@@ -2634,18 +2644,32 @@ static int sp_udc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-void device_run_stop_ctrl(int enable)
+void device_run_stop_ctrl(int enable, int udc_restart)
 {
-	struct sp_udc *udc = sp_udc_arry[0];
-	volatile struct udc_reg *USBx = udc->reg;
+	struct sp_udc *udc = NULL;
+	volatile struct udc_reg *USBx = NULL;
 
-	/* driver unprobed or in suspend */
-	if (!udc || (USBx->DEVC_ERSTSZ == 0x0))
+	/* driver unprobed */
+	if (!sp_udc_arry[0])
 		return;
 
+	udc = sp_udc_arry[0];
+	USBx = udc->reg;
+
+#if 0
+	/* in suspend */
+	if (USBx->DEVC_ERSTSZ == 0x0)
+		return;
+#endif
+
 	if (enable) {
-		USBx->DEVC_ERSTSZ = udc->event_ring_seg_total;
-		USBx->DEVC_CS |= UDC_RUN;
+		if (udc_restart) {
+			hal_udc_device_connect(udc);
+		} else {
+			USBx->DEVC_ERSTSZ = udc->event_ring_seg_total;
+			USBx->DEVC_CS |= UDC_RUN;
+		}
+
 		USBx->EP0_CS |= EP_EN;
 	} else {
 		USBx->DEVC_CS &= ~UDC_RUN;
@@ -2668,14 +2692,20 @@ void usb_switch(int device)
 							| USB_DEVICE_MODE | MASK_USB_HOST_DEVICE_MODE,
 									moon4_reg + M4_SCFG_10);
 
+		device_mode = true;
+	#if 0
 		pwr_uphy_pll(0);
-		device_run_stop_ctrl(1);
+	#endif
+		device_run_stop_ctrl(1, 0);
 	} else {
 		val = readl(moon4_reg + M4_SCFG_10);
 		writel(val | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE, moon4_reg + M4_SCFG_10);
 
+		device_mode = false;
 		pwr_uphy_pll(1);
-		device_run_stop_ctrl(0);
+	#if 0
+		device_run_stop_ctrl(0, 0);
+	#endif
 	}
 #endif
 }
@@ -2964,7 +2994,7 @@ static int sp_udc_remove(struct platform_device *pdev)
 #endif
 
 	if (udc->driver)
-		device_run_stop_ctrl(0);
+		device_run_stop_ctrl(0, 0);
 
 	clk_disable_unprepare(udc->clock);
 	reset_control_assert(udc->rstc);
@@ -3010,7 +3040,7 @@ static int sp_udc_remove(struct platform_device *pdev)
 #ifdef CONFIG_USB_SUNPLUS_OTG
 void detech_start(void)
 {
-	device_run_stop_ctrl(1);
+	device_run_stop_ctrl(1, 0);
 
 	UDC_LOGD("%s...", __func__);
 }
@@ -3036,7 +3066,7 @@ static int udc_sunplus_drv_suspend(struct device *dev)
 
 	if (udc->driver) {
 		hal_udc_sw_stop_handle(udc);
-		device_run_stop_ctrl(0);
+		device_run_stop_ctrl(0, 0);
 	}
 
 	clk_disable_unprepare(udc->clock);
@@ -3072,15 +3102,19 @@ static int udc_sunplus_drv_resume(struct device *dev)
 
 	if (udc->driver) {
 		hal_udc_device_connect(udc);
-
 	#ifdef CONFIG_USB_SUNPLUS_OTG
 		if (otg_id_pin == 1)
 	#else
-		if ((readl(moon4_reg + M4_SCFG_10) & (MO1_USBC0_USB0_SEL | MO1_USBC0_USB0_CTRL))
-										== USB_DEVICE_MODE)
+		if (device_mode == true)
 	#endif
 		{
-			device_run_stop_ctrl(1);
+			usb_switch(1);
+
+	#ifdef CONFIG_USB_SUNPLUS_OTG
+			device_run_stop_ctrl(1, 0);
+	#endif
+		} else {
+			usb_switch(0);
 		}
 	}
 

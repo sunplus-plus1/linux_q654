@@ -1196,8 +1196,6 @@ static const struct dev_pm_ops sp_spi_nor_dev_pm_ops = {
 };
 
 static const struct of_device_id sp_spi_nor_ids[] = {
-	{.compatible = "sunplus,sp-spi-nor"},
-	{.compatible = "sunplus,q645-spi-nor"},
 	{.compatible = "sunplus,sp7350-spi-nor"},
 	{}
 };

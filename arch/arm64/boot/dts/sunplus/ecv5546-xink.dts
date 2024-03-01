@@ -23,13 +23,14 @@
 //#define MIPI_CSI_4VC
 //#define IMX219_IN0
 //#define IMX219_IN1
-//#define OV5647_IN1
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
-//#define OV5647_IN4
-//#define IMX708_IN4
 //#define IMX219_IN5
+//#define IMX708_IN4
+//#define OV5640_IN4
+//#define OV5647_IN1
+//#define OV5647_IN4
 //#define TP2815_IN0
 //#define TP2815_IN0_1LANE
 //#define TP2815_IN0_2VC
@@ -52,8 +53,8 @@
 //#define TP2815_IN5_2VC
 //#define TP2815_IN5_4VC
 
-//#define AP6256_WIFI
-//#define AP6256_BT
+#define AP6256_WIFI
+#define AP6256_BT
 
 //#define CONFIG_DISP_DRM_SUPPORT
 
@@ -185,6 +186,7 @@
 			reg = <0x0 0x100000 0x0 0x100000>;
 			no-map;
 		};
+
 		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
 		mipicsirx_reserve: mipicsirx@4f400000 {
 			compatible = "shared-dma-pool";
@@ -239,7 +241,7 @@
 			no-map;
 		};
 
-		/* video v4l2 0x80000000~0x88000000, total 64M */
+		/* video v4l2 0x80000000~0x88000000, total 384M */
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
@@ -307,16 +309,22 @@
 			clock-frequency = <24000000>;
 		};
 
-		ov5647_clk: camera-ov5647-clk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <25000000>;
-		};
-
 		imx708_clk: camera-imx708-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <24000000>;
+		};
+
+		ov5640_clk: camera-ov5640-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+
+		ov5647_clk: camera-ov5647-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
 		};
 
 		tp2815_clk: camera-tp2815-clk {
@@ -542,7 +550,7 @@
 		enable-active-high;
 	};
 
-	/*video_codec_core_0v8: video_0p8v {
+	video_codec_core_0v8: video_0p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "video_codec_core";
 		regulator-min-microvolt = <800000>;
@@ -551,11 +559,12 @@
 		pinctrl-0 = <&video_codec_pwr_en_pins>;
 		gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
-	};*/
+		status = "disabled";
+	};
 
 	imx219_vana_2v8: 2p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana";
+		regulator-name = "imx219_vana";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		regulator-always-on;
@@ -563,7 +572,7 @@
 
 	imx219_vdig_1v8: 1p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vdig";
+		regulator-name = "imx219_vdig";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
@@ -571,15 +580,39 @@
 
 	imx219_vddl_1v2: 1p2v {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vddl";
+		regulator-name = "imx219_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		regulator-always-on;
 	};
 
+	ov5640_avdd_2p8v: ov5640_avdd_2p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "ov5640_avdd";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	ov5640_dovdd_1p8v: ov5640_dovdd_1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "ov5640_dovdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	ov5640_dvdd_1p5v: ov5640_dvdd_1p5v {
+		compatible = "regulator-fixed";
+		regulator-name = "ov5640_dvdd";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		regulator-always-on;
+	};
+
 	ov5647_avdd_2v8: ov5647_avdd_2v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_avdd";
+		regulator-name = "ov5647_avdd";
 		regulator-min-microvolt = <2800000>;
 		regulator-max-microvolt = <2800000>;
 		regulator-always-on;
@@ -587,7 +620,7 @@
 
 	ov5647_dovdd_1v8: ov5647_dovdd_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_dovdd";
+		regulator-name = "ov5647_dovdd";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -595,7 +628,7 @@
 
 	ov5647_dvdd_1v5: ov5647_dvdd_1v5 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_dvdd";
+		regulator-name = "ov5647_dvdd";
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
@@ -603,7 +636,7 @@
 
 	imx708_vana1_2v8: imx708_vana1_2v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana1";
+		regulator-name = "imx708_vana1";
 		startup-delay-us = <70000>;
 		off-on-delay-us = <30000>;
 		regulator-min-microvolt = <2700000>;
@@ -613,7 +646,7 @@
 
 	imx708_vana2_1v8: imx708_vana2_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vana2";
+		regulator-name = "imx708_vana2";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -621,7 +654,7 @@
 
 	imx708_vdig_1v1: imx708_vdig_1v1 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vdig";
+		regulator-name = "imx708_vdig";
 		regulator-min-microvolt = <1100000>;
 		regulator-max-microvolt = <1100000>;
 		regulator-always-on;
@@ -629,7 +662,7 @@
 
 	imx708_vddl_1v8: imx708_vddl_1v8 {
 		compatible = "regulator-fixed";
-		regulator-name = "camera_vddl";
+		regulator-name = "imx708_vddl";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
@@ -1155,7 +1188,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(TP2815_IN1) || defined(TP2815_IN3) || defined(OV5647_IN1)
+#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(OV5647_IN1) || defined(TP2815_IN1) || defined(TP2815_IN3)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1314,7 +1347,7 @@
 		clock-frequency = <400000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -1346,28 +1379,6 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		camera_4: ov5647@36 {
-			compatible = "ovti,ov5647";
-			reg = <0x36>;
-			clocks = <&ov5647_clk>;
-			avdd-supply = <&ov5647_avdd_2v8>;
-			dovdd-supply = <&ov5647_dovdd_1v8>;
-			dvdd-supply = <&ov5647_dvdd_1v5>;
-
-			port {
-				ov5647_4: endpoint {
-					remote-endpoint = <&csi2_4>;
-					data-lanes = <1 2>;
-					clock-noncontinuous;
-					link-frequencies = /bits/ 64 <297000000>;
-				};
-			};
-		};
-#endif
 #ifdef IMX708_IN4 /* Add imx708 subnode in i2c2 */
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1388,6 +1399,50 @@
 					data-lanes = <1 2>;
 					clock-noncontinuous;
 					link-frequencies = /bits/ 64 <450000000>;
+				};
+			};
+		};
+#endif
+#ifdef OV5640_IN4 /* Add ov5647 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: ov5640@3c {
+			compatible = "ovti,ov5640";
+			reg = <0x3c>;
+			clocks = <&ov5640_clk>;
+			clock-names = "xclk";
+			AVDD-supply = <&ov5640_avdd_2p8v>;
+			DOVDD-supply = <&ov5640_dovdd_1p8v>;
+			DVDD-supply = <&ov5640_dvdd_1p5v>;
+
+			port {
+				ov5640_4: endpoint {
+				remote-endpoint = <&csi2_4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				};
+			};
+		};
+#endif
+#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		camera_4: ov5647@36 {
+			compatible = "ovti,ov5647";
+			reg = <0x36>;
+			clocks = <&ov5647_clk>;
+			avdd-supply = <&ov5647_avdd_2v8>;
+			dovdd-supply = <&ov5647_dovdd_1v8>;
+			dvdd-supply = <&ov5647_dvdd_1v5>;
+
+			port {
+				ov5647_4: endpoint {
+					remote-endpoint = <&csi2_4>;
+					data-lanes = <1 2>;
+					clock-noncontinuous;
+					link-frequencies = /bits/ 64 <297000000>;
 				};
 			};
 		};
@@ -1818,8 +1873,8 @@
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 		wakeup-source;
-		clocks = <&clkc GMAC>;
-		clock-names = "stmmaceth";
+		clocks = <&clkc GMAC>, <&clkc RBUS>;
+		clock-names = "stmmaceth", "ptp_ref";
 		clock_in_out = "output";
 		clock-frequency = <125000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
@@ -1864,8 +1919,8 @@
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 		wakeup-source;
-		clocks = <&clkc GMAC>;
-		clock-names = "stmmaceth";
+		clocks = <&clkc GMAC>, <&clkc RBUS>;
+		clock-names = "stmmaceth", "ptp_ref";
 		clock_in_out = "output";
 		clock-frequency = <50000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
@@ -1930,8 +1985,8 @@
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
 		wakeup-source;
-		clocks = <&clkc GMAC>;
-		clock-names = "stmmaceth";
+		clocks = <&clkc GMAC>, <&clkc RBUS>;
+		clock-names = "stmmaceth", "ptp_ref";
 		clock_in_out = "output";
 		clock-frequency = <125000000>;
 		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
@@ -2481,7 +2536,7 @@
 		resets = <&rstc RST_MIPICSI1>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <1>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
+#if defined(IMX219_IN1) || defined(OV5647_IN1) || defined(TP2815_IN1)
 		status = "okay";
 #else
 		status = "disabled";
@@ -2584,7 +2639,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <2>;
-#if defined(IMX219_IN1) || defined(TP2815_IN1) || defined(OV5647_IN1)
+#if defined(IMX219_IN1) || defined(OV5647_IN1) || defined(TP2815_IN1)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3021,7 +3076,7 @@
 		resets = <&rstc RST_MIPICSI4>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <4>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3029,7 +3084,7 @@
 
 		/* Virtual channel related properties */
 		max_channels = <4>;
-#if defined(IMX219_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4)
 		num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
@@ -3059,19 +3114,6 @@
 				};
 			};
 #endif
-#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
-			port@0 {
-				reg = <0>;
-
-				/* MIPI CSI-2 bus endpoint */
-				csi2_4: endpoint {
-					remote-endpoint = <&ov5647_4>;
-					bus-type = <4>;
-					clock-lanes = <0>;
-					data-lanes = <1 2>;
-				};
-			};
-#endif
 #ifdef IMX708_IN4 /* Add OV5647 subnode in i2c2 */
 			port@0 {
 				reg = <0>;
@@ -3079,6 +3121,31 @@
 				/* MIPI CSI-2 bus endpoint */
 				csi2_4: endpoint {
 					remote-endpoint = <&imx708_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5640_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&ov5640_4>;
+					bus-type = <4>;
+					clock-lanes = <0>;
+					data-lanes = <1 2>;
+				};
+			};
+#endif
+#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
+			port@0 {
+				reg = <0>;
+
+				/* MIPI CSI-2 bus endpoint */
+				csi2_4: endpoint {
+					remote-endpoint = <&ov5647_4>;
 					bus-type = <4>;
 					clock-lanes = <0>;
 					data-lanes = <1 2>;
@@ -3137,7 +3204,7 @@
 		reset-names = "rstc_csiiw";
 		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
-#if defined(IMX219_IN4) || defined(TP2815_IN4) || defined(OV5647_IN4) || defined(IMX708_IN4)
+#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 		status = "okay";
 #else
 		status = "disabled";
@@ -3481,13 +3548,13 @@
 	video_codec_emem {
 		compatible = "sunplus,sp7350-hantro-emem";
 		memory-region = <&video_codec_encode>;
-		//video_codec-supply = <&video_codec_core_0v8>;
+		video_codec-supply = <&video_codec_core_0v8>;
 	};
 
 	video_codec_dmem {
 		compatible = "sunplus,sp7350-hantro-dmem";
 		memory-region = <&video_codec_decode>;
-		//video_codec-supply = <&video_codec_core_0v8>;
+		video_codec-supply = <&video_codec_core_0v8>;
 	};
 
 	video_codec_v4l2 {
