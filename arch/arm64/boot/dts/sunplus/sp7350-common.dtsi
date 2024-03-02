@@ -19,6 +19,38 @@
 	#size-cells = <2>;
 
 	aliases {
+#ifdef ENABLE_DMATX1
+		serial21 = &uartdmatx1;
+#endif
+#ifdef ENABLE_DMATX2
+		serial22 = &uartdmatx2;
+#endif
+#ifdef ENABLE_DMATX3
+		serial23 = &uartdmatx3;
+#endif
+#ifdef ENABLE_DMATX6
+		serial26 = &uartdmatx6;
+#endif
+#ifdef ENABLE_DMATX7
+		serial27 = &uartdmatx7;
+#endif
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial5 = &uadbg;
+		serial6 = &uart6;
+		serial7 = &uart7;
+
+		spim0 = &spi_controller0;
+		spim1 = &spi_controller1;
+		spim2 = &spi_controller2;
+		spim3 = &spi_controller3;
+		spim4 = &spi_controller4;
+		spis5 = &spi_controller5;
+
+		spi0 = &sp_spinor0;
+
 		stc0 = &stc;
 		stc1 = &stc_av0;
 		stc2 = &stc_av1;
@@ -233,6 +265,326 @@
 		mboxes = <&mbox 0>; // for SUNPLUS_MBOX_TEST
 	};
 
+	npu_core_0v8: npu_0p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "npu_core";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+	};
+
+	video_codec_core_0v8: video_0p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "video_codec_core";
+		regulator-min-microvolt = <800000>;
+		regulator-max-microvolt = <800000>;
+	};
+
+#ifdef ENABLE_DMATX1
+	uartdmatx1: serial@sp_uartdmatx1 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801b40 0x00 0x40>, <0x00 0xf8801a80 0x00 0x80>;
+		//clocks = <&clkc GDMAUA>;
+		which-uart = <1>;
+	};
+#endif
+
+#ifdef ENABLE_DMATX2
+	uartdmatx2: serial@sp_uartdmatx2 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801d40 0x00 0x40>, <0x00 0xf8801c80 0x00 0x80>;
+		//clocks = <&clkc GDMAUA>;
+		which-uart = <2>;
+	};
+#endif
+
+#ifdef ENABLE_DMATX3
+	uartdmatx3: serial@sp_uartdmatx3 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801f40 0x00 0x40>, <0x00 0xf8801e80 0x00 0x80>;
+		//clocks = <&clkc GDMAUA>;
+		which-uart = <3>;
+	};
+#endif
+
+#ifdef ENABLE_DMATX6
+	uartdmatx6: serial@sp_uartdmatx6 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8802140 0x00 0x40>, <0x00 0xf8802080 0x00 0x80>;
+		//clocks = <&clkc GDMAUA>;
+		which-uart = <6>;
+	};
+#endif
+
+#ifdef ENABLE_DMATX7
+	uartdmatx7: serial@sp_uartdmatx7 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8802340 0x00 0x40>, <0x00 0xf8802280 0x00 0x80>;
+		//clocks = <&clkc GDMAUA>;
+		which-uart = <7>;
+	};
+#endif
+
+	uart0: serial@f8801900 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801900 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc UA0>;
+		resets = <&rstc RST_UA0>;
+	};
+
+	uart1: serial@f8801980 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801980 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc UA1>;
+		resets = <&rstc RST_UA1>;
+	};
+
+	uart2: serial@f8801b80 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801b80 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc UA2>;
+		resets = <&rstc RST_UA2>;
+	};
+
+	uart3: serial@f8801d80 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801d80 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc UA3>;
+		resets = <&rstc RST_UA3>;
+	};
+
+	uadbg: serial@f800f900 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf800f900 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc UADBG>;
+		resets = <&rstc RST_UADBG>;
+	};
+
+	uart6: serial@f8801f80 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8801f80 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc UA6>;
+		resets = <&rstc RST_UA6>;
+	};
+
+	uart7: serial@f8802180 {
+		compatible = "sunplus,sp7350-uart";
+		reg = <0x00 0xf8802180 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc UA7>;
+		resets = <&rstc RST_UA7>;
+	};
+
+	thermal: thermal@f88002b4 {
+		compatible = "sunplus,sp7350-thermal";
+		reg =<0x0 0xf88002b4 0x0 0x18>;
+		clocks = <&clkc THERMAL>;
+		resets = <&rstc RST_THERMAL>;
+		#thermal-sensor-cells = <0>;
+		nvmem-cell-names = "therm_calib";
+		nvmem-cells = <&therm_calib>;
+	};
+
+	thermal-zones {
+		cpu_thermal_zone: cpu-thermal {
+			thermal-sensors = <&thermal 0>;
+		};
+	};
+
+	ahbdma1: dma@f8821000 {
+		compatible = "snps,dma-spi";
+		reg =<0x0 0xf8821000 0x0 0x400>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 180 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 192 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 194 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 195 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>,
+			     <GIC_SPI 199 IRQ_TYPE_EDGE_RISING>;
+		dma-channels = <8>;
+		#dma-cells = <3>;
+	};
+
+	spi_controller0: spi@f8822000 {
+		compatible = "snps,dw-apb-ssi";
+		reg =<0x0 0xf8822000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc SPICB0>;
+		resets = <&rstc RST_SPICB0>;
+	};
+
+	spi_controller1: spi@f8823000 {
+		compatible = "snps,dw-apb-ssi";
+		reg =<0x0 0xf8823000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc SPICB1>;
+		resets = <&rstc RST_SPICB1>;
+	};
+
+	spi_controller2: spi@f8824000 {
+		compatible = "snps,dw-apb-ssi";
+		reg =<0x0 0xf8824000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc SPICB2>;
+		resets = <&rstc RST_SPICB2>;
+	};
+
+	spi_controller3: spi@f8825000 {
+		compatible = "snps,dw-apb-ssi";
+		reg =<0x0 0xf8825000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc SPICB3>;
+		resets = <&rstc RST_SPICB3>;
+	};
+
+	spi_controller4: spi@f8826000 {
+		compatible = "snps,dw-apb-ssi";
+		reg =<0x0 0xf8826000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc SPICB4>;
+		resets = <&rstc RST_SPICB4>;
+	};
+
+	spi_controller5: spi@f8827000 {
+		compatible = "snps,dw-apb-ssi";
+		reg =<0x0 0xf8827000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc SPICB5>;
+		resets = <&rstc RST_SPICB5>;
+	};
+
+	adc: adc@f8802f00 {
+		compatible = "sunplus,sp7350-adc";
+		reg = <0x0 0xf8802f00 0x0 0x80>;
+		hwlocks = <&hwlock 1>;
+	};
+
+	pwm: pwm@f8800d80 {
+		#pwm-cells = <2>;
+		compatible = "sunplus,sp7350-pwm";
+		reg = <0x0 0xf8800d80 0x0 0x100>;
+		clocks = <&clkc DISP_PWM>;
+		resets = <&rstc RST_DISP_PWM>;
+	};
+
+	rng: rng@f8800264 {
+		compatible = "sunplus,sp7350-rng";
+		reg = <0x0 0xf8800264 0x0 0x08>;
+		clocks = <&clkc PRNG>;
+		resets = <&rstc RST_PRNG>;
+	};
+
+	rtc: rtc@f8801180 {
+		compatible = "sunplus,sp7350-rtc";
+		reg = <0x0 0xf8801180 0x0 0x30>,
+			  <0x0 0xf8008178 0x0 0x04>; /* mbox G258.30, cpu0 to cpu2 direct reg06 */
+		reg-names = "rtc_reg","mbox_reg";
+		clocks = <&clkc RTC>;
+		resets = <&rstc RST_RTC>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	hwlock: hwspinlock@f800f880 {
+		compatible = "sp,sunplus-hwspinlock";
+		#hwlock-cells = <1>;
+		reg = <0 0xf800f880 0 0x80>;
+		clocks = <&clkc SEMAPHORE>;
+		clock-names = "hsem";
+	};
+
+	cbdma: cbdma@sp_cbdma {
+		compatible = "sunplus,cb-cdma";
+		reg = <0x0 0xf8000d00 0x0 0x80>;
+		reg-names = "cb_dma";
+		clocks = <&clkc CBDMA0>;
+		resets = <&rstc RST_CBDMA0>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		addrwidth = <0x20>;
+		dma-channel-0 {
+			compatible = "sunplus,cb-cdma-channel";
+			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+			datawidth = <0x20>;
+		};
+	};
+
+	crypto: crypto@f8003d80 {
+		compatible = "sunplus,sp7350-crypto";
+		reg = <0x0 0xf8003d80 0x0 0x100>; /* G123 ~ G124 */
+		clocks = <&clkc SEC>;
+		resets = <&rstc RST_SEC>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	dmac: dma-controller@f80fc000 {
+		compatible = "snps,axi-dma-1.01a";
+		reg = <0x00 0xf80fc000 0x00 0x10a0>;
+		clocks = <&clkc AXI_DMA>;
+		clock-names = "core-clk";
+		resets = <&rstc RST_AXI_DMA>;
+		reset-names = "core-rstc";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		#dma-cells = <1>;
+		dma-channels = <16>;
+	};
+
+	ethernet: stmmac@f8103000 {
+		compatible = "snps,dwmac-3.70a";
+		reg = <0x00 0xf8103000 0x00 0x2000>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
+		wakeup-source;
+		clocks = <&clkc GMAC>, <&clkc RBUS>;
+		clock-names = "stmmaceth", "ptp_ref";
+		clock_in_out = "output";
+		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
+		reset-names = "rstc_gmac", "rstc_pd_gmac";
+
+		snps,axi-config = <&stmmac_axi_setup>;
+		snps,mtl-rx-config = <&mtl_rx_setup>;
+		snps,mtl-tx-config = <&mtl_tx_setup>;
+		nvmem-cell-names = "mac-address";
+		nvmem-cells = <&mac_addr>;
+	};
+
 	sp_spinor0: spinor@f8000b00 {
 		compatible = "sunplus,sp7350-spi-nor";
 		reg = <0x0 0xf8000b00 0x0 0x80>;
@@ -267,6 +619,8 @@
 		interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc PNAND>;
 		resets = <&rstc RST_PNAND>;
+		dmas = <&dmac 2>;
+		dma-names = "rxtx";
 	};
 
 	video_codec {

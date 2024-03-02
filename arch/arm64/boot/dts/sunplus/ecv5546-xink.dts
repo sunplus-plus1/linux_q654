@@ -71,47 +71,10 @@
 #define LT8912B_HDMI_1080P
 #endif
 
-//#define ETHERNET_WITHOUT_PHY
-//#define ETHERNET_WITH_RMII_PHY
-
 #include "sp7350-common.dtsi"
 
 / {
 	model = "eYs3D eCV5546 XINK";
-
-	aliases {
-#ifdef ENABLE_DMATX1
-		serial21 = &uartdmatx1;
-#endif
-#ifdef ENABLE_DMATX2
-		serial22 = &uartdmatx2;
-#endif
-#ifdef ENABLE_DMATX3
-		serial23 = &uartdmatx3;
-#endif
-#ifdef ENABLE_DMATX6
-		serial26 = &uartdmatx6;
-#endif
-#ifdef ENABLE_DMATX7
-		serial27 = &uartdmatx7;
-#endif
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-		serial3 = &uart3;
-		serial5 = &uadbg;
-		serial6 = &uart6;
-		serial7 = &uart7;
-
-		spim0 = &spi_controller0;
-		spim1 = &spi_controller1;
-		spim2 = &spi_controller2;
-		spim3 = &spi_controller3;
-		spim4 = &spi_controller4;
-		spis5 = &spi_controller5;
-
-		spi0 = &sp_spinor0;
-	};
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
@@ -316,31 +279,6 @@
 		};*/
 	};
 
-	npu_core_0v8: npu_0p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "npu_core";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <800000>;
-		startup-delay-us = <5000>;
-		off-on-delay-us = <5000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&npu_pwr_en_pins>;
-		gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
-	video_codec_core_0v8: video_0p8v {
-		compatible = "regulator-fixed";
-		regulator-name = "video_codec_core";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <800000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&video_codec_pwr_en_pins>;
-		gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-		status = "disabled";
-	};
-
 	imx219_vana_2v8: 2p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vana";
@@ -445,361 +383,6 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
-	};
-
-#ifdef ENABLE_DMATX1
-	uartdmatx1: serial@sp_uartdmatx1 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801b40 0x00 0x40>, <0x00 0xf8801a80 0x00 0x80>;
-		//clocks = <&clkc GDMAUA>;
-		which-uart = <1>;
-	};
-#endif
-
-#ifdef ENABLE_DMATX2
-	uartdmatx2: serial@sp_uartdmatx2 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801d40 0x00 0x40>, <0x00 0xf8801c80 0x00 0x80>;
-		//clocks = <&clkc GDMAUA>;
-		which-uart = <2>;
-	};
-#endif
-
-#ifdef ENABLE_DMATX3
-	uartdmatx3: serial@sp_uartdmatx3 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801f40 0x00 0x40>, <0x00 0xf8801e80 0x00 0x80>;
-		//clocks = <&clkc GDMAUA>;
-		which-uart = <3>;
-	};
-#endif
-
-#ifdef ENABLE_DMATX6
-	uartdmatx6: serial@sp_uartdmatx6 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8802140 0x00 0x40>, <0x00 0xf8802080 0x00 0x80>;
-		//clocks = <&clkc GDMAUA>;
-		which-uart = <6>;
-	};
-#endif
-
-#ifdef ENABLE_DMATX7
-	uartdmatx7: serial@sp_uartdmatx7 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8802340 0x00 0x40>, <0x00 0xf8802280 0x00 0x80>;
-		//clocks = <&clkc GDMAUA>;
-		which-uart = <7>;
-	};
-#endif
-
-	uart0: serial@f8801900 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801900 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc UA0>;
-		resets = <&rstc RST_UA0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart0_pins>;
-	};
-
-	uart1: serial@f8801980 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801980 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc UA1>;
-		resets = <&rstc RST_UA1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart1_pins &uart1_fc_pins>;
-#ifndef AP6256_WIFI
-	#ifndef AP6256_BT
-		status = "disabled";
-	#endif
-#endif
-	};
-
-	uart2: serial@f8801b80 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801b80 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc UA2>;
-		resets = <&rstc RST_UA2>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart2_pins &uart2_fc_pins>;
-		status = "disabled";
-	};
-
-	uart3: serial@f8801d80 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801d80 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc UA3>;
-		resets = <&rstc RST_UA3>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart3_pins>;
-		status = "disabled";
-	};
-
-	uadbg: serial@f800f900 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf800f900 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc UADBG>;
-		resets = <&rstc RST_UADBG>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uadbg_pins>;
-		status = "disabled";
-	};
-
-	uart6: serial@f8801f80 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8801f80 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc UA6>;
-		resets = <&rstc RST_UA6>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart6_pins>;
-		status = "disabled";
-	};
-
-	uart7: serial@f8802180 {
-		compatible = "sunplus,sp7350-uart";
-		reg = <0x00 0xf8802180 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc UA7>;
-		resets = <&rstc RST_UA7>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&uart7_pins>;
-		status = "disabled";
-	};
-
-	thermal: thermal@f88002b4 {
-		compatible = "sunplus,sp7350-thermal";
-		reg =<0x0 0xf88002b4 0x0 0x18>;
-		clocks = <&clkc THERMAL>;
-		resets = <&rstc RST_THERMAL>;
-		#thermal-sensor-cells = <0>;
-		nvmem-cell-names = "therm_calib";
-		nvmem-cells = <&therm_calib>;
-		//status = "disabled";
-	};
-
-	thermal-zones {
-		cpu_thermal_zone: cpu-thermal {
-			polling-delay-passive = <5000>;
-			polling-delay = <1000>;
-
-			thermal-sensors = <&thermal 0>;
-			sustainable-power = <100000>;
-
-			passive = <80>;
-			trips {
-					cpu_hott: cpu-hott {
-						temperature = <120000>;
-						hysteresis  = <1000>;
-						type = "hot";
-					};
-					cpu_crit: cpu-crit {
-						temperature = <125000>;
-						hysteresis  = <0>;
-						type = "critical";
-					};
-					cpu_trip0: cpu0 {
-						temperature = <70000>;
-						hysteresis = <2000>;
-						type = "passive";
-					};
-					cpu_trip1: cpu1 {
-						temperature = <80000>;
-						hysteresis = <2000>;
-						type = "active";
-				};
-			};
-		};
-	};
-
-	// poweroff {
-		//compatible = "system-shutdown";
-	// };
-
-	ahbdma1: dma@f8821000 {
-		compatible = "snps,dma-spi";
-		reg =<0x0 0xf8821000 0x0 0x400>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 180 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 192 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 194 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 195 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>,
-			     <GIC_SPI 199 IRQ_TYPE_EDGE_RISING>;
-		dma-channels = <8>;
-		#dma-cells = <3>;
-		dma-requests = <16>;
-		chan_allocation_order = <1>;
-		chan_priority = <1>;
-		block_size = <0xfff>;
-		dma-masters = <4>;
-		data-width = <2 2 2 2>;
-		multi-block = <0 0 0 0 0 0 0 0>;
-		snps,max-burst-len = <128 128 128 128 128 128 128 128>;
-		status = "disabled";
-	};
-
-	spi_controller0: spi@f8822000 {
-		compatible = "snps,dw-apb-ssi";
-		reg =<0x0 0xf8822000 0x0 0x100>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPICB0>;
-		resets = <&rstc RST_SPICB0>;
-#ifndef SPI_LOOPBACK_MTTEST
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi_master0_pins>;
-		dmas = <&ahbdma1 0 0 0>,
-		       <&ahbdma1 1 0 0>;
-		dma-names = "rx", "tx";
-		status = "disabled";
-#endif
-		spi@0 {
-			compatible = "rohm,dh2228fv";
-			spi-max-frequency = <5000000>;
-			reg = <0x0>;
-#ifndef SPI_LOOPBACK_MTTEST
-			status = "disabled";
-#endif
-		};
-	};
-
-	spi_controller1: spi@f8823000 {
-		compatible = "snps,dw-apb-ssi";
-		reg =<0x0 0xf8823000 0x0 0x100>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPICB1>;
-		resets = <&rstc RST_SPICB1>;
-#ifndef SPI_LOOPBACK_MTTEST
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi_master1_pins>;
-		dmas = <&ahbdma1 2 0 0>,
-		       <&ahbdma1 3 0 0>;
-		dma-names = "rx", "tx";
-		status = "disabled";
-#endif
-		spi@0 {
-			compatible = "rohm,dh2228fv";
-			spi-max-frequency = <5000000>;
-			reg = <0x0>;
-#ifndef SPI_LOOPBACK_MTTEST
-			status = "disabled";
-#endif
-		};
-	};
-
-	spi_controller2: spi@f8824000 {
-		compatible = "snps,dw-apb-ssi";
-		reg =<0x0 0xf8824000 0x0 0x100>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPICB2>;
-		resets = <&rstc RST_SPICB2>;
-#ifndef SPI_LOOPBACK_MTTEST
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi_master2_pins>;
-		dmas = <&ahbdma1 4 0 0>,
-		       <&ahbdma1 5 0 0>;
-		dma-names = "rx", "tx";
-		status = "disabled";
-#endif
-		spi@0 {
-			compatible = "rohm,dh2228fv";
-			spi-max-frequency = <5000000>;
-			reg = <0x0>;
-#ifndef SPI_LOOPBACK_MTTEST
-			status = "disabled";
-#endif
-		};
-	};
-
-	spi_controller3: spi@f8825000 {
-		compatible = "snps,dw-apb-ssi";
-		reg =<0x0 0xf8825000 0x0 0x100>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPICB3>;
-		resets = <&rstc RST_SPICB3>;
-#ifndef SPI_LOOPBACK_MTTEST
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi_master3_pins>;
-		dmas = <&ahbdma1 6 0 0>,
-		       <&ahbdma1 7 0 0>;
-		dma-names = "rx", "tx";
-		status = "disabled";
-#endif
-		spi@0 {
-			compatible = "rohm,dh2228fv";
-			spi-max-frequency = <5000000>;
-			reg = <0x0>;
-#ifndef SPI_LOOPBACK_MTTEST
-			status = "disabled";
-#endif
-		};
-	};
-
-	spi_controller4: spi@f8826000 {
-		compatible = "snps,dw-apb-ssi";
-		reg =<0x0 0xf8826000 0x0 0x100>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPICB4>;
-		resets = <&rstc RST_SPICB4>;
-#ifndef SPI_LOOPBACK_MTTEST
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi_master4_pins>;
-		dmas = <&ahbdma1 6 0 0>,
-		       <&ahbdma1 7 0 0>;
-		dma-names = "rx", "tx";
-		status = "disabled";
-#endif
-		spi@0 {
-			compatible = "rohm,dh2228fv";
-			spi-max-frequency = <5000000>;
-			reg = <0x0>;
-#ifndef SPI_LOOPBACK_MTTEST
-			status = "disabled";
-#endif
-		};
-	};
-
-	spi_controller5: spi@f8827000 {
-		compatible = "snps,dw-apb-ssi";
-		reg =<0x0 0xf8827000 0x0 0x100>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPICB5>;
-		resets = <&rstc RST_SPICB5>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi_slave0_pins>;
-		status = "disabled";
 	};
 
 	i2c0: i2c@f8828000 {
@@ -1506,94 +1089,6 @@
 		status = "disabled";
 	};
 
-	adc: adc@f8802f00 {
-		compatible = "sunplus,sp7350-adc";
-		reg = <0x0 0xf8802f00 0x0 0x80>;
-		hwlocks = <&hwlock 1>;
-		//status = "disabled";
-	};
-
-	pwm: pwm@f8800d80 {
-		#pwm-cells = <2>;
-		compatible = "sunplus,sp7350-pwm";
-		reg = <0x0 0xf8800d80 0x0 0x100>;
-		clocks = <&clkc DISP_PWM>;
-		resets = <&rstc RST_DISP_PWM>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pwm0_pins &pwm1_pins &pwm2_pins &pwm3_pins>;
-		status = "disabled";
-	};
-
-	rng: rng@f8800264 {
-		compatible = "sunplus,sp7350-rng";
-		reg = <0x0 0xf8800264 0x0 0x08>;
-		clocks = <&clkc PRNG>;
-		resets = <&rstc RST_PRNG>;
-	};
-
-	rtc: rtc@f8801180 {
-		compatible = "sunplus,sp7350-rtc";
-		reg = <0x0 0xf8801180 0x0 0x30>,
-			  <0x0 0xf8008178 0x0 0x04>; /* mbox G258.30, cpu0 to cpu2 direct reg06 */
-		reg-names = "rtc_reg","mbox_reg";
-		clocks = <&clkc RTC>;
-		resets = <&rstc RST_RTC>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
-	};
-
-	hwlock: hwspinlock@f800f880 {
-		compatible = "sp,sunplus-hwspinlock";
-		#hwlock-cells = <1>;
-		reg = <0 0xf800f880 0 0x80>;
-		clocks = <&clkc SEMAPHORE>;
-		clock-names = "hsem";
-	};
-
-	cbdma: cbdma@sp_cbdma {
-		compatible = "sunplus,cb-cdma";
-		reg = <0x0 0xf8000d00 0x0 0x80>;
-		reg-names = "cb_dma";
-		clocks = <&clkc CBDMA0>;
-		resets = <&rstc RST_CBDMA0>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
-		addrwidth = <0x20>;
-		dma-channel-0 {
-			compatible = "sunplus,cb-cdma-channel";
-			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
-			datawidth = <0x20>;
-		};
-	};
-
-	crypto: crypto@f8003d80 {
-		compatible = "sunplus,sp7350-crypto";
-		reg = <0x0 0xf8003d80 0x0 0x100>; /* G123 ~ G124 */
-		clocks = <&clkc SEC>;
-		resets = <&rstc RST_SEC>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
-	};
-
-	dmac: dma-controller@f80fc000 {
-		compatible = "snps,axi-dma-1.01a";
-		reg = <0x00 0xf80fc000 0x00 0x10a0>;
-		clocks = <&clkc AXI_DMA>;
-		clock-names = "core-clk";
-		resets = <&rstc RST_AXI_DMA>;
-		reset-names = "core-rstc";
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
-		#dma-cells = <1>;
-		dma-channels = <16>;
-		snps,dma-masters = <2>;
-		snps,data-width = <4>;
-		snps,block-size = <4096 4096 4096 4096 4096 4096 4096 4096
-				   4096 4096 4096 4096 4096 4096 4096 4096>;
-		snps,priority = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15>;
-		snps,axi-max-burst-len = <16>;
-	};
-
 	stmmac_axi_setup: stmmac-axi-config {
 		/*LPI switch*/
 		snps,lpi_en;
@@ -1641,186 +1136,6 @@
 		//	snps,priority = <0x2>;
 		//};
 	};
-
-#ifdef ETHERNET_WITHOUT_PHY
-	ethernet: stmmac@f8103000 {
-		compatible = "snps,dwmac-3.70a";
-		reg = <0x00 0xf8103000 0x00 0x2000>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
-		wakeup-source;
-		clocks = <&clkc GMAC>, <&clkc RBUS>;
-		clock-names = "stmmaceth", "ptp_ref";
-		clock_in_out = "output";
-		clock-frequency = <125000000>;
-		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
-		reset-names = "rstc_gmac", "rstc_pd_gmac";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_pins>;
-		mac-mode = "rgmii";
-		/* fixed-burst-->speed little high*/
-		snps,mixed-burst;
-		snps,force_sf_dma_mode;
-		snps,multicast-filter-bins = <256>;
-		snps,perfect-filter-entries = <128>;
-		snps,ps-speed = <1000>;
-		rx-fifo-depth = <16384>;
-		tx-fifo-depth = <16384>;
-		snps,axi-config = <&stmmac_axi_setup>;
-		snps,mtl-rx-config = <&mtl_rx_setup>;
-		snps,mtl-tx-config = <&mtl_tx_setup>;
-		nvmem-cell-names = "mac-address";
-		nvmem-cells = <&mac_addr>;
-		clk_csr = <4>;
-		phy-mode = "rgmii";
-		//phy-handle = <&phy0>;
-
-		fixed-link {
-			speed = <1000>;
-			full-duplex;
-		};
-
-		mdio0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-		};
-	};
-#elif defined(ETHERNET_WITH_RMII_PHY)
-	ethernet: stmmac@f8103000 {
-		compatible = "snps,dwmac-3.70a";
-		reg = <0x00 0xf8103000 0x00 0x2000>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
-		wakeup-source;
-		clocks = <&clkc GMAC>, <&clkc RBUS>;
-		clock-names = "stmmaceth", "ptp_ref";
-		clock_in_out = "output";
-		clock-frequency = <50000000>;
-		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
-		reset-names = "rstc_gmac", "rstc_pd_gmac";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_pins>;
-		mac-mode = "rmii";
-		/* Reset time is 30ms, 150ms for rtl8211f */
-		snps,reset-delays-us = <0 30000 150000>;
-		/* fixed-burst-->speed little high*/
-		snps,mixed-burst;
-		//snps,fixed-burst;
-		/* default threshold=64, real use 128 */
-		//snps,force_thresh_dma_mode;
-		/* default */
-		snps,force_sf_dma_mode;
-		/*LPI switch*/
-		snps,en-tx-lpi-clockgating;
-		snps,multicast-filter-bins = <256>;
-		snps,perfect-filter-entries = <128>;
-		snps,ps-speed = <100>;
-		//snps,pbl = <16>;
-		//snps,txpbl = <16>;
-		//snps,rxpbl = <16>;
-		//snps,no-pbl-x8;
-		//snps,tso;
-		rx-fifo-depth = <16384>;
-		tx-fifo-depth = <16384>;
-		snps,axi-config = <&stmmac_axi_setup>;
-		snps,mtl-rx-config = <&mtl_rx_setup>;
-		snps,mtl-tx-config = <&mtl_tx_setup>;
-		nvmem-cell-names = "mac-address";
-		nvmem-cells = <&mac_addr>;
-		clk_csr = <4>;
-		phy-mode = "rmii";
-		phy-handle = <&phy0>;
-		/*id-->use phy hardway tx/rx delay 2ns, txid-->use phy hardway tx delay 2ns, rxid-->use phy hardway rx delay 2ns*/
-		//phy-mode = "rgmii-id";
-		//phy-mode = "rgmii-txid";
-		//phy-mode = "rgmii-rxid";
-		//status = "disabled";
-
-		mdio0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "snps,dwmac-mdio";
-			phy0: ethernet-phy@0 {
-				compatible = "ethernet-phy-id001c.c816", "ethernet-phy-ieee802.3-c22";
-				reg = <1>;
-				reset-assert-us = <1000>;
-				reset-deassert-us = <2000>;
-			};
-		};
-	};
-#else
-	ethernet: stmmac@f8103000 {
-		compatible = "snps,dwmac-3.70a";
-		reg = <0x00 0xf8103000 0x00 0x2000>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "macirq", "eth_wake_irq", "eth_lpi";
-		wakeup-source;
-		clocks = <&clkc GMAC>, <&clkc RBUS>;
-		clock-names = "stmmaceth", "ptp_ref";
-		clock_in_out = "output";
-		clock-frequency = <125000000>;
-		resets = <&rstc RST_GMAC>, <&rstc RST_PD_GMAC>;
-		reset-names = "rstc_gmac", "rstc_pd_gmac";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_pins>;
-		mac-mode = "rgmii";
-		/* Reset time is 30ms, 150ms for rtl8211f */
-		snps,reset-delays-us = <0 30000 150000>;
-		/* fixed-burst-->speed little high*/
-		snps,mixed-burst;
-		//snps,fixed-burst;
-		/* default threshold=64, real use 128 */
-		//snps,force_thresh_dma_mode;
-		/* default */
-		snps,force_sf_dma_mode;
-		/*LPI switch*/
-		snps,en-tx-lpi-clockgating;
-		snps,multicast-filter-bins = <256>;
-		snps,perfect-filter-entries = <128>;
-		snps,ps-speed = <1000>;
-		//snps,pbl = <16>;
-		//snps,txpbl = <16>;
-		//snps,rxpbl = <16>;
-		//snps,no-pbl-x8;
-		//snps,tso;
-		rx-fifo-depth = <16384>;
-		tx-fifo-depth = <16384>;
-		snps,axi-config = <&stmmac_axi_setup>;
-		snps,mtl-rx-config = <&mtl_rx_setup>;
-		snps,mtl-tx-config = <&mtl_tx_setup>;
-		nvmem-cell-names = "mac-address";
-		nvmem-cells = <&mac_addr>;
-		clk_csr = <4>;
-		phy-mode = "rgmii";
-		phy-handle = <&phy0>;
-		/*id-->use phy hardway tx/rx delay 2ns, txid-->use phy hardway tx delay 2ns, rxid-->use phy hardway rx delay 2ns*/
-		//phy-mode = "rgmii-id";
-		//phy-mode = "rgmii-txid";
-		//phy-mode = "rgmii-rxid";
-		//status = "disabled";
-
-		mdio0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "snps,dwmac-mdio";
-			phy0: ethernet-phy@0 {
-				compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
-				reg = <1>;
-				reset-assert-us = <1000>;
-				reset-deassert-us = <2000>;
-			};
-		};
-	};
-#endif
 
 	otp0: otp@f8802380 {
 		compatible = "sunplus,sp7350-ocotp";
@@ -3470,6 +2785,290 @@
 
 &remoteproc0 {
 	firmware = "firmware";
+};
+
+&npu_core_0v8 {
+	startup-delay-us = <5000>;
+	off-on-delay-us = <5000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&npu_pwr_en_pins>;
+	gpio = <&pctl 65 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&video_codec_core_0v8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&video_codec_pwr_en_pins>;
+	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+	status = "disabled";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins>;
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_pins &uart1_fc_pins>;
+#ifndef AP6256_WIFI
+	#ifndef AP6256_BT
+	status = "disabled";
+	#endif
+#endif
+};
+
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_pins &uart2_fc_pins>;
+	status = "disabled";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>;
+	status = "disabled";
+};
+
+&uadbg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uadbg_pins>;
+	status = "disabled";
+};
+
+&uart6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart6_pins>;
+	status = "disabled";
+};
+
+&uart7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart7_pins>;
+	status = "disabled";
+};
+
+&thermal {
+	//status = "disabled";
+};
+
+&cpu_thermal_zone {
+	polling-delay-passive = <5000>;
+	polling-delay = <1000>;
+
+	sustainable-power = <100000>;
+
+	passive = <80>;
+	trips {
+		cpu_hott: cpu-hott {
+			temperature = <120000>;
+			hysteresis  = <1000>;
+			type = "hot";
+		};
+		cpu_crit: cpu-crit {
+			temperature = <125000>;
+			hysteresis  = <0>;
+			type = "critical";
+		};
+		cpu_trip0: cpu0 {
+			temperature = <70000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
+		cpu_trip1: cpu1 {
+			temperature = <80000>;
+			hysteresis = <2000>;
+			type = "active";
+		};
+	};
+};
+
+&ahbdma1 {
+	dma-requests = <16>;
+	chan_allocation_order = <1>;
+	chan_priority = <1>;
+	block_size = <0xfff>;
+	dma-masters = <4>;
+	data-width = <2 2 2 2>;
+	multi-block = <0 0 0 0 0 0 0 0>;
+	snps,max-burst-len = <128 128 128 128 128 128 128 128>;
+	status = "disabled";
+};
+
+&spi_controller0 {
+#ifndef SPI_LOOPBACK_MTTEST
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_master0_pins>;
+	dmas = <&ahbdma1 0 0 0>,
+	       <&ahbdma1 1 0 0>;
+	dma-names = "rx", "tx";
+	status = "disabled";
+#endif
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <5000000>;
+		reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
+		status = "disabled";
+#endif
+	};
+};
+
+&spi_controller1 {
+#ifndef SPI_LOOPBACK_MTTEST
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_master1_pins>;
+	dmas = <&ahbdma1 2 0 0>,
+	       <&ahbdma1 3 0 0>;
+	dma-names = "rx", "tx";
+	status = "disabled";
+#endif
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <5000000>;
+		reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
+		status = "disabled";
+#endif
+	};
+};
+
+&spi_controller2 {
+#ifndef SPI_LOOPBACK_MTTEST
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_master2_pins>;
+	dmas = <&ahbdma1 4 0 0>,
+	       <&ahbdma1 5 0 0>;
+	dma-names = "rx", "tx";
+	status = "disabled";
+#endif
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <5000000>;
+		reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
+		status = "disabled";
+#endif
+	};
+};
+
+&spi_controller3 {
+#ifndef SPI_LOOPBACK_MTTEST
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_master3_pins>;
+	dmas = <&ahbdma1 6 0 0>,
+	       <&ahbdma1 7 0 0>;
+	dma-names = "rx", "tx";
+	status = "disabled";
+#endif
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <5000000>;
+		reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
+		status = "disabled";
+#endif
+	};
+};
+
+&spi_controller4 {
+#ifndef SPI_LOOPBACK_MTTEST
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_master4_pins>;
+	dmas = <&ahbdma1 6 0 0>,
+	       <&ahbdma1 7 0 0>;
+	dma-names = "rx", "tx";
+	status = "disabled";
+#endif
+	spi@0 {
+		compatible = "rohm,dh2228fv";
+		spi-max-frequency = <5000000>;
+		reg = <0x0>;
+#ifndef SPI_LOOPBACK_MTTEST
+		status = "disabled";
+#endif
+	};
+};
+
+&spi_controller5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_slave0_pins>;
+	status = "disabled";
+};
+
+&adc {
+	//status = "disabled";
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_pins &pwm1_pins &pwm2_pins &pwm3_pins>;
+	status = "disabled";
+};
+
+&rtc {
+	status = "okay";
+};
+
+&dmac {
+	snps,dma-masters = <2>;
+	snps,data-width = <4>;
+	snps,block-size = <4096 4096 4096 4096 4096 4096 4096 4096
+			   4096 4096 4096 4096 4096 4096 4096 4096>;
+	snps,priority = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15>;
+	snps,axi-max-burst-len = <16>;
+};
+
+&ethernet {
+	clock-frequency = <125000000>;
+	mac-mode = "rgmii";
+
+	/* Reset time is 30ms, 150ms for rtl8211f */
+	snps,reset-delays-us = <0 30000 150000>;
+	/* fixed-burst-->speed little high*/
+	snps,mixed-burst;
+	//snps,fixed-burst;
+	/* default threshold=64, real use 128 */
+	//snps,force_thresh_dma_mode;
+	/* default */
+	snps,force_sf_dma_mode;
+	/*LPI switch*/
+	snps,en-tx-lpi-clockgating;
+	snps,multicast-filter-bins = <256>;
+	snps,perfect-filter-entries = <128>;
+	snps,ps-speed = <1000>;
+	//snps,pbl = <16>;
+	//snps,txpbl = <16>;
+	//snps,rxpbl = <16>;
+	//snps,no-pbl-x8;
+	//snps,tso;
+	rx-fifo-depth = <16384>;
+	tx-fifo-depth = <16384>;
+
+	clk_csr = <4>;
+	phy-mode = "rgmii";
+	phy-handle = <&phy0>;
+	/*id-->use phy hardway tx/rx delay 2ns, txid-->use phy hardway tx delay 2ns, rxid-->use phy hardway rx delay 2ns*/
+	//phy-mode = "rgmii-id";
+	//phy-mode = "rgmii-txid";
+	//phy-mode = "rgmii-rxid";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac_pins>;
+	//status = "disabled";
+
+	mdio0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "snps,dwmac-mdio";
+		phy0: ethernet-phy@0 {
+			compatible = "ethernet-phy-id001c.c916", "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+			reset-assert-us = <1000>;
+			reset-deassert-us = <2000>;
+		};
+	};
 };
 
 &sp_spinor0 {
