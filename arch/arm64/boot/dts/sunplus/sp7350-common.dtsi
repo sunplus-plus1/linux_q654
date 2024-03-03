@@ -485,6 +485,388 @@
 		resets = <&rstc RST_SPICB5>;
 	};
 
+	i2c0: i2c@f8828000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf8828000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM0>;
+		resets = <&rstc RST_I2CM0>;
+	};
+
+	i2c1: i2c@f8829000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf8829000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM1>;
+		resets = <&rstc RST_I2CM1>;
+	};
+
+	i2c2: i2c@f882a000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882a000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM2>;
+		resets = <&rstc RST_I2CM2>;
+	};
+
+	i2c3: i2c@f882b000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882b000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM3>;
+		resets = <&rstc RST_I2CM3>;
+	};
+
+	i2c4: i2c@f882c000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882c000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM4>;
+		resets = <&rstc RST_I2CM4>;
+	};
+
+	i2c5: i2c@f882d000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882d000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM5>;
+		resets = <&rstc RST_I2CM5>;
+	};
+
+	i2c6: i2c@f882e000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882e000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM6>;
+		resets = <&rstc RST_I2CM6>;
+	};
+
+	i2c7: i2c@f882f000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf882f000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM7>;
+		resets = <&rstc RST_I2CM7>;
+	};
+
+	i2c8: i2c@f8830000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf8830000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM8>;
+		resets = <&rstc RST_I2CM8>;
+	};
+
+	i2c9: i2c@f8831000 {
+		compatible = "snps,designware-i2c";
+		reg =<0x0 0xf8831000 0x0 0x100>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc I2CM9>;
+		resets = <&rstc RST_I2CM9>;
+	};
+
+	mipicsirx0: csirx@f8005280 {
+		compatible = "sunplus,sp7350-mipicsi-rx";
+		reg = <0x0 0xf8005280 0x0 0x80>;
+		reg-names = "mipicsi";
+		clocks = <&clkc MIPICSI0>;
+		clock-names = "clk_mipicsi";
+		resets = <&rstc RST_MIPICSI0>;
+		reset-names = "rstc_mipicsi";
+		sunplus,id = <0>;
+	};
+
+	vin0: video@f8005580 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005580 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI0_CSIIW0>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI0_CSIIW0>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <0>;
+	};
+
+	vin1: video@f8005600 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005600 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI0_CSIIW1>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI0_CSIIW1>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <1>;
+	};
+
+	mipicsirx1: csirx@f8005300 {
+		compatible = "sunplus,sp7350-mipicsi-rx";
+		reg = <0x0 0xf8005300 0x0 0x80>;
+		reg-names = "mipicsi";
+		clocks = <&clkc MIPICSI1>;
+		clock-names = "clk_mipicsi";
+		resets = <&rstc RST_MIPICSI1>;
+		reset-names = "rstc_mipicsi";
+		sunplus,id = <1>;
+	};
+
+	vin2: video@f8005680 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005680 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI1_CSIIW0>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI1_CSIIW0>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <2>;
+	};
+
+	vin3: video@f8005700 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005700 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI1_CSIIW1>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI1_CSIIW1>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <3>;
+	};
+
+	mipicsirx2: csirx@f8005380 {
+		compatible = "sunplus,sp7350-mipicsi-rx";
+		reg = <0x0 0xf8005380 0x0 0x80>, <0x0 0xf8005200 0x0 0x80>;
+		reg-names = "mipicsi", "mipicsi23sel";
+		clocks = <&clkc MIPICSI2>;
+		clock-names = "clk_mipicsi";
+		resets = <&rstc RST_MIPICSI2>;
+		reset-names = "rstc_mipicsi";
+		sunplus,id = <2>;
+	};
+
+	vin4: video@f8005780 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005780 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI23_CSIIW0>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI23_CSIIW0>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <4>;
+	};
+
+	vin5: video@f8005800 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005800 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI23_CSIIW1>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI23_CSIIW1>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <5>;
+	};
+
+#ifndef MIPI_CSI_4VC
+	mipicsirx3: csirx@f8005400 {
+		compatible = "sunplus,sp7350-mipicsi-rx";
+		reg = <0x0 0xf8005400 0x0 0x80>, <0x0 0xf8005200 0x0 0x80>;
+		reg-names = "mipicsi", "mipicsi23sel";
+		clocks = <&clkc MIPICSI3>;
+		clock-names = "clk_mipicsi";
+		resets = <&rstc RST_MIPICSI3>;
+		reset-names = "rstc_mipicsi";
+		sunplus,id = <3>;
+	};
+#endif
+
+	vin6: video@f8005880 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005880 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI23_CSIIW2>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI23_CSIIW2>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <6>;
+	};
+
+	vin7: video@f8005900 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005900 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI23_CSIIW3>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI23_CSIIW3>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <7>;
+	};
+
+	mipicsirx4: csirx@f8005480 {
+		compatible = "sunplus,sp7350-mipicsi-rx";
+		reg = <0x0 0xf8005480 0x0 0x80>;
+		reg-names = "mipicsi";
+		clocks = <&clkc MIPICSI4>;
+		clock-names = "clk_mipicsi";
+		resets = <&rstc RST_MIPICSI4>;
+		reset-names = "rstc_mipicsi";
+		sunplus,id = <4>;
+	};
+
+	vin8: video@f8005980 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005980 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI4_CSIIW0>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI4_CSIIW0>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <8>;
+	};
+
+	vin9: video@f8005a00 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005a00 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI4_CSIIW1>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI4_CSIIW1>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <9>;
+	};
+
+	mipicsirx5: csirx@f8005500 {
+		compatible = "sunplus,sp7350-mipicsi-rx";
+		reg = <0x0 0xf8005500 0x0 0x80>;
+		reg-names = "mipicsi";
+		clocks = <&clkc MIPICSI5>;
+		clock-names = "clk_mipicsi";
+		resets = <&rstc RST_MIPICSI5>;
+		reset-names = "rstc_mipicsi";
+		sunplus,id = <5>;
+	};
+
+	vin10: video@f8005a80 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005a80 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI5_CSIIW0>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI5_CSIIW0>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <10>;
+	};
+
+	vin11: video@f8005b00 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005b00 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI5_CSIIW1>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI5_CSIIW1>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <11>;
+	};
+
+	vin12: video@f8005b80 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005b80 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI5_CSIIW2>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI5_CSIIW2>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <12>;
+	};
+
+	vin13: video@f8005c00 {
+		compatible = "sunplus,sp7350-vin";
+		reg = <0x0 0xf8005c00 0x0 0x80>;
+		reg-names = "csiiw";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "fs_irq", "fe_irq";
+		clocks = <&clkc VI5_CSIIW3>;
+		clock-names = "clk_csiiw";
+		resets = <&rstc RST_VI5_CSIIW3>;
+		reset-names = "rstc_csiiw";
+		memory-region = <&mipicsirx_reserve>;
+		sunplus,id = <13>;
+	};
+
 	adc: adc@f8802f00 {
 		compatible = "sunplus,sp7350-adc";
 		reg = <0x0 0xf8802f00 0x0 0x80>;
@@ -563,6 +945,54 @@
 		dma-channels = <16>;
 	};
 
+	stmmac_axi_setup: stmmac-axi-config {
+		/*LPI switch*/
+		snps,lpi_en;
+		snps,xit_frm;
+		snps,wr_osr_lmt = <0xf>;
+		snps,rd_osr_lmt = <0xf>;
+		snps,blen = <256 128 64 32 0 0 0>;
+		//snps,axi_fb;
+		snps,axi_mb;
+	};
+
+	mtl_rx_setup: rx-queues-config {
+		snps,rx-queues-to-use = <1>;
+		snps,rx-sched-sp;
+		//snps,rx-sched-wsp;
+		queue0 {
+			snps,dcb-algorithm;
+			//snps,avb-algorithm;
+			snps,map-to-dma-channel = <0x0>;
+			snps,priority = <0x0>;
+		};
+	};
+
+	mtl_tx_setup: tx-queues-config {
+		snps,tx-queues-to-use = <1>;
+		/*use will cause dev_watchdog() function panic*/
+		//snps,tx-sched-wrr;
+		//snps,tx-sched-wfq;
+		//snps,tx-sched-dwrr;
+		snps,tx-sched-sp;
+		queue0 {
+			/*use will cause dev_watchdog() function panic*/
+			//snps,weight = <0x10>;
+			snps,dcb-algorithm;
+			snps,map-to-dma-channel = <0x0>;
+			snps,priority = <0x0>;
+		};
+		/*use will cause dev_watchdog() function panic*/
+		//queue1 {
+		//	snps,avb-algorithm;
+		//	snps,send_slope = <0x1000>;
+		//	snps,idle_slope = <0x2000>;
+		//	snps,high_credit = <0x3e800>;
+		//	snps,low_credit = <0xffc18000>;
+		//	snps,priority = <0x2>;
+		//};
+	};
+
 	ethernet: stmmac@f8103000 {
 		compatible = "snps,dwmac-3.70a";
 		reg = <0x00 0xf8103000 0x00 0x2000>;
@@ -583,6 +1013,218 @@
 		snps,mtl-tx-config = <&mtl_tx_setup>;
 		nvmem-cell-names = "mac-address";
 		nvmem-cells = <&mac_addr>;
+	};
+
+	otp0: otp@f8802380 {
+		compatible = "sunplus,sp7350-ocotp";
+		reg = <0x00 0xf8802380 0x00 0x60>, <0x00 0xf8802400 0x00 0x80>, <0x00 0xf8802480 0x00 0x18>;
+		reg-names = "hb_gpio", "otprx", "otp_key";
+		clocks = <&clkc OTPRX>;
+		resets = <&rstc RST_OTPRX>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		therm_calib: therm_calib@9 {
+			reg = <0x9 0x3>;
+		};
+		mac_addr: mac-address@16 {
+			reg = <0x16 0x6>;
+		};
+		disc_vol: disc_vol@2d {
+			reg = <0x2d 0x1>;
+		};
+	};
+
+	mmc0: mmc@f8003b00 {
+		compatible = "sunplus,sp7350-emmc";
+		reg = <0x0 0xf8003b00 0x0 0x180>, <0x0 0xf8803280 0x0 0x80>, <0x0 0xf8803354 0x0 0x0C>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CARD_CTL0>;
+		resets = <&rstc RST_CARD_CTL0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&emmc_pins>;
+		bus-width = <8>;
+		non-removable;
+		disable-wp;
+		cap-mmc-highspeed;
+		no-sdio;
+		no-sd;
+	};
+
+	axi: axi@f8012b80 {
+		compatible = "sunplus,sp7350-axi";
+		reg = <0x0 0xf8012b80 0x0 0x80>, <0x0 0xf8012c00 0x0 0x80>, <0x0 0xf8012c80 0x0 0x80>,
+		      <0x0 0xf8012d00 0x0 0x80>, <0x0 0xf8012d80 0x0 0x80>, <0x0 0xf8012e00 0x0 0x80>,
+		      <0x0 0xf8012e80 0x0 0x80>, <0x0 0xf8012f00 0x0 0x80>, <0x0 0xf8012f80 0x0 0x80>,
+		      <0x0 0xf8013000 0x0 0x80>, <0x0 0xf8013080 0x0 0x80>, <0x0 0xf8013100 0x0 0x80>,
+		      <0x0 0xf8013180 0x0 0x80>, <0x0 0xf8013200 0x0 0x80>, <0x0 0xf8013280 0x0 0x80>,
+		      <0x0 0xf8013300 0x0 0x80>, <0x0 0xf8013380 0x0 0x80>, <0x0 0xf8013400 0x0 0x80>,
+		      <0x0 0xf8013480 0x0 0x80>, <0x0 0xf8013500 0x0 0x80>, <0x0 0xf8013580 0x0 0x80>,
+		      <0x0 0xf8013600 0x0 0x80>, <0x0 0xf8013680 0x0 0x80>, <0x0 0xf8013700 0x0 0x80>,
+		      <0x0 0xf8013780 0x0 0x80>, <0x0 0xf8013800 0x0 0x80>, <0x0 0xf8013880 0x0 0x80>,
+		      <0x0 0xf8013900 0x0 0x80>, <0x0 0xf8013980 0x0 0x80>, <0x0 0xf8013a00 0x0 0x80>,
+			  <0x0 0xf8013a80 0x0 0x80>, <0x0 0xf8013b00 0x0 0x80>, <0x0 0xf8013b80 0x0 0x80>;
+		reg-names = "axi_mon", "axi_0", "axi_1",
+			    "axi_2", "axi_3", "axi_4",
+			    "axi_5", "axi_6", "axi_7",
+			    "axi_8", "axi_9", "axi_10",
+			    "axi_11", "axi_12", "axi_13",
+			    "axi_14", "axi_15", "axi_16",
+			    "axi_17", "axi_18", "axi_19",
+			    "axi_20", "axi_21", "axi_22",
+			    "axi_23", "axi_24", "axi_25",
+			    "axi_26", "axi_27", "axi_28",
+				"axi_29", "axi_30", "axi_31";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	mmc1: mmc@f8003e80 {
+		compatible = "sunplus,sp7350-sd";
+		reg = <0x0 0xf8003e80 0x0 0x180>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CARD_CTL1>;
+		resets = <&rstc RST_CARD_CTL1>;
+		bus-width = <4>;
+		max-frequency = <200000000>;
+		disable-wp;
+		cap-sd-highspeed;
+		sd-uhs-sdr12;
+		sd-uhs-sdr25;
+		sd-uhs-sdr50;
+		sd-uhs-sdr104;
+		sd-uhs-ddr50;
+	};
+
+	sdio: sdio@f8008400 {
+		compatible = "sunplus,sp7350-1v8-sdio";
+		reg = < 0x0 0xf8008400 0x0 0x180>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CARD_CTL2>;
+		resets = <&rstc RST_CARD_CTL2>;
+		bus-width = <4>;
+	};
+
+	sp_uphy0: uphy@f8004a80 {
+		compatible = "sunplus,sp7350-usb2-phy";
+		clocks = <&clkc UPHY0>;
+		resets = <&rstc RST_UPHY0>;
+		reg = <0x0 0xf8004a80 0x0 0x80>, <0x0 0xf8800200 0x0 0x80>;
+		reg-names = "phy", "moon4";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+		nvmem-cell-names = "disc_vol";
+		nvmem-cells = <&disc_vol>;
+		#phy-cells = <0>;
+		sunplus,disc-vol-addr-off = <0>;
+	};
+
+	ehci0: usb@f8102100 {
+		compatible = "sunplus,sp7350-usb-ehci";
+		clocks = <&clkc USBC0>;
+		resets = <&rstc RST_USBC0>;
+		reg = <0x00 0xf8102100 0x00 0x68>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
+		phys = <&sp_uphy0>;
+		phy-names = "uphy";
+	};
+
+	ohci0: usb@f8102080 {
+		compatible = "sunplus,sp7350-usb-ohci";
+		clocks = <&clkc USBC0>;
+		resets = <&rstc RST_USBC0>;
+		reg = <0x00 0xf8102080 0x00 0x68>, <0x00 0xf8800000 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+		phys = <&sp_uphy0>;
+		phy-names = "uphy";
+	};
+
+	udc0: usb@f8102800 {
+		compatible = "sunplus,sp7350-usb-udc";
+		clocks = <&clkc USBC0>;
+		resets = <&rstc RST_USBC0>;
+		reg = <0x0 0xf8102800 0x0 0x288>, <0x0 0xf8800200 0x0 0x80>, <0x0 0xf8800000 0x0 0x80>,
+		      <0x0 0xf8800080 0x0 0x80>, <0x0 0xf8800100 0x0 0x80>, <0x0 0xf8004a80 0x0 0x80>,
+		      <0x0 0xf8802380 0x0 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+		phys = <&sp_uphy0>;
+		phy-names = "uphy";
+	};
+
+	otg: usb@f8102400 {
+		compatible = "sunplus,sp7350-usb-otg";
+		clocks = <&clkc USBC0>;
+		resets = <&rstc RST_USBC0>;
+		reg = <0x0 0xf8102400 0x0 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+		phys = <&sp_uphy0>;
+		phy-names = "uphy";
+	};
+
+	extcon_dwc3drd: extcon_usb3 {
+		compatible = "linux,extcon-usb-gpio";
+	};
+
+	usb3drd0: usb3drd0{
+		compatible = "sunplus,dwcusb3";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		clocks = <&clkc USB30C0>, <&clkc USB30C0>, <&clkc USB30C0>;
+		clock-names = "ref","bus_early","suspend";
+		resets = <&rstc RST_USB30C0>;
+
+		usbdrd_dwc3_0: dwc3@f80a1000 {
+			compatible = "synopsys,dwc3";
+			reg = <0x0 0xf80a1000 0x0 0xe000>;
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+			snps,dis_u2_susphy_quirk;
+			phy_type = "utmi_wide";
+			extcon = <&extcon_dwc3drd>;
+			phys = <&u3phy0>, <&u3phy0>;
+			phy-names = "usb3-phy", "usb2-phy";
+		};
+	};
+
+	spdwc3: spdwc3@f80a1000 {
+		compatible = "sunplus,dwc3";
+		reg = <0x0 0xf80a1000 0x0 0xe000>;
+	};
+
+	u3phy0: uphy@f80bd000 {
+		compatible = "sunplus,usb3-phy";
+		reg = <0x0 0xf80bd000 0x0 0x80>, <0x0 0xf80a1430 0x0 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc U3PHY0>, <&clkc USB30C0>;
+		clock-names = "clkc_u3phy", "clkc_u3";
+		resets = <&rstc RST_U3PHY0>;
+		reset-names = "rstc_u3phy";
+		#phy-cells = <0>;
+	};
+
+	pcm_driver: spsoc-pcm-driver {
+		compatible = "sunplus,audio-pcm";
+	};
+
+	aud_codec: spsoc-aud-codec {
+		compatible = "sunplus,audio-codec";
+	};
+
+	audio: audio@f8800480 {
+		compatible = "sunplus,audio";
+		reg = <0x00 0xf8800480 0x00 0x700>;
+		reg-names = "audio";
+		clocks = <&clkc AUD>, <&clkc PLLA>;
+		clock-names = "aud", "pll_a";
+		resets = <&rstc RST_AUD>;
 	};
 
 	sp_spinor0: spinor@f8000b00 {
