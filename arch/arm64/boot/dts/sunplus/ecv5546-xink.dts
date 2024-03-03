@@ -391,210 +391,6 @@
 		status = "okay";
 	};
 
-	display: display@f8005c80 {
-		compatible = "sunplus,sp7350-display";
-		reg = <0x00 0xf8005c80 0x00 0xa80>, <0x00 0xf8800180 0x00 0x80>;
-		interrupt-parent = <&gic>;
-		interrupts =
-			<GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
-		clocks =
-			<&clkc DISPSYS>, <&clkc DMIX>, <&clkc GPOST0>, <&clkc GPOST1>,
-			<&clkc GPOST2>, <&clkc GPOST3>, <&clkc IMGREAD0>, <&clkc MIPITX>,
-			<&clkc OSD0>, <&clkc OSD1>, <&clkc OSD2>, <&clkc OSD3>,
-			<&clkc TCON>, <&clkc TGEN>, <&clkc VPOST0>, <&clkc VSCL0>;
-		clock-names =
-			"clkc_dispsys", "clkc_dmix", "clkc_gpost0", "clkc_gpost1",
-			"clkc_gpost2", "clkc_gpost3", "clkc_imgread0", "clkc_mipitx",
-			"clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
-			"clkc_tcon", "clkc_tgen", "clkc_vpost0", "clkc_vscl0";
-		resets =
-			<&rstc RST_DISPSYS>, <&rstc RST_DMIX>, <&rstc RST_GPOST0>, <&rstc RST_GPOST1>,
-			<&rstc RST_GPOST2>, <&rstc RST_GPOST3>, <&rstc RST_IMGREAD0>, <&rstc RST_MIPITX>,
-			<&rstc RST_OSD0>, <&rstc RST_OSD1>, <&rstc RST_OSD2>, <&rstc RST_OSD3>,
-			<&rstc RST_TCON>, <&rstc RST_TGEN>, <&rstc RST_VPOST0>, <&rstc RST_VSCL0>;
-		reset-names =
-			"rstc_dispsys", "rstc_dmix", "rstc_gpost0", "rstc_gpost1",
-			"rstc_gpost2", "rstc_gpost3", "rstc_imgread0", "rstc_mipitx",
-			"rstc_osd0", "rstc_osd1", "rstc_osd2", "rstc_osd3",
-			"rstc_tcon", "rstc_tgen", "rstc_vpost0", "rstc_vscl0";
-		status = "okay";
-#if defined(DISP_MIPITX_CSI)
-	#if defined(DISP_MIPITX_CSI_480P)
-		sp7350,dev_name = "MIPITX-CSI-TEST_480P";
-		sp7350,osd0_layer = <0 0 720 480 0x4>; /* 0x4 = YUY2 */
-		sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <720 480 0x1>; /* 0x1:MIPITX CSI */
-	#elif defined(DISP_MIPITX_CSI_720P)
-		sp7350,dev_name = "MIPITX-CSI-TEST_720P";
-		sp7350,osd0_layer = <0 0 1280 720 0x4>; /* 0x4 = YUY2 */
-		sp7350,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <1280 720 0x1>; /* 0x1:MIPITX CSI */
-	#elif defined(DISP_MIPITX_CSI_1080P)
-		sp7350,dev_name = "MIPITX-CSI-TEST_1080P";
-		sp7350,osd0_layer = <0 0 1920 1080 0x4>; /* 0x4 = YUY2 */
-		sp7350,vpp0_layer = <0 0 1920 1080 1920 1080 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <1920 1080 0x1>; /* 0x1:MIPITX CSI */
-	#elif defined(DISP_MIPITX_CSI_3840)
-		sp7350,dev_name = "MIPITX-CSI-TEST_3840";
-		sp7350,osd0_layer = <0 0 3840 2880 0x4>; /* 0x4 = YUY2 */
-		sp7350,vpp0_layer = <0 0 3840 2880 3840 2880 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <3840 2880 0x1>; /* 0x1:MIPITX CSI */
-	#else
-		sp7350,dev_name = "MIPITX-CSI-TEST_720P";
-		sp7350,osd0_layer = <0 0 1280 720 0x4>; /* 0x4 = YUY2 */
-		sp7350,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <1280 720 0x1>; /* 0x1:MIPITX CSI */
-	#endif
-		sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
-		sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
-		sp7350,disp_mipitx_format = <0x1>; /* 0x1:MIPITX format CSI_16BITS YUY2 */
-
-#elif defined(DISP_MIPITX_DSI_PANEL_240X320)
-		sp7350,dev_name = "TCXD024IBLON-2";
-
-		sp7350,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-		//sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-		//sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-		//sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-		sp7350,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
-
-		sp7350,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
-		sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-		sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x1:Sync Pulse */
-		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-#elif defined(DISP_MIPITX_DSI_PANEL_480X1280)
-		//reset-gpios = <&pctl 56 GPIO_ACTIVE_HIGH>;
-		sp7350,dev_name = "HXM0686TFT-001";
-		sp7350,osd0_layer = <0 0 480 1280 0xe>; /* 0xe = ARGB8888 */
-		sp7350,osd1_layer = <0 240 480 1280 0x2>; /* 0x2 = 8bpp */
-		sp7350,osd2_layer = <0 480 480 1280 0x2>; /* 0x2 = 8bpp */
-		sp7350,osd3_layer = <0 720 480 1280 0x2>; /* 0x2 = 8bpp */
-
-		//sp7350,osd0_layer = <0 0 200 200 0xe>; /* 0xe = ARGB8888 */
-		//sp7350,osd1_layer = <280 0 200 200 0xe>; /* 0xe = ARGB8888 */
-		//sp7350,osd2_layer = <0 1080 200 200 0xe>; /* 0xe = ARGB8888 */
-		//sp7350,osd3_layer = <280 1080 200 200 0xe>; /* 0xe = ARGB8888 */
-			/* 0x2 = 8bpp (ARGB)
-			 * 0x4 = YUY2
-			 * 0x8 = RGB565
-			 * 0x9 = ARGB1555
-			 * 0xa = RGBA4444
-			 * 0xb = ARGB4444
-			 * 0xd = RGBA8888
-			 * 0xe = ARGB8888
-			 */
-	#if defined(DISP_MIPITX_DSI_VPP_SRC_480P)
-		sp7350,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
-	#elif defined(DISP_MIPITX_DSI_VPP_SRC_720P)
-		sp7350,vpp0_layer = <0 0 1280 720 480 1280 0x2>; /* 0x2 = YUY2 */
-	#elif defined(DISP_MIPITX_DSI_VPP_SRC_1080P)
-		sp7350,vpp0_layer = <0 0 1920 1080 480 1280 0x2>; /* 0x2 = YUY2 */
-	#elif defined(DISP_MIPITX_DSI_VPP_SRC_3840)
-		sp7350,vpp0_layer = <0 0 3840 2880 480 1280 0x2>; /* 0x2 = YUY2 */
-	#else
-		sp7350,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
-			/* 0x1 = UYVY
-			 * 0x2 = YUY2
-			 * 0x3 = NV16
-			 * 0x6 = NV24
-			 * 0x7 = NV12
-			 * else YUY2
-			 */
-	#endif
-
-		sp7350,disp_output = <480 1280 0x0>; /* 0x0:MIPITX DSI */
-			/* 0x0:MIPITX DSI
-			 * 0x1:MIPITX CSI
-			 */
-		sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-			/* 0x1 = 1 lane
-			 * 0x2 = 2 lane
-			 * 0x4 = 4 lane
-			 */
-		sp7350,disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-			/* 0x0:Raising Edge
-			 * 0x1:Falling Edge
-			 */
-		sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
-			/* 0x0:Sync Pulse
-			 * 0x1:Sync Event
-			 */
-		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-			/* 0x0 = DSI RGB565        / CSI_16BITS RGB565
-			 * 0x1 = DSI RGB666_18BITS / CSI_16BITS YUY2 8bit
-			 * 0x2 = DSI RGB666_24BITS / CSI_20BITS YUY2 10bit
-			 * 0x3 = DSI RGB888        / CSI_24BITS RGB888
-			 */
-#elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
-		sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
-		sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 720 480 800 480 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <800 480 0x0>; /* 0x0:MIPITX DSI */
-		sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
-		sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x0:Sync Pulse */
-		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-		port {
-			disp_phy: endpoint {
-				remote-endpoint = <&panel_dsi_port>;
-			};
-		};
-
-#elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
-		sp7350,dev_name = "LT8912B-HDMI";
-	#if defined(LT8912B_HDMI_480X272)
-		sp7350,osd0_layer = <0 0 480 272 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 720 480 480 272 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
-	#elif defined(LT8912B_HDMI_480P)
-		sp7350,osd0_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd1_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd2_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd3_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
-	#elif defined(LT8912B_HDMI_720P)
-		sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
-	#elif defined(LT8912B_HDMI_1080P)
-		sp7350,osd0_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd1_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd2_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd3_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 720 480 1920 1080 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <1920 1080 0x0>; /* 0x0:MIPITX DSI */
-	#else
-		sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-		sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
-		sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
-	#endif
-		sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-		sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
-		sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
-		sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-#endif
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
-		port {
-			disp_phy: endpoint {
-				remote-endpoint = <&lt8912b_in>;
-			};
-		};
-#endif
-	};
-
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
 	hdmi-connector {
 		compatible = "hdmi-connector";
@@ -1480,274 +1276,27 @@
 };
 
 &mipicsirx0 {
-#if defined(IMX219_IN0) || defined(TP2815_IN0)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	/* Virtual channel related properties */
-	max_channels = <4>;
-#ifdef IMX219_IN0
-	num_channels = <1>;
-#elif defined(TP2815_IN0)
-	#ifdef TP2815_IN0_2VC
-	num_channels = <2>;
-	#else
-	num_channels = <1>;
-	#endif
-#else
-	num_channels = <2>;
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN0 /* Add imx219 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_0: endpoint {
-				remote-endpoint = <&imx219_0>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef TP2815_IN0 /* Add tp2815 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_0: endpoint {
-				remote-endpoint = <&tp2815_0>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-	#ifdef TP2815_IN0_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-			};
-		};
-#endif
-
-		/* Output port node, multiple endpoints, connected to VIN modules */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			csi0vin0: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&vin0csi0>;
-			};
-
-			csi0vin1: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&vin1csi0>;
-			};
-		};
-	};
 };
 
 &vin0 {
-#if defined(IMX219_IN0) || defined(TP2815_IN0)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin0csi0: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&csi0vin0>;
-			};
-		};
-	};
 };
 
 &vin1 {
-#if defined(TP2815_IN0) && defined(TP2815_IN0_2VC)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin1csi0: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&csi0vin1>;
-			};
-		};
-	};
 };
 
 &mipicsirx1 {
-#if defined(IMX219_IN1) || defined(OV5647_IN1) || defined(TP2815_IN1)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	/* Virtual channel related properties */
-	max_channels = <4>;
-#if defined(IMX219_IN1) || defined(OV5647_IN1)
-	num_channels = <1>;
-#elif defined(TP2815_IN1)
-	#ifdef TP2815_IN1_2VC
-	num_channels = <2>;
-	#else
-	num_channels = <1>;
-	#endif
-#else
-	num_channels = <2>;
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN1 /* Add imx219 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_1: endpoint {
-				remote-endpoint = <&imx219_1>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef OV5647_IN1 /* Add imx219 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_1: endpoint {
-				remote-endpoint = <&ov5647_1>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef TP2815_IN1 /* Add tp2815 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_1: endpoint {
-				remote-endpoint = <&tp2815_1>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-	#ifdef TP2815_IN1_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-			};
-		};
-#endif
-
-		/* Output port node, multiple endpoints, connected to VIN modules */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			csi1vin2: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&vin2csi1>;
-			};
-
-			csi1vin3: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&vin3csi1>;
-			};
-		};
-	};
 };
 
 &vin2 {
-#if defined(IMX219_IN1) || defined(OV5647_IN1) || defined(TP2815_IN1)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin2csi1: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&csi1vin2>;
-			};
-		};
-	};
 };
 
 &vin3 {
-#if defined(TP2815_IN1) && defined(TP2815_IN1_2VC)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin3csi1: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&csi1vin3>;
-			};
-		};
-	};
 };
 
 &mipicsirx2 {
@@ -2398,6 +1947,188 @@
 			};
 		};
 	};
+};
+
+&display {
+	status = "okay";
+#if defined(DISP_MIPITX_CSI)
+	#if defined(DISP_MIPITX_CSI_480P)
+	sp7350,dev_name = "MIPITX-CSI-TEST_480P";
+	sp7350,osd0_layer = <0 0 720 480 0x4>; /* 0x4 = YUY2 */
+	sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <720 480 0x1>; /* 0x1:MIPITX CSI */
+	#elif defined(DISP_MIPITX_CSI_720P)
+	sp7350,dev_name = "MIPITX-CSI-TEST_720P";
+	sp7350,osd0_layer = <0 0 1280 720 0x4>; /* 0x4 = YUY2 */
+	sp7350,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <1280 720 0x1>; /* 0x1:MIPITX CSI */
+	#elif defined(DISP_MIPITX_CSI_1080P)
+	sp7350,dev_name = "MIPITX-CSI-TEST_1080P";
+	sp7350,osd0_layer = <0 0 1920 1080 0x4>; /* 0x4 = YUY2 */
+	sp7350,vpp0_layer = <0 0 1920 1080 1920 1080 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <1920 1080 0x1>; /* 0x1:MIPITX CSI */
+	#elif defined(DISP_MIPITX_CSI_3840)
+	sp7350,dev_name = "MIPITX-CSI-TEST_3840";
+	sp7350,osd0_layer = <0 0 3840 2880 0x4>; /* 0x4 = YUY2 */
+	sp7350,vpp0_layer = <0 0 3840 2880 3840 2880 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <3840 2880 0x1>; /* 0x1:MIPITX CSI */
+	#else
+	sp7350,dev_name = "MIPITX-CSI-TEST_720P";
+	sp7350,osd0_layer = <0 0 1280 720 0x4>; /* 0x4 = YUY2 */
+	sp7350,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <1280 720 0x1>; /* 0x1:MIPITX CSI */
+	#endif
+
+	sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
+	sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
+	sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
+	sp7350,disp_mipitx_format = <0x1>; /* 0x1:MIPITX format CSI_16BITS YUY2 */
+
+#elif defined(DISP_MIPITX_DSI_PANEL_240X320)
+	sp7350,dev_name = "TCXD024IBLON-2";
+
+	sp7350,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	//sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	//sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	//sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
+
+	sp7350,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
+	sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
+	sp7350,disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
+	sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x1:Sync Pulse */
+	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
+
+#elif defined(DISP_MIPITX_DSI_PANEL_480X1280)
+	//reset-gpios = <&pctl 56 GPIO_ACTIVE_HIGH>;
+	sp7350,dev_name = "HXM0686TFT-001";
+	sp7350,osd0_layer = <0 0 480 1280 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd1_layer = <0 240 480 1280 0x2>; /* 0x2 = 8bpp */
+	sp7350,osd2_layer = <0 480 480 1280 0x2>; /* 0x2 = 8bpp */
+	sp7350,osd3_layer = <0 720 480 1280 0x2>; /* 0x2 = 8bpp */
+
+	//sp7350,osd0_layer = <0 0 200 200 0xe>; /* 0xe = ARGB8888 */
+	//sp7350,osd1_layer = <280 0 200 200 0xe>; /* 0xe = ARGB8888 */
+	//sp7350,osd2_layer = <0 1080 200 200 0xe>; /* 0xe = ARGB8888 */
+	//sp7350,osd3_layer = <280 1080 200 200 0xe>; /* 0xe = ARGB8888 */
+		/* 0x2 = 8bpp (ARGB)
+		 * 0x4 = YUY2
+		 * 0x8 = RGB565
+		 * 0x9 = ARGB1555
+		 * 0xa = RGBA4444
+		 * 0xb = ARGB4444
+		 * 0xd = RGBA8888
+		 * 0xe = ARGB8888
+		 */
+	#if defined(DISP_MIPITX_DSI_VPP_SRC_480P)
+	sp7350,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
+	#elif defined(DISP_MIPITX_DSI_VPP_SRC_720P)
+	sp7350,vpp0_layer = <0 0 1280 720 480 1280 0x2>; /* 0x2 = YUY2 */
+	#elif defined(DISP_MIPITX_DSI_VPP_SRC_1080P)
+	sp7350,vpp0_layer = <0 0 1920 1080 480 1280 0x2>; /* 0x2 = YUY2 */
+	#elif defined(DISP_MIPITX_DSI_VPP_SRC_3840)
+	sp7350,vpp0_layer = <0 0 3840 2880 480 1280 0x2>; /* 0x2 = YUY2 */
+	#else
+	sp7350,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
+		/* 0x1 = UYVY
+		 * 0x2 = YUY2
+		 * 0x3 = NV16
+		 * 0x6 = NV24
+		 * 0x7 = NV12
+		 * else YUY2
+		 */
+	#endif
+
+	sp7350,disp_output = <480 1280 0x0>; /* 0x0:MIPITX DSI */
+		/* 0x0:MIPITX DSI
+		 * 0x1:MIPITX CSI
+		 */
+	sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
+		/* 0x1 = 1 lane
+		 * 0x2 = 2 lane
+		 * 0x4 = 4 lane
+		 */
+	sp7350,disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
+		/* 0x0:Raising Edge
+		 * 0x1:Falling Edge
+		 */
+	sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
+		/* 0x0:Sync Pulse
+		 * 0x1:Sync Event
+		 */
+	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
+		/* 0x0 = DSI RGB565        / CSI_16BITS RGB565
+		 * 0x1 = DSI RGB666_18BITS / CSI_16BITS YUY2 8bit
+		 * 0x2 = DSI RGB666_24BITS / CSI_20BITS YUY2 10bit
+		 * 0x3 = DSI RGB888        / CSI_24BITS RGB888
+		 */
+
+#elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
+	sp7350,dev_name = "RASPBERRYPI_DSI_PANEL";
+	sp7350,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,vpp0_layer = <0 0 720 480 800 480 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <800 480 0x0>; /* 0x0:MIPITX DSI */
+	sp7350,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
+	sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
+	sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x0:Sync Pulse */
+	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
+	port {
+		disp_phy: endpoint {
+			remote-endpoint = <&panel_dsi_port>;
+		};
+	};
+
+#elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
+	sp7350,dev_name = "LT8912B-HDMI";
+	#if defined(LT8912B_HDMI_480X272)
+	sp7350,osd0_layer = <0 0 480 272 0x8>; /* 0x8 = RGB565 */
+	sp7350,vpp0_layer = <0 0 720 480 480 272 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
+	#elif defined(LT8912B_HDMI_480P)
+	sp7350,osd0_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd1_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd2_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd3_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
+	sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
+	#elif defined(LT8912B_HDMI_720P)
+	sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
+	#elif defined(LT8912B_HDMI_1080P)
+	sp7350,osd0_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd1_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd2_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd3_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
+	sp7350,vpp0_layer = <0 0 720 480 1920 1080 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <1920 1080 0x0>; /* 0x0:MIPITX DSI */
+	#else
+	sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
+	sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
+	sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
+	#endif
+	sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
+	sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
+	sp7350,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
+	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
+#endif
+
+#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
+	port {
+		disp_phy: endpoint {
+			remote-endpoint = <&lt8912b_in>;
+		};
+	};
+#endif
 };
 
 &adc {
