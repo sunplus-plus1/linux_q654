@@ -1358,10 +1358,6 @@
 		status = "okay";
 	};
 
-	poweroff {
-		compatible = "sunplus,sp-poweroff";
-	};
-
 #if 0
 	dummymaster: dm@f8000700 {
 		compatible = "sunplus,sp7350-dm-test";
