@@ -32,14 +32,15 @@
 
 #define  DRM_PRIMARY_PLANE_ONLY  0
 
-#define XRES_MIN    20
-#define YRES_MIN    20
+#define XRES_MIN    16
+#define YRES_MIN    16
 
-#define XRES_DEF  1024
-#define YRES_DEF   768
-
-#define XRES_MAX  8192
-#define YRES_MAX  8192
+/* [TODO]:
+   For VPP, Max Resolution 3840x2880.
+   For OSD, Max Resolution 1920x1080.
+ */
+#define XRES_MAX  1920
+#define YRES_MAX  1080
 
 struct sp7350_drm_device {
 	struct device *dev;

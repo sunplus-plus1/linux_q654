@@ -45,7 +45,7 @@
 //#define AP6256_WIFI
 //#define AP6256_BT
 
-//#define CONFIG_DISP_DRM_SUPPORT
+#define CONFIG_DISP_DRM_SUPPORT
 
 #ifndef CONFIG_DISP_DRM_SUPPORT
 //#define DISP_MIPITX_CSI
@@ -113,6 +113,8 @@
 			no-map;
 		};
 
+
+
 		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
 		mipicsirx_reserve: mipicsirx@4f400000 {
 			compatible = "shared-dma-pool";
@@ -144,12 +146,21 @@
 			no-map;
 		};
 
+#ifdef CONFIG_DISP_DRM_SUPPORT
+		/* display drm reserve memory 0x5c000000 ~ 0x5fffffff, total 64M */
+		drm_disp_reserve: drm_reserve@5c000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x5c000000 0x0 0x4000000>;
+			reusable;
+		};
+#else
 		/* display fb reserve memory: 0x5c000000 ~ 0x5fffffff, total 64M */
 		fb_disp_reserve: fb@5c000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x5c000000 0x0 0x4000000>;
 			no-map;
 		};
+#endif
 
 		/* video encoder reserve memory: 0x60000000~0x73ffffff, total 320M */
 		video_codec_encode: vcodec@60000000 {
@@ -169,21 +180,12 @@
 			no-map;
 		};
 
-		/* video v4l2 0x80000000~0x88000000, total 384M */
+		/* video v4l2 0x80000000~0x98000000, total 384M */
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
 			no-map;
 		};
-
-#ifdef CONFIG_DISP_DRM_SUPPORT
-		/* display drm reserve memory 0x88000000 ~ 0x8fffffff, total 384M */
-		drm_disp_reserve: drm_reserve@88000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x0 0x88000000 0x0 0x18000000>;
-			no-map;
-		};
-#endif
 
 		/* CM4 reserve memory: 0xfa240000 ~ 0xfa29ffff, total 384K */
 		rproc0runaddr: cm4runaddr@fa240000 {
@@ -388,11 +390,13 @@
 		regulator-always-on;
 	};
 
+#ifndef CONFIG_DISP_DRM_SUPPORT
 	fb_disp_device {
 		compatible = "sunplus,sp7350-fb";
 		memory-region = <&fb_disp_reserve>;
 		status = "okay";
 	};
+#endif
 
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
 	hdmi-connector {
@@ -3166,5 +3170,5 @@
 };
 
 #ifdef CONFIG_DISP_DRM_SUPPORT
-#include "display-drm.dtsi"
+#include "sp7350-display-drm.dtsi"
 #endif
