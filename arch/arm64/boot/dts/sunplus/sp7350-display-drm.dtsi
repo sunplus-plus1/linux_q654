@@ -45,12 +45,16 @@
 
 			/* 0 for input port */
 			port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0>;
 				dsi_in0: endpoint@0 {
 					remote-endpoint = <&crtc0_out>;
+					reg = <0>;
 				};
 				dsi_in_example: endpoint@1 {
 					remote-endpoint = <&crtc1_out>;
+					reg = <1>;
 				};
 			};
 		};
@@ -58,6 +62,6 @@
 };
 
 //TODO: select output device, maybe auto selected.
-//#include "display-panel-raspberrypi.dtsi"
-#include "display-bridge-lt8912b.dtsi"
+//#include "sp7350-display-panel-raspberrypi.dtsi"
+#include "sp7350-display-bridge-lt8912b.dtsi"
 

@@ -163,10 +163,12 @@
 	ports {
 		/* 1 for output port */
 		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			reg = <1>;
-
 			dsi_out0: endpoint@0 {
 				remote-endpoint = <&lt8912b_in>;
+				reg = <0>;
 			};
 		};
 
