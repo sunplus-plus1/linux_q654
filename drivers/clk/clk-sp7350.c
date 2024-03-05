@@ -863,10 +863,6 @@ static void __init sp_clkc_init(struct device_node *np)
 	}
 	pr_debug("sp-clkc: qctl_regs = %px", qctl_regs);
 
-	/* enable all clks */
-	for (i = 0; i < 12; i++)
-		writel(0xffffffff, clk_regs + i * 4);
-
 	/* PLLs */
 	SP_REGISTER(PLLA);
 	SP_REGISTER(PLLC);
