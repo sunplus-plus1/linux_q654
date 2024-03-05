@@ -21,15 +21,14 @@
 #define RESET_SEMAPHORE			(0x554E4C4B)	/* free */
 
 struct sp_hwspinlock {
+	int reg_status[SP_MUTEX_NUM_LOCKS];
 	struct clk *clk;
 	struct hwspinlock_device bank;
 };
 
-
 static int sp_hwspinlock_trylock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
-
 	/* attempt to acquire the lock by reading its value */
 	return (SPINLOCK_UNLOCKED == readl(lock_addr));
 }
@@ -41,7 +40,6 @@ static void sp_hwspinlock_unlock(struct hwspinlock *lock)
 	/* release the lock by writing magic data to it */
 	writel(RESET_SEMAPHORE, lock_addr);
 }
-
 
 static void sp_hwspinlock_relax(struct hwspinlock *lock)
 {
@@ -80,6 +78,11 @@ static int sp_hwspinlock_probe(struct platform_device *pdev)
 		hw->bank.lock[i].priv = io_base + i * sizeof(u32);
 
 	platform_set_drvdata(pdev, hw);
+
+	ret = clk_prepare_enable(hw->clk);
+	if (ret)
+		return ret;
+
 	pm_runtime_enable(&pdev->dev);
 
 	ret = hwspin_lock_register(&hw->bank, &pdev->dev, &sp_hwspinlock_ops,
@@ -107,7 +110,16 @@ static int sp_hwspinlock_remove(struct platform_device *pdev)
 
 static int __maybe_unused sp_hwspinlock_runtime_suspend(struct device *dev)
 {
+	int i;
 	struct sp_hwspinlock *hw = dev_get_drvdata(dev);
+
+	for (i = 0; i < SP_MUTEX_NUM_LOCKS; i++){
+		void __iomem *lock_addr = hw->bank.lock[i].priv;
+		if(SPINLOCK_UNLOCKED == readl(lock_addr))
+			writel(RESET_SEMAPHORE, lock_addr);
+		else
+			hw->reg_status[i] = 1; /*flag this hwspin status, re-set in resume*/
+	}
 
 	clk_disable_unprepare(hw->clk);
 
@@ -116,17 +128,23 @@ static int __maybe_unused sp_hwspinlock_runtime_suspend(struct device *dev)
 
 static int __maybe_unused sp_hwspinlock_runtime_resume(struct device *dev)
 {
+	int i;
 	struct sp_hwspinlock *hw = dev_get_drvdata(dev);
 
 	clk_prepare_enable(hw->clk);
+
+	for (i = 0; i < SP_MUTEX_NUM_LOCKS; i++){
+		void __iomem *lock_addr = hw->bank.lock[i].priv;
+		if(hw->reg_status[i])
+			readl(lock_addr);
+	}
 
 	return 0;
 }
 
 static const struct dev_pm_ops sp_hwspinlock_pm_ops = {
-	SET_RUNTIME_PM_OPS(sp_hwspinlock_runtime_suspend,
-			   sp_hwspinlock_runtime_resume,
-			   NULL)
+	.suspend	= sp_hwspinlock_runtime_suspend,
+	.resume		= sp_hwspinlock_runtime_resume,
 };
 static const struct of_device_id sp_hwspinlock_of_match[] = {
 	{ .compatible = "sp,sunplus-hwspinlock", },
