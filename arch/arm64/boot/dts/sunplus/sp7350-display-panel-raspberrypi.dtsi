@@ -48,10 +48,12 @@
 	ports {
 		/* 1 for output port */
 		port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			reg = <1>;
-
 			dsi_out0: endpoint@0 {
 				remote-endpoint = <&panel_dsi_port>;
+				reg = <0>;
 			};
 		};
 
