@@ -62,6 +62,6 @@
 };
 
 //TODO: select output device, maybe auto selected.
-#include "sp7350-display-panel-raspberrypi.dtsi"
-//#include "sp7350-display-bridge-lt8912b.dtsi"
+//#include "sp7350-display-panel-raspberrypi.dtsi"
+#include "sp7350-display-bridge-lt8912b.dtsi"
 
