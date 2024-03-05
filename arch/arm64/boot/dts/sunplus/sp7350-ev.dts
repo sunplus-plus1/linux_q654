@@ -45,7 +45,7 @@
 //#define AP6256_WIFI
 //#define AP6256_BT
 
-#define CONFIG_DISP_DRM_SUPPORT
+//#define CONFIG_DISP_DRM_SUPPORT
 
 #ifndef CONFIG_DISP_DRM_SUPPORT
 //#define DISP_MIPITX_CSI
@@ -94,6 +94,13 @@
 		#size-cells = <2>;
 		ranges;
 
+		/* warmboot reserve memory: 0x100000-0x200000, total 1M, load firmware in rproc */
+		rproc_0_reserved: rproc0@100000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x100000 0x0 0x100000>;
+			no-map;
+		};
+
 		/* TF-A reserve memory: 0x200000-0x2fffff, total 1M */
 		tfa_reserve@200000 {
 			reg = <0x0 0x200000 0x0 0x100000>;
@@ -105,15 +112,6 @@
 			reg = <0x0 0x300000 0x0 0x200000>;
 			no-map;
 		};
-
-		/* warmboot reserve memory: 0x100000-0x200000, total 1M, load firmware in rproc */
-		rproc_0_reserved: rproc0@100000 {
-			compatible = "shared-dma-pool";
-			reg = <0x0 0x100000 0x0 0x100000>;
-			no-map;
-		};
-
-
 
 		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
 		mipicsirx_reserve: mipicsirx@4f400000 {
@@ -180,7 +178,7 @@
 			no-map;
 		};
 
-		/* video v4l2 0x80000000~0x98000000, total 384M */
+		/* video v4l2 0x80000000~0x97fffff, total 384M */
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
