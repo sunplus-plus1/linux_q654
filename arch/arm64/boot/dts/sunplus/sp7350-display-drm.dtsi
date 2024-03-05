@@ -6,7 +6,7 @@
 
 	drm_display_engine: drm {
 		compatible = "sunplus,sp7350-display-engine";
-		memory-region = <&drm_disp_reserve>;
+		memory-region = <&disp_reserve>;
 		status = "disabled";
 	};
 
