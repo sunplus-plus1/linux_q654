@@ -899,6 +899,8 @@
 	adc: adc@f8802f00 {
 		compatible = "sunplus,sp7350-adc";
 		reg = <0x0 0xf8802f00 0x0 0x80>;
+		clocks = <&clkc SAR12B>;
+		resets = <&rstc RST_SAR12B>;
 		hwlocks = <&hwlock 1>;
 	};
 
