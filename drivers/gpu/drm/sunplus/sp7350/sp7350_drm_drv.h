@@ -36,8 +36,8 @@
 #define YRES_MIN    16
 
 /* [TODO]:
-   For VPP, Max Resolution 3840x2880.
-   For OSD, Max Resolution 1920x1080.
+ *  For VPP, Max Resolution 3840x2880.
+ *  For OSD, Max Resolution 1920x1080.
  */
 #define XRES_MAX  1920
 #define YRES_MAX  1080

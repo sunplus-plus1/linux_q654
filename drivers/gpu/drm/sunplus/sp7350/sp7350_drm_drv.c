@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Sunplus SP7350 SoC DRM driver
  *
@@ -101,7 +101,8 @@ static int sp7350_drm_bind(struct device *dev)
 	int ret = 0;
 
 	/* using device-specific reserved memorym,
-	   defined at dts with label drm_disp_reserve */
+	 *  defined at dts with label drm_disp_reserve
+	 */
 	ret = of_reserved_mem_device_init(dev);
 	if (!ret) {
 		DRM_DEV_DEBUG_DRIVER(dev, "using device-specific reserved memory\n");

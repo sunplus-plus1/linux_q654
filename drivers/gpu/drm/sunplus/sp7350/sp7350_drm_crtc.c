@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Sunplus SP7350 SoC DRM CRTCs
  *
@@ -19,6 +19,9 @@
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_plane.h"
 
+/* always keep 0 */
+#define SP7350_DRM_TODO    0
+
 static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 	.destroy	= drm_crtc_cleanup,
 	.set_config	= drm_atomic_helper_set_config,
@@ -29,7 +32,7 @@ static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 };
 
 static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
-				  struct drm_crtc_state *state)
+					struct drm_crtc_state *state)
 {
 	/* TODO reference to vkms_crtc_atomic_check */
 	DRM_DEBUG_DRIVER("[TODO]\n");
@@ -37,7 +40,7 @@ static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void sp7350_drm_crtc_atomic_enable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
+					  struct drm_crtc_state *old_state)
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_on(crtc);
@@ -45,7 +48,7 @@ static void sp7350_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
-					 struct drm_crtc_state *old_state)
+					   struct drm_crtc_state *old_state)
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_off(crtc);
@@ -53,14 +56,14 @@ static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void sp7350_drm_crtc_atomic_begin(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+					 struct drm_crtc_state *old_crtc_state)
 {
 	/* TODO reference to vkms_crtc_atomic_begin */
 	DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_crtc_state)
+					 struct drm_crtc_state *old_crtc_state)
 {
 	/* TODO reference to vkms_crtc_atomic_flush */
 	//struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
@@ -89,7 +92,7 @@ static const struct drm_crtc_helper_funcs sp7350_drm_crtc_helper_funcs = {
 };
 
 static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
-					struct drm_crtc *crtc)
+					   struct drm_crtc *crtc)
 {
 	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
 	const enum sp7350_drm_encoder_type *encoder_types = sp7350_crtc->encoder_types;
@@ -114,7 +117,7 @@ static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
 }
 
 int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
-		   struct drm_plane *primary, struct drm_plane *cursor)
+			 struct drm_plane *primary, struct drm_plane *cursor)
 {
 	struct device_node *port;
 	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
@@ -126,7 +129,7 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	 */
 	port = of_get_child_by_name(sp7350_crtc->pdev->dev.of_node, "port");
 	if (!port) {
-		DRM_DEV_ERROR(drm->dev,"no port node found in %pOF\n", sp7350_crtc->pdev->dev.of_node);
+		DRM_DEV_ERROR(drm->dev, "no port node found in %p\n", sp7350_crtc->pdev->dev.of_node);
 		return -EINVAL;
 	}
 	of_node_put(port);
@@ -155,7 +158,7 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	drm_crtc_helper_add(crtc, &sp7350_drm_crtc_helper_funcs);
 
 	/* TODO: set C3V SOC DISPLAY HW TCON feature... */
-	#if 0
+	#if SP7350_DRM_TODO
 	drm_mode_crtc_set_gamma_size(crtc, ARRAY_SIZE(sp7350_crtc->lut_r));
 
 	drm_crtc_enable_color_mgmt(crtc, 0, false, crtc->gamma_size);
@@ -218,7 +221,7 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 }
 
 static void sp7350_crtc_unbind(struct device *dev, struct device *master,
-			    void *data)
+			       void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sp7350_drm_crtc *sp7350_crtc = dev_get_drvdata(dev);
@@ -250,6 +253,7 @@ static const struct of_device_id sp7350_crtc_dt_match[] = {
 	{ .compatible = "sunplus,sp7350-crtc0" },
 	{}
 };
+
 struct platform_driver sp7350_crtc_driver = {
 	.probe = sp7350_crtc_dev_probe,
 	.remove = sp7350_crtc_dev_remove,
