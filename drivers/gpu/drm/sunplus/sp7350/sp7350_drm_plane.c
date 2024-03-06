@@ -29,7 +29,7 @@ struct sp7350_plane_format {
 	u32 hw_format;
 };
 
-static const uint32_t sp7350_kms_vpp_formats[] = {
+static const u32 sp7350_kms_vpp_formats[] = {
 	DRM_FORMAT_YUYV,  /* SP7350_VPP_IMGREAD_DATA_FMT_YUY2 */
 	DRM_FORMAT_UYVY,  /* SP7350_VPP_IMGREAD_DATA_FMT_UYVY */
 	DRM_FORMAT_NV12,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV12 */
@@ -37,7 +37,7 @@ static const uint32_t sp7350_kms_vpp_formats[] = {
 	DRM_FORMAT_NV24,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV24 */
 };
 
-static const uint32_t sp7350_kms_osd_formats[] = {
+static const u32 sp7350_kms_osd_formats[] = {
 	DRM_FORMAT_C8,        /* SP7350_OSD_COLOR_MODE_8BPP ??? */
 	DRM_FORMAT_YUYV,      /* SP7350_OSD_COLOR_MODE_YUY2 */
 	DRM_FORMAT_RGB565,    /* SP7350_OSD_COLOR_MODE_RGB565 */
@@ -78,6 +78,7 @@ static const struct sp7350_plane_format sp7350_osd_formats[] = {
 	//{ DRM_FORMAT_RGBX8888, SP7350_OSD_COLOR_MODE_RGBA8888 },
 	//{ DRM_FORMAT_XRGB8888, SP7350_OSD_COLOR_MODE_ARGB8888 },
 };
+
 #define SP7350_FORMAT_UNSUPPORT 0xF
 
 /* convert from fourcc format to sp7530 vpp/osd format.
@@ -99,7 +100,7 @@ static u32 sp7350_get_format(u32 pixel_format, int type)
 
 	/* not found */
 	DRM_DEBUG_DRIVER("Not found pixel format!!fourcc_format= %d\n",
-		  pixel_format);
+			 pixel_format);
 	return SP7350_FORMAT_UNSUPPORT;
 }
 
@@ -113,7 +114,7 @@ static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
 };
 
 static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
-					 struct drm_plane_state *old_state)
+					       struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_cma_object *obj = NULL;
@@ -132,24 +133,24 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	}
 
 	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
-		      state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
+			 state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
 		      state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
 	sp7350_vpp_imgread_set((u32)obj->paddr,
-			state->src_x >> 16, state->src_y >> 16,
+			       state->src_x >> 16, state->src_y >> 16,
 			state->src_w >> 16, state->src_h >> 16,
 			state->fb->width, state->fb->height,
 			sp7350_get_format(state->fb->format->format, 1));
 
 	sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
-				state->src_w >> 16, state->src_h >> 16,
+			    state->src_w >> 16, state->src_h >> 16,
 				state->crtc_x, state->crtc_y,
 				state->crtc_w, state->crtc_h,
 				state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 
 	/* default setting for VPP OPIF(MASK function) */
 	sp7350_vpp_vpost_opif_set(state->crtc_x, state->crtc_y,
-			state->crtc_w, state->crtc_h,
+				  state->crtc_w, state->crtc_h,
 			state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 	/* for support letterbox boundary smoothly cropping,
 	 * should update opif setting with another plane window size.
@@ -158,9 +159,8 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 }
 
-
 static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
-					 struct drm_plane_state *old_state)
+					       struct drm_plane_state *old_state)
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_cma_object *obj = NULL;
@@ -219,18 +219,16 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	sp7350_osd_layer_set_by_region(&info, osd_layer_sel);
 
-
 	DRM_DEBUG_DRIVER("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
-		      drm_get_format_name(state->fb->format->format, &format_name),
+			 drm_get_format_name(state->fb->format->format, &format_name),
 		      state->fb->modifier, info.color_mode);
 	sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
 }
 
 static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+					     struct drm_plane_state *state)
 {
 	struct drm_crtc_state *crtc_state;
-
 
 	if (!state->fb || WARN_ON(!state->crtc)) {
 		DRM_DEBUG_DRIVER("return 0.\n");
@@ -254,10 +252,9 @@ static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
 }
 
 static int sp7350_kms_plane_osd_atomic_check(struct drm_plane *plane,
-				   struct drm_plane_state *state)
+					     struct drm_plane_state *state)
 {
 	struct drm_crtc_state *crtc_state;
-
 
 	if (!state->fb || WARN_ON(!state->crtc)) {
 		DRM_DEBUG_DRIVER("return 0\n");
@@ -272,7 +269,7 @@ static int sp7350_kms_plane_osd_atomic_check(struct drm_plane *plane,
 
 	if (state->crtc_w != state->src_w >> 16 || state->crtc_h != state->src_h >> 16) {
 		DRM_DEBUG_DRIVER("Check fail[src(%d, %d), crtc(%d,%d)], scale function unsuppord for OSD HW.\n",
-			state->src_w >> 16, state->src_h >> 16, state->crtc_w, state->crtc_h);
+				 state->src_w >> 16, state->src_h >> 16, state->crtc_w, state->crtc_h);
 		return -EINVAL;
 	}
 
@@ -290,8 +287,9 @@ static const struct drm_plane_helper_funcs sp7350_kms_osd_helper_funcs = {
 	.atomic_update		= sp7350_kms_plane_osd_atomic_update,
 	.atomic_check = sp7350_kms_plane_osd_atomic_check,
 };
+
 struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
-				  enum drm_plane_type type, int index)
+					enum drm_plane_type type, int index)
 {
 	const struct drm_plane_helper_funcs *funcs;
 	struct drm_plane *plane;
@@ -331,7 +329,7 @@ struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
 #endif
 
 	ret = drm_universal_plane_init(drm, plane, 1 << index,
-					   &sp7350_drm_plane_funcs,
+				       &sp7350_drm_plane_funcs,
 					   formats, nformats,
 					   NULL, type, NULL);
 	if (ret) {

@@ -5,7 +5,6 @@
  * Author: dx.jiang<dx.jiang@sunmedia.com.cn>
  */
 
-
 #include <linux/clk.h>
 
 #include <drm/drm_atomic.h>
@@ -24,7 +23,7 @@
 
 static struct drm_framebuffer *
 sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
-		    const struct drm_mode_fb_cmd2 *mode_cmd)
+			 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	if (!drm_any_plane_has_format(dev,
 				      mode_cmd->pixel_format,
@@ -32,7 +31,7 @@ sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 		struct drm_format_name_buf format_name;
 
 		DRM_DEV_DEBUG_DRIVER(dev->dev,
-			    "unsupported pixel format %s / modifier 0x%llx\n",
+				     "unsupported pixel format %s / modifier 0x%llx\n",
 			    drm_get_format_name(mode_cmd->pixel_format,
 						&format_name),
 			    mode_cmd->modifier[0]);

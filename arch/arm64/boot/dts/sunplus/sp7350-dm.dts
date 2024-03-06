@@ -41,7 +41,6 @@
 
 //#define CONFIG_DISP_DRM_SUPPORT
 
-#ifndef CONFIG_DISP_DRM_SUPPORT
 //#define DISP_MIPITX_CSI
 //#define DISP_MIPITX_CSI_480P
 //#define DISP_MIPITX_CSI_720P
@@ -63,7 +62,6 @@
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
 #define LT8912B_HDMI_1080P
-#endif
 
 #include "sp7350-common.dtsi"
 
@@ -369,14 +367,6 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
-
-#ifndef CONFIG_DISP_DRM_SUPPORT
-	fb_disp_device {
-		compatible = "sunplus,sp7350-fb";
-		memory-region = <&disp_reserve>;
-		status = "okay";
-	};
-#endif
 
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
 	hdmi-connector {
@@ -1029,7 +1019,6 @@
 		reg = <0x45>;
 		port {
 			panel_dsi_port: endpoint {
-			remote-endpoint = <&disp_phy>;
 			};
 		};
 	};
@@ -1064,7 +1053,6 @@
 			port@0 {
 				reg = <0>;
 				lt8912b_in: endpoint {
-					remote-endpoint = <&disp_phy>;
 					data-lanes = <1 2 3 4>;
 				};
 			};
@@ -2039,12 +2027,6 @@
 	sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
 	sp7350,disp_mipitx_sync_timing = <0x0>; /* 0x0:Sync Pulse */
 	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-	port {
-		disp_phy: endpoint {
-			remote-endpoint = <&panel_dsi_port>;
-		};
-	};
-
 #elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 	sp7350,dev_name = "LT8912B-HDMI";
 	#if defined(LT8912B_HDMI_480X272)
@@ -2086,12 +2068,20 @@
 	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
 #endif
 
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
+#ifndef CONFIG_DISP_DRM_SUPPORT
+#if defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
+	port {
+		disp_phy: endpoint {
+			remote-endpoint = <&panel_dsi_port>;
+		};
+	};
+#elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 	port {
 		disp_phy: endpoint {
 			remote-endpoint = <&lt8912b_in>;
 		};
 	};
+#endif
 #endif
 };
 
@@ -2751,5 +2741,75 @@
 };
 
 #ifdef CONFIG_DISP_DRM_SUPPORT
-#include "sp7350-display-drm.dtsi"
+&drm_display_engine {
+	status = "okay";
+};
+&crtc0 {
+	status = "okay";
+};
+&dsi0 {
+	status = "okay";
+};
+&fb_disp_device {
+	status = "disabled";
+};
+
+#ifdef RASPBERRYPI_DSI_PANEL
+&raspberrypi_lcd {
+	status = "okay";
+};
+&dsi_out0 {
+	remote-endpoint = <&panel_dsi_port>;
+};
+&panel_dsi_port {
+	remote-endpoint = <&dsi_out0>;
+};
+#elif defined(LT8912B_HDMI_ENABLE)
+&lontium_lt8912b {
+	status = "okay";
+};
+&dsi_out0 {
+	remote-endpoint = <&lt8912b_in>;
+};
+&lt8912b_in {
+	remote-endpoint = <&dsi_out0>;
+};
 #endif
+#else
+&fb_disp_device {
+	status = "okay";
+};
+&drm_display_engine {
+	status = "disabled";
+};
+&crtc0 {
+	status = "disabled";
+};
+&dsi0 {
+	status = "disabled";
+};
+
+#ifdef RASPBERRYPI_DSI_PANEL
+&raspberrypi_lcd {
+	status = "okay";
+};
+&panel_dsi_port {
+	remote-endpoint = <&disp_phy>;
+};
+#elif defined(LT8912B_HDMI_ENABLE)
+&lontium_lt8912b {
+	status = "okay";
+	#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
+	hdmi-timing = <0x0>;
+	#elif defined(LT8912B_HDMI_720P)
+	hdmi-timing = <0x2>;
+	#else
+	hdmi-timing = <0x3>;
+	#endif
+};
+&lt8912b_in {
+	remote-endpoint = <&disp_phy>;
+};
+#endif
+#endif
+

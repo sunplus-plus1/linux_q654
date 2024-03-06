@@ -69,11 +69,11 @@ struct sp7350_drm_crtc {
 	container_of(target, struct sp7350_drm_encoder, base)
 
 int sp7350_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
-		   struct drm_plane *primary, struct drm_plane *cursor);
+			 struct drm_plane *primary, struct drm_plane *cursor);
 void sp7350_drm_crtc_finish_page_flip(struct sp7350_drm_crtc *scrtc);
 void sp7350_drm_crtc_suspend(struct sp7350_drm_crtc *scrtc);
 void sp7350_drm_crtc_resume(struct sp7350_drm_crtc *scrtc);
 
-extern void __iomem *sp7350_display_ioremap_regs(int index);
+void __iomem *sp7350_display_ioremap_regs(int index);
 
 #endif /* __SUNPLUS_SP7350_DRM_CRTC_H__ */

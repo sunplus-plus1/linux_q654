@@ -110,7 +110,7 @@ static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 }
 
 static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *encoder,
-					const struct drm_display_mode *mode)
+							  const struct drm_display_mode *mode)
 
 {
 	const struct drm_crtc_helper_funcs *crtc_funcs = NULL;
@@ -146,7 +146,7 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 }
 
 static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
-				 struct drm_display_mode *mode,
+					struct drm_display_mode *mode,
 				 struct drm_display_mode *adj_mode)
 {
 	/* TODO reference to dsi_encoder_mode_set */
@@ -154,7 +154,7 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 }
 
 static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
-				    struct drm_crtc_state *crtc_state,
+					   struct drm_crtc_state *crtc_state,
 				    struct drm_connector_state *conn_state)
 {
 	/* do nothing */
@@ -201,14 +201,14 @@ static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 }
 
 static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *encoder,
-					    struct drm_connector *connector)
+							   struct drm_connector *connector)
 {
 	DRM_DEBUG_DRIVER("[TODO]encoder %s detect connector:%s\n", encoder->name, connector->name);
 	return connector->status;
 }
 
 static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
-				     const struct mipi_dsi_msg *msg)
+					const struct mipi_dsi_msg *msg)
 {
 	//struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 
@@ -226,7 +226,7 @@ static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 }
 
 static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
-			       struct mipi_dsi_device *device)
+				  struct mipi_dsi_device *device)
 {
 	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 
@@ -254,13 +254,13 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 		break;
 	default:
 		DRM_DEV_ERROR(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
-			dsi->format);
+			      dsi->format);
 		return 0;
 	}
 
 	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		DRM_DEV_ERROR(&dsi->pdev->dev,
-			"Only VIDEO mode panels supported currently.\n");
+			      "Only VIDEO mode panels supported currently.\n");
 		return 0;
 	}
 
@@ -268,7 +268,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 }
 
 static int sp7350_dsi_host_detach(struct mipi_dsi_host *host,
-			       struct mipi_dsi_device *device)
+				  struct mipi_dsi_device *device)
 {
 	DRM_DEBUG_DRIVER("[TODO]\n");
 	return 0;
@@ -279,7 +279,6 @@ static const struct mipi_dsi_host_ops sp7350_dsi_host_ops = {
 	.detach = sp7350_dsi_host_detach,
 	.transfer = sp7350_dsi_host_transfer,
 };
-
 
 static const struct drm_encoder_helper_funcs sp7350_dsi_encoder_helper_funcs = {
 	.atomic_check	= sp7350_dsi_encoder_atomic_check,
@@ -296,12 +295,11 @@ static const struct of_device_id sp7350_dsi_dt_match[] = {
 };
 
 static int sp7350_drm_encoder_init(struct device *dev,
-			       struct drm_device *drm_dev,
+				   struct drm_device *drm_dev,
 			       struct drm_encoder *encoder)
 {
 	int ret;
 	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
-
 
 	if (!crtc_mask) {
 		DRM_DEV_ERROR(dev, "failed to find crtc mask\n");
@@ -339,7 +337,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	dsi->port = 0;
 
 	sp7350_dsi_encoder = devm_kzalloc(dev, sizeof(*sp7350_dsi_encoder),
-				       GFP_KERNEL);
+					  GFP_KERNEL);
 	if (!sp7350_dsi_encoder)
 		return -ENOMEM;
 
@@ -413,7 +411,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 }
 
 static void sp7350_dsi_unbind(struct device *dev, struct device *master,
-			   void *data)
+			      void *data)
 {
 	struct sp7350_drm_dsi *dsi = dev_get_drvdata(dev);
 
