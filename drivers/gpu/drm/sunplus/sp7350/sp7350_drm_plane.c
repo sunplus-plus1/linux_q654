@@ -20,6 +20,9 @@
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_vpp.h"
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_dmix.h"
 
+/* always keep 0 */
+#define SP7350_DRM_TODO    0
+
 /* sp7350-hw-format translate table */
 struct sp7350_plane_format {
 	u32 pixel_format;
@@ -88,8 +91,7 @@ static u32 sp7350_get_format(u32 pixel_format, int type)
 		for (i = 0; i < ARRAY_SIZE(sp7350_vpp_formats); i++)
 			if (sp7350_vpp_formats[i].pixel_format == pixel_format)
 				return sp7350_vpp_formats[i].hw_format;
-	}
-	else {
+	} else {
 		for (i = 0; i < ARRAY_SIZE(sp7350_osd_formats); i++)
 			if (sp7350_osd_formats[i].pixel_format == pixel_format)
 				return sp7350_osd_formats[i].hw_format;
@@ -129,8 +131,8 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d) \n crtc x,y:(%d, %d)  w,h:(%d, %d)",
-		      state->src_x>> 16, state->src_y>> 16, state->src_w >> 16, state->src_h >> 16,
+	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+		      state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
 		      state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
 	sp7350_vpp_imgread_set((u32)obj->paddr,
@@ -143,14 +145,15 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 				state->src_w >> 16, state->src_h >> 16,
 				state->crtc_x, state->crtc_y,
 				state->crtc_w, state->crtc_h,
-				state->crtc->mode.hdisplay,state->crtc->mode.vdisplay);
+				state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 
 	/* default setting for VPP OPIF(MASK function) */
 	sp7350_vpp_vpost_opif_set(state->crtc_x, state->crtc_y,
 			state->crtc_w, state->crtc_h,
-			state->crtc->mode.hdisplay,state->crtc->mode.vdisplay);
+			state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 	/* for support letterbox boundary smoothly cropping,
-		should update opif setting with another plane window size. */
+	 * should update opif setting with another plane window size.
+	 */
 
 	sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 }
@@ -161,17 +164,13 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_cma_object *obj = NULL;
-	#if 0
-	struct sp7350fb_info info;
-	#else
 	struct sp7350_osd_region info;
-	#endif
 	int osd_layer_sel = 0;
 	struct drm_format_name_buf format_name;
 
 	/* reference to ade_plane_atomic_update */
 #if !DRM_PRIMARY_PLANE_WITH_OSD
-	osd_layer_sel = plane->index -1;
+	osd_layer_sel = plane->index - 1;
 #else
 	/* osd_layer_sel  osd-layer  plane-index
 	 *    0             osd0        4
@@ -179,14 +178,18 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	 *    2             osd2        2
 	 *    3             osd3        0 (Primary plane)
 	 */
-	switch(plane->index) {
-		case 4: osd_layer_sel = 0; break;
-		case 3: osd_layer_sel = 1; break;
-		case 2: osd_layer_sel = 2; break;
-		case 0: osd_layer_sel = 3; break;
-		default:
-			DRM_DEBUG_DRIVER("Invalid osd layer select index!!!.\n");
-			return;
+	switch (plane->index) {
+	case 4:
+		osd_layer_sel = 0; break;
+	case 3:
+		osd_layer_sel = 1; break;
+	case 2:
+		osd_layer_sel = 2; break;
+	case 0:
+		osd_layer_sel = 3; break;
+	default:
+		DRM_DEBUG_DRIVER("Invalid osd layer select index!!!.\n");
+		return;
 	}
 #endif
 
@@ -203,13 +206,6 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	}
 
 	memset(&info, 0, sizeof(info));
-	#if 0
-	info.color_mode = sp7350_get_format(state->fb->format->format, 0);
-	info.width = state->src_w >> 16;
-	info.height = state->src_h >> 16;
-	info.buf_addr_phy = (u32)obj->paddr;
-	sp7350_osd_layer_set(&info, osd_layer_sel);
-	#else
 	info.color_mode = sp7350_get_format(state->fb->format->format, 0);
 	info.buf_addr_phy = (u32)obj->paddr;
 	info.region_info.buf_width = state->fb->width;
@@ -222,7 +218,6 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	info.region_info.act_height = state->crtc_h;
 
 	sp7350_osd_layer_set_by_region(&info, osd_layer_sel);
-	#endif
 
 
 	DRM_DEBUG_DRIVER("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
@@ -288,12 +283,12 @@ static int sp7350_kms_plane_osd_atomic_check(struct drm_plane *plane,
 
 static const struct drm_plane_helper_funcs sp7350_kms_vpp_helper_funcs = {
 	.atomic_update		= sp7350_kms_plane_vpp_atomic_update,
-	.atomic_check		=sp7350_kms_plane_vpp_atomic_check,
+	.atomic_check = sp7350_kms_plane_vpp_atomic_check,
 };
 
 static const struct drm_plane_helper_funcs sp7350_kms_osd_helper_funcs = {
 	.atomic_update		= sp7350_kms_plane_osd_atomic_update,
-	.atomic_check		=sp7350_kms_plane_osd_atomic_check,
+	.atomic_check = sp7350_kms_plane_osd_atomic_check,
 };
 struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
 				  enum drm_plane_type type, int index)
@@ -312,8 +307,7 @@ struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
 		formats = sp7350_kms_vpp_formats;
 		nformats = ARRAY_SIZE(sp7350_kms_vpp_formats);
 		funcs = &sp7350_kms_vpp_helper_funcs;
-	}
-	else {
+	} else {
 		formats = sp7350_kms_osd_formats;
 		nformats = ARRAY_SIZE(sp7350_kms_osd_formats);
 		funcs = &sp7350_kms_osd_helper_funcs;
@@ -323,14 +317,12 @@ struct drm_plane *sp7350_drm_plane_init(struct drm_device *drm,
 		formats = sp7350_kms_osd_formats;
 		nformats = ARRAY_SIZE(sp7350_kms_osd_formats);
 		funcs = &sp7350_kms_osd_helper_funcs;
-	}
-	else {
+	} else {
 		if (!index) {
 			formats = sp7350_kms_vpp_formats;
 			nformats = ARRAY_SIZE(sp7350_kms_vpp_formats);
 			funcs = &sp7350_kms_vpp_helper_funcs;
-		}
-		else {
+		} else {
 			formats = sp7350_kms_osd_formats;
 			nformats = ARRAY_SIZE(sp7350_kms_osd_formats);
 			funcs = &sp7350_kms_osd_helper_funcs;
@@ -394,12 +386,12 @@ int sp7350_plane_create_additional_planes(struct drm_device *drm)
 		plane->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
 	}
 
-#if 0  /* TODO, NOT SUPPORT cursor */
+#if SP7350_DRM_TODO  /* TODO, NOT SUPPORT cursor */
 	drm_for_each_crtc(crtc, drm) {
 		/* Set up the legacy cursor after overlay initialization,
-		* since we overlay planes on the CRTC in the order they were
-		* initialized.
-		*/
+		 * since we overlay planes on the CRTC in the order they were
+		 * initialized.
+		 */
 		cursor_plane = sp7350_drm_plane_init(drm, DRM_PLANE_TYPE_CURSOR, 0);
 		if (!IS_ERR(cursor_plane)) {
 			cursor_plane->possible_crtcs = drm_crtc_mask(crtc);

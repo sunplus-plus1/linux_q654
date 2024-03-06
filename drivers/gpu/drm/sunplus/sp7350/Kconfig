@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
+#
+# sunplus drm device configuration.
 
 config DRM_SP7350
 	tristate "DRM Support for SUNPLUS SP7350"
@@ -10,5 +12,6 @@ config DRM_SP7350
 	select DRM_GEM_CMA_HELPER
 	default y
 	help
-		Support for the SUNPLUS SP7350 DRM driver.
+	  Choose this option if you have a Sunplus SP7350 SoCs.
+	  Support for the SUNPLUS SP7350 DRM driver.
 

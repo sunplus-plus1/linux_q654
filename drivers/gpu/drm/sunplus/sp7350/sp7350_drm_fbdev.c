@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0+ */
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Sunplus SP7350 SoC DRM fbdev
  *
@@ -23,6 +23,8 @@
 
 #include "sp7350_drm_fbdev.h"
 #include "../../drm_internal.h"
+
+#define  DRM_OVERLAY_PLANE_WITH_FBDEV  1
 
 static int sp7350_drm_fbdev_fb_mmap(struct fb_info *info,
 			struct vm_area_struct *vma)
@@ -141,7 +143,7 @@ retry:
 		struct drm_plane_state *plane_state;
 		int hdisplay, vdisplay;
 
-		#if 1
+		#if DRM_OVERLAY_PLANE_WITH_FBDEV
 		drm_for_each_plane(plane, dev) {
 			/* set the first overlay plane(osd0) to /dev/fb0 */
 			if (plane->type == DRM_PLANE_TYPE_OVERLAY) {
@@ -567,7 +569,7 @@ int sp7350_drm_fbdev_init(struct drm_device *dev,
 
 	helper = kzalloc(sizeof(*helper), GFP_KERNEL);
 	if (!helper) {
-		drm_err(dev, "Failed to allocate fb_helper\n");
+		//drm_err(dev, "Failed to allocate fb_helper\n");
 		return -1;
 	}
 
