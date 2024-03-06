@@ -7,6 +7,7 @@
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include <linux/bitfield.h>
+#include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -67,6 +68,8 @@ static const struct sp_adc_spec sp_adc_spec = {
  */
 struct sp_adc_chip {
 	struct device *dev;
+	struct clk *clk;
+	struct reset_control *rstc;
 	struct hwspinlock *hwlock;
 	struct mutex lock;
 	struct iio_dev	*indio_dev;
@@ -214,6 +217,15 @@ static int sp_adc_probe(struct platform_device *pdev)
 	indio_dev->name = "sunplus-adc";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = sp_adc_channels;
+
+	sp_adc->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(sp_adc->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sp_adc->clk), "get clk fail\n");
+
+	sp_adc->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	if (IS_ERR(sp_adc->rstc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sp_adc->rstc), "get reset fail\n");
+
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (IS_ERR(res))
