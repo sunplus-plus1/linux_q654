@@ -1243,7 +1243,7 @@
 		compatible = "sunplus,audio-pcm";
 	};
 
-	aud_codec: spsoc-aud-codec {
+	aud_codec: aud-codec {
 		compatible = "sunplus,audio-codec";
 	};
 
