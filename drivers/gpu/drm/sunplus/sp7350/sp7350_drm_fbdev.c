@@ -27,7 +27,7 @@
 #define  DRM_OVERLAY_PLANE_WITH_FBDEV  1
 
 static int sp7350_drm_fbdev_fb_mmap(struct fb_info *info,
-			struct vm_area_struct *vma)
+				    struct vm_area_struct *vma)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 
@@ -361,7 +361,7 @@ int sp7350_drm_fb_helper_set_par(struct fb_info *info)
  * @info: fbdev registered by the helper
  */
 int sp7350_drm_fbdev_pan_display(struct fb_var_screeninfo *var,
-			      struct fb_info *info)
+				 struct fb_info *info)
 {
 	struct drm_fb_helper *fb_helper = info->par;
 	struct drm_device *dev = fb_helper->dev;
@@ -388,7 +388,6 @@ int sp7350_drm_fbdev_pan_display(struct fb_var_screeninfo *var,
 	} else
 		pan_set(fb_helper, info->var.xoffset, info->var.yoffset);
 
-
 	drm_master_internal_release(dev);
 unlock:
 	mutex_unlock(&fb_helper->lock);
@@ -408,7 +407,7 @@ static const struct fb_ops sp7350_drm_fbdev_fb_ops = {
 };
 
 static int sp7350_drm_fbdev_create(struct drm_fb_helper *fb_helper,
-				    struct drm_fb_helper_surface_size *sizes)
+				   struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_client_dev *client = &fb_helper->client;
 	struct drm_device *dev = fb_helper->dev;
@@ -419,7 +418,7 @@ static int sp7350_drm_fbdev_create(struct drm_fb_helper *fb_helper,
 	void *vaddr;
 
 	drm_info(dev, "surface width(%d), height(%d) and bpp(%d)\n",
-		    sizes->surface_width, sizes->surface_height,
+		 sizes->surface_width, sizes->surface_height,
 		    sizes->surface_bpp);
 
 	format = drm_mode_legacy_fb_format(sizes->surface_bpp, sizes->surface_depth);
@@ -559,7 +558,7 @@ static const struct drm_client_funcs sp7350_drm_fbdev_client_funcs = {
 };
 
 int sp7350_drm_fbdev_init(struct drm_device *dev,
-			     unsigned int preferred_bpp)
+			  unsigned int preferred_bpp)
 {
 	struct drm_fb_helper *helper;
 	int ret;

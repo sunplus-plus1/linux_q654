@@ -42,7 +42,6 @@
  * DRM operations
  */
 
-
 DEFINE_DRM_GEM_CMA_FOPS(sp7350_drm_fops);
 
 static struct drm_driver sp7350_drm_driver = {
@@ -214,7 +213,6 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 
 static int sp7350_drm_remove(struct platform_device *pdev)
 {
-
 	component_master_del(&pdev->dev, &sp7350_drm_ops);
 
 	return 0;
@@ -263,7 +261,6 @@ static void __exit sp7350_drm_unregister(void)
 //module_init(sp7350_drm_register);
 late_initcall(sp7350_drm_register);
 module_exit(sp7350_drm_unregister);
-
 
 MODULE_AUTHOR("dx.jiang <dx.jiang@sunmedia.com.cn>");
 MODULE_DESCRIPTION("Sunplus SP7350 DRM Driver");

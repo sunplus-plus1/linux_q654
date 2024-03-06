@@ -5,20 +5,19 @@
  * Author: dx.jiang<dx.jiang@sunmedia.com.cn>
  */
 
-
 #ifndef _SP7350_DRM_FBDEV_H_
 #define _SP7350_DRM_FBDEV_H_
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 
 int sp7350_drm_fbdev_init(struct drm_device *dev,
-			     unsigned int preferred_bpp);
+			  unsigned int preferred_bpp);
 //void sp7350_drm_fbdev_fini(struct drm_device *dev);
 
 #else
 
 static inline int sp7350_drm_fbdev_init(struct drm_device *dev,
-			     unsigned int preferred_bpp)
+					unsigned int preferred_bpp)
 {
 	return 0;
 }
