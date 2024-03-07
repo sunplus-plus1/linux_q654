@@ -1609,6 +1609,7 @@
 		reg-names = "mbox_0_to_2", "mbox_2_to_0";
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>; /* CPU2_TO_0_INT */
+		clocks = <&clkc MAILBOX>;
 		#mbox-cells = <1>;
 	};
 
