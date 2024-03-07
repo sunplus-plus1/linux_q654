@@ -2288,6 +2288,10 @@
 	status = "disabled";
 };
 
+&galcore {
+	status = "okay";
+};
+
 &watchdog {
 	timeout-sec = <10>;
 	status = "disabled";
