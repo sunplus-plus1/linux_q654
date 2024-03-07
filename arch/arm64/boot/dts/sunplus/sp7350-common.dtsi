@@ -1357,7 +1357,6 @@
 		clock-frequency = <900000000>;
 		resets = <&rstc RST_NPU>;
 		reset-names = "rstc_vip9000";
-		status = "okay";
 	};
 
 #if 0
@@ -1630,18 +1629,16 @@
 	fb_disp_device: fb_disp_device {
 		compatible = "sunplus,sp7350-fb";
 		memory-region = <&disp_reserve>;
-		status = "disabled";
 	};
 
 	drm_display_engine: drm {
 		compatible = "sunplus,sp7350-display-engine";
 		memory-region = <&disp_reserve>;
-		status = "disabled";
 	};
+
 	/* Display controller0 */
 	crtc0: crtc0 {
 		compatible = "sunplus,sp7350-crtc0";
-		status = "disabled";
 
 		port {
 			crtc0_out: endpoint {
@@ -1663,7 +1660,6 @@
 
 	dsi0: dsi {
 		compatible = "sunplus,sp7350-dsi0";
-		status = "disabled";
 
 		ports {
 			#address-cells = <1>;
@@ -1683,6 +1679,7 @@
 					reg = <1>;
 				};
 			};
+
 			/* 1 for output port */
 			port@1 {
 				#address-cells = <1>;

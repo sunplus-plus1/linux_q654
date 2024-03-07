@@ -2632,6 +2632,10 @@
 	pinctrl-0 = <&para_nand_pins>;
 };
 
+&galcore {
+	status = "okay";
+};
+
 &watchdog {
 	timeout-sec = <10>;
 	status = "disabled";
