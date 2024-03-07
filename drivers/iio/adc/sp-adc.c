@@ -226,6 +226,8 @@ static int sp_adc_probe(struct platform_device *pdev)
 	if (IS_ERR(sp_adc->rstc))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sp_adc->rstc), "get reset fail\n");
 
+	ret = reset_control_deassert(sp_adc->rstc);
+	ret = clk_prepare_enable(sp_adc->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (IS_ERR(res))
