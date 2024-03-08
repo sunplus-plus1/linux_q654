@@ -4,6 +4,7 @@
 // Author:	 <@sunplus.com>
 //
 //
+
 #include <linux/module.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>

@@ -120,23 +120,28 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "reset deassert fail\n");
 #endif
 	//plla setting
-	spauddata->plla_clocken	= devm_clk_get(&pdev->dev, "pll_a");
-	if (IS_ERR(spauddata->plla_clocken)) {
-		dev_err(&pdev->dev, "get clock from devicetree node 2.\n");
-		return PTR_ERR(spauddata->plla_clocken);
-	}
-
-	err = clk_set_rate(spauddata->plla_clocken, 147456000);	//135475200, 147456000,	196608000 Hz,
+	//spauddata->plla_clocken	= devm_clk_get(&pdev->dev, "pll_a");
+	//if (IS_ERR(spauddata->plla_clocken)) {
+	//	dev_err(&pdev->dev, "get clock from devicetree node 2.\n");
+	//	return PTR_ERR(spauddata->plla_clocken);
+	//}
+	// For plla initial turn off on uboot/xboot/iboot
+	// plla has no turn on/off function, it need to use diff frequency settings to update register
+	err = clk_get_rate(spauddata->aud_clocken);
+	if (err == 147456000)
+		err = clk_set_rate(spauddata->aud_clocken, 135475200);
+	else
+		err = clk_set_rate(spauddata->aud_clocken, 147456000);	//135475200, 147456000,	196608000 Hz,
 	if (err) {
 		dev_err(&pdev->dev, "plla set rate false.\n");
 		return err;
 	}
 
-	err = clk_prepare_enable(spauddata->plla_clocken);
-	if (err) {
-		dev_err(&pdev->dev, "enable plla false.\n");
-		return err;
-	}
+	//err = clk_prepare_enable(spauddata->plla_clocken);
+	//if (err) {
+	//	dev_err(&pdev->dev, "enable plla false.\n");
+	//	return err;
+	//}
 	platform_set_drvdata(pdev, spauddata);
 	sunplus_i2s_register(&pdev->dev);
 	sunplus_tdm_register(&pdev->dev);
@@ -152,7 +157,7 @@ static int sunplus_audio_remove(struct platform_device *pdev)
 	//audio_base = NULL;
 	snd_soc_unregister_component(&pdev->dev);
 	clk_disable(spauddata->aud_clocken);
-	clk_disable(spauddata->plla_clocken);
+	//clk_disable(spauddata->plla_clocken);
 	return 0;
 }
 
