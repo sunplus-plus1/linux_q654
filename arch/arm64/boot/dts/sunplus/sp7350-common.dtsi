@@ -1253,8 +1253,8 @@
 		compatible = "sunplus,audio";
 		reg = <0x00 0xf8800480 0x00 0x700>;
 		reg-names = "audio";
-		clocks = <&clkc AUD>, <&clkc PLLA>;
-		clock-names = "aud", "pll_a";
+		clocks = <&clkc AUD>;
+		clock-names = "aud";
 		resets = <&rstc RST_AUD>;
 	};
 

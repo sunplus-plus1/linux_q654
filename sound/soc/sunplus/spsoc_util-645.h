@@ -10,7 +10,7 @@ struct sunplus_audio_base {
 	struct regmap *regmap;
 	struct reset_control *clk_rst;
 	struct clk *aud_clocken;
-	struct clk *plla_clocken;
+	//struct clk *plla_clocken;
 	//tdm
 	struct snd_dmaengine_dai_dma_data   	dma_playback;
     	struct snd_dmaengine_dai_dma_data   	dma_capture;
