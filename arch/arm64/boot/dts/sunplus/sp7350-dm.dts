@@ -1006,7 +1006,7 @@
 	clock-frequency = <400000>;
 #endif
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c_combo6_pins>;
+	pinctrl-0 = <&i2c_combo4_pins>;
 	status = "okay";
 
 #ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
