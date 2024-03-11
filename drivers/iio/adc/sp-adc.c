@@ -227,7 +227,13 @@ static int sp_adc_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(sp_adc->rstc), "get reset fail\n");
 
 	ret = reset_control_deassert(sp_adc->rstc);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to deassert reset\n");
+
 	ret = clk_prepare_enable(sp_adc->clk);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "failed to enable clk\n");
+
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (IS_ERR(res))
@@ -258,12 +264,47 @@ static int sp_adc_probe(struct platform_device *pdev)
 
 	ret = sp_adc_ini(sp_adc);
 
+	platform_set_drvdata(pdev, sp_adc);
 	ret = devm_iio_device_register(&pdev->dev, indio_dev);
-	if (ret) 
+	if (ret)
 		dev_err_probe(&pdev->dev, PTR_ERR(&ret), "fail to register iio device\n");
 
 	return ret;
 }
+
+static int sp_adc_remove(struct platform_device *pdev)
+{
+	struct sp_adc_chip *sp_adc = platform_get_drvdata(pdev);
+
+	clk_disable_unprepare(sp_adc->clk);
+	reset_control_assert(sp_adc->rstc);
+	return 0;
+}
+
+static int __maybe_unused sp_thermal_suspend(struct device *dev)
+{
+	struct sp_adc_chip *sp_adc = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(sp_adc->clk);        //enable clken and disable gclken
+	reset_control_assert(sp_adc->rstc);
+	return 0;
+}
+
+static int __maybe_unused sp_thermal_resume(struct device *dev)
+{
+	struct sp_adc_chip *sp_adc = dev_get_drvdata(dev);
+
+	reset_control_deassert(sp_adc->rstc);
+	clk_prepare_enable(sp_adc->clk);
+	msleep(1);
+	return sp_adc_ini(sp_adc);
+}
+
+static const struct dev_pm_ops sp_adc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sp_thermal_suspend, sp_thermal_resume)
+};
+
+#define sp_adc_pm_ops  (&sp_adc_pm_ops)
 
 static const struct of_device_id sp_adc_of_ids[] = {
 	{ .compatible = "sunplus,sp7350-adc" },
@@ -273,9 +314,11 @@ MODULE_DEVICE_TABLE(of, ad7949_spi_of_id);
 
 static struct platform_driver sp_adc_driver = {
 	.probe = sp_adc_probe,
+	.remove	= sp_adc_remove,
 	.driver = {
 		.name = "sunplus,sp7350-adc",
 		.of_match_table = sp_adc_of_ids,
+		.pm     = sp_adc_pm_ops,
 	},
 };
 module_platform_driver(sp_adc_driver);
