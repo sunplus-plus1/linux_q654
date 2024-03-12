@@ -638,6 +638,8 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 
 	u32 tmp_width, tmp_height, tmp_color_mode;
 	u32 tmp_alpha = 0, value = 0;
+	u32 tmp_key = 0;
+	u32 tmp_r = 0,tmp_g = 0,tmp_b = 0,tmp_a = 0;
 	u32 *osd_header, *osd_palette;
 	int i;
 
@@ -651,8 +653,25 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 	 * Fill OSD Layer Header info
 	 */
 	tmp_color_mode = info->color_mode;
+	pr_info("  --- osd%d header ---color_mode:%d\n", osd_layer_sel,tmp_color_mode);
 	//tmp_alpha = SP7350_OSD_HDR_BL | SP7350_OSD_HDR_ALPHA;
-	value |= (tmp_color_mode << 24) | SP7350_OSD_HDR_BS | tmp_alpha;
+	//value |= (tmp_color_mode << 24) | SP7350_OSD_HDR_BS | tmp_alpha;
+	//value = osd_header[0];
+
+	value |= (tmp_color_mode << 24) | SP7350_OSD_HDR_BS;
+	if(info->alpha_info.region_alpha_en){
+		tmp_alpha = info->alpha_info.region_alpha;
+		if(tmp_alpha <0 || tmp_alpha > 255){
+			tmp_alpha = 255;
+		}
+		value |= SP7350_OSD_HDR_BL |tmp_alpha;
+	}
+
+	if(info->alpha_info.color_key_en){
+		
+		value |= SP7350_OSD_HDR_KEY;
+	}
+	
 	if (info->color_mode == SP7350_OSD_COLOR_MODE_8BPP)
 		value |= SP7350_OSD_HDR_CULT;
 	osd_header[0] = SWAP32(value);
@@ -668,7 +687,15 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 	osd_header[2] = SWAP32(tmp_height << 16 | tmp_width << 0);
 
 	/* Fill color key value */
-	osd_header[3] = 0;
+	if(info->alpha_info.color_key_en){
+		tmp_key = 0xffffffff & info->alpha_info.color_key;
+		osd_header[3] = SWAP32(tmp_key);
+		pr_info("  --- osd%d header --2--tmp_key:%x osd_header:%x\n", osd_layer_sel,tmp_key,osd_header[3]);
+	}else{
+		osd_header[3] = 0;
+
+	}
+	
 
 	/* Fill DATA_start_row & DATA_start_column */
 	tmp_width = info->region_info.start_x;
