@@ -43,6 +43,8 @@
 #define SP7350_OSD_HDR_BL2				BIT(10)
 #define SP7350_OSD_HDR_BL				BIT(8)
 #define SP7350_OSD_HDR_ALPHA			GENMASK(7, 0)
+#define SP7350_OSD_HDR_KEY				BIT(11)
+
 
 /*
  * OSD Header config[5]
@@ -87,12 +89,22 @@ struct sp7350_osd_region_info {
 	u32 act_y;
 };
 
+
+struct sp7350_osd_alpha_info {
+	u32 region_alpha_en;
+	u32 region_alpha;
+	u32 color_key_en;
+	u32 color_key;
+};
+
+
 /*
  *  sp7350 osd region include
  *  sp7350_osd_header + sp7350_osd_palette + bitmap
  */
 struct sp7350_osd_region {
 	struct sp7350_osd_region_info region_info;
+	struct sp7350_osd_alpha_info alpha_info;
 	u32	color_mode;	/* osd color mode */
 	u32	buf_num;	/* fix 2 */
 	u32	buf_align;	/* fix 4096 */
