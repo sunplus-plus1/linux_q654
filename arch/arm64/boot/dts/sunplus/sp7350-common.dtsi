@@ -598,7 +598,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI0_CSIIW0>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <0>;
 	};
 
@@ -614,7 +613,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI0_CSIIW1>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <1>;
 	};
 
@@ -641,7 +639,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI1_CSIIW0>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <2>;
 	};
 
@@ -657,7 +654,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI1_CSIIW1>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <3>;
 	};
 
@@ -684,7 +680,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI23_CSIIW0>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <4>;
 	};
 
@@ -700,7 +695,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI23_CSIIW1>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <5>;
 	};
 
@@ -729,7 +723,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI23_CSIIW2>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <6>;
 	};
 
@@ -745,7 +738,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI23_CSIIW3>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <7>;
 	};
 
@@ -772,7 +764,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI4_CSIIW0>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <8>;
 	};
 
@@ -788,7 +779,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI4_CSIIW1>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <9>;
 	};
 
@@ -815,7 +805,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI5_CSIIW0>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <10>;
 	};
 
@@ -831,7 +820,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI5_CSIIW1>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <11>;
 	};
 
@@ -847,7 +835,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI5_CSIIW2>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <12>;
 	};
 
@@ -863,7 +850,6 @@
 		clock-names = "clk_csiiw";
 		resets = <&rstc RST_VI5_CSIIW3>;
 		reset-names = "rstc_csiiw";
-		memory-region = <&mipicsirx_reserve>;
 		sunplus,id = <13>;
 	};
 
@@ -1326,21 +1312,16 @@
 		reset-names = "rstc_vc8000e";
 	};
 
-	video_codec_emem {
+	vcodec_emem: video_codec_emem {
 		compatible = "sunplus,sp7350-hantro-emem";
-		memory-region = <&video_codec_encode>;
-		video_codec-supply = <&video_codec_core_0v8>;
 	};
 
-	video_codec_dmem {
+	vcodec_dmem: video_codec_dmem {
 		compatible = "sunplus,sp7350-hantro-dmem";
-		memory-region = <&video_codec_decode>;
-		video_codec-supply = <&video_codec_core_0v8>;
 	};
 
-	video_codec_v4l2 {
+	vcodec_v4l2_mem: video_codec_v4l2 {
 		compatible = "sunplus,sp7350-hantro-vsiv4l2";
-		memory-region = <&vcodec_v4l2>;
 	};
 
 	galcore: galcore@f8140000 {
@@ -1629,12 +1610,10 @@
 
 	fb_disp_device: fb_disp_device {
 		compatible = "sunplus,sp7350-fb";
-		memory-region = <&disp_reserve>;
 	};
 
 	drm_display_engine: drm {
 		compatible = "sunplus,sp7350-display-engine";
-		memory-region = <&disp_reserve>;
 	};
 
 	/* Display controller0 */

@@ -1380,6 +1380,7 @@
 };
 
 &vin4 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN2) || defined(TP2815_IN2)
 	status = "okay";
 #else
@@ -1406,6 +1407,7 @@
 };
 
 &vin5 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN2) && defined(TP2815_IN2_2VC)
 	status = "okay";
 #else
@@ -1511,6 +1513,7 @@
 #endif
 
 &vin6 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN3) || defined(TP2815_IN3)
 	status = "okay";
 #else
@@ -1544,6 +1547,7 @@
 };
 
 &vin7 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN3) && defined(TP2815_IN3_2VC)
 	status = "okay";
 #else
@@ -1692,6 +1696,7 @@
 };
 
 &vin8 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 	status = "okay";
 #else
@@ -1718,6 +1723,7 @@
 };
 
 &vin9 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN4) && defined(TP2815_IN4_2VC)
 	status = "okay";
 #else
@@ -1835,6 +1841,7 @@
 };
 
 &vin10 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
@@ -1861,6 +1868,7 @@
 };
 
 &vin11 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN5) && defined(TP2815_IN5_2VC)
 	status = "okay";
 #else
@@ -1887,6 +1895,7 @@
 };
 
 &vin12 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
 
 	ports {
@@ -1909,6 +1918,7 @@
 };
 
 &vin13 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
 
 	ports {
@@ -2286,6 +2296,20 @@
 
 &paranand0 {
 	status = "disabled";
+};
+
+&vcodec_emem {
+	memory-region = <&video_codec_encode>;
+	video_codec-supply = <&video_codec_core_0v8>;
+};
+
+&vcodec_dmem {
+	memory-region = <&video_codec_decode>;
+	video_codec-supply = <&video_codec_core_0v8>;
+};
+
+&vcodec_v4l2_mem {
+	memory-region = <&vcodec_v4l2>;
 };
 
 &galcore {
@@ -2770,6 +2794,7 @@
 
 #ifdef CONFIG_DISP_DRM_SUPPORT
 &drm_display_engine {
+	memory-region = <&disp_reserve>;
 	status = "okay";
 };
 &crtc0 {
@@ -2805,6 +2830,7 @@
 #endif
 #else
 &fb_disp_device {
+	memory-region = <&disp_reserve>;
 	status = "okay";
 };
 &drm_display_engine {
