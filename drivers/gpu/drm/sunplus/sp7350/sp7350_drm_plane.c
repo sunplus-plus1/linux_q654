@@ -139,29 +139,21 @@ static int drm_atomic_set_property(struct drm_plane *plane,
 	struct drm_format_name_buf format_name;
 
 	if (strcmp(property->name,"region_mask") == 0) {
-		DRM_INFO("%s set opif\n", __func__);
 		struct drm_property_blob *mode = drm_property_lookup_blob(plane->dev, val);
 		if(!mode){
-			DRM_INFO("%s mode is null\n", __func__);
 			return 0;
 		}
-		DRM_INFO("%s set mask length:%d\n", __func__,mode->length);
 		if(!mode->data){
-			DRM_INFO("%s data is null\n", __func__);
 			return 0;
 
 		}
 		struct sp7350_vpp_region_mask_info *info = mode->data;
 		DRM_INFO("%s set mask info index:%d alpna:%d offset_x:%d offset_y:%d xlen:%d ylen:%d mode:%d\n", __func__,plane->index, info->alpna,
 			info->offset_x,info->offset_y,info->xlen,info->ylen,info->mode);	
-		//ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
 		if(plane->index == 1){
 			if(!state->crtc){
-				DRM_INFO("%s set mask info outputw outputh is null", __func__);
 				
 			}else{
-						
-				DRM_INFO("%s set mask info outputw:%d outputh:%d", __func__,state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 				sp7350_vpp_vpost_opif_set(info->offset_x,info->offset_y,
 							  info->xlen,info->ylen,
 						state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
@@ -176,12 +168,9 @@ static int drm_atomic_set_property(struct drm_plane *plane,
 		DRM_INFO("%s set osd_alpha\n", __func__);
 		struct drm_property_blob *mode = drm_property_lookup_blob(plane->dev, val);
 			if(!mode){
-				DRM_INFO("%s mode is null\n", __func__);
 				return 0;
 			}
-			DRM_INFO("%s set mask length:%d\n", __func__,mode->length);
 			if(!mode->data){
-				DRM_INFO("%s data is null\n", __func__);
 				return 0;
 	
 			}
@@ -191,7 +180,6 @@ static int drm_atomic_set_property(struct drm_plane *plane,
 			//ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
 			if(plane->index != 1){
 				if(!state->crtc){
-					DRM_INFO("%s set osd_alpha info outputw outputh is null", __func__);
 					
 				}else{
 
@@ -230,20 +218,10 @@ static int drm_atomic_set_property(struct drm_plane *plane,
 
 					if (!state->fb || !state->crtc) {
 						/* disable this plane */
-						DRM_INFO("%s !state->fb || !state->crtc \n", __func__);
 						return 0;
 					}
-					DRM_INFO("%s src_x:%d\n", __func__,state->src_x>> 16);
-					DRM_INFO("%s src_y:%d\n", __func__,state->src_y>> 16);
-					DRM_INFO("%s src_w:%d\n", __func__,state->src_w >> 16);
-					DRM_INFO("%s src_h:%d\n", __func__,state->src_h >> 16);
-					DRM_INFO("%s crtc_x:%d\n", __func__,state->crtc_x);
-					DRM_INFO("%s crtc_y:%d\n", __func__,state->crtc_y);
-					DRM_INFO("%s crtc_w:%d\n", __func__,state->crtc_w);
-					DRM_INFO("%s crtc_h:%d\n", __func__,state->crtc_h);
 					obj = drm_fb_cma_get_gem_obj(state->fb, 0);
 					if (!obj || !obj->paddr) {
-						DRM_INFO("%s !obj || !obj->paddr \n", __func__);
 						DRM_DEBUG_DRIVER("drm_fb_cma_get_gem_obj fail.\n");
 						return 0;
 					}
@@ -263,7 +241,6 @@ static int drm_atomic_set_property(struct drm_plane *plane,
 					info.alpha_info.color_key_en = alpha_info->color_key_en;
 					info.alpha_info.color_key = alpha_info->color_key;
 					sp7350_osd_layer_set_by_region(&info, osd_layer_sel);							
-					DRM_INFO("%s set osd_alpha info outputw:%d outputh:%d", __func__,state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);					
 					return 1;
 				}
 			}
@@ -282,19 +259,8 @@ static int drm_atomic_get_property(struct drm_plane *plane,
 									  const struct drm_plane_state *state,
 									  struct drm_property *property,
 									  uint64_t *val){
-	DRM_INFO("%s\n", __func__);
-	DRM_INFO("%s property.name:%s\n", __func__, property->name);
-	//DRM_INFO("%s property.values:%d\n", __func__, property->values);
 	return 0;
 
-}
-
-
-static int drm_set_property(struct drm_plane *plane,struct drm_property *property, uint64_t val){
-
-	DRM_INFO("%s\n", __func__);
-	DRM_INFO("%s property.name:%s\n", __func__, property->name);
-	return 0;
 }
 
 
@@ -307,7 +273,6 @@ static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 	.atomic_set_property = drm_atomic_set_property,
 	.atomic_get_property = drm_atomic_get_property,
-	.set_property = drm_set_property,
 };
 
 static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
@@ -315,17 +280,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 {
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_cma_object *obj = NULL;
-	DRM_INFO("%s plane->index:%d\n", __func__,plane->index);
-	DRM_INFO("%s src_x:%d\n", __func__,state->src_x>> 16);
-	DRM_INFO("%s src_y:%d\n", __func__,state->src_y>> 16);
-	DRM_INFO("%s src_w:%d\n", __func__,state->src_w >> 16);
-	DRM_INFO("%s src_h:%d\n", __func__,state->src_h >> 16);
-	DRM_INFO("%s crtc_x:%d\n", __func__,state->crtc_x);
-	DRM_INFO("%s crtc_y:%d\n", __func__,state->crtc_y);
-	DRM_INFO("%s crtc_w:%d\n", __func__,state->crtc_w);
-	DRM_INFO("%s crtc_h:%d\n", __func__,state->crtc_h);
-	DRM_INFO("%s state->alpha:%d\n", __func__,state->alpha);
-	DRM_INFO("%s pixel_blend_mode:%d\n", __func__,state->pixel_blend_mode);
 
 	/* reference to ade_plane_atomic_update */
 	if (!state->fb || !state->crtc) {
@@ -377,7 +331,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		plane_alpha.enable = 1;
 		plane_alpha.fix_alpha = 0;
 		plane_alpha.layer = layer;
-		DRM_INFO("%s sp7350_dmix_plane_alpha_config:%d\n", __func__,state->alpha);
 		sp7350_dmix_plane_alpha_config(&plane_alpha);
 
 	}
@@ -394,18 +347,6 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	int osd_layer_sel = 0;
 	int layer = 0;
 	struct drm_format_name_buf format_name;
-
-	DRM_INFO("%s plane->index:%d\n", __func__,plane->index);
-	DRM_INFO("%s src_x:%d\n", __func__,state->src_x>> 16);
-	DRM_INFO("%s src_y:%d\n", __func__,state->src_y>> 16);
-	DRM_INFO("%s src_w:%d\n", __func__,state->src_w >> 16);
-	DRM_INFO("%s src_h:%d\n", __func__,state->src_h >> 16);
-	DRM_INFO("%s crtc_x:%d\n", __func__,state->crtc_x);
-	DRM_INFO("%s crtc_y:%d\n", __func__,state->crtc_y);
-	DRM_INFO("%s crtc_w:%d\n", __func__,state->crtc_w);
-	DRM_INFO("%s crtc_h:%d\n", __func__,state->crtc_h);
-	DRM_INFO("%s state->alpha:%d\n", __func__,state->alpha);
-	DRM_INFO("%s pixel_blend_mode:%d\n", __func__,state->pixel_blend_mode);
 
 	/* reference to ade_plane_atomic_update */
 #if !DRM_PRIMARY_PLANE_WITH_OSD
@@ -443,14 +384,11 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	if (!state->fb || !state->crtc) {
 		/* disable this plane */
 		sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_TRANSPARENT);
-
-		DRM_INFO("%s !state->fb || !state->crtc \n", __func__);
 		return;
 	}
 
 	obj = drm_fb_cma_get_gem_obj(state->fb, 0);
 	if (!obj || !obj->paddr) {
-		DRM_INFO("%s !obj || !obj->paddr \n", __func__);
 		DRM_DEBUG_DRIVER("drm_fb_cma_get_gem_obj fail.\n");
 		return;
 	}
@@ -478,7 +416,6 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		plane_alpha.enable = 1;
 		plane_alpha.fix_alpha = 0;
 		plane_alpha.layer = layer;
-		DRM_INFO("%s sp7350_dmix_plane_alpha_config:%d\n", __func__,state->alpha);
 		sp7350_dmix_plane_alpha_config(&plane_alpha);
 
 	}
