@@ -2358,6 +2358,8 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 				dev_info(priv->device, "Retry to reset the dma\n");
 				msleep(300);
 			}
+		} else { /* DMA SW reset succeed */
+			break;
 		}
 	}
 
