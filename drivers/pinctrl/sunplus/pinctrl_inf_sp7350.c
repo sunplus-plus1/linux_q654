@@ -84,9 +84,23 @@ static const struct sppctlgrp_t sp7350grps_usb_otg[] = {
 static const unsigned int pins_gmac_rgmii[] = { 3,  4,	5,  6,	7,  8,	9,
 						10, 11, 12, 13, 14, 15, 16 };
 static const unsigned int pins_gmac_rmii[] = { 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+static struct groupSettingExt_t rgmii_ext_setting = {
+	.roff = 0x57,
+	.boff = 12,
+	.blen = 1,
+	.bval = 0,
+};
+
+static struct groupSettingExt_t rmii_ext_setting = {
+	.roff = 0x57,
+	.boff = 12,
+	.blen = 1,
+	.bval = 1,
+};
+
 static const struct sppctlgrp_t sp7350grps_gmac[] = {
-	EGRP("GMAC_RGMII", 1, pins_gmac_rgmii),
-	EGRP("GMAC_RMII", 2, pins_gmac_rmii),
+	EGRP_EXT("GMAC_RGMII", 1, pins_gmac_rgmii, &rgmii_ext_setting),
+	EGRP_EXT("GMAC_RMII", 2, pins_gmac_rmii, &rmii_ext_setting),
 };
 
 static const unsigned int pins_pwm0_x1[] = { 78 };
