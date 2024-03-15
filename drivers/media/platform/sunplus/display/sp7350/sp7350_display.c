@@ -718,6 +718,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 
 	sp7350_vpp_init();
 
+#ifndef CONFIG_DRM_SP7350
 	/* dmix setting
 	 * L6   L5   L4   L3   L2   L1   BG
 	 * OSD0 OSD1 OSD2 OSD3 ---- VPP0 PTG
@@ -758,6 +759,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		}
 	}
 	#endif
+#endif
 
 	/*
 	 * init resolution setting for osd layers
@@ -769,6 +771,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	 */
 	sp7350_vpp_resolution_init(disp_dev);
 
+#ifndef CONFIG_DRM_SP7350
 	#ifdef SP_DISP_V4L2_SUPPORT
 	/*
 	 * init layer setting for v4l2
@@ -826,6 +829,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		disp_dev->dev[i]->fmt.fmt.pix.priv = 0;
 	}
 	#endif
+#endif
 
 	/*
 	 * init MIPITX DSI or CSI output setting
