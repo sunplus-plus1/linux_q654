@@ -640,6 +640,22 @@
 	pinctrl-0 = <&otg_pins>;
 };
 
+&ehci0 {
+	status = "disabled";
+};
+
+&ohci0 {
+	status = "disabled";
+};
+
+&udc0 {
+	status = "disabled";
+};
+
+&otg {
+	status = "disabled";
+};
+
 &extcon_dwc3drd {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dwc3id_pins>;

@@ -2170,9 +2170,9 @@
 };
 
 &mmc0 {
-	max-frequency = <45000000>;
-	mmc-ddr-1_8v;
-	#mmc-hs200-1_8v;
+	max-frequency = <200000000>;
+	#mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
 	#mmc-hs400-1_8v;
 	#mmc-hs400-enhanced-strobe;
 };
@@ -2215,6 +2215,20 @@
 };
 
 &sp_uphy0 {
+};
+
+&ehci0 {
+};
+
+&ohci0 {
+};
+
+&udc0 {
+	status = "disabled";
+};
+
+&otg {
+	status = "disabled";
 };
 
 &extcon_dwc3drd {
