@@ -2217,6 +2217,20 @@
 &sp_uphy0 {
 };
 
+&ehci0 {
+};
+
+&ohci0 {
+};
+
+&udc0 {
+	status = "disabled";
+};
+
+&otg {
+	status = "disabled";
+};
+
 &extcon_dwc3drd {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dwc3id_pins>;

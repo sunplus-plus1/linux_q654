@@ -2585,6 +2585,18 @@
 	pinctrl-0 = <&otg_pins>;
 };
 
+&ehci0 {
+};
+
+&ohci0 {
+};
+
+&udc0 {
+};
+
+&otg {
+};
+
 &extcon_dwc3drd {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dwc3id_pins>;
