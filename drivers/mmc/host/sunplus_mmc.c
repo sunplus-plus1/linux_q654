@@ -338,7 +338,8 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 	if (clk > f_max)
 		clk = f_max;
 
-	//clk_set_rate(host->clk, 800000000);
+	if(f_max == 200000000)
+		clk_set_rate(host->clk, 800000000);
 	//spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
 	spmmc_pr(INFO, "set bus clock to %d\n", clk);
 
