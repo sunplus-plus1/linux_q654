@@ -112,17 +112,28 @@ enum F_OFF_t {
 	F_OFF_I, // in iop registers
 };
 
+struct groupSettingExt_t {
+	const u8 roff; // register offset
+	const u8 boff; // bit offset
+	const u8 blen; // number of bits
+	const u8 bval; // value for register
+};
+
 struct sppctlgrp_t {
 	const char *const name;
 	const u8 gval; // value for register
 	const unsigned *const pins; // list of pins
 	const unsigned int pnum; // number of pins
+	struct groupSettingExt_t *extSetting;
 };
 
-#define EGRP(n, v, p)                                                          \
-	{                                                                      \
-		.name = n, .gval = (v), .pins = (p), .pnum = ARRAY_SIZE(p),    \
+#define EGRP_EXT(n, v, p, ext)							\
+	{                                                                       \
+		.name = n, .gval = (v), .pins = (p),				\
+		.pnum = ARRAY_SIZE(p), .extSetting = ext			\
 	}
+
+#define EGRP(n, v, p) EGRP_EXT(n, v, p, 0)
 
 struct func_t {
 	const char *const name;

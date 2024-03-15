@@ -675,6 +675,12 @@ static int sppctl_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				reg_value = func->grps[g2fpm->g_idx].gval;
 				sppctl_gmx_set(pctrl, func->roff, func->boff,
 					       func->blen, reg_value);
+				struct groupSettingExt_t *extSetting = func->grps[g2fpm->g_idx].extSetting;
+
+				if (extSetting) {
+					sppctl_gmx_set(pctrl, extSetting->roff, extSetting->boff,
+						       extSetting->blen, extSetting->bval);
+				}
 			} else {
 				KERR(pctldev->dev,
 				     "invalid pin[%d] for function \"%s\"\n",
@@ -695,6 +701,13 @@ static int sppctl_pinmux_set_mux(struct pinctrl_dev *pctldev,
 			reg_value = func->grps[g2fpm->g_idx].gval;
 			sppctl_gmx_set(pctrl, func->roff, func->boff,
 				       func->blen, reg_value);
+			struct groupSettingExt_t *extSetting = func->grps[g2fpm->g_idx].extSetting;
+
+			if (extSetting) {
+				sppctl_gmx_set(pctrl, extSetting->roff, extSetting->boff,
+					       extSetting->blen, extSetting->bval);
+			}
+
 		} else {
 			KERR(pctldev->dev,
 			     "invalid group \"%s\" for function \"%s\"\n",
