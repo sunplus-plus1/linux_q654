@@ -733,7 +733,6 @@
 
 &watchdog {
 	timeout-sec = <10>;
-	status = "disabled";
 };
 
 &stc {
