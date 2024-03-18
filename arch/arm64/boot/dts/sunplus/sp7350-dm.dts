@@ -83,6 +83,12 @@
 		#size-cells = <2>;
 		ranges;
 
+		/* Null-pointer protection reserve memory: 0x0-0x100000, total 1M */
+		null_pointer_prot_reserve@0 {
+			reg = <0x0 0x0 0x0 0x100000>;
+			no-map;
+		};
+
 		/* warmboot reserve memory: 0x100000-0x200000, total 1M, load firmware in rproc */
 		rproc_0_reserved: rproc0@100000 {
 			compatible = "shared-dma-pool";
