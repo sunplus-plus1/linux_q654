@@ -67,10 +67,16 @@ static int sp7350_drm_pm_suspend(struct device *dev)
 {
 	struct sp7350_drm_device *sdev = dev_get_drvdata(dev);
 
-	drm_kms_helper_poll_disable(&sdev->ddev);
-	//sp7350_drm_crtc_suspend(&sdev->crtc);
-	//drm_fb_helper_set_suspend_unlocked
-	//drm_mode_config_helper_suspend
+	DRM_DEV_DEBUG_DRIVER(dev, "[FIXME]drm dev driver suspend.\n");
+
+	/*
+	 * FIXME!!!
+	 * Should call drm_mode_config_helper_suspend,
+	 * but abort in drm_kms_helper_poll_disable.
+	 */
+	//drm_mode_config_helper_suspend(&sdev->ddev);
+	drm_fb_helper_set_suspend_unlocked(sdev->ddev.fb_helper, 1);
+
 	return 0;
 }
 
@@ -78,11 +84,16 @@ static int sp7350_drm_pm_resume(struct device *dev)
 {
 	struct sp7350_drm_device *sdev = dev_get_drvdata(dev);
 
-	drm_modeset_lock_all(&sdev->ddev);
-	//sp7350_drm_crtc_resume(&sdev->crtc);
-	drm_modeset_unlock_all(&sdev->ddev);
+	DRM_DEV_DEBUG_DRIVER(dev, "[FIXME]drm dev driver resume.\n");
 
-	drm_kms_helper_poll_enable(&sdev->ddev);
+	/*
+	 * FIXME!!!
+	 * Should call drm_mode_config_helper_resume,
+	 * but abort in drm_mode_config_helper_suspend.
+	 */
+	//drm_mode_config_helper_resume(&sdev->ddev);
+	drm_fb_helper_set_suspend_unlocked(sdev->ddev.fb_helper, 0);
+
 	return 0;
 }
 #endif
@@ -99,6 +110,7 @@ static int sp7350_drm_bind(struct device *dev)
 	//struct drm_crtc *crtc;
 	int ret = 0;
 
+	DRM_DEV_DEBUG_DRIVER(dev, "drm bind start.\n");
 	/* using device-specific reserved memorym,
 	 *  defined at dts with label drm_disp_reserve
 	 */
@@ -131,7 +143,7 @@ static int sp7350_drm_bind(struct device *dev)
 #if !DRM_PRIMARY_PLANE_ONLY
 	ret = sp7350_plane_create_additional_planes(drm);
 	if (ret)
-		goto unbind_all;
+		goto err_unbind_all;
 #endif
 
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sp7350drmfb", false);
@@ -139,7 +151,10 @@ static int sp7350_drm_bind(struct device *dev)
 	/* display controller init */
 	ret = sp7350_drm_modeset_init(drm);
 	if (ret < 0)
-		goto unbind_all;
+		goto err_unbind_all;
+
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(drm);
 
 	/* TODO. */
 	//drm_for_each_crtc(crtc, drm)
@@ -147,20 +162,24 @@ static int sp7350_drm_bind(struct device *dev)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
-		goto unbind_all;
+		goto err_cleanup_poll;
 
 	#if DRM_PRIMARY_PLANE_WITH_OSD
 	drm_fbdev_generic_setup(drm, 16);
 	#else
 	ret = sp7350_drm_fbdev_init(drm, 16);
 	if (ret)
-		goto unbind_all;
+		goto err_unbind_all;
 	#endif
 
+	DRM_DEV_DEBUG_DRIVER(dev, "drm bind success.\n");
 	return 0;
 
-unbind_all:
+err_cleanup_poll:
+	drm_kms_helper_poll_fini(drm);
+err_unbind_all:
 	component_unbind_all(dev, drm);
+	DRM_DEV_DEBUG_DRIVER(dev, "drm bind fail.\n");
 
 	return ret;
 }
@@ -169,9 +188,13 @@ static void sp7350_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
+	DRM_DEV_DEBUG_DRIVER(dev, "drm unbind.\n");
 	drm_dev_unregister(drm);
 
+	drm_kms_helper_poll_fini(drm);
+
 	drm_atomic_helper_shutdown(drm);
+	component_unbind_all(drm->dev, drm);
 }
 
 static const struct component_master_ops sp7350_drm_ops = {

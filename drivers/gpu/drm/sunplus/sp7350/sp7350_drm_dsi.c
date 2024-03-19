@@ -330,6 +330,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	//dma_cap_mask_t dma_mask;
 	int ret;
 
+	DRM_DEV_DEBUG_DRIVER(dev, "start.\n");
 	//match = of_match_device(sp7350_dsi_dt_match, dev);
 	//if (!match)
 	//	return -ENODEV;
@@ -407,6 +408,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 
 	pm_runtime_enable(dev);
 
+	DRM_DEV_DEBUG_DRIVER(dev, "success.\n");
 	return 0;
 }
 
@@ -471,16 +473,58 @@ static int sp7350_dsi_dev_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sp7350_drm_dsi *dsi = dev_get_drvdata(dev);
 
+	DRM_DEV_DEBUG_DRIVER(dev, "dsi driver remove.\n");
+
 	component_del(&pdev->dev, &sp7350_dsi_ops);
 	mipi_dsi_host_unregister(&dsi->dsi_host);
 
 	return 0;
 }
 
+static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct sp7350_drm_dsi *dsi = dev_get_drvdata(&pdev->dev);
+
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver suspend.\n");
+	if (dsi->bridge)
+		pm_runtime_put(&pdev->dev);
+
+	/*
+	 * TODO
+	 * phy power off, disable clock, disable irq...
+	 */
+
+	if (dsi->encoder)
+		sp7350_dsi_encoder_disable(dsi->encoder);
+
+	return 0;
+}
+
+static int sp7350_dsi_dev_resume(struct platform_device *pdev)
+{
+	struct sp7350_drm_dsi *dsi = dev_get_drvdata(&pdev->dev);
+
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver resume.\n");
+	if (dsi->bridge)
+		pm_runtime_get(&pdev->dev);
+
+	/*
+	 * TODO
+	 * phy power on, enable clock, enable irq...
+	 */
+
+	if (dsi->encoder)
+		sp7350_dsi_encoder_enable(dsi->encoder);
+
+	return 0;
+}
+
 struct platform_driver sp7350_dsi_driver = {
-	.probe = sp7350_dsi_dev_probe,
-	.remove = sp7350_dsi_dev_remove,
-	.driver = {
+	.probe   = sp7350_dsi_dev_probe,
+	.remove  = sp7350_dsi_dev_remove,
+	.suspend = sp7350_dsi_dev_suspend,
+	.resume  = sp7350_dsi_dev_resume,
+	.driver  = {
 		.name = "sp7350_dsi",
 		.of_match_table = sp7350_dsi_dt_match,
 	},

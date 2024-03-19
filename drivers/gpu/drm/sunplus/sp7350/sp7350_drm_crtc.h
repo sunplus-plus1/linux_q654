@@ -71,8 +71,6 @@ struct sp7350_drm_crtc {
 int sp7350_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 			 struct drm_plane *primary, struct drm_plane *cursor);
 void sp7350_drm_crtc_finish_page_flip(struct sp7350_drm_crtc *scrtc);
-void sp7350_drm_crtc_suspend(struct sp7350_drm_crtc *scrtc);
-void sp7350_drm_crtc_resume(struct sp7350_drm_crtc *scrtc);
 
 void __iomem *sp7350_display_ioremap_regs(int index);
 

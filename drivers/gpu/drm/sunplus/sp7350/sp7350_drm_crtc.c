@@ -245,7 +245,23 @@ static int sp7350_crtc_dev_probe(struct platform_device *pdev)
 
 static int sp7350_crtc_dev_remove(struct platform_device *pdev)
 {
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "crtc driver remove.\n");
+
 	component_del(&pdev->dev, &sp7350_crtc_ops);
+	return 0;
+}
+
+static int sp7350_crtc_dev_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver suspend.\n");
+
+	return 0;
+}
+
+static int sp7350_crtc_dev_resume(struct platform_device *pdev)
+{
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver resume.\n");
+
 	return 0;
 }
 
@@ -255,9 +271,11 @@ static const struct of_device_id sp7350_crtc_dt_match[] = {
 };
 
 struct platform_driver sp7350_crtc_driver = {
-	.probe = sp7350_crtc_dev_probe,
-	.remove = sp7350_crtc_dev_remove,
-	.driver = {
+	.probe   = sp7350_crtc_dev_probe,
+	.remove  = sp7350_crtc_dev_remove,
+	.suspend = sp7350_crtc_dev_suspend,
+	.resume  = sp7350_crtc_dev_resume,
+	.driver  = {
 		.name = "sp7350_crtc",
 		.of_match_table = sp7350_crtc_dt_match,
 	},
