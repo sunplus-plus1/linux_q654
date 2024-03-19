@@ -615,6 +615,19 @@ static int sppctl_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 #else
+static void sppctl_gmac_gmx_set(struct sppctl_pdata_t *pdata, u8 reg_offset,
+				u8 bit_offset, u8 bit_nums, u8 bit_value)
+{
+	sppctl_gmx_set(pdata, reg_offset, bit_offset, bit_nums, 1);
+	if (bit_value == 1) {
+		//RGMII
+		sppctl_gmx_set(pdata, 0X57, 12, 1, 0);
+	} else if (bit_value == 2) {
+		//RMII
+		sppctl_gmx_set(pdata, 0X57, 12, 1, 1);
+	}
+}
+
 static int sppctl_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int func_selector,
 				 unsigned int group_selector)
@@ -672,14 +685,17 @@ static int sppctl_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				sppctl_gpio_first_master_set(chip, pin,
 							     MUX_FIRST_M,
 							     MUX_MASTER_KEEP);
-				reg_value = func->grps[g2fpm->g_idx].gval;
-				sppctl_gmx_set(pctrl, func->roff, func->boff,
-					       func->blen, reg_value);
-				struct groupSettingExt_t *extSetting = func->grps[g2fpm->g_idx].extSetting;
 
-				if (extSetting) {
-					sppctl_gmx_set(pctrl, extSetting->roff, extSetting->boff,
-						       extSetting->blen, extSetting->bval);
+				reg_value = func->grps[g2fpm->g_idx].gval;
+				if (!strcmp(func->name, "GMAC")) {
+					sppctl_gmac_gmx_set(pctrl, func->roff,
+							    func->boff,
+							    func->blen,
+							    reg_value);
+				} else {
+					sppctl_gmx_set(pctrl, func->roff,
+						       func->boff, func->blen,
+						       reg_value);
 				}
 			} else {
 				KERR(pctldev->dev,
@@ -699,13 +715,13 @@ static int sppctl_pinmux_set_mux(struct pinctrl_dev *pctldev,
 							     MUX_MASTER_KEEP);
 			}
 			reg_value = func->grps[g2fpm->g_idx].gval;
-			sppctl_gmx_set(pctrl, func->roff, func->boff,
-				       func->blen, reg_value);
-			struct groupSettingExt_t *extSetting = func->grps[g2fpm->g_idx].extSetting;
-
-			if (extSetting) {
-				sppctl_gmx_set(pctrl, extSetting->roff, extSetting->boff,
-					       extSetting->blen, extSetting->bval);
+			if (!strcmp(func->name, "GMAC")) {
+				sppctl_gmac_gmx_set(pctrl, func->roff,
+						    func->boff, func->blen,
+						    reg_value);
+			} else {
+				sppctl_gmx_set(pctrl, func->roff, func->boff,
+					       func->blen, reg_value);
 			}
 
 		} else {
