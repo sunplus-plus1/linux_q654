@@ -42,9 +42,19 @@ struct sp7350_cpu_dvfs_info {
 #define MIN_F_SLOW	500000000	// min freq in slow mode
 #define MAX_F_SLOW	1200000000	// max freq in slow mode
 #define MAX_F_DEFAULT	1800000000	// max freq in default mode
-extern void sp_clkc_ca55_memctl(u32 val);
 
 static LIST_HEAD(dvfs_info_list);
+
+#define MEMCTL_HWM	0x03ff0000
+static void __iomem *ca55_memctl;
+extern void __iomem *sp_clk_reg_base(void);
+
+static void sp_clkc_ca55_memctl(u32 val)
+{
+	val |= MEMCTL_HWM;
+	//pr_debug(">>> write ca55_memctl(MOON4.14) to %08x", val);
+	writel(val, ca55_memctl);
+}
 
 static struct sp7350_cpu_dvfs_info *sp7350_cpu_dvfs_info_lookup(int cpu)
 {
@@ -327,6 +337,8 @@ static int sp7350_cpufreq_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register sp7350 cpufreq driver\n");
 		goto release_dvfs_info_list;
 	}
+	
+	ca55_memctl = sp_clk_reg_base() + (31 + 32 + 14) * 4; /* G4.14 */
 
 	return 0;
 
