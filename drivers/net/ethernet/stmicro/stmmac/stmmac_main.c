@@ -2320,7 +2320,7 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 }
 
 /**
- * dwmac_select_phy_interface - select ethernet PHY interface.
+ * stmmac_select_phy_interface - select ethernet PHY interface.
  * @mode:
  *		1 RMII  - The clock comes from IC PLL
  * 		0 RGMII - The clock comes from PHY
