@@ -2327,6 +2327,7 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
  * Description:
  * Select ethernet PHY interface by G3.23[12].
  */
+#if 0 /* Temporary commenting out to solve the problem of not getting IP */
 #ifdef CONFIG_SOC_SP7350
 extern void __iomem *sp_clk_reg_base(void); /* defined in the clock driver */
 static int stmmac_select_phy_interface(u8 mode)
@@ -2357,7 +2358,7 @@ static int stmmac_select_phy_interface(u8 mode)
 	return 0;
 }
 #endif
-
+#endif
 
 /**
  * stmmac_init_dma_engine - DMA init.
@@ -2377,8 +2378,10 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	u32 chan = 0;
 	int atds = 0;
 	int ret = 0;
+	int retry, retry_cnt = 5;
+#if 0
 	int phy_interface = priv->plat->phy_interface;
-
+#endif
 	if (!priv->plat->dma_cfg || !priv->plat->dma_cfg->pbl) {
 		dev_err(priv->device, "Invalid DMA configuration\n");
 		return -EINVAL;
@@ -2387,6 +2390,23 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
 		atds = 1;
 
+	for (retry = 0; retry < retry_cnt; retry++) {
+		ret = stmmac_reset(priv, priv->ioaddr);
+		if (ret) {
+			if (retry >= retry_cnt) {
+					dev_err(priv->device, "Failed to reset the dma\n");
+					return ret;
+			}
+			else {
+					dev_info(priv->device, "Retry to reset the dma\n");
+					msleep(300);
+			}
+		} else { /* DMA SW reset succeed */
+				break;
+		}
+	}
+	
+#if 0
 	/**
 	 * It is essential that all PHY inputs clocks
 	 * are present for the software reset completion.
@@ -2403,7 +2423,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		stmmac_select_phy_interface(1); /* switch to RMII */
 	}
 #endif
-
+	
     ret = stmmac_reset(priv, priv->ioaddr);
 
 #ifdef CONFIG_SOC_SP7350
@@ -2411,6 +2431,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		stmmac_select_phy_interface(0); /* switch back to RGMII */
 	}
 #endif
+#endif	
 
     if (ret) {
         dev_err(priv->device, "Failed to reset the dma\n");
