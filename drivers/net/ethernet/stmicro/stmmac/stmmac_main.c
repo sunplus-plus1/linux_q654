@@ -2320,6 +2320,46 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 }
 
 /**
+ * dwmac_select_phy_interface - select ethernet PHY interface.
+ * @mode:
+ *		1 RMII  - The clock comes from IC PLL
+ * 		0 RGMII - The clock comes from PHY
+ * Description:
+ * Select ethernet PHY interface by G3.23[12].
+ */
+#ifdef CONFIG_SOC_SP7350
+extern void __iomem *sp_clk_reg_base(void); /* defined in the clock driver */
+static int stmmac_select_phy_interface(u8 mode)
+{
+	void __iomem *g2_base;
+	void __iomem *g3_23;
+	u32 g3_23_val = 0;
+	int ret;
+
+	g2_base = sp_clk_reg_base();
+	if (IS_ERR(g2_base)) {
+		pr_err("%s: Reg addr err", __func__);
+		ret =  PTR_ERR(g2_base);
+		return ret;
+	}
+    g3_23 = g2_base + 31*4 + 23*4;
+    g3_23_val = readl(g3_23);
+	if(mode) {
+        g3_23_val |= 1<<12;    /* RMII */
+	} else {
+        g3_23_val &= ~(1<<12); /* RGMII */
+	}
+    g3_23_val |= 1<<(12+16); /* write mask bit */
+    writel(g3_23_val, g3_23);
+
+	pr_debug("%s: g3_23_val : 0x%x\n", __func__, readl(g3_23));
+
+	return 0;
+}
+#endif
+
+
+/**
  * stmmac_init_dma_engine - DMA init.
  * @priv: driver private structure
  * Description:
@@ -2337,7 +2377,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	u32 chan = 0;
 	int atds = 0;
 	int ret = 0;
-	int retry, retry_cnt = 5;
+	int phy_interface = priv->plat->phy_interface;
 
 	if (!priv->plat->dma_cfg || !priv->plat->dma_cfg->pbl) {
 		dev_err(priv->device, "Invalid DMA configuration\n");
@@ -2347,21 +2387,35 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
 		atds = 1;
 
-	for (retry = 0; retry < retry_cnt; retry++) {
-		ret = stmmac_reset(priv, priv->ioaddr);
-		if (ret) {
-			if (retry >= retry_cnt) {
-				dev_err(priv->device, "Failed to reset the dma\n");
-				return ret;
-			}
-			else {
-				dev_info(priv->device, "Retry to reset the dma\n");
-				msleep(300);
-			}
-		} else { /* DMA SW reset succeed */
-			break;
-		}
+	/**
+	 * It is essential that all PHY inputs clocks
+	 * are present for the software reset completion.
+	 *
+	 * But the clock from the PHY (RGMII mode) will
+	 * probabilistically stop before the software reset action.
+	 *
+	 * If it's RGMII mode, to keep the clock from stopping
+	 * before software resetting, switch to RMII mode first,
+	 * and then switch back to RGMII mode after the reset.
+	 */
+#ifdef CONFIG_SOC_SP7350
+	if(PHY_INTERFACE_MODE_RGMII == phy_interface) {
+		stmmac_select_phy_interface(1); /* switch to RMII */
 	}
+#endif
+
+    ret = stmmac_reset(priv, priv->ioaddr);
+
+#ifdef CONFIG_SOC_SP7350
+	if(PHY_INTERFACE_MODE_RGMII == phy_interface) {
+		stmmac_select_phy_interface(0); /* switch back to RGMII */
+	}
+#endif
+
+    if (ret) {
+        dev_err(priv->device, "Failed to reset the dma\n");
+        return ret;
+    }
 
 	/* DMA Configuration */
 	stmmac_dma_init(priv, priv->ioaddr, priv->plat->dma_cfg, atds);
