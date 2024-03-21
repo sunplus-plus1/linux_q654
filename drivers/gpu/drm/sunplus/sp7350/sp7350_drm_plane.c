@@ -205,6 +205,10 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
+	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+			 state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
+		      state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
+
 	memset(&info, 0, sizeof(info));
 	info.color_mode = sp7350_get_format(state->fb->format->format, 0);
 	info.buf_addr_phy = (u32)obj->paddr;
@@ -218,6 +222,12 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	info.region_info.act_height = state->crtc_h;
 
 	sp7350_osd_layer_set_by_region(&info, osd_layer_sel);
+
+	DRM_DEBUG_DRIVER("\n set osd region x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
+			info.region_info.start_x, info.region_info.start_y,
+			info.region_info.buf_width, info.region_info.buf_height,
+			info.region_info.act_x, info.region_info.act_y,
+			info.region_info.act_width, info.region_info.act_height);
 
 	DRM_DEBUG_DRIVER("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
 			 drm_get_format_name(state->fb->format->format, &format_name),

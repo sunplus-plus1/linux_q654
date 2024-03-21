@@ -1177,6 +1177,7 @@
 		compatible = "raspberrypi,7inch-touchscreen-panel";
 		//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
 		reg = <0x45>;
+		status = "okay";
 		port {
 			panel_dsi_port: endpoint {
 			};
@@ -3211,18 +3212,23 @@
 &fb_disp_device {
 	status = "disabled";
 };
-
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
+#ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
+&hxm0686tft_lcd {
 	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&dsi_out0 {
-	remote-endpoint = <&panel_dsi_port>;
+#endif
+#ifdef DISP_MIPITX_DSI_PANEL_240X320 /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
+&tcxd024iblon_lcd {
+	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&panel_dsi_port {
-	remote-endpoint = <&dsi_out0>;
-};
-#elif defined(LT8912B_HDMI_ENABLE)
+#endif
+#ifdef LT8912B_HDMI_ENABLE
 &lontium_lt8912b {
 	status = "okay";
 };
@@ -3230,6 +3236,16 @@
 	remote-endpoint = <&lt8912b_in>;
 };
 &lt8912b_in {
+	remote-endpoint = <&dsi_out0>;
+};
+#else
+//&raspberrypi_lcd {
+//	status = "okay";
+//};
+&dsi_out0 {
+	remote-endpoint = <&panel_dsi_port>;
+};
+&panel_dsi_port {
 	remote-endpoint = <&dsi_out0>;
 };
 #endif

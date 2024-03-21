@@ -2024,9 +2024,11 @@
 	sp7350,dev_name = "TCXD024IBLON-2";
 
 	sp7350,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#ifdef CONFIG_DISP_DRM_SUPPORT
+	sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#endif
 	sp7350,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
 
 	sp7350,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
@@ -2864,18 +2866,23 @@
 &fb_disp_device {
 	status = "disabled";
 };
-
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
+#ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
+&hxm0686tft_lcd {
 	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&dsi_out0 {
-	remote-endpoint = <&panel_dsi_port>;
+#endif
+#ifdef DISP_MIPITX_DSI_PANEL_240X320 /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
+&tcxd024iblon_lcd {
+	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&panel_dsi_port {
-	remote-endpoint = <&dsi_out0>;
-};
-#elif defined(LT8912B_HDMI_ENABLE)
+#endif
+#ifdef LT8912B_HDMI_ENABLE
 &lontium_lt8912b {
 	status = "okay";
 };
@@ -2883,6 +2890,16 @@
 	remote-endpoint = <&lt8912b_in>;
 };
 &lt8912b_in {
+	remote-endpoint = <&dsi_out0>;
+};
+#else
+//&raspberrypi_lcd {
+//	status = "okay";
+//};
+&dsi_out0 {
+	remote-endpoint = <&panel_dsi_port>;
+};
+&panel_dsi_port {
 	remote-endpoint = <&dsi_out0>;
 };
 #endif

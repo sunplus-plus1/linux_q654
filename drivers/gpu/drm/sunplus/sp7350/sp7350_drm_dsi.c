@@ -192,12 +192,22 @@ static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
+	sp7350_mipitx_cmd_mode_start();
+
 	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
 		if (iter->funcs->pre_enable)
 			iter->funcs->pre_enable(iter);
 		if (iter->funcs->enable)
 			iter->funcs->enable(iter);
 	}
+
+	sp7350_mipitx_pllclk_set(SP7350_MIPITX_HS_MODE, 480, 1280);
+
+	sp7350_mipitx_video_mode_setting();
+	sp7350_mipitx_lane_control_set();
+
+	//sp7350_mipitx_lane_set(dsi->lanes);
+	sp7350_mipitx_video_mode_on();
 }
 
 static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *encoder,
@@ -408,7 +418,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 
 	pm_runtime_enable(dev);
 
-	DRM_DEV_DEBUG_DRIVER(dev, "success.\n");
+	DRM_DEV_DEBUG_DRIVER(dev, "finish.\n");
 	return 0;
 }
 
@@ -445,6 +455,9 @@ static int sp7350_dsi_dev_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, dsi);
 
 	dsi->pdev = pdev;
+
+	sp7350_mipitx_phy_init();
+	sp7350_mipitx_pllclk_init();
 
 	/* Note, the initialization sequence for DSI and panels is
 	 * tricky.  The component bind above won't get past its

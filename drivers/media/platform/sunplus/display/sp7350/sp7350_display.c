@@ -829,7 +829,6 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		disp_dev->dev[i]->fmt.fmt.pix.priv = 0;
 	}
 	#endif
-#endif
 
 	/*
 	 * init MIPITX DSI or CSI output setting
@@ -838,6 +837,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		sp7350_mipitx_phy_init_dsi();
 	else
 		sp7350_mipitx_phy_init_csi();
+#endif
 
 
 #if defined(CONFIG_VIDEO_SP7350_DISP_DEBUG)
