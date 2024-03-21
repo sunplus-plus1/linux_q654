@@ -704,10 +704,12 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 	writel(disp_dev->osd_hdr_phy[osd_layer_sel],
 		disp_dev->base + (osd_layer_sel << 7) + OSD_BASE_ADDR);
 
-	writel(disp_dev->osd_res[osd_layer_sel].x_ofs,
-		disp_dev->base + (osd_layer_sel << 7) + OSD_HVLD_OFFSET);
-	writel(disp_dev->osd_res[osd_layer_sel].y_ofs,
-		disp_dev->base + (osd_layer_sel << 7) + OSD_VVLD_OFFSET);
+	//writel(disp_dev->osd_res[osd_layer_sel].x_ofs,
+	//	disp_dev->base + (osd_layer_sel << 7) + OSD_HVLD_OFFSET);
+	//writel(disp_dev->osd_res[osd_layer_sel].y_ofs,
+	//	disp_dev->base + (osd_layer_sel << 7) + OSD_VVLD_OFFSET);
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + OSD_HVLD_OFFSET);
+	writel(0, disp_dev->base + (osd_layer_sel << 7) + OSD_VVLD_OFFSET);
 
 	writel(disp_dev->out_res.width,
 		disp_dev->base + (osd_layer_sel << 7) + OSD_HVLD_WIDTH);
