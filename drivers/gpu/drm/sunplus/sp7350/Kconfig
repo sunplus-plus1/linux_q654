@@ -15,3 +15,14 @@ config DRM_SP7350
 	  Choose this option if you have a Sunplus SP7350 SoCs.
 	  Support for the SUNPLUS SP7350 DRM driver.
 
+config DRM_PANEL_SP7350_SIMPLE_DSI
+	tristate "support for sunplus simple dsi panels"
+	depends on OF
+	depends on DRM_SP7350
+	select VIDEOMODE_HELPERS
+	default y
+	help
+	  DRM panel driver for dumb panels that need at most a regulator and
+	  a GPIO to be powered up. Optionally a backlight can be attached so
+	  that it can be automatically turned off when the panel goes into a
+	  low power state.
