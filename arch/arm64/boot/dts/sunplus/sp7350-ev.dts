@@ -2240,9 +2240,11 @@
 	sp7350,dev_name = "TCXD024IBLON-2";
 
 	sp7350,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#ifdef CONFIG_DISP_DRM_SUPPORT
+	sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#endif
 	sp7350,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
 
 	sp7350,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */

@@ -641,8 +641,10 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 	u32 *osd_header, *osd_palette;
 	int i;
 
-	if (!disp_dev->osd_hdr[osd_layer_sel])
+	if (!disp_dev->osd_hdr[osd_layer_sel]) {
+		pr_warn("  --- osd%d not exist!! ---\n", osd_layer_sel);
 		return;
+	}
 
 	osd_header = (u32 *)disp_dev->osd_hdr[osd_layer_sel];
 	osd_palette = (u32 *)disp_dev->osd_hdr[osd_layer_sel] + 32;
@@ -765,11 +767,13 @@ int sp7350_osd_resolution_init(struct sp_disp_device *disp_dev)
 	struct sp7350fb_info info;
 	int i;
 
+	#ifndef CONFIG_DRM_SP7350
 	if (((disp_dev->osd_res[0].width == 240) && (disp_dev->osd_res[0].height == 320)) ||
 		((disp_dev->osd_res[1].width == 240) && (disp_dev->osd_res[1].height == 320)) ||
 		((disp_dev->osd_res[2].width == 240) && (disp_dev->osd_res[2].height == 320)) ||
 		((disp_dev->osd_res[3].width == 240) && (disp_dev->osd_res[3].height == 320)))
 			return 0;
+	#endif
 
 	sp7350_osd_header_init();
 
