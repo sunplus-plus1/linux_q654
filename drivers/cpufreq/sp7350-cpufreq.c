@@ -15,6 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
+#include <linux/hwspinlock.h>
 
 #define TRACE	printk("!!! %s:%d !!!\n", __FUNCTION__, __LINE__)
 
@@ -23,6 +24,10 @@
 #define MAX_VOLT_LIMIT		(1150000)
 #define VOLT_TOL		(10000)
 
+/* Timeout (ms) for the trylock of hardware spinlocks */
+#define SP_DVFS_HWLOCK_TIMEOUT	100
+#define SP_DVFS_HWLOCK_ID	15
+
 struct sp7350_cpu_dvfs_info {
 	struct cpumask cpus;
 	struct device *cpu_dev;
@@ -30,6 +35,7 @@ struct sp7350_cpu_dvfs_info {
 	struct clk *l3_clk;
 	struct regulator *proc_reg;
 	struct list_head list_head;
+	struct hwspinlock *hwlock;
 };
 
 /* refer 20221201-CA55_DVFS_Flow_guide(p5) */
@@ -77,7 +83,13 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 	struct device *cpu_dev = info->cpu_dev;
 	struct dev_pm_opp *opp;
 	unsigned long new_freq, old_freq = clk_get_rate(cpu_clk);
-	int new_vproc, old_vproc, ret;
+	int new_vproc, old_vproc, ret = 0;
+
+	ret = hwspin_lock_timeout_raw(info->hwlock, SP_DVFS_HWLOCK_TIMEOUT);
+	if (ret) {
+		pr_err("[SP_DVFS] timeout to get the hwspinlock\n");
+		return ret;
+	}
 
 	new_freq = freq_table[index].frequency * 1000;
 	//pr_debug("\n>>> %s: %lu -> %lu\n", __FUNCTION__, clk_get_rate(cpu_clk), new_freq);
@@ -85,7 +97,8 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 	if (IS_ERR(opp)) {
 		pr_err("cpu%d: failed to find OPP for %ld\n",
 		policy->cpu, new_freq);
-		return PTR_ERR(opp);
+		ret = PTR_ERR(opp);
+		goto dvfs_exit;
 	}
 	new_vproc = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
@@ -94,7 +107,8 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		old_vproc = regulator_get_voltage(info->proc_reg);
 		if (old_vproc < 0) {
 			pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
-			return old_vproc;
+			ret = old_vproc;
+			goto dvfs_exit;
 		}
 
 		/*
@@ -107,7 +121,7 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 			if (ret) {
 				pr_err("cpu%d: failed to scale up voltage!\n",
 				policy->cpu);
-				return ret;
+				goto dvfs_exit;
 			}
 		}
 	}
@@ -153,12 +167,15 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 			if (ret) {
 				pr_err("cpu%d: failed to scale down voltage!\n",
 				policy->cpu);
-				return ret;
+				goto dvfs_exit;
 			}
 		}
 	}
 
-	return 0;
+dvfs_exit:
+	hwspin_unlock_raw(info->hwlock);
+
+	return ret;
 }
 
 #define DYNAMIC_POWER "dynamic-power-coefficient"
@@ -339,6 +356,8 @@ static int sp7350_cpufreq_probe(struct platform_device *pdev)
 	}
 	
 	ca55_memctl = sp_clk_reg_base() + (31 + 32 + 14) * 4; /* G4.14 */
+
+	info->hwlock = hwspin_lock_request_specific(SP_DVFS_HWLOCK_ID);
 
 	return 0;
 
