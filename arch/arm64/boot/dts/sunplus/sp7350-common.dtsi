@@ -1649,7 +1649,7 @@
 			status = "disabled";
 		};
 		tcxd024iblon_lcd: mipi_dsi_lcd@1 {
-			compatible = "xx,tcxd024iblon-2";
+			compatible = "fitipower,tcxd024iblon-2";
 			reg = <1>;
 			status = "disabled";
 		};
