@@ -32,9 +32,8 @@ sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 		DRM_DEV_DEBUG_DRIVER(dev->dev,
 				     "unsupported pixel format %s / modifier 0x%llx\n",
-			    drm_get_format_name(mode_cmd->pixel_format,
-						&format_name),
-			    mode_cmd->modifier[0]);
+				     drm_get_format_name(mode_cmd->pixel_format, &format_name),
+				     mode_cmd->modifier[0]);
 		return ERR_PTR(-EINVAL);
 	}
 

@@ -306,7 +306,7 @@ static const struct of_device_id sp7350_dsi_dt_match[] = {
 
 static int sp7350_drm_encoder_init(struct device *dev,
 				   struct drm_device *drm_dev,
-			       struct drm_encoder *encoder)
+				   struct drm_encoder *encoder)
 {
 	int ret;
 	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
