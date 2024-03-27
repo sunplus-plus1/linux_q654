@@ -196,6 +196,22 @@ struct rpi_touchscreen {
 };
 
 static const struct drm_display_mode rpi_touchscreen_modes[] = {
+	#if defined(CONFIG_DRM_SP7350)
+	{
+		/* Modeline comes from the SP7350 firmware, with HFP=0
+		 * plugged in and clock re-computed from that.
+		 */
+		.clock = 28000000 / 1000,
+		.hdisplay = 800,
+		.hsync_start = 800 + 0,
+		.hsync_end = 800 + 0 + 5,
+		.htotal = 800 + 0 + 5 + 112,
+		.vdisplay = 480,
+		.vsync_start = 480 + 7,
+		.vsync_end = 480 + 7 + 21,
+		.vtotal = 480 + 7 + 21 + 2,
+	},
+	#endif
 	{
 		/* Modeline comes from the Raspberry Pi firmware, with HFP=1
 		 * plugged in and clock re-computed from that.

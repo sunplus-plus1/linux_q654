@@ -2384,6 +2384,9 @@
 		};
 	};
 #endif
+#else
+	//0xf8006600-66b8 and 0xf8800180 used for DRM DSI Driver.
+	reg = <0x00 0xf8005c80 0x00 0x980>;
 #endif
 };
 

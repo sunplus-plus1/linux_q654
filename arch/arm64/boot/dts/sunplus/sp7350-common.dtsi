@@ -1638,8 +1638,22 @@
 		};
 	};
 
-	dsi0: mipi-dsi {
+	dsi0: mipi-dsi@f8006600 {
 		compatible = "sunplus,sp7350-dsi0";
+
+		reg = <0x00 0xf8006600 0x00 0xb8>, <0x00 0xf8800180 0x00 0x80>;
+		interrupt-parent = <&gic>;
+		interrupts =
+			<GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+			<GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+		clocks =
+			<&clkc DISPSYS>,  <&clkc MIPITX>, <&clkc TCON>, <&clkc TGEN>;
+		clock-names =
+			"clkc_dispsys", "clkc_mipitx", "clkc_tcon", "clkc_tgen";
+		resets =
+			<&rstc RST_DISPSYS>, <&rstc RST_MIPITX>, <&rstc RST_TCON>, <&rstc RST_TGEN>;
+		reset-names =
+			"rstc_dispsys", "rstc_mipitx", "rstc_tcon", "rstc_tgen";
 
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1647,11 +1661,19 @@
 			compatible = "lx,hxm0686tft-001";
 			reg = <0>;
 			status = "disabled";
+			disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
+				/* 0x0:Raising Edge(default)
+				 * 0x1:Falling Edge
+				 */
 		};
 		tcxd024iblon_lcd: mipi_dsi_lcd@1 {
 			compatible = "fitipower,tcxd024iblon-2";
 			reg = <1>;
 			status = "disabled";
+			disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
+				/* 0x0:Raising Edge(default)
+				 * 0x1:Falling Edge
+				 */
 		};
 
 		ports {
