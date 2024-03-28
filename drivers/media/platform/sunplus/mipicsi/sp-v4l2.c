@@ -7,7 +7,6 @@
  *
  * Based on Renesas R-Car VIN driver
  */
-
 #include <linux/pm_runtime.h>
 
 #include <media/v4l2-event.h>
@@ -50,6 +49,19 @@ static const struct vin_video_format vin_formats[] = {
 	{
 		.fourcc 		= V4L2_PIX_FMT_VYUY,
 		.mbus_code		= MEDIA_BUS_FMT_VYUY8_2X8,
+		.bpp			= 16,
+		.bpc 			= 8,
+	},
+	/* RGB565 */
+	{
+		.fourcc			= V4L2_PIX_FMT_RGB565,
+		.mbus_code		= MEDIA_BUS_FMT_RGB565_2X8_LE,
+		.bpp			= 16,
+		.bpc			= 8,
+	},
+	{
+		.fourcc			= V4L2_PIX_FMT_RGB565X,
+		.mbus_code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.bpp			= 16,
 		.bpc 			= 8,
 	},
@@ -892,6 +904,8 @@ static int vin_mc_enum_fmt_vid_cap(struct file *file, void *priv,
 	case MEDIA_BUS_FMT_YUYV8_1X16:
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		break;

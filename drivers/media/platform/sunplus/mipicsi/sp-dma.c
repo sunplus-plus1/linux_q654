@@ -150,6 +150,12 @@ static void csiiw_fs_config(struct vin_dev *vin)
 		val = pix->bytesperline;
 		break;
 
+	/* RGB565 */
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
+		val = pix->bytesperline;
+		break;
+
 	/* RAW */
 	case MEDIA_BUS_FMT_SBGGR8_1X8:		/* 8 bits */
 	case MEDIA_BUS_FMT_SGBRG8_1X8:
@@ -711,6 +717,8 @@ static int vin_mc_validate_format(struct vin_dev *vin, struct v4l2_subdev *sd,
 	case MEDIA_BUS_FMT_VYUY8_2X8:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 	case MEDIA_BUS_FMT_SBGGR10_1X10:
 	case MEDIA_BUS_FMT_SGBRG10_1X10:
 	case MEDIA_BUS_FMT_SGRBG10_1X10:

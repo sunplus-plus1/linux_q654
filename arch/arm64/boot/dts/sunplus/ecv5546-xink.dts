@@ -10,6 +10,7 @@
 //#define SPI_LOOPBACK_MTTEST
 
 //#define MIPI_CSI_4VC
+//#define ESP876_IN5
 //#define IMX219_IN0
 //#define IMX219_IN1
 //#define IMX219_IN2
@@ -88,6 +89,12 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		/* Null-pointer protection reserve memory: 0x0-0x100000, total 1M */
+		null_pointer_prot_reserve@0 {
+			reg = <0x0 0x0 0x0 0x100000>;
+			no-map;
+		};
 
 		/* warmboot reserve memory: 0x100000-0x200000, total 1M, load firmware in rproc */
 		rproc_0_reserved: rproc0@100000 {
@@ -168,7 +175,7 @@
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
-			no-map;
+			reusable;
 		};
 
 		/* CM4 reserve memory: 0xfa240000 ~ 0xfa29ffff, total 384K */
@@ -185,6 +192,12 @@
 			#clock-cells = <0>;
 			clock-frequency = <320000000>;
 			clock-output-names = "f_320m";
+		};
+
+		esp876_clk: camera-esp876-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
 		};
 
 		imx219_clk: camera-imx219-clk {
@@ -1060,12 +1073,31 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo3_pins>;
-#if defined(IMX219_IN5) || defined(TP2815_IN5)
+#if defined(ESP876_IN5) || defined(IMX219_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
 #endif
 
+#ifdef ESP876_IN5 /* Add eSP876 subnode in i2c3 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: sensor@60 {
+		compatible = "eys3d,eSP876";
+		reg = <0x60>;
+		clocks = <&esp876_clk>;
+
+		port {
+			esp876_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+#endif
 #ifdef IMX219_IN5 /* Add imx219 subnode in i2c3 */
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -1380,6 +1412,7 @@
 };
 
 &vin4 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN2) || defined(TP2815_IN2)
 	status = "okay";
 #else
@@ -1406,6 +1439,7 @@
 };
 
 &vin5 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN2) && defined(TP2815_IN2_2VC)
 	status = "okay";
 #else
@@ -1511,6 +1545,7 @@
 #endif
 
 &vin6 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN3) || defined(TP2815_IN3)
 	status = "okay";
 #else
@@ -1544,6 +1579,7 @@
 };
 
 &vin7 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN3) && defined(TP2815_IN3_2VC)
 	status = "okay";
 #else
@@ -1692,6 +1728,7 @@
 };
 
 &vin8 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 	status = "okay";
 #else
@@ -1718,6 +1755,7 @@
 };
 
 &vin9 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN4) && defined(TP2815_IN4_2VC)
 	status = "okay";
 #else
@@ -1744,7 +1782,7 @@
 };
 
 &mipicsirx5 {
-#if defined(IMX219_IN5) || defined(TP2815_IN5)
+#if defined(ESP876_IN5) || defined(IMX219_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1752,7 +1790,7 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(IMX219_IN5)
+#if defined(ESP876_IN5) || defined(IMX219_IN5)
 	num_channels = <1>;
 #elif defined(TP2815_IN5)
 	#ifdef TP2815_IN5_4VC
@@ -1771,6 +1809,19 @@
 		#size-cells = <0>;
 
 		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
+#ifdef ESP876_IN5 /* Add eSP876 subnode in i2c3 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&esp876_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
 #ifdef IMX219_IN5 /* Add imx219 subnode in i2c3 */
 		port@0 {
 			reg = <0>;
@@ -1835,7 +1886,8 @@
 };
 
 &vin10 {
-#if defined(IMX219_IN5) || defined(TP2815_IN5)
+	memory-region = <&mipicsirx_reserve>;
+#if defined(ESP876_IN5) || defined(IMX219_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1861,6 +1913,7 @@
 };
 
 &vin11 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN5) && defined(TP2815_IN5_2VC)
 	status = "okay";
 #else
@@ -1887,6 +1940,7 @@
 };
 
 &vin12 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
 
 	ports {
@@ -1909,6 +1963,7 @@
 };
 
 &vin13 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
 
 	ports {
@@ -1969,9 +2024,11 @@
 	sp7350,dev_name = "TCXD024IBLON-2";
 
 	sp7350,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#ifdef CONFIG_DISP_DRM_SUPPORT
+	sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#endif
 	sp7350,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
 
 	sp7350,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
@@ -2111,6 +2168,9 @@
 		};
 	};
 #endif
+#else
+	//0xf8006600-66b8 and 0xf8800180 used for DRM DSI Driver.
+	reg = <0x00 0xf8005c80 0x00 0x980>;
 #endif
 };
 
@@ -2236,6 +2296,20 @@
 &sp_uphy0 {
 };
 
+&ehci0 {
+};
+
+&ohci0 {
+};
+
+&udc0 {
+	status = "disabled";
+};
+
+&otg {
+	status = "disabled";
+};
+
 &extcon_dwc3drd {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dwc3id_pins>;
@@ -2288,9 +2362,26 @@
 	status = "disabled";
 };
 
+&vcodec_emem {
+	memory-region = <&video_codec_encode>;
+	video_codec-supply = <&video_codec_core_0v8>;
+};
+
+&vcodec_dmem {
+	memory-region = <&video_codec_decode>;
+	video_codec-supply = <&video_codec_core_0v8>;
+};
+
+&vcodec_v4l2_mem {
+	memory-region = <&vcodec_v4l2>;
+};
+
+&galcore {
+	status = "okay";
+};
+
 &watchdog {
 	timeout-sec = <10>;
-	status = "disabled";
 };
 
 &stc {
@@ -2766,6 +2857,7 @@
 
 #ifdef CONFIG_DISP_DRM_SUPPORT
 &drm_display_engine {
+	memory-region = <&disp_reserve>;
 	status = "okay";
 };
 &crtc0 {
@@ -2777,18 +2869,23 @@
 &fb_disp_device {
 	status = "disabled";
 };
-
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
+#ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
+&hxm0686tft_lcd {
 	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&dsi_out0 {
-	remote-endpoint = <&panel_dsi_port>;
+#endif
+#ifdef DISP_MIPITX_DSI_PANEL_240X320 /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
+&tcxd024iblon_lcd {
+	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&panel_dsi_port {
-	remote-endpoint = <&dsi_out0>;
-};
-#elif defined(LT8912B_HDMI_ENABLE)
+#endif
+#ifdef LT8912B_HDMI_ENABLE
 &lontium_lt8912b {
 	status = "okay";
 };
@@ -2798,9 +2895,20 @@
 &lt8912b_in {
 	remote-endpoint = <&dsi_out0>;
 };
+#else
+//&raspberrypi_lcd {
+//	status = "okay";
+//};
+&dsi_out0 {
+	remote-endpoint = <&panel_dsi_port>;
+};
+&panel_dsi_port {
+	remote-endpoint = <&dsi_out0>;
+};
 #endif
 #else
 &fb_disp_device {
+	memory-region = <&disp_reserve>;
 	status = "okay";
 };
 &drm_display_engine {

@@ -20,6 +20,7 @@
 //#define OV5640_IN4
 //#define OV5647_IN3
 //#define OV5647_IN4
+//#define OV5647_IN5
 //#define TP2815_IN2
 //#define TP2815_IN2_1LANE
 //#define TP2815_IN2_2LANES
@@ -82,6 +83,12 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		/* Null-pointer protection reserve memory: 0x0-0x100000, total 1M */
+		null_pointer_prot_reserve@0 {
+			reg = <0x0 0x0 0x0 0x100000>;
+			no-map;
+		};
 
 		/* warmboot reserve memory: 0x100000-0x200000, total 1M, load firmware in rproc */
 		rproc_0_reserved: rproc0@100000 {
@@ -162,7 +169,7 @@
 		vcodec_v4l2: vcodec@80000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x80000000 0x0 0x18000000>;
-			no-map;
+			reusable;
 		};
 
 		/* CM4 reserve memory: 0xfa240000 ~ 0xfa29ffff, total 384K */
@@ -1006,7 +1013,7 @@
 	clock-frequency = <400000>;
 #endif
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c_combo6_pins>;
+	pinctrl-0 = <&i2c_combo4_pins>;
 	status = "okay";
 
 #ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
@@ -1081,7 +1088,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo6_pins>;
-#if defined(IMX219_IN5) || defined(TP2815_IN5)
+#if defined(IMX219_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1109,6 +1116,30 @@
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+#endif
+#ifdef OV5647_IN5 /* Add ov5647 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: ov5647@36 {
+		// compatible = "ovti,ov5647";
+		compatible = "ovti,ov5647";
+		reg = <0x36>;
+		clocks = <&ov5647_clk>;
+		avdd-supply = <&ov5647_avdd_2v8>;
+		dovdd-supply = <&ov5647_dovdd_1v8>;
+		dvdd-supply = <&ov5647_dvdd_1v5>;
+		// pwdn-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5647_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <297000000>;
 			};
 		};
 	};
@@ -1311,6 +1342,7 @@
 };
 
 &vin4 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN2) || defined(TP2815_IN2)
 	status = "okay";
 #else
@@ -1337,6 +1369,7 @@
 };
 
 &vin5 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN2) && defined(TP2815_IN2_2VC)
 	status = "okay";
 #else
@@ -1481,6 +1514,7 @@
 #endif
 
 &vin6 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
 	status = "okay";
 #else
@@ -1514,6 +1548,7 @@
 };
 
 &vin7 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN3) && defined(TP2815_IN3_2VC)
 	status = "okay";
 #else
@@ -1663,6 +1698,7 @@
 };
 
 &vin8 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 	status = "okay";
 #else
@@ -1689,6 +1725,7 @@
 };
 
 &vin9 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN4) && defined(TP2815_IN4_2VC)
 	status = "okay";
 #else
@@ -1715,7 +1752,7 @@
 };
 
 &mipicsirx5 {
-#if defined(IMX219_IN5) || defined(TP2815_IN5)
+#if defined(IMX219_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1723,7 +1760,7 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(IMX219_IN5)
+#if defined(IMX219_IN5) || defined(OV5647_IN5)
 	num_channels = <1>;
 #elif defined(TP2815_IN5)
 	#ifdef TP2815_IN5_4VC
@@ -1749,6 +1786,19 @@
 			/* MIPI CSI-2 bus endpoint */
 			csi2_5: endpoint {
 				remote-endpoint = <&imx219_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef OV5647_IN5 /* Add OV5647 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&ov5647_5>;
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
@@ -1806,7 +1856,8 @@
 };
 
 &vin10 {
-#if defined(IMX219_IN5) || defined(TP2815_IN5)
+	memory-region = <&mipicsirx_reserve>;
+#if defined(IMX219_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1832,6 +1883,7 @@
 };
 
 &vin11 {
+	memory-region = <&mipicsirx_reserve>;
 #if defined(TP2815_IN5) && defined(TP2815_IN5_2VC)
 	status = "okay";
 #else
@@ -1858,6 +1910,7 @@
 };
 
 &vin12 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
 
 	ports {
@@ -1880,6 +1933,7 @@
 };
 
 &vin13 {
+	memory-region = <&mipicsirx_reserve>;
 	status = "disabled";
 
 	ports {
@@ -1940,9 +1994,11 @@
 	sp7350,dev_name = "TCXD024IBLON-2";
 
 	sp7350,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	//sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#ifdef CONFIG_DISP_DRM_SUPPORT
+	sp7350,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	sp7350,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
+	#endif
 	sp7350,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
 
 	sp7350,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
@@ -2082,6 +2138,9 @@
 		};
 	};
 #endif
+#else
+	//0xf8006600-66b8 and 0xf8800180 used for DRM DSI Driver.
+	reg = <0x00 0xf8005c80 0x00 0x980>;
 #endif
 };
 
@@ -2160,9 +2219,9 @@
 };
 
 &mmc0 {
-	max-frequency = <45000000>;
-	mmc-ddr-1_8v;
-	#mmc-hs200-1_8v;
+	max-frequency = <200000000>;
+	#mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
 	#mmc-hs400-1_8v;
 	#mmc-hs400-enhanced-strobe;
 };
@@ -2205,6 +2264,20 @@
 };
 
 &sp_uphy0 {
+};
+
+&ehci0 {
+};
+
+&ohci0 {
+};
+
+&udc0 {
+	status = "disabled";
+};
+
+&otg {
+	status = "disabled";
 };
 
 &extcon_dwc3drd {
@@ -2259,9 +2332,26 @@
 	status = "disabled";
 };
 
+&vcodec_emem {
+	memory-region = <&video_codec_encode>;
+	video_codec-supply = <&video_codec_core_0v8>;
+};
+
+&vcodec_dmem {
+	memory-region = <&video_codec_decode>;
+	video_codec-supply = <&video_codec_core_0v8>;
+};
+
+&vcodec_v4l2_mem {
+	memory-region = <&vcodec_v4l2>;
+};
+
+&galcore {
+	status = "okay";
+};
+
 &watchdog {
 	timeout-sec = <10>;
-	status = "disabled";
 };
 
 &stc {
@@ -2742,6 +2832,7 @@
 
 #ifdef CONFIG_DISP_DRM_SUPPORT
 &drm_display_engine {
+	memory-region = <&disp_reserve>;
 	status = "okay";
 };
 &crtc0 {
@@ -2753,18 +2844,23 @@
 &fb_disp_device {
 	status = "disabled";
 };
-
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
+#ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
+&hxm0686tft_lcd {
 	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&dsi_out0 {
-	remote-endpoint = <&panel_dsi_port>;
+#endif
+#ifdef DISP_MIPITX_DSI_PANEL_240X320 /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
+&tcxd024iblon_lcd {
+	status = "okay";
+	port {
+		panel_dsi_port: endpoint {};
+	};
 };
-&panel_dsi_port {
-	remote-endpoint = <&dsi_out0>;
-};
-#elif defined(LT8912B_HDMI_ENABLE)
+#endif
+#ifdef LT8912B_HDMI_ENABLE
 &lontium_lt8912b {
 	status = "okay";
 };
@@ -2774,9 +2870,20 @@
 &lt8912b_in {
 	remote-endpoint = <&dsi_out0>;
 };
+#else
+//&raspberrypi_lcd {
+//	status = "okay";
+//};
+&dsi_out0 {
+	remote-endpoint = <&panel_dsi_port>;
+};
+&panel_dsi_port {
+	remote-endpoint = <&dsi_out0>;
+};
 #endif
 #else
 &fb_disp_device {
+	memory-region = <&disp_reserve>;
 	status = "okay";
 };
 &drm_display_engine {

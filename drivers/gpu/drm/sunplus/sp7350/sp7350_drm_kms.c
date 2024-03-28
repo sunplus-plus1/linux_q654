@@ -32,9 +32,8 @@ sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 
 		DRM_DEV_DEBUG_DRIVER(dev->dev,
 				     "unsupported pixel format %s / modifier 0x%llx\n",
-			    drm_get_format_name(mode_cmd->pixel_format,
-						&format_name),
-			    mode_cmd->modifier[0]);
+				     drm_get_format_name(mode_cmd->pixel_format, &format_name),
+				     mode_cmd->modifier[0]);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -54,8 +53,8 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	/* Set support for vblank irq fast disable, before drm_vblank_init() */
 	drm->vblank_disable_immediate = true;
 
-	//drm->irq_enabled = true;
-	drm->irq_enabled = false;
+	drm->irq_enabled = true;
+	//drm->irq_enabled = false;
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		DRM_DEV_ERROR(drm->dev, "failed to initialize vblank\n");
@@ -73,8 +72,6 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	drm->mode_config.allow_fb_modifiers = true;
 
 	drm_mode_config_reset(drm);
-
-	drm_kms_helper_poll_init(drm);
 
 	return 0;
 }

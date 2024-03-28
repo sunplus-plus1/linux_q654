@@ -100,6 +100,8 @@ static const struct csi2_format csi2_formats[] = {
 	{ .code = MEDIA_BUS_FMT_VYUY8_2X8, .datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_YUYV8_2X8, .datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_YVYU8_2X8, .datatype = 0x1e, .bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_RGB565_2X8_LE, .datatype = 0x22, .bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_RGB565_2X8_BE, .datatype = 0x22, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_SBGGR8_1X8, .datatype = 0x2a, .bpp = 8 },
 	{ .code = MEDIA_BUS_FMT_SGBRG8_1X8, .datatype = 0x2a, .bpp = 8 },
 	{ .code = MEDIA_BUS_FMT_SGRBG8_1X8, .datatype = 0x2a, .bpp = 8 },
@@ -490,6 +492,7 @@ static void csi2_dt_config(struct csi2_dev *priv, unsigned int dt)
 	switch (dt) {
 	default:
 	case 0x1e:	/* YUY2 */
+	case 0x22:	/*RGB565*/
 	case 0x2a:	/* RAW8 */
 		set_field(&mix_cfg, 2, 0x7<<16);	/* Source is 8 bits per pixel */
 		break;
@@ -871,7 +874,7 @@ static int csi2_enum_frame_interval(struct v4l2_subdev *sd,
 	struct csi2_dev *priv = sd_to_csi2(sd);
 	int ret = 0;
 
-	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
+	// dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
 	ret = v4l2_subdev_call(priv->remote, pad, enum_frame_interval, NULL, fie);
 

@@ -1260,6 +1260,12 @@ static int dec_chrdev_probe(struct platform_device *dev)
         return -EBUSY;
     }
 
+    if (dec_clock_enable(dev, "clk_vc8000d"))
+        goto PROBE_ERR;
+
+    if (dec_reset_release(dev, "rstc_vc8000d"))
+        goto PROBE_ERR;
+
     hwid = ((readl(hx170dec_data.hwregs[0])) >> 16) & 0xFFFF; /* product version only */
 
     /* check for correct HW */
@@ -1267,12 +1273,6 @@ static int dec_chrdev_probe(struct platform_device *dev)
     {
         return -EBUSY;
     }
-
-    if (dec_clock_enable(dev, "clk_vc8000d"))
-        goto PROBE_ERR;
-
-    if (dec_reset_release(dev, "rstc_vc8000d"))
-        goto PROBE_ERR;
 
     /* register irq for each core */
     result = request_irq(hx170dec_data.irq, hx170dec_isr,
