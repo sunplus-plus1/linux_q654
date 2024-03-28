@@ -671,9 +671,11 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	if (IS_ERR(disp_dev->base))
 		return dev_err_probe(&pdev->dev, PTR_ERR(disp_dev->base), "reg base not found\n");
 
+#ifndef CONFIG_DRM_SP7350
 	disp_dev->ao_moon3 = devm_platform_get_and_ioremap_resource(pdev, 1, &res);
 	if (IS_ERR(disp_dev->ao_moon3))
 		return dev_err_probe(&pdev->dev, PTR_ERR(disp_dev->ao_moon3), "reg ao_moon3 not found\n");
+#endif
 
 	/*
 	 * init clk & reset
@@ -718,6 +720,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 
 	sp7350_vpp_init();
 
+#ifndef CONFIG_DRM_SP7350
 	/* dmix setting
 	 * L6   L5   L4   L3   L2   L1   BG
 	 * OSD0 OSD1 OSD2 OSD3 ---- VPP0 PTG
@@ -758,6 +761,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		}
 	}
 	#endif
+#endif
 
 	/*
 	 * init resolution setting for osd layers
@@ -769,6 +773,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	 */
 	sp7350_vpp_resolution_init(disp_dev);
 
+#ifndef CONFIG_DRM_SP7350
 	#ifdef SP_DISP_V4L2_SUPPORT
 	/*
 	 * init layer setting for v4l2
@@ -834,6 +839,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		sp7350_mipitx_phy_init_dsi();
 	else
 		sp7350_mipitx_phy_init_csi();
+#endif
 
 
 #if defined(CONFIG_VIDEO_SP7350_DISP_DEBUG)
@@ -934,7 +940,9 @@ static int sp7350_display_suspend(struct platform_device *pdev, pm_message_t sta
 	sp7350_dmix_layer_cfg_store();
 	sp7350_tgen_store();
 	sp7350_tcon_store();
+#ifndef CONFIG_DRM_SP7350
 	sp7350_mipitx_store();
+#endif
 	sp7350_osd_store();
 	sp7350_osd_header_save();
 	sp7350_vpp0_store();
@@ -972,17 +980,21 @@ static int sp7350_display_resume(struct platform_device *pdev)
 	sp7350_dmix_layer_cfg_restore();
 	sp7350_tgen_restore();
 	sp7350_tcon_restore();
+#ifndef CONFIG_DRM_SP7350
 	sp7350_mipitx_restore();
+#endif
 	sp7350_osd_restore();
 	for (i = 0; i < SP_DISP_MAX_OSD_LAYER; i++)
 		sp7350_osd_header_restore(i);
 
 	sp7350_vpp0_restore();
 
+#ifndef CONFIG_DRM_SP7350
 	if (disp_dev->out_res.mipitx_mode == SP7350_MIPITX_DSI)
 		sp7350_mipitx_phy_init_dsi();
 	else
 		sp7350_mipitx_phy_init_csi();
+#endif
 
 #if defined(CONFIG_VIDEO_SP7350_DISP_PI_PANEL)
 	if (disp_dev->mipitx_dev_id == 0x00001002) {

@@ -585,7 +585,7 @@ int sunplus_i2s_register(struct	device *dev)
 
 	dev_info(dev, "%s \n", __func__);
 	i2saudio_base =	spauddata->audio_base;
-	cpudai_plla = spauddata->plla_clocken;
+	cpudai_plla = spauddata->aud_clocken;
 
 	AUDHW_pin_mx();
 	AUDHW_Mixer_Setting(spauddata);

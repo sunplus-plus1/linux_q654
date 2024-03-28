@@ -980,4 +980,11 @@ void sp7350_vpp0_restore(void)
 	writel(disp_dev->tmp_vscl1.reg[3], disp_dev->base + VSCL_VINT_INITF_LOW);
 	writel(disp_dev->tmp_vscl1.reg[4], disp_dev->base + VSCL_VINT_INITF_HIGH);
 
+	writel(disp_dev->tmp_vpost.reg[0], disp_dev->base + VPOST_CONFIG);
+	writel(disp_dev->tmp_vpost.reg[9], disp_dev->base + VPOST_OPIF_CONFIG);
+	writel(disp_dev->tmp_vpost.reg[12], disp_dev->base + VPOST_OPIF_ALPHA);
+	writel(disp_dev->tmp_vpost.reg[13], disp_dev->base + VPOST_OPIF_MSKTOP);
+	writel(disp_dev->tmp_vpost.reg[14], disp_dev->base + VPOST_OPIF_MSKBOT);
+	writel(disp_dev->tmp_vpost.reg[15], disp_dev->base + VPOST_OPIF_MSKLEFT);
+	writel(disp_dev->tmp_vpost.reg[16], disp_dev->base + VPOST_OPIF_MSKRIGHT);
 }

@@ -84,6 +84,12 @@ static void __iomem *qctl_regs;
 
 #define pll_regs	(clk_regs + 31 * 4)	/* G3.0  ~ PLL */
 
+void __iomem *sp_clk_reg_base(void)
+{
+	return clk_regs;
+}
+EXPORT_SYMBOL(sp_clk_reg_base);
+
 /************************************************* QCTL *************************************************/
 // QCTL G30
 #define Q_CA55		0x0100
@@ -394,17 +400,6 @@ static struct sp_clk sp_clks[] = {
 	_(QCTRL),
 #endif
 };
-
-#define MEMCTL_HWM	0x03ff0000
-#define ca55_memctl	(clk_regs + (31 + 32 + 14) * 4)	/* G4.14 */
-
-void sp_clkc_ca55_memctl(u32 val)
-{
-	val |= MEMCTL_HWM;
-	//pr_debug(">>> write ca55_memctl(MOON4.14) to %08x", val);
-	writel(val, ca55_memctl);
-}
-EXPORT_SYMBOL(sp_clkc_ca55_memctl);
 
 /************************************************* PLL_A *************************************************/
 

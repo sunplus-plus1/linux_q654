@@ -4,6 +4,7 @@
  *       All rights reserved.
  */
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -14,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
@@ -31,6 +33,7 @@ struct sunplus_mbox {
 	void __iomem *rx_regs;
 	spinlock_t lock;
 	struct mbox_controller controller;
+	struct clk *clk;
 };
 
 static struct sunplus_mbox *sunplus_link_mbox(struct mbox_chan *link)
@@ -119,6 +122,12 @@ static int sunplus_mbox_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	mbox->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mbox->clk)) {
+		dev_err(&pdev->dev, "Can not find clock source\n");
+		return ret;
+	}
+
 	mbox->controller.txdone_poll = true;
 	mbox->controller.txpoll_period = 5;
 	mbox->controller.ops = &sunplus_mbox_chan_ops;
@@ -130,6 +139,13 @@ static int sunplus_mbox_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = devm_mbox_controller_register(dev, &mbox->controller);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare(mbox->clk);
+	if (ret)
+		return ret;
+	ret = clk_enable(mbox->clk);
 	if (ret)
 		return ret;
 

@@ -40,7 +40,7 @@
  *  For OSD, Max Resolution 1920x1080.
  */
 #define XRES_MAX  1920
-#define YRES_MAX  1080
+#define YRES_MAX  1280
 
 struct sp7350_drm_device {
 	struct device *dev;

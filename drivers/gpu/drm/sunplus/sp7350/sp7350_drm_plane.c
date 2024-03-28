@@ -298,27 +298,25 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 
 	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
 			 state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
-		      state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
+			 state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
 	sp7350_vpp_imgread_set((u32)obj->paddr,
 			       state->src_x >> 16, state->src_y >> 16,
-			state->src_w >> 16, state->src_h >> 16,
-			state->fb->width, state->fb->height,
-			sp7350_get_format(state->fb->format->format, 1));
+			       state->src_w >> 16, state->src_h >> 16,
+			       state->fb->width, state->fb->height,
+			       sp7350_get_format(state->fb->format->format, 1));
 
 	sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
 			    state->src_w >> 16, state->src_h >> 16,
-				state->crtc_x, state->crtc_y,
-				state->crtc_w, state->crtc_h,
-				state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
+			    state->crtc_x, state->crtc_y,
+			    state->crtc_w, state->crtc_h,
+			    state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 
 	/* default setting for VPP OPIF(MASK function) */
 
-	#if 1
 	sp7350_vpp_vpost_opif_set(state->crtc_x, state->crtc_y,
 				  state->crtc_w, state->crtc_h,
-			state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
-	#endif
+				  state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 	/* for support letterbox boundary smoothly cropping,
 	 * should update opif setting with another plane window size.
 	 */
@@ -393,8 +391,9 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		return;
 	}
 
-
-	
+	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+			 state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
+			 state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
 	memset(&info, 0, sizeof(info));
 	info.color_mode = sp7350_get_format(state->fb->format->format, 0);
@@ -422,9 +421,15 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 
 
+	DRM_DEBUG_DRIVER("\n set osd region x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
+			 info.region_info.start_x, info.region_info.start_y,
+			 info.region_info.buf_width, info.region_info.buf_height,
+			 info.region_info.act_x, info.region_info.act_y,
+			 info.region_info.act_width, info.region_info.act_height);
+
 	DRM_DEBUG_DRIVER("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
 			 drm_get_format_name(state->fb->format->format, &format_name),
-		      state->fb->modifier, info.color_mode);
+			 state->fb->modifier, info.color_mode);
 	sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
 }
 

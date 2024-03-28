@@ -472,7 +472,7 @@ void sp7350_dmix_layer_cfg_set(int layer_id)
 		/* FIXME: For DRM Driver, L3 with VPP0 for overlay(media) plane, L1 with OSD3 for primary plane. */
 		#ifdef CONFIG_DRM_SP7350
 		sp7350_dmix_layer_init(SP7350_DMIX_L3, SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
-		sp7350_dmix_layer_init(SP7350_DMIX_L1, SP7350_DMIX_OSD3, SP7350_DMIX_BLENDING);
+		sp7350_dmix_layer_init(SP7350_DMIX_L1, SP7350_DMIX_OSD3, SP7350_DMIX_TRANSPARENT);
 		#else
 		sp7350_dmix_layer_init(SP7350_DMIX_L3, SP7350_DMIX_OSD3, SP7350_DMIX_TRANSPARENT);
 		sp7350_dmix_layer_init(SP7350_DMIX_L1, SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
