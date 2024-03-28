@@ -45,7 +45,7 @@
 //#define AP6256_WIFI
 //#define AP6256_BT
 
-#define CONFIG_DISP_DRM_SUPPORT
+//#define CONFIG_DISP_DRM_SUPPORT
 
 //#define DISP_MIPITX_CSI
 //#define DISP_MIPITX_CSI_480P
