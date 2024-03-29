@@ -13,6 +13,8 @@
 #include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
 
+#include "sp7350_drm_plane.h"
+
 struct drm_pending_vblank_event;
 
 enum sp7350_drm_encoder_type {
@@ -45,9 +47,12 @@ struct sp7350_drm_crtc {
 	struct drm_crtc crtc;
 	struct platform_device *pdev;
 	void __iomem *regs;
-	void __iomem *ao_moon3;
 
 	//struct drm_crtc_state base;
+	struct sp7350_drm_plane primary_plane;
+	struct sp7350_drm_plane media_plane;
+	struct sp7350_drm_plane overlay_planes[2];
+	struct sp7350_drm_plane cursor_plane;
 
 	struct drm_pending_vblank_event *event;
 
@@ -59,7 +64,6 @@ struct sp7350_drm_crtc {
 	u8 lut_b[256];
 
 	struct debugfs_regset32 regset;
-	struct debugfs_regset32 ao_moon3_regset;
 };
 
 #define to_sp7350_drm_crtc(target)\
@@ -68,9 +72,7 @@ struct sp7350_drm_crtc {
 #define to_sp7350_drm_encoder(target)\
 	container_of(target, struct sp7350_drm_encoder, base)
 
-int sp7350_drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
-			 struct drm_plane *primary, struct drm_plane *cursor);
-void sp7350_drm_crtc_finish_page_flip(struct sp7350_drm_crtc *scrtc);
+//void sp7350_drm_crtc_finish_page_flip(struct sp7350_drm_crtc *scrtc);
 
 void __iomem *sp7350_display_ioremap_regs(int index);
 

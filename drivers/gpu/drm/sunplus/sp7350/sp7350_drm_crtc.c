@@ -17,7 +17,7 @@
 #include <drm/drm_vblank.h>
 
 #include "sp7350_drm_crtc.h"
-#include "sp7350_drm_plane.h"
+#include "sp7350_drm_drv.h"
 
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
@@ -116,12 +116,10 @@ static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
 	}
 }
 
-int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
-			 struct drm_plane *primary, struct drm_plane *cursor)
+int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc)
 {
 	struct device_node *port;
 	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
-	struct drm_plane *primary_plane = primary;
 	int ret;
 
 	/* set crtc port so that
@@ -135,27 +133,44 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	of_node_put(port);
 	crtc->port = port;
 
-	if (!primary_plane) {
-		/* For now, we create just the primary and the legacy cursor
-		 * planes.  We should be able to stack more planes on easily,
-		 * but to do that we would need to compute the bandwidth
-		 * requirement of the plane configuration, and reject ones
-		 * that will take too much.
-		 */
-		primary_plane = sp7350_drm_plane_init(drm, DRM_PLANE_TYPE_PRIMARY, 0);
-		if (IS_ERR(primary_plane)) {
-			DRM_DEV_ERROR(drm->dev, "failed to construct primary plane\n");
-			return PTR_ERR(primary_plane);
-		}
+	/* For now, we create just the primary and the legacy cursor
+	 * planes.  We should be able to stack more planes on easily,
+	 * but to do that we would need to compute the bandwidth
+	 * requirement of the plane configuration, and reject ones
+	 * that will take too much.
+	 */
+	ret = sp7350_plane_create_primary_plane(drm, &sp7350_crtc->primary_plane);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev, "failed to construct primary plane\n");
+		return ret;
 	}
 
-	ret = drm_crtc_init_with_planes(drm, crtc, primary_plane, cursor,
+	ret = drm_crtc_init_with_planes(drm, crtc, &sp7350_crtc->primary_plane.base, NULL,
 					&sp7350_drm_crtc_funcs, NULL);
 	if (ret) {
 		DRM_DEV_ERROR(drm->dev, "Failed to init CRTC\n");
 		return ret;
 	}
 	drm_crtc_helper_add(crtc, &sp7350_drm_crtc_helper_funcs);
+
+#if !DRM_PRIMARY_PLANE_ONLY
+	ret = sp7350_plane_create_media_plane(drm, &sp7350_crtc->media_plane);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev, "failed to construct media(overlay) plane\n");
+		return ret;
+	}
+
+	ret = sp7350_plane_create_overlay_plane(drm, &sp7350_crtc->overlay_planes[0], 0);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev, "failed to construct overlay plane\n");
+		return ret;
+	}
+	ret = sp7350_plane_create_overlay_plane(drm, &sp7350_crtc->overlay_planes[1], 1);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev, "failed to construct overlay plane\n");
+		return ret;
+	}
+#endif
 
 	/* TODO: set C3V SOC DISPLAY HW TCON feature... */
 	#if SP7350_DRM_TODO
@@ -195,17 +210,12 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	if (IS_ERR(sp7350_drm_crtc->regs))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sp7350_drm_crtc->regs), "reg base not found\n");
 
-	sp7350_drm_crtc->ao_moon3 = sp7350_display_ioremap_regs(1);
-	if (IS_ERR(sp7350_drm_crtc->ao_moon3))
-		return dev_err_probe(&pdev->dev, PTR_ERR(sp7350_drm_crtc->ao_moon3), "reg ao_moon3 not found\n");
-
 	sp7350_drm_crtc->regset.base = sp7350_drm_crtc->regs;
-	sp7350_drm_crtc->ao_moon3_regset.base = sp7350_drm_crtc->ao_moon3;
 	/* TODO: setting debugfs_regset32 for C3V DISPLAY REGISTER */
 	//sp7350_drm_crtc->regset.regs = crtc_regs;
 	//sp7350_drm_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
 
-	ret = sp7350_drm_crtc_init(drm, crtc, NULL, NULL);
+	ret = sp7350_drm_crtc_init(drm, crtc);
 	if (ret)
 		return ret;
 	sp7350_set_crtc_possible_masks(drm, crtc);
@@ -223,12 +233,19 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 static void sp7350_crtc_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
+	struct drm_device *drm = dev_get_drvdata(master);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sp7350_drm_crtc *sp7350_crtc = dev_get_drvdata(dev);
 
 	drm_crtc_cleanup(&sp7350_crtc->crtc);
 
 	/* TODO Set S3V SOC DISPLAY REG, disable crtc things... */
+
+	sp7350_plane_release_plane(drm, &sp7350_crtc->primary_plane);
+	sp7350_plane_release_plane(drm, &sp7350_crtc->media_plane);
+	sp7350_plane_release_plane(drm, &sp7350_crtc->overlay_planes[0]);
+	sp7350_plane_release_plane(drm, &sp7350_crtc->overlay_planes[1]);
+	sp7350_plane_release_plane(drm, &sp7350_crtc->cursor_plane);
 
 	platform_set_drvdata(pdev, NULL);
 }
