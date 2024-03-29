@@ -58,7 +58,7 @@
 
 //#define RASPBERRYPI_DSI_PANEL
 
-#define LT8912B_HDMI_ENABLE
+//#define LT8912B_HDMI_ENABLE
 //#define LT8912B_HDMI_480X272
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
@@ -1071,6 +1071,25 @@
 				};
 			};
 		};
+	};
+#else
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	es8316: codec@11 {
+		compatible = "everest,es8316";
+		reg = <0x11>;
+		#sound-dai-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&audcodec_pins>;
+		audcodec-gpios = <&pctl 27 GPIO_ACTIVE_HIGH>;
+#if 0
+		port {
+			es8316_p0_0: endpoint {
+				remote-endpoint = <&i2s0_p0_0>;
+			};
+		};
+#endif
 	};
 #endif
 };
@@ -2304,9 +2323,9 @@
 &audio {
 	pinctrl-names = "default";
 #ifdef AP6256_WIFI
-		pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>, <&aud_adc2_data0_pins &aud_au2_ck_pins>;
+		pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
 #else
-		pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>, <&aud_adc1_data0_pins &aud_au1_ck_pins>, <&aud_adc2_data0_pins &aud_au2_ck_pins>;
+		pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
 #endif
 	//status = "disabled";
 };
@@ -2465,6 +2484,12 @@
 	typec_pins: pinmux_typec-pins {
 		function = "GPIO";
 		pins = "GPIO98";
+	};
+
+	audcodec_pins: pinmux_audcodec-pins {
+		function = "GPIO";
+		pins = "GPIO27";
+		output-high;
 	};
 
 	dwc3id_pins: pinmux_usb3id-pins {
@@ -2864,7 +2889,7 @@
 #else
 &fb_disp_device {
 	memory-region = <&disp_reserve>;
-	status = "okay";
+	status = "disabled";
 };
 &drm_display_engine {
 	status = "disabled";

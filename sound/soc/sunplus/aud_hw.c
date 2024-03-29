@@ -78,38 +78,38 @@ void AUDHW_Cfg_AdcIn(void *auddrvdata)
 	val			= 0x650100;	//steplen0=0, Eth_off=0x65, Eth_on=0x100, steplen0=0
 	regs0->adcp_agc_cfg	= val;		//adcp_agc_cfg0
    //ch0
-	val = (1<<6)|ONEHOT_B11;
+	val = (1 << 6) | ONEHOT_B11;
 	regs0->adcp_init_ctrl =	val;
 	do {
 		val = regs0->adcp_init_ctrl;
-	} while	((val&ONEHOT_B12) != 0);
+	} while	((val & ONEHOT_B12) != 0);
 
-	val = (1<<6)|2|ONEHOT_B10;
+	val = (1 << 6) | 2 | ONEHOT_B10;
 	regs0->adcp_init_ctrl =	val;
 
 	val = 0x800000;
 	regs0->adcp_gain_0 = val;
 
 	val = regs0->adcp_risc_gain;
-	val = val&0xfff0;
+	val = val & 0xfff0;
 	val = val | 1;
 	regs0->adcp_risc_gain =	val;
    //ch1
-	val = (1<<6)|(1<<4)|ONEHOT_B11;
+	val = (1 << 6) | (1 << 4) | ONEHOT_B11;
 	regs0->adcp_init_ctrl =	val;
 	do {
 		val = regs0->adcp_init_ctrl;
-	} while	((val&ONEHOT_B12) != 0);
+	} while	((val & ONEHOT_B12) != 0);
 
-	val = (1<<6)|(1<<4)|2|ONEHOT_B10;
+	val = (1 << 6) | (1 << 4) | 2 | ONEHOT_B10;
 	regs0->adcp_init_ctrl =	val;
 
 	val = 0x800000;
 	regs0->adcp_gain_1 = val;
 
 	val = regs0->adcp_risc_gain;
-	val = val&0xff0f;
-	val = val|0x10;
+	val = val & 0xff0f;
+	val = val | 0x10;
 	regs0->adcp_risc_gain =	val;
 }
 
@@ -155,19 +155,23 @@ void AUDHW_SystemInit(void *auddrvdata)
 	regs0->aud_enable	= 0x0;		//aud_enable  [21]PWM 5f
 
 	regs0->int_dac_ctrl1	&= 0x7fffffff;
-	regs0->int_dac_ctrl1	|= (0x1<<31);
+	regs0->int_dac_ctrl1	|= (0x1 << 31);
 
 	regs0->int_adc_ctrl	= 0x80000726;
 	regs0->int_adc_ctrl2	= 0x26;
 	regs0->int_adc_ctrl1	= 0x20;
 	regs0->int_adc_ctrl	&= 0x7fffffff;
-	regs0->int_adc_ctrl	|= (1<<31);
+	regs0->int_adc_ctrl	|= (1 << 31);
 
 	regs0->aud_fifo_mode	= 0x20001;
 	//regs0->G063_reserved_7 = 0x4B0; //[7:4] if0  [11:8] if1
 	//regs0->G063_reserved_7 = regs0->G063_reserved_7|0x1; // enable
 	pr_debug("!!!aud_misc_ctrl 0x%x\n", regs0->aud_misc_ctrl);
 	//regs0->aud_misc_ctrl |= 0x2;
+#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+	regs0->aud_ext_dac_xck_cfg	= 0x6883;
+	regs0->aud_ext_dac_bck_cfg	= 0x6007;
+#endif
 }
 EXPORT_SYMBOL_GPL(AUDHW_SystemInit);
 
@@ -209,6 +213,3 @@ void snd_aud_config(void *auddrvdata)
 #endif
 }
 EXPORT_SYMBOL_GPL(snd_aud_config);
-
-
-
