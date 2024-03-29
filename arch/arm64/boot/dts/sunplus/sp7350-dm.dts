@@ -58,7 +58,7 @@
 
 //#define RASPBERRYPI_DSI_PANEL
 
-//#define LT8912B_HDMI_ENABLE
+#define LT8912B_HDMI_ENABLE
 //#define LT8912B_HDMI_480X272
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
@@ -1016,10 +1016,9 @@
 	pinctrl-0 = <&i2c_combo4_pins>;
 	status = "okay";
 
-#ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
-
+#ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
 	raspberrypi_lcd: lcd@45 {
 		compatible = "raspberrypi,7inch-touchscreen-panel";
 		//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
@@ -1031,9 +1030,6 @@
 	};
 #endif
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c6 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	lontium_lt8912b: hdmi@48 {
 		compatible = "lontium,lt8912b";
 		//compatible = "lontium,lt8912b-builtin";
@@ -1072,10 +1068,7 @@
 			};
 		};
 	};
-#else
-	#address-cells = <1>;
-	#size-cells = <0>;
-
+#endif
 	es8316: codec@11 {
 		compatible = "everest,es8316";
 		reg = <0x11>;
@@ -1091,7 +1084,6 @@
 		};
 #endif
 	};
-#endif
 };
 
 &i2c5 {
@@ -2327,11 +2319,7 @@
 
 &audio {
 	pinctrl-names = "default";
-#ifdef AP6256_WIFI
-		pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
-#else
-		pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
-#endif
+	pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
 	//status = "disabled";
 };
 
@@ -2909,7 +2897,7 @@
 #else
 &fb_disp_device {
 	memory-region = <&disp_reserve>;
-	status = "disabled";
+	status = "okay";
 };
 &drm_display_engine {
 	status = "disabled";
