@@ -140,12 +140,6 @@ static int sp7350_drm_bind(struct device *dev)
 	if (ret)
 		return ret;
 
-#if !DRM_PRIMARY_PLANE_ONLY
-	ret = sp7350_plane_create_additional_planes(drm);
-	if (ret)
-		goto err_unbind_all;
-#endif
-
 	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sp7350drmfb", false);
 
 	/* display controller init */
