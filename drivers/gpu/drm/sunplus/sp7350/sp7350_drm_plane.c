@@ -116,7 +116,7 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 	//DRM_INFO("%s property.values:%d\n", __func__, *property->values);
 
 	if (sp7350_plane->type != DRM_PLANE_TYPE_OVERLAY) {
-		DRM_DEBUG_DRIVER("the property is implemented for overlay plane only!\n");
+		DRM_DEBUG_DRIVER("the property is supported for overlay plane only!\n");
 		return -EINVAL;
 	}
 
@@ -124,17 +124,17 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		struct sp7350_plane_region_alpha_info *info;
 		struct drm_property_blob *mode = drm_property_lookup_blob(plane->dev, val);
 
-		if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
-			DRM_DEBUG_DRIVER("the property isn't implemented by the driver!\n");
+		if (!(sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)) {
+			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 
 		if (!mode) {
-			DRM_DEBUG_DRIVER("the property isn't implemented by the driver!\n");
+			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 		if (!mode->data) {
-			DRM_DEBUG_DRIVER("the property isn't implemented by the driver!\n");
+			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 		info = mode->data;
@@ -142,6 +142,11 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		DRM_DEBUG_DRIVER("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
 				 plane->index, info->regionid, info->alpha);
 
+		/* check value validity */
+		if (info->alpha > 255 || info->alpha < 0) {
+			DRM_DEBUG_DRIVER("Outof limit! property alpha region [0, 255]!\n");
+			return -EINVAL;
+		}
 		if (sp7350_plane->is_media_plane) {
 			/*
 			 * WARNING:
@@ -149,6 +154,7 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 			 * So only one region for media plane, the parameter "regionid" is invalid.
 			 */
 			DRM_DEBUG_DRIVER("update vpp opif alpha value by the property!\n");
+
 			//sp7350_vpp_vpost_opif_alpha_set(info->alpha, 0);
 		} else {
 			/*
@@ -167,18 +173,19 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		sp7350_plane->state.region_alpha.alpha = info->alpha;
 
 		drm_property_blob_put(mode);
-	} else if (!strcmp(property->name, "color keying")) {
+	}
+	else if (!strcmp(property->name, "color keying")) {
 		u32 global_color_keying_val = val;
 
-		if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING) {
-			DRM_DEBUG_DRIVER("the property isn't implemented by the driver!\n");
+		if (!(sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING)) {
+			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 
 		DRM_DEBUG_DRIVER("Set plane[%d] color keying: 0x%08x\n", plane->index, global_color_keying_val);
 
 		if (sp7350_plane->is_media_plane) {
-			DRM_DEBUG_DRIVER("the property is implemented for overlay plane only!\n");
+			DRM_DEBUG_DRIVER("the property is supported for overlay plane only!\n");
 			return -EINVAL;
 		}
 
@@ -190,12 +197,13 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		 */
 		DRM_DEBUG_DRIVER("update color keying value by the property!\n");
 		sp7350_plane->state.color_keying = global_color_keying_val;
-	} else if (!strcmp(property->name, "region color keying")) {
+	}
+	else if (!strcmp(property->name, "region color keying")) {
 		struct drm_property_blob *mode = drm_property_lookup_blob(plane->dev, val);
 		struct sp7350_plane_region_color_keying_info *info;
 
-		if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING) {
-			DRM_DEBUG_DRIVER("the property isn't implemented by the driver!\n");
+		if (!(sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING)) {
+			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 
@@ -205,7 +213,7 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 				 plane->index, info->regionid, info->keying);
 
 		if (sp7350_plane->is_media_plane) {
-			DRM_DEBUG_DRIVER("the property is implemented for overlay plane only!\n");
+			DRM_DEBUG_DRIVER("the property is supported for overlay plane only!\n");
 			return -EINVAL;
 		}
 
@@ -225,7 +233,8 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		sp7350_plane->state.region_color_keying.keying = info->keying;
 
 		drm_property_blob_put(mode);
-	} else {
+	}
+	else {
 		DRM_DEBUG_DRIVER("the property isn't implemented by the driver!\n");
 		return -EINVAL;
 	}
@@ -596,7 +605,7 @@ static void sp7350_plane_create_propertys(struct sp7350_drm_plane *plane)
 
 	if (plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING) {
 		/* color_keying format:RGBA8888, region: 0~0xffffffff */
-		plane->color_keying_property = drm_property_create_range(plane->base.dev, 0, "color keying",
+		plane->color_keying_property = drm_property_create_range(plane->base.dev, DRM_MODE_PROP_ATOMIC, "color keying",
 									 0, 0xffffffff);
 		plane->state.color_keying = 0;
 		drm_object_attach_property(&plane->base.base, plane->color_keying_property, (uint64_t)plane->state.color_keying);
@@ -625,7 +634,7 @@ static int sp7350_drm_plane_init(struct drm_device *drm, struct sp7350_drm_plane
 {
 	int ret;
 
-	ret = drm_universal_plane_init(drm, &plane->base, 0,
+	ret = drm_universal_plane_init(drm, &plane->base, plane->base.possible_crtcs,
 				       &sp7350_drm_plane_funcs,
 				   plane->pixel_formats, plane->num_pixel_formats,
 				   NULL, plane->type, NULL);
@@ -635,7 +644,6 @@ static int sp7350_drm_plane_init(struct drm_device *drm, struct sp7350_drm_plane
 
 	drm_plane_helper_add(&plane->base, plane->funcs);
 
-	plane->base.possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
 	plane->index = plane->base.index;
 
 	sp7350_plane_create_propertys(plane);
@@ -689,6 +697,8 @@ int sp7350_plane_create_media_plane(struct drm_device *drm, struct sp7350_drm_pl
 		SP7350_DRM_PLANE_CAP_PIX_BLEND | SP7350_DRM_PLANE_CAP_WIN_BLEND |
 		SP7350_DRM_PLANE_CAP_REGION_BLEND;
 
+	plane->base.possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
+
 	/*
 	 * For c3v soc display controller, vpp layer for media plane.
 	 */
@@ -706,6 +716,7 @@ int sp7350_plane_create_overlay_plane(struct drm_device *drm, struct sp7350_drm_
 	plane->capabilities = SP7350_DRM_PLANE_CAP_PIX_BLEND |
 		SP7350_DRM_PLANE_CAP_WIN_BLEND | SP7350_DRM_PLANE_CAP_REGION_BLEND |
 		SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING | SP7350_DRM_PLANE_CAP_COLOR_KEYING;
+	plane->base.possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
 
 	/*
 	 * For c3v soc display controller, osd layer for overlay plane.
