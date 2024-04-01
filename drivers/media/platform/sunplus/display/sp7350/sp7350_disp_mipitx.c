@@ -17,6 +17,17 @@ static const char * const mipitx_video_pkt[] = {
 	"DSI-RGB565/CSI-16bits", "DSI-RGB666-18bits", "DSI-RGB666-24bits",
 	"DSI-RGB888/CSI-24bits", "CSI-YUV422-20bits", "none", "none", "none"};
 
+/*
+ * only for AC timing measurement
+ */
+//#define SP7350_MIPI_DSI_1500M_TEST
+//#define SP7350_MIPI_DSI_1200M_TEST
+/*
+ * use fine tune timing settings
+ * and set it before MIPITX module enable
+ */
+//#define SP7350_MIPI_DSI_TIMING_NEW
+
 void sp7350_mipitx_init(void)
 {
 	;//TBD
@@ -420,12 +431,15 @@ void sp7350_mipitx_pllclk_init(void)
 	value = 0xffff0009; //PLLH
 	writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_16); //AO_G3.16
 	/*
-	 * PLLH Fvco = 2150MHz (fixed)
-	 *                             2150
-	 * MIPITX pixel CLK = ----------------------- = 59.72MHz
-	 *                     PST_DIV * MIPITX_SEL
+	 * PRESCALE = 1, FBKDIV = 86
+	 * PREDIV = 1, POSTDIV = 9, MIPITX_SEL=4
+	 * PLLH Fvco = 2150MHz (fixed) = 25M * PRESCALE * FBKDIV / PREDIV
+	 *
+	 *                     25M * PRESCALE * FBKDIV        2150
+	 * MIPITX pixel CLK = ---------------------------- = ------ = 59.72MHz
+	 *                    PREDIV * POSTDIV * MIPITX_SEL  9 * 4
 	 */
-	value = 0xffff0b50; //PLLH PST_DIV = div9 (default)
+	value = 0xffff0b50; //PLLH POSTDIV = div9 (default)
 	writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //G205.14
 	value = 0x07800180; //PLLH MIPITX_SEL = div4
 	writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //G205.25
@@ -434,10 +448,11 @@ void sp7350_mipitx_pllclk_init(void)
 	value = 0x00000003; //TXPLL enable and reset
 	writel(value, disp_dev->base + MIPITX_ANALOG_CTRL5); //G205.10
 	/*
-	 * PRESCAL = 1, FBKDIV = 48, PRE_DIV = 1, EN_DIV5 = 0, PRE_DIV = 2, POST_DIV = 1
-	 *                    25 * PRESCAL * FBKDIV            25 * 48
-	 * MIPITX bit CLK = ------------------------------ = ----------- = 600MHz
-	 *                   PRE_DIV * POST_DIV * 5^EN_DIV5       2
+	 * PRESCALE = 1, FBKDIV = 48, PREDIV = 2, POSTDIV = 1, EN_DIV5 = 0
+	 * TXPLL Fvco = 600MHz = 25M * PRESCALE * FBKDIV / PREDIV
+	 *                    25M * PRESCALE * FBKDIV        25M * 1 * 48
+	 * MIPITX bit CLK = ----------------------------- = ----------- = 600MHz
+	 *                   PREDIV * POSTDIV * 5^EN_DIV5    2 * 1 * 1
 	 */
 	value1 = 0x00003001; //TXPLL MIPITX CLK = 600MHz
 	value2 = 0x00000140; //TXPLL BNKSEL = 0x0 (320~640MHz)
@@ -463,22 +478,38 @@ void sp7350_mipitx_pllclk_init(void)
  * sp_mipitx_phy_pllclk_dsi[x][y]
  * y = 0-1, MIPITX width & height
  * y = 2-7, MIPITX PRESCALE & FBKDIV & PREDIV & POSTDIV & EN_DIV5 & BNKSEL(TXPLL)
- * y = 8-10, MIPITX PSTDIV & MIPITX_SEL & BNKSEL (PLLH)
  *
  * XTAL--[PREDIV]--------------------------->[EN_DIV5]--[POSTDIV]-->Fckout
  *                 |                       |
  *                 |<--FBKDIV<--PRESCALE<--|
  *
- *                25 * PRESCALE * FBKDIV
+ *                25M * PRESCALE * FBKDIV
  *    Fckout = -----------------------------
  *              PREDIV * POSTDIV * 5^EN_DIV5
+ *
+ * y = 8-10, MIPITX POSTDIV & MIPITX_SEL & BNKSEL (PLLH)
+ *
+ * XTAL--[PREDIV]--------------------------->[POSTDIV]--[MIPITX_SEL]-->Fckout
+ *                 |                       |
+ *                 |<--FBKDIV<--PRESCALE<--|
+ *
+ *                25M * PRESCALE * FBKDIV
+ *    Fckout = -----------------------------
+ *              PREDIV * POSTDIV * MIPITX_SEL
+ *
  */
 static const u32 sp_mipitx_phy_pllclk_dsi[11][11] = {
 	/* (w   h)   P1   P2    P3   P4   P5   P6   Q1   Q2   Q3 */
 	{ 720,  480, 0x0, 0x1A, 0x0, 0x2, 0x0, 0x1, 0x4, 0xf, 0x0}, /* 480P */
 	{ 720,  576, 0x0, 0x20, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 576P */
 	{1280,  720, 0x0, 0x24, 0x0, 0x1, 0x0, 0x1, 0x8, 0x3, 0x0}, /* 720P */
+#if defined(SP7350_MIPI_DSI_1500M_TEST)
+	{1920, 1080, 0x1, 0x1E, 0x0, 0x0, 0x0, 0x1, 0x8, 0x1, 0x1}, /* 1080P TXPLL 1.5G */
+#elif defined(SP7350_MIPI_DSI_1200M_TEST)
+	{1920, 1080, 0x0, 0x30, 0x0, 0x0, 0x0, 0x1, 0x8, 0x1, 0x1}, /* 1080P TXPLL 1.2G */
+#else
 	{1920, 1080, 0x0, 0x24, 0x0, 0x0, 0x0, 0x1, 0x8, 0x1, 0x1}, /* 1080P */
+#endif
 	{ 480, 1280, 0x0, 0x0c, 0x0, 0x0, 0x0, 0x0, 0x5, 0x7, 0x0}, /* 480x1280 */
 	{ 128,  128, 0x1, 0x1f, 0x1, 0x4, 0x1, 0x1, 0x0, 0x0, 0x0}, /* 128x128 */
 	{  240, 320, 0x0, 0x0e, 0x0, 0x0, 0x0, 0x0, 0xa, 0xf, 0x2}, /* 240x320 */
@@ -492,15 +523,7 @@ static const u32 sp_mipitx_phy_pllclk_dsi[11][11] = {
  * sp_mipitx_phy_pllclk_csi[x][y]
  * y = 0-1, MIPITX width & height
  * y = 2-7, MIPITX PRESCALE & FBKDIV & PREDIV & POSTDIV & EN_DIV5 & BNKSEL(TXPLL)
- * y = 8-10, MIPITX PSTDIV & MIPITX_SEL & BNKSEL (PLLH)
- *
- * XTAL--[PREDIV]--------------------------->[EN_DIV5]--[POSTDIV]-->Fckout
- *                 |                       |
- *                 |<--FBKDIV<--PRESCALE<--|
- *
- *                25 * PRESCALE * FBKDIV
- *    Fckout = -----------------------------
- *              PREDIV * POSTDIV * 5^EN_DIV5
+ * y = 8-10, MIPITX POSTDIV & MIPITX_SEL & BNKSEL (PLLH)
  */
 static const u32 sp_mipitx_phy_pllclk_csi[7][11] = {
 	/* (w   h)   P1   P2    P3   P4   P5   P6   Q1   Q2   Q3 */
@@ -564,6 +587,31 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 			value = 0x07800180; //PLLH MIPITX CLK = 74MHz
 			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
 		} else if ((disp_dev->out_res.width == 1920) && (disp_dev->out_res.height == 1080)) {
+			#if defined(SP7350_MIPI_DSI_1500M_TEST)
+			/*
+			 * for MIPI DPHY max clock 1.5G 4lane test
+			 * PLLH = 250MHz
+			 */
+			value = 0;
+			value |= 0x00780048;
+			value |= (0x7f800000 | (0x10 << 7));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+			value = 0x07800000; //PLLH MIPITX CLK = 250MHz
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#elif defined(SP7350_MIPI_DSI_1200M_TEST)
+			/*
+			 * for MIPI DPHY max clock 1.2G 4lane test
+			 * PLLH = 200MHz
+			 */
+			value = 0;
+			value |= 0x00780058;
+			value |= (0x7f800000 | (0x10 << 7));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+			value = 0x07800000; //PLLH MIPITX CLK = 200MHz
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#else
 			value = 0;
 			value |= 0x00780038;
 			value |= (0x7f800000 | (0x13 << 7));
@@ -571,6 +619,7 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 
 			value = 0x07800080; //PLLH MIPITX CLK = 148MHz
 			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#endif
 		} else {
 			value = 0;
 			value |= (0x00780000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][8] << 3));
@@ -951,6 +1000,29 @@ void sp7350_mipitx_panel_init(int mipitx_dev_id, int width, int height)
 	}
 }
 
+#ifdef SP7350_MIPI_DSI_TIMING_NEW
+/*
+ * sp_mipitx_output_timing[x]
+ * x = 0-10, MIPITX phy
+ *   T_HS-EXIT / T_LPX
+ *   T_CLK-PREPARE / T_CLK-ZERO
+ *   T_CLK-TRAIL / T_CLK-PRE / T_CLK-POST
+ *   T_HS-TRAIL / T_HS-PREPARE / T_HS-ZERO
+ */
+static const u32 sp_mipitx_output_timing[10] = {
+	0x10,  /* T_HS-EXIT */
+	0x10,  /* T_LPX modify*/
+	0x10,  /* T_CLK-PREPARE */
+	0x10,  /* T_CLK-ZERO */
+	0x05,  /* T_CLK-TRAIL */
+	0x12,  /* T_CLK-PRE */
+	0x20,  /* T_CLK-POST */
+	0x0f,  /* T_HS-TRAIL modify */
+	0x08,  /* T_HS-PREPARE modify */
+	0x15,  /* T_HS-ZERO modify*/
+};
+#endif
+
 void sp7350_mipitx_phy_init(void)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
@@ -960,6 +1032,33 @@ void sp7350_mipitx_phy_init(void)
 	if (disp_dev->mipitx_clk_edge)
 		value |= SP7350_MIPITX_MIPI_PHY_CLK_EDGE_SEL(SP7350_MIPITX_FALLING);
 	writel(value, disp_dev->base + MIPITX_ANALOG_CTRL2); //G205.06
+
+	#ifdef SP7350_MIPI_DSI_TIMING_NEW
+	value = 0;
+	value |= ((sp_mipitx_output_timing[0] << 16) |
+			(sp_mipitx_output_timing[1] << 0));
+	writel(value, disp_dev->base + MIPITX_LANE_TIME_CTRL); //G204.05
+
+	value = 0;
+	value |= ((sp_mipitx_output_timing[2] << 16) |
+			(sp_mipitx_output_timing[3] << 0));
+	writel(value, disp_dev->base + MIPITX_CLK_TIME_CTRL0); //G204.06
+
+	value = 0;
+	value |= ((sp_mipitx_output_timing[4] << 25) |
+			(sp_mipitx_output_timing[5] << 16) |
+			(sp_mipitx_output_timing[6] << 0));
+	writel(value, disp_dev->base + MIPITX_CLK_TIME_CTRL1); //G204.07
+
+	value = 0;
+	value |= ((sp_mipitx_output_timing[7] << 25) |
+			(sp_mipitx_output_timing[8] << 16) |
+			(sp_mipitx_output_timing[9] << 0));
+	writel(value, disp_dev->base + MIPITX_DATA_TIME_CTRL0); //G204.08
+
+	value = 0x00001100; //MIPITX Blanking Mode
+	writel(value, disp_dev->base + MIPITX_BLANK_POWER_CTRL); //G204.13
+	#endif
 
 	if (disp_dev->mipitx_lane == 1)
 		value = 0x11000001; //lane num = 1 and DSI_EN and ANALOG_EN
@@ -1003,6 +1102,7 @@ void sp7350_mipitx_phy_init(void)
 	writel(value, disp_dev->base + MIPITX_ANALOG_CTRL2); //G205.06
 }
 
+#ifndef SP7350_MIPI_DSI_TIMING_NEW
 /*
  * sp_mipitx_output_timing[x]
  * x = 0-10, MIPITX phy
@@ -1023,12 +1123,14 @@ static const u32 sp_mipitx_output_timing[10] = {
 	0x05,  /* T_HS-PREPARE */
 	0x10,  /* T_HS-ZERO */
 };
+#endif
 
 void sp7350_mipitx_lane_control_set(void)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	u32 value = 0;
 
+	#ifndef SP7350_MIPI_DSI_TIMING_NEW
 	value |= ((sp_mipitx_output_timing[0] << 16) |
 			(sp_mipitx_output_timing[1] << 0));
 	writel(value, disp_dev->base + MIPITX_LANE_TIME_CTRL); //G204.05
@@ -1052,6 +1154,7 @@ void sp7350_mipitx_lane_control_set(void)
 
 	value = 0x00001100; //MIPITX Blanking Mode
 	writel(value, disp_dev->base + MIPITX_BLANK_POWER_CTRL); //G204.13
+	#endif
 
 	value = 0x00000001; //MIPITX CLOCK CONTROL (CK_HSEN)
 	writel(value, disp_dev->base + MIPITX_CLK_CTRL); //G204.30
@@ -1093,7 +1196,7 @@ static const u32 sp_mipitx_input_timing_dsi[11][10] = {
 	{ 720,  576, 0x4,  0, 0x5,  0, 0x1, 0x4, 0x2B,  576}, /* 576P */
 	{1280,  720, 0x28,  0, 0x6E,  0, 0x1, 0x5, 0x18,  720}, /* 720P */
 	{1920, 1080, 0x2c,  0, 0x58,  0, 0x1, 0x4, 0x28, 1080}, /* 1080P */
-	{ 480, 1280, 0x4,  0, 0x4,  0, 0x1,0x10, 0x10, 1280}, /* 480x1280 */
+	{ 480, 1280, 0x4,  0, 0x4,  0, 0x1,0x11, 0x10, 1280}, /* 480x1280 */
 	{ 128,  128, 0x4,  0, 0x5,  0, 0x1, 0x2, 0x12,  128}, /* 128x128 */
 	//{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x23, 320}, /* 240x320 */
 	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x19, 320}, /* 240x320 */
