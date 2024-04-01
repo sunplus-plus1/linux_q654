@@ -2255,8 +2255,8 @@
 &sdio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdio_pins>;
-	delay-val = <0x777110>;
-	max-frequency = <200000000>;
+	delay-val = <0x777000>;
+	max-frequency = <160000000>;
 	non-removable;
 	disable-wp;
 	cap-sd-highspeed;
