@@ -86,8 +86,8 @@
 
 /* event ring config */
 #define ENTRY_SIZE			(16)
-#define TR_COUNT			(64)
-#define EVENT_SEG_COUNT			1
+#define TR_COUNT			(64)			/* there is no limitation of the controller */
+#define EVENT_SEG_COUNT			1			/* the max number is 2^ERST_Max. ERST_Max is 3 */
 
 #define EVENT_RING_SIZE			(16*TR_COUNT)
 #define EVENT_RING_COUNT		(TR_COUNT)
@@ -231,7 +231,7 @@ struct udc_ring {
 	dma_addr_t trb_pa;		/* ring phy address */
 	struct trb_data *end_trb_va;	/* ring end trb address*/
 	dma_addr_t end_trb_pa;		/* ring end trb phy address */
-	uint8_t num_mem;		/* number of ring members */
+	uint16_t num_mem;		/* number of ring members */
 };
 
 /* device descriptor */

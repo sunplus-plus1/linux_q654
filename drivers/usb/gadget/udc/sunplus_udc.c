@@ -235,7 +235,7 @@ static void udc_free_align(struct sp_udc *udc, void *vaddr, dma_addr_t pa, size_
 	dma_free_coherent(dev, size, alloc_addr, pa);
 }
 
-static int udc_ring_malloc(struct sp_udc *udc, struct udc_ring *const ring, uint8_t num_mem)
+static int udc_ring_malloc(struct sp_udc *udc, struct udc_ring *const ring, uint16_t num_mem)
 {
 	if (ring->trb_va) {
 		pr_warn("ring already exists\n");
@@ -725,7 +725,7 @@ static void hal_udc_transfer_event_handle(struct transfer_event_trb *transfer_ev
 #endif
 	struct udc_endpoint *ep = NULL;
 	uint8_t ep_num;
-	int8_t count = TRANSFER_RING_COUNT;
+	int16_t count = TRANSFER_RING_COUNT;
 	unsigned long flags;
 
 	ep_num = transfer_evnet->eid;
@@ -1070,8 +1070,9 @@ static void handle_event(struct sp_udc *udc)
 	if (valid_event_count > 0) {
 		UDC_LOGD("------ valid event %d -------\n", valid_event_count);
 
-		/* reacquire ring dq */
+		/* reacquire ring dq and end trb */
 		event_ring_dq = udc->event_ring_dq;
+		end_trb = tmp_event_ring->end_trb_va;
 	} else {
 		UDC_LOGD("------ no event %p -------\n", udc->event_ring_dq);
 	}
