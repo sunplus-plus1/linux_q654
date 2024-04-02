@@ -739,6 +739,13 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		sp7350_dmix_layer_init(SP7350_DMIX_L3, SP7350_DMIX_OSD3, SP7350_DMIX_TRANSPARENT);
 		sp7350_dmix_layer_init(SP7350_DMIX_L1, SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 	}
+
+	//sp7350_dmix_plane_alpha_config(SP7350_DMIX_L6, 1, 0, 0x1f);
+	//sp7350_dmix_plane_alpha_config(SP7350_DMIX_L5, 1, 0, 0x1f);
+	//sp7350_dmix_plane_alpha_config(SP7350_DMIX_L4, 1, 0, 0x1f);
+	//sp7350_dmix_plane_alpha_config(SP7350_DMIX_L3, 1, 0, 0x1f);
+	//sp7350_dmix_plane_alpha_config(SP7350_DMIX_L1, 1, 0, 0x1f);
+
 	//sp7350_dmix_all_layer_info();
 	sp7350_dmix_layer_cfg_store();
 

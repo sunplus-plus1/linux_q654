@@ -122,13 +122,6 @@
 #define SP7350_DMIX_BIST_SNOW_HALF	0x8
 #define SP7350_DMIX_BIST_REGION		0x9
 
-struct sp7350_dmix_plane_alpha {
-	int layer;
-	unsigned int enable;
-	unsigned int fix_alpha;
-	unsigned int alpha_value;
-};
-
 /*
  * Init SP7350 DMIX Setting
  */
@@ -159,7 +152,7 @@ void sp7350_dmix_layer_info(int layer);
 /*
  * SP7350 DMIX Layer Alpha Setting
  */
-void sp7350_dmix_plane_alpha_config(struct sp7350_dmix_plane_alpha *plane);
+void sp7350_dmix_plane_alpha_config(int layer, int enable, int fix_alpha, int alpha_value);
 
 /*
  * SP7350 DMIX LUMA/CRMA Adjustment
