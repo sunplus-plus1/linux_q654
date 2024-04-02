@@ -34,6 +34,8 @@ struct sp7350_drm_plane_state {
 	struct sp7350_plane_region_alpha_info region_alpha;
 	struct sp7350_plane_region_color_keying_info region_color_keying;
 	unsigned int color_keying;
+	struct drm_property_blob *region_alpha_blob;
+	struct drm_property_blob *region_color_keying_blob;
 };
 
 struct sp7350_drm_plane {

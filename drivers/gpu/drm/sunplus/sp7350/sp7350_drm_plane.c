@@ -112,48 +112,59 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 {
 	struct sp7350_drm_plane *sp7350_plane = to_sp7350_drm_plane(plane);
 
-	DRM_DEBUG_DRIVER("property.name:%s val:%llu\n", property->name, val);
+	DRM_DEBUG_ATOMIC("property.name:%s val:%llu\n", property->name, val);
 	//DRM_INFO("%s property.values:%d\n", __func__, *property->values);
 
 	if (sp7350_plane->type != DRM_PLANE_TYPE_OVERLAY) {
-		DRM_DEBUG_DRIVER("the property is supported for overlay plane only!\n");
+		DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
 		return -EINVAL;
 	}
 
 	if (!strcmp(property->name, "region alpha")) {
 		struct sp7350_plane_region_alpha_info *info;
-		struct drm_property_blob *mode = drm_property_lookup_blob(plane->dev, val);
+		struct drm_property_blob *blob = drm_property_lookup_blob(plane->dev, val);
 
 		if (!(sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)) {
-			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
+			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 
-		if (!mode) {
-			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
+		if (!blob) {
+			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
-		if (!mode->data) {
-			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
+		if (!blob->data) {
+			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
-		info = mode->data;
 
-		DRM_DEBUG_DRIVER("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
-				 plane->index, info->regionid, info->alpha);
+		if (blob->length != sizeof(struct sp7350_plane_region_alpha_info)) {
+			DRM_DEBUG_ATOMIC("[plane:%d:%s] bad mode blob length: %zu\n",
+					 sp7350_plane->base.base.id, sp7350_plane->base.name,
+					 blob->length);
+			return -EINVAL;
+		}
+		info = blob->data;
 
 		/* check value validity */
 		if (info->alpha > 255 || info->alpha < 0) {
-			DRM_DEBUG_DRIVER("Outof limit! property alpha region [0, 255]!\n");
+			DRM_DEBUG_ATOMIC("Outof limit! property alpha region [0, 255]!\n");
 			return -EINVAL;
 		}
+
+		if (blob == sp7350_plane->state.region_alpha_blob)
+			return 0;
+
+		drm_property_blob_put(sp7350_plane->state.region_alpha_blob);
+		sp7350_plane->state.region_alpha_blob = NULL;
+
 		if (sp7350_plane->is_media_plane) {
 			/*
 			 * WARNING:
 			 * vpp plane region alpha setting by vpp opif mask function.
 			 * So only one region for media plane, the parameter "regionid" is invalid.
 			 */
-			DRM_DEBUG_DRIVER("update vpp opif alpha value by the property!\n");
+			DRM_DEBUG_ATOMIC("update vpp opif alpha value by the property!\n");
 
 			//sp7350_vpp_vpost_opif_alpha_set(info->alpha, 0);
 		} else {
@@ -163,7 +174,7 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 			 * So support muti-region, the parameter "regionid" is related to osd region.
 			 *  BUT now, only one osd region support, so the parameter "regionid" is invalid now.
 			 */
-			DRM_DEBUG_DRIVER("update region alpha value by the property!\n");
+			DRM_DEBUG_ATOMIC("update region alpha value by the property!\n");
 		}
 		/*
 		 * Save to plane state, but not update to hw reg.
@@ -171,21 +182,25 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		 */
 		sp7350_plane->state.region_alpha.regionid = info->regionid;
 		sp7350_plane->state.region_alpha.alpha = info->alpha;
+		sp7350_plane->state.region_alpha_blob = drm_property_blob_get(blob);
 
-		drm_property_blob_put(mode);
+		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
+				 plane->index, info->regionid, info->alpha);
+
+		drm_property_blob_put(blob);
 	}
 	else if (!strcmp(property->name, "color keying")) {
 		u32 global_color_keying_val = val;
 
 		if (!(sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING)) {
-			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
+			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 
-		DRM_DEBUG_DRIVER("Set plane[%d] color keying: 0x%08x\n", plane->index, global_color_keying_val);
+		DRM_DEBUG_ATOMIC("Set plane[%d] color keying: 0x%08x\n", plane->index, global_color_keying_val);
 
 		if (sp7350_plane->is_media_plane) {
-			DRM_DEBUG_DRIVER("the property is supported for overlay plane only!\n");
+			DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
 			return -EINVAL;
 		}
 
@@ -195,27 +210,36 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		 * So support muti-region, the parameter "regionid" is related to osd region.
 		 *  BUT now, only one osd region support, so the parameter "regionid" is invalid now.
 		 */
-		DRM_DEBUG_DRIVER("update color keying value by the property!\n");
+		DRM_DEBUG_ATOMIC("update color keying value by the property!\n");
 		sp7350_plane->state.color_keying = global_color_keying_val;
 	}
 	else if (!strcmp(property->name, "region color keying")) {
-		struct drm_property_blob *mode = drm_property_lookup_blob(plane->dev, val);
+		struct drm_property_blob *blob = drm_property_lookup_blob(plane->dev, val);
 		struct sp7350_plane_region_color_keying_info *info;
 
 		if (!(sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING)) {
-			DRM_DEBUG_DRIVER("the property isn't supported by the driver!\n");
+			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 
-		info = mode->data;
-
-		DRM_DEBUG_DRIVER("Set plane[%d] region color keying: regionid:%d, keying:0x%08x\n",
-				 plane->index, info->regionid, info->keying);
+		if (blob->length != sizeof(struct sp7350_plane_region_color_keying_info)) {
+			DRM_DEBUG_ATOMIC("[plane:%d:%s] bad mode blob length: %zu\n",
+					 sp7350_plane->base.base.id, sp7350_plane->base.name,
+					 blob->length);
+			return -EINVAL;
+		}
+		info = blob->data;
 
 		if (sp7350_plane->is_media_plane) {
-			DRM_DEBUG_DRIVER("the property is supported for overlay plane only!\n");
+			DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
 			return -EINVAL;
 		}
+
+		if (blob == sp7350_plane->state.region_color_keying_blob)
+			return 0;
+
+		drm_property_blob_put(sp7350_plane->state.region_color_keying_blob);
+		sp7350_plane->state.region_color_keying_blob = NULL;
 
 		/*
 		 * TODO:
@@ -223,7 +247,7 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		 * So support muti-region, the parameter "regionid" is related to osd region.
 		 *  BUT now, only one osd region support, so the parameter "regionid" is invalid now.
 		 */
-		DRM_DEBUG_DRIVER("update region color keying value by the property!\n");
+		DRM_DEBUG_ATOMIC("update region color keying value by the property!\n");
 
 		/*
 		 * Save to plane state, but not update to hw reg.
@@ -232,10 +256,14 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		sp7350_plane->state.region_color_keying.regionid = info->regionid;
 		sp7350_plane->state.region_color_keying.keying = info->keying;
 
-		drm_property_blob_put(mode);
+		sp7350_plane->state.region_color_keying_blob = drm_property_blob_get(blob);
+		DRM_DEBUG_ATOMIC("Set plane-%d region color keying: regionid:%d, keying:0x%08x\n",
+				 plane->index, info->regionid, info->keying);
+
+		drm_property_blob_put(blob);
 	}
 	else {
-		DRM_DEBUG_DRIVER("the property isn't implemented by the driver!\n");
+		DRM_DEBUG_ATOMIC("the property isn't implemented by the driver!\n");
 		return -EINVAL;
 	}
 
@@ -249,16 +277,18 @@ static int sp7350_plane_atomic_get_property(struct drm_plane *plane,
 {
 	struct sp7350_drm_plane *sp7350_plane = to_sp7350_drm_plane(plane);
 
-	DRM_DEBUG_DRIVER("Get plane-%d property.name:%s\n", plane->index, property->name);
+	DRM_DEBUG_ATOMIC("Get plane-%d property.name:%s\n", plane->index, property->name);
 
 	if (property == sp7350_plane->region_alpha_property) {
 		if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
-			*val = (uint64_t)&sp7350_plane->state.region_alpha;
+			*val = (sp7350_plane->state.region_alpha_blob) ?
+				 sp7350_plane->state.region_alpha_blob->base.id : 0;
 			return 0;
 		}
 	} else if (property == sp7350_plane->region_color_keying_property) {
 		if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING) {
-			*val = (uint64_t)&sp7350_plane->state.region_color_keying;
+			*val = (sp7350_plane->state.region_color_keying_blob) ?
+				 sp7350_plane->state.region_color_keying_blob->base.id : 0;
 			return 0;
 		}
 	} else if (property == sp7350_plane->color_keying_property) {
@@ -268,7 +298,7 @@ static int sp7350_plane_atomic_get_property(struct drm_plane *plane,
 		}
 	}
 
-	DRM_DEBUG_DRIVER("the property \"%s\" isn't implemented for plane-%d!\n", property->name, plane->index);
+	DRM_DEBUG_ATOMIC("the property \"%s\" isn't implemented for plane-%d!\n", property->name, plane->index);
 	return -EINVAL;
 }
 
@@ -299,15 +329,15 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 
 	obj = drm_fb_cma_get_gem_obj(state->fb, 0);
 	if (!obj || !obj->paddr) {
-		DRM_DEBUG_DRIVER("drm_fb_cma_get_gem_obj fail.\n");
+		DRM_DEBUG_ATOMIC("drm_fb_cma_get_gem_obj fail.\n");
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+	DRM_DEBUG_ATOMIC("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
 			 state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
 			 state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
-	DRM_DEBUG_DRIVER("plane info[%d, %d] zpos:%d\n",
+	DRM_DEBUG_ATOMIC("plane info[%d, %d] zpos:%d\n",
 			 plane->index, sp7350_plane->index, sp7350_plane->zpos);
 
 	sp7350_vpp_imgread_set((u32)obj->paddr,
@@ -335,21 +365,22 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		struct sp7350_dmix_plane_alpha plane_alpha;
 
 		/*
-		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0xff.
-		 *  0x00 ~ 0xff remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0xff.
+		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
+		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0x3f.
 		 */
-		plane_alpha.alpha_value = state->alpha >> 8;
+		plane_alpha.alpha_value = state->alpha >> 10;
 		plane_alpha.enable = 1;
 		plane_alpha.fix_alpha = 0;
-		plane_alpha.layer = SP7350_DMIX_L1;
+		/* NOTES: vpp layer used for media plane fixed. */
+		plane_alpha.layer = SP7350_DMIX_L3;
 
-		DRM_DEBUG_DRIVER("Set plane[%d] alpha %d(src:%d)\n",
+		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
 				 plane->index, plane_alpha.alpha_value, state->alpha);
 		sp7350_dmix_plane_alpha_config(&plane_alpha);
 	}
 
 	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
-		DRM_DEBUG_DRIVER("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
+		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
 				 plane->index, sp7350_plane->state.region_alpha.regionid,
 			sp7350_plane->state.region_alpha.alpha);
 
@@ -400,10 +431,10 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		break;
 	case 0:
 		osd_layer_sel = 3;
-		layer = SP7350_DMIX_L3;
+		layer = SP7350_DMIX_L1;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("Invalid osd layer select index!!!.\n");
+		DRM_DEBUG_ATOMIC("Invalid osd layer select index!!!.\n");
 		return;
 	}
 #endif
@@ -416,11 +447,11 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	obj = drm_fb_cma_get_gem_obj(state->fb, 0);
 	if (!obj || !obj->paddr) {
-		DRM_DEBUG_DRIVER("drm_fb_cma_get_gem_obj fail.\n");
+		DRM_DEBUG_ATOMIC("drm_fb_cma_get_gem_obj fail.\n");
 		return;
 	}
 
-	DRM_DEBUG_DRIVER("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+	DRM_DEBUG_ATOMIC("\n src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
 			 state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
 			 state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
@@ -436,11 +467,11 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	info.region_info.act_width = state->crtc_w;
 	info.region_info.act_height = state->crtc_h;
 
-	DRM_DEBUG_DRIVER("plane info[%d, %d] zpos:%d\n",
+	DRM_DEBUG_ATOMIC("plane info[%d, %d] zpos:%d\n",
 			 plane->index, sp7350_plane->index, sp7350_plane->zpos);
 
 	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
-		DRM_DEBUG_DRIVER("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
+		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
 				 plane->index, sp7350_plane->state.region_alpha.regionid,
 				 sp7350_plane->state.region_alpha.alpha);
 
@@ -455,7 +486,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	}
 	if (sp7350_plane->state.region_color_keying.keying &&
 	    (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING)) {
-		DRM_DEBUG_DRIVER("Set plane[%d] region color keying: regionid:%d, keying:0x%08x\n",
+		DRM_DEBUG_ATOMIC("Set plane[%d] region color keying: regionid:%d, keying:0x%08x\n",
 				 plane->index, sp7350_plane->state.region_color_keying.regionid,
 				 sp7350_plane->state.region_color_keying.keying);
 		/*
@@ -478,26 +509,26 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		struct sp7350_dmix_plane_alpha plane_alpha;
 
 		/*
-		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0xff.
-		 *  0x00 ~ 0xff remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0xff.
+		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
+		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0x3f.
 		 */
-		plane_alpha.alpha_value = state->alpha >> 8;
+		plane_alpha.alpha_value = state->alpha >> 10;
 		plane_alpha.enable = 1;
 		plane_alpha.fix_alpha = 0;
-		plane_alpha.layer = SP7350_DMIX_L1;
+		plane_alpha.layer = layer;
 
-		DRM_DEBUG_DRIVER("Set plane[%d] alpha %d(src:%d)\n",
+		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
 				 plane->index, plane_alpha.alpha_value, state->alpha);
 		sp7350_dmix_plane_alpha_config(&plane_alpha);
 	}
 
-	DRM_DEBUG_DRIVER("\n set osd region x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
+	DRM_DEBUG_ATOMIC("\n set osd region x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
 			 info.region_info.start_x, info.region_info.start_y,
 			 info.region_info.buf_width, info.region_info.buf_height,
 			 info.region_info.act_x, info.region_info.act_y,
 			 info.region_info.act_width, info.region_info.act_height);
 
-	DRM_DEBUG_DRIVER("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
+	DRM_DEBUG_ATOMIC("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
 			 drm_get_format_name(state->fb->format->format, &format_name),
 			 state->fb->modifier, info.color_mode);
 	sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
@@ -509,22 +540,22 @@ static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 
 	if (!state->fb || WARN_ON(!state->crtc)) {
-		DRM_DEBUG_DRIVER("return 0.\n");
+		DRM_DEBUG_ATOMIC("return 0.\n");
 		return 0;
 	}
 
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_state)) {
-		DRM_DEBUG_DRIVER("drm_atomic_get_crtc_state is err\n");
+		DRM_DEBUG_ATOMIC("drm_atomic_get_crtc_state is err\n");
 		return PTR_ERR(crtc_state);
 	}
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-		DRM_DEBUG_DRIVER("DRM_PLANE_TYPE_CURSOR unsupport for VPP HW.\n");
+		DRM_DEBUG_ATOMIC("DRM_PLANE_TYPE_CURSOR unsupport for VPP HW.\n");
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_DRIVER("plane atomic check end\n");
+	DRM_DEBUG_ATOMIC("plane atomic check end\n");
 
 	return 0;
 }
@@ -535,23 +566,23 @@ static int sp7350_kms_plane_osd_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 
 	if (!state->fb || WARN_ON(!state->crtc)) {
-		DRM_DEBUG_DRIVER("return 0\n");
+		DRM_DEBUG_ATOMIC("return 0\n");
 		return 0;
 	}
 
 	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
 	if (IS_ERR(crtc_state)) {
-		DRM_DEBUG_DRIVER("drm_atomic_get_crtc_state is err\n");
+		DRM_DEBUG_ATOMIC("drm_atomic_get_crtc_state is err\n");
 		return PTR_ERR(crtc_state);
 	}
 
 	if (state->crtc_w != state->src_w >> 16 || state->crtc_h != state->src_h >> 16) {
-		DRM_DEBUG_DRIVER("Check fail[src(%d, %d), crtc(%d,%d)], scale function unsuppord for OSD HW.\n",
+		DRM_DEBUG_ATOMIC("Check fail[src(%d, %d), crtc(%d,%d)], scale function unsuppord for OSD HW.\n",
 				 state->src_w >> 16, state->src_h >> 16, state->crtc_w, state->crtc_h);
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_DRIVER("plane atomic check end\n");
+	DRM_DEBUG_ATOMIC("plane atomic check end\n");
 
 	return 0;
 }
@@ -575,7 +606,7 @@ static void sp7350_plane_create_propertys(struct sp7350_drm_plane *plane)
 
 	if (plane->capabilities & SP7350_DRM_PLANE_CAP_ROTATION) {
 		drm_plane_create_rotation_property(&plane->base, DRM_MODE_ROTATE_0,
-						   DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 | DRM_MODE_REFLECT_Y);
+					  DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_90 | DRM_MODE_REFLECT_Y);
 	}
 
 	if (plane->capabilities & SP7350_DRM_PLANE_CAP_PIX_BLEND) {
@@ -587,28 +618,36 @@ static void sp7350_plane_create_propertys(struct sp7350_drm_plane *plane)
 
 	if (plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
 		/* region alpha region: 0~255 */
-		plane->region_alpha_property = drm_property_create(plane->base.dev,
-								   DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB, "region alpha", 0);
+		plane->region_alpha_property
+			 = drm_property_create(plane->base.dev,
+						  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
+						  "region alpha", 0);
 		plane->state.region_alpha.regionid = 0;
 		plane->state.region_alpha.alpha = 0xff;
-		drm_object_attach_property(&plane->base.base, plane->region_alpha_property, (uint64_t)(&plane->state.region_alpha));
+		drm_object_attach_property(&plane->base.base,
+			 plane->region_alpha_property, 0);
 	}
 
 	if (plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING) {
 		/* region color keying region: 0~0xffffffff */
-		plane->region_color_keying_property = drm_property_create(plane->base.dev,
-									  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB, "region color keying", 0);
+		plane->region_color_keying_property =
+			 drm_property_create(plane->base.dev,
+						  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
+						  "region color keying", 0);
 		plane->state.region_color_keying.regionid = 0;
 		plane->state.region_color_keying.keying = 0;
-		drm_object_attach_property(&plane->base.base, plane->region_color_keying_property, (uint64_t)(&plane->state.region_color_keying));
+		drm_object_attach_property(&plane->base.base,
+			 plane->region_color_keying_property, 0);
 	}
 
 	if (plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING) {
 		/* color_keying format:RGBA8888, region: 0~0xffffffff */
-		plane->color_keying_property = drm_property_create_range(plane->base.dev, DRM_MODE_PROP_ATOMIC, "color keying",
-									 0, 0xffffffff);
+		plane->color_keying_property =
+			 drm_property_create_range(plane->base.dev, DRM_MODE_PROP_ATOMIC,
+					 "color keying", 0, 0xffffffff);
 		plane->state.color_keying = 0;
-		drm_object_attach_property(&plane->base.base, plane->color_keying_property, (uint64_t)plane->state.color_keying);
+		drm_object_attach_property(&plane->base.base,
+			 plane->color_keying_property, (uint64_t)plane->state.color_keying);
 	}
 }
 
@@ -627,6 +666,15 @@ static void sp7350_plane_destroy_propertys(struct sp7350_drm_plane *plane)
 	if (plane->color_keying_property) {
 		drm_property_destroy(plane->base.dev, plane->color_keying_property);
 		plane->color_keying_property = NULL;
+	}
+
+	if (plane->state.region_alpha_blob) {
+		drm_property_blob_put(plane->state.region_alpha_blob);
+		plane->state.region_alpha_blob = NULL;
+	}
+	if (plane->state.region_color_keying_blob) {
+		drm_property_blob_put(plane->state.region_color_keying_blob);
+		plane->state.region_color_keying_blob = NULL;
 	}
 }
 
