@@ -556,49 +556,49 @@ void sp7350_dmix_layer_info(int layer)
 
 }
 
-void sp7350_dmix_plane_alpha_config(struct sp7350_dmix_plane_alpha *plane)
+void sp7350_dmix_plane_alpha_config(int layer, int enable, int fix_alpha, int alpha_value)
 {
 	struct sp_disp_device *disp_dev = gdisp_dev;
 	u32 value1, value2;
 
 	//pr_info("layer%d: En%d, Fix%d, 0x%x\n",
-	//	plane->layer, plane->enable, plane->fix_alpha, plane->alpha_value);
+	//	layer, enable, fix_alpha, alpha_value);
 
 	value1 = readl(disp_dev->base + DMIX_PLANE_ALPHA_CONFIG_0);
 	value2 = readl(disp_dev->base + DMIX_PLANE_ALPHA_CONFIG_1);
 
-	switch (plane->layer) {
+	switch (layer) {
 		case SP7350_DMIX_L1:
 			value1 &= ~(GENMASK(15, 8));
-			value1 |= FIELD_PREP(GENMASK(15, 15), plane->enable) |
-				FIELD_PREP(GENMASK(14, 14), plane->fix_alpha) |
-				FIELD_PREP(GENMASK(13, 8), plane->alpha_value);
+			value1 |= FIELD_PREP(GENMASK(15, 15), enable) |
+				FIELD_PREP(GENMASK(14, 14), fix_alpha) |
+				FIELD_PREP(GENMASK(13, 8), alpha_value);
 			break;
 		case SP7350_DMIX_L2:
 			break;
 		case SP7350_DMIX_L3:
 			value2 &= ~(GENMASK(31, 24));
-			value2 |= FIELD_PREP(GENMASK(31, 31), plane->enable) |
-				FIELD_PREP(GENMASK(30, 30), plane->fix_alpha) |
-				FIELD_PREP(GENMASK(29, 24), plane->alpha_value);
+			value2 |= FIELD_PREP(GENMASK(31, 31), enable) |
+				FIELD_PREP(GENMASK(30, 30), fix_alpha) |
+				FIELD_PREP(GENMASK(29, 24), alpha_value);
 			break;
 		case SP7350_DMIX_L4:
 			value2 &= ~(GENMASK(23, 16));
-			value2 |= FIELD_PREP(GENMASK(23, 23), plane->enable) |
-				FIELD_PREP(GENMASK(22, 22), plane->fix_alpha) |
-				FIELD_PREP(GENMASK(21, 16), plane->alpha_value);
+			value2 |= FIELD_PREP(GENMASK(23, 23), enable) |
+				FIELD_PREP(GENMASK(22, 22), fix_alpha) |
+				FIELD_PREP(GENMASK(21, 16), alpha_value);
 			break;
 		case SP7350_DMIX_L5:
 			value2 &= ~(GENMASK(15, 8));
-			value2 |= FIELD_PREP(GENMASK(15, 15), plane->enable) |
-				FIELD_PREP(GENMASK(14, 14), plane->fix_alpha) |
-				FIELD_PREP(GENMASK(13, 8), plane->alpha_value);
+			value2 |= FIELD_PREP(GENMASK(15, 15), enable) |
+				FIELD_PREP(GENMASK(14, 14), fix_alpha) |
+				FIELD_PREP(GENMASK(13, 8), alpha_value);
 			break;
 		case SP7350_DMIX_L6:
 			value2 &= ~(GENMASK(7, 0));
-			value2 |= FIELD_PREP(GENMASK(7, 7), plane->enable) |
-				FIELD_PREP(GENMASK(6, 6), plane->fix_alpha) |
-				FIELD_PREP(GENMASK(5, 0), plane->alpha_value);
+			value2 |= FIELD_PREP(GENMASK(7, 7), enable) |
+				FIELD_PREP(GENMASK(6, 6), fix_alpha) |
+				FIELD_PREP(GENMASK(5, 0), alpha_value);
 			break;
 		default:
 			break;
