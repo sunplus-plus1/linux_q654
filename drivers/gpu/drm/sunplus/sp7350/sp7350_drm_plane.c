@@ -470,7 +470,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	DRM_DEBUG_ATOMIC("plane info[%d, %d] zpos:%d\n",
 			 plane->index, sp7350_plane->index, sp7350_plane->zpos);
 
-	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
+	if (sp7350_plane->state.region_alpha_blob &&
+		 (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)) {
 		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
 				 plane->index, sp7350_plane->state.region_alpha.regionid,
 				 sp7350_plane->state.region_alpha.alpha);
@@ -484,8 +485,11 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		info.alpha_info.region_alpha_en = 1;
 		info.alpha_info.region_alpha = sp7350_plane->state.region_alpha.alpha;
 	}
-	if (sp7350_plane->state.region_color_keying.keying &&
-	    (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING)) {
+	else {
+		info.alpha_info.region_alpha_en = 0;
+	}
+	if (sp7350_plane->state.region_color_keying_blob &&
+		 (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING)) {
 		DRM_DEBUG_ATOMIC("Set plane[%d] region color keying: regionid:%d, keying:0x%08x\n",
 				 plane->index, sp7350_plane->state.region_color_keying.regionid,
 				 sp7350_plane->state.region_color_keying.keying);
@@ -497,9 +501,13 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		 */
 		info.alpha_info.color_key_en = 1;
 		info.alpha_info.color_key = sp7350_plane->state.region_color_keying.keying;
-	} else if (sp7350_plane->state.color_keying &&
-		 (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING)) {
-		info.alpha_info.color_key_en = 1;
+	} else if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING) {
+		DRM_DEBUG_ATOMIC("Set plane[%d] color keying:0x%08x\n",
+				 plane->index, sp7350_plane->state.color_keying);
+		if (!sp7350_plane->state.color_keying)
+			info.alpha_info.color_key_en = 0;
+		else
+			info.alpha_info.color_key_en = 1;
 		info.alpha_info.color_key = sp7350_plane->state.color_keying;
 	}
 
