@@ -210,6 +210,7 @@ struct vin_dev {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_async_notifier notifier;
 
 	struct vin_group *group;
 	unsigned int id;
