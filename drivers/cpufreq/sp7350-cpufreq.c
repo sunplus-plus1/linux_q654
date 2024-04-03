@@ -55,11 +55,24 @@ static LIST_HEAD(dvfs_info_list);
 static void __iomem *ca55_memctl;
 extern void __iomem *sp_clk_reg_base(void);
 
-static void sp_clkc_ca55_memctl(u32 val)
+static void sp_dvfs_set_memctl(u32 val)
 {
 	val |= MEMCTL_HWM;
 	//pr_debug(">>> write ca55_memctl(MOON4.14) to %08x", val);
 	writel(val, ca55_memctl);
+}
+
+static int sp_dvfs_set_voltage(struct sp7350_cpu_dvfs_info *info, int volt)
+{
+	int ret = hwspin_lock_timeout_raw(info->hwlock, SP_DVFS_HWLOCK_TIMEOUT);
+	if (ret) {
+		pr_err("[SP_DVFS] timeout to get the hwspinlock\n");
+		return ret;
+	}
+	ret = regulator_set_voltage(info->proc_reg, volt, volt + VOLT_TOL);
+	hwspin_unlock_raw(info->hwlock);
+
+	return ret;
 }
 
 static struct sp7350_cpu_dvfs_info *sp7350_cpu_dvfs_info_lookup(int cpu)
@@ -85,20 +98,13 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 	unsigned long new_freq, old_freq = clk_get_rate(cpu_clk);
 	int new_vproc, old_vproc, ret = 0;
 
-	ret = hwspin_lock_timeout_raw(info->hwlock, SP_DVFS_HWLOCK_TIMEOUT);
-	if (ret) {
-		pr_err("[SP_DVFS] timeout to get the hwspinlock\n");
-		return ret;
-	}
-
 	new_freq = freq_table[index].frequency * 1000;
 	//pr_debug("\n>>> %s: %lu -> %lu\n", __FUNCTION__, clk_get_rate(cpu_clk), new_freq);
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &new_freq);
 	if (IS_ERR(opp)) {
 		pr_err("cpu%d: failed to find OPP for %ld\n",
 		policy->cpu, new_freq);
-		ret = PTR_ERR(opp);
-		goto dvfs_exit;
+		return PTR_ERR(opp);
 	}
 	new_vproc = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
@@ -107,8 +113,7 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		old_vproc = regulator_get_voltage(info->proc_reg);
 		if (old_vproc < 0) {
 			pr_err("%s: invalid Vproc value: %d\n", __func__, old_vproc);
-			ret = old_vproc;
-			goto dvfs_exit;
+			return old_vproc;
 		}
 
 		/*
@@ -117,11 +122,10 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		*/
 		if (old_vproc < new_vproc) {
 			//pr_debug(">>> scale up voltage from %d to %d\n", old_vproc, new_vproc);
-			ret = regulator_set_voltage(info->proc_reg, new_vproc, new_vproc + VOLT_TOL);
+			ret = sp_dvfs_set_voltage(info, new_vproc);
 			if (ret) {
-				pr_err("cpu%d: failed to scale up voltage!\n",
-				policy->cpu);
-				goto dvfs_exit;
+				pr_err("cpu%d: failed to scale up voltage!\n", policy->cpu);
+				return ret;
 			}
 		}
 	}
@@ -133,8 +137,8 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 			clk_set_rate(cpu_clk, MIN_F_SLOW);
 		}
 
-		sp_clkc_ca55_memctl((new_freq <= MAX_F_SLOW) ? MEMCTL_SLOW :
-				   ((new_freq <= MAX_F_DEFAULT) ? MEMCTL_DEFAULT : MEMCTL_FAST));
+		sp_dvfs_set_memctl((new_freq <= MAX_F_SLOW) ? MEMCTL_SLOW :
+				  ((new_freq <= MAX_F_DEFAULT) ? MEMCTL_DEFAULT : MEMCTL_FAST));
 
 		/* Set the cpu_clk/L3_clk to target rate. */
 		ret = clk_set_rate(cpu_clk, new_freq);
@@ -145,15 +149,15 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		if (old_freq > MAX_F_SLOW && new_freq <= MAX_F_SLOW) {
 			clk_set_rate(info->l3_clk, L3_F(MIN_F_SLOW));
 			clk_set_rate(cpu_clk, MIN_F_SLOW);
-			sp_clkc_ca55_memctl(MEMCTL_SLOW);
+			sp_dvfs_set_memctl(MEMCTL_SLOW);
 		}
 
 		/* Set the L3_clk/cpu_clk to target rate. */
 		ret = clk_set_rate(info->l3_clk, L3_F(new_freq));
 		ret = clk_set_rate(cpu_clk, new_freq);
 
-		sp_clkc_ca55_memctl((new_freq <= MAX_F_SLOW) ? MEMCTL_SLOW :
-				   ((new_freq <= MAX_F_DEFAULT) ? MEMCTL_DEFAULT : MEMCTL_FAST));
+		sp_dvfs_set_memctl((new_freq <= MAX_F_SLOW) ? MEMCTL_SLOW :
+				  ((new_freq <= MAX_F_DEFAULT) ? MEMCTL_DEFAULT : MEMCTL_FAST));
 	}
 
 	if (info->proc_reg) {
@@ -163,17 +167,12 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		*/
 		if (new_vproc < old_vproc) {
 			//pr_debug(">>> scale down voltage from %d to %d\n", old_vproc, new_vproc);
-			ret = regulator_set_voltage(info->proc_reg, new_vproc, new_vproc + VOLT_TOL);
+			ret = sp_dvfs_set_voltage(info, new_vproc);
 			if (ret) {
-				pr_err("cpu%d: failed to scale down voltage!\n",
-				policy->cpu);
-				goto dvfs_exit;
+				pr_err("cpu%d: failed to scale down voltage!\n", policy->cpu);
 			}
 		}
 	}
-
-dvfs_exit:
-	hwspin_unlock_raw(info->hwlock);
 
 	return ret;
 }
