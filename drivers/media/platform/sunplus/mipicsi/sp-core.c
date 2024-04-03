@@ -7,7 +7,6 @@
  *
  * Based on Renesas R-Car VIN driver
  */
-
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -168,8 +167,7 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 			continue;
 
 		/* Get remote CSI-2, if any. */
-		csi_pad = media_entity_remote_pad(
-				&group->vin[i]->vdev.entity.pads[0]);
+		csi_pad = media_entity_remote_pad(&group->vin[i]->vdev.entity.pads[0]);
 		if (!csi_pad)
 			continue;
 
@@ -363,9 +361,8 @@ static int vin_group_get(struct vin_dev *vin)
 	}
 
 	ret = dma_set_coherent_mask(vin->dev, DMA_BIT_MASK(32));
-	if (ret) {
+	if (ret)
 		dev_warn(vin->dev, "32-bit consistent DMA enable failed\n");
-	}
 
 	dev_dbg(vin->dev, "Reserved memory initialization done\n");
 
@@ -443,14 +440,10 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 		return ret;
 	}
 
-	/* Register all video nodes for the group. */
-	for (i = 0; i < VIN_MAX_NUM; i++) {
-		if (vin->group->vin[i] &&
-		    !video_is_registered(&vin->group->vin[i]->vdev)) {
-			ret = vin_v4l2_register(vin->group->vin[i]);
-			if (ret)
-				return ret;
-		}
+	if (!video_is_registered(&vin->vdev)) {
+		ret = vin_v4l2_register(vin);
+		if (ret)
+			return ret;
 	}
 
 	/* Create all media device links between VINs and CSI-2's. */
@@ -468,6 +461,8 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 		if (!vin->group->vin[route->vin])
 			continue;
 
+		if (!video_is_registered(&(vin->group->vin[route->vin]->vdev)))
+			continue;
 		/* Check that VIN' master is part of the group. */
 		//if (!vin->group->vin[vin_group_id_to_master(route->vin)])
 		//	continue;
@@ -489,7 +484,6 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 		/* Skip if link already exists. */
 		if (media_entity_find_link(source_pad, sink_pad))
 			continue;
-
 		ret = media_create_pad_link(source, source_idx, sink, 0,
 						MEDIA_LNK_FL_ENABLED);
 		if (ret) {
@@ -506,31 +500,25 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 			v4l2_ctrl_handler_free(&vin->group->vin[route->vin]->ctrl_handler);
 			return ret;
 		}
-	}
-	mutex_unlock(&vin->group->lock);
+		ret = vin_v4l2_formats_init(vin->group->vin[route->vin]);
+		if (ret) {
+			dev_err(vin->dev, "No supported mediabus format found\n");
+			return ret;
+		}
 
-	/* Configure all pipeline with default format. */
-	for (i = 0; i < VIN_MAX_NUM; i++) {
-		if (vin->group->vin[i]) {
-			ret = vin_v4l2_formats_init(vin->group->vin[i]);
-			if (ret) {
-				dev_err(vin->dev, "No supported mediabus format found\n");
-				return ret;
-			}
+		ret = vin_v4l2_framesizes_init(vin->group->vin[route->vin]);
+		if (ret) {
+			dev_err(vin->dev, "Could not initialize framesizes\n");
+			return ret;
+		}
 
-			ret = vin_v4l2_framesizes_init(vin->group->vin[i]);
-			if (ret) {
-				dev_err(vin->dev, "Could not initialize framesizes\n");
-				return ret;
-			}
-
-			ret = vin_v4l2_set_default_fmt(vin->group->vin[i]);
-			if (ret) {
-				dev_err(vin->dev, "Could not set default format\n");
-				return ret;
-			}
+		ret = vin_v4l2_set_default_fmt(vin->group->vin[route->vin]);
+		if (ret) {
+			dev_err(vin->dev, "Could not set default format\n");
+			return ret;
 		}
 	}
+	mutex_unlock(&vin->group->lock);
 
 	return ret;
 }
@@ -541,15 +529,20 @@ static void vin_notify_unbind(struct v4l2_async_notifier *notifier,
 {
 	struct vin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
+	unsigned int vin_cnt = 0;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
 	for (i = 0; i < VIN_MAX_NUM; i++)
-		if (vin->group->vin[i])
-			vin_v4l2_unregister(vin->group->vin[i]);
-
+		if (vin->group->vin[i]) {
+			vin_cnt++;
+			vin_dbg(vin, "vin->group->vin[%d] %lx\n", i, vin->group->vin[i]);
+		}
+	// clean group mdev when all vin unbind
+	if (vin_cnt == 1) {
+		media_device_unregister(&vin->group->mdev);
+	}
 	mutex_lock(&vin->group->lock);
-
 	for (i = 0; i < VIN_CSI_MAX; i++) {
 		if (vin->group->csi[i].fwnode != asd->match.fwnode)
 			continue;
@@ -557,10 +550,10 @@ static void vin_notify_unbind(struct v4l2_async_notifier *notifier,
 		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
 		break;
 	}
-
 	mutex_unlock(&vin->group->lock);
+	vin_v4l2_unregister(vin);
+	vin_group_put(vin);
 
-	media_device_unregister(&vin->group->mdev);
 }
 
 static int vin_notify_bound(struct v4l2_async_notifier *notifier,
@@ -638,58 +631,20 @@ static int vin_parse_of_graph(struct vin_dev *vin)
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-
-	mutex_lock(&vin->group->lock);
-
-	/* If not all VIN's are registered don't register the notifier. */
-	for (i = 0; i < VIN_MAX_NUM; i++) {
-		if (vin->group->vin[i]) {
-			count++;
-			vin_mask |= BIT(i);
-		}
-	}
-
-	dev_dbg(vin->dev, "vin->group->count: %d, count: %d\n", vin->group->count, count);
-
-	if (vin->group->count != count) {
-		mutex_unlock(&vin->group->lock);
-		return 0;
-	}
-
-	mutex_unlock(&vin->group->lock);
-
-	v4l2_async_notifier_init(&vin->group->notifier);
-
-	/*
-	 * Have all VIN's look for CSI-2 subdevices. Some subdevices will
-	 * overlap but the parser function can handle it, so each subdevice
-	 * will only be registered once with the group notifier.
-	 */
-	for (i = 0; i < VIN_MAX_NUM; i++) {
-		if (!(vin_mask & BIT(i)))
-			continue;
-
-		ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-				vin->group->vin[i]->dev, &vin->group->notifier,
-				sizeof(struct v4l2_async_subdev), 1,
-				vin_parse_of_endpoint);
-
-		if (ret)
-			return ret;
-	}
-
-	if (list_empty(&vin->group->notifier.asd_list))
-		return 0;
-
-	vin->group->notifier.ops = &vin_notify_ops;
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev,
-					   &vin->group->notifier);
+	v4l2_async_notifier_init(&vin->notifier);
+	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
+	vin->dev, &vin->notifier,
+		sizeof(struct v4l2_async_subdev), 1,
+		vin_parse_of_endpoint);
+	if (ret)
+		return ret;
+	vin->notifier.ops = &vin_notify_ops;
+	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_notifier_cleanup(&vin->notifier);
 		return ret;
 	}
-
 	return 0;
 }
 
@@ -704,14 +659,14 @@ static int vin_init(struct vin_dev *vin)
 	if (ret)
 		return ret;
 
-	ret = vin_group_get(vin);
+		ret = vin_group_get(vin);
 	if (ret)
 		return ret;
 
 	/* Initialize v4l2 control and add a control */
 	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 1);
 	if (ret < 0)
-		return ret;
+			return ret;
 
 	v4l2_ctrl_new_std(&vin->ctrl_handler, &vin_ctrl_ops,
 			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
@@ -728,8 +683,8 @@ static int vin_init(struct vin_dev *vin)
 	if (ret)
 		vin_group_put(vin);
 
-	return ret;
-}
+		return ret;
+	}
 
 /* -----------------------------------------------------------------------------
  * Group async notifier
@@ -801,7 +756,6 @@ static int vin_group_notify_complete(struct v4l2_async_notifier *notifier)
 		/* Skip if link already exists. */
 		if (media_entity_find_link(source_pad, sink_pad))
 			continue;
-
 #if defined(MC_MODE_DEFAULT)
 		ret = media_create_pad_link(source, source_idx, sink, 0,
 						MEDIA_LNK_FL_ENABLED);
@@ -923,7 +877,6 @@ static int vin_mc_parse_of_graph(struct vin_dev *vin)
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-
 	mutex_lock(&vin->group->lock);
 
 	/* If not all VIN's are registered don't register the notifier. */
@@ -962,13 +915,11 @@ static int vin_mc_parse_of_graph(struct vin_dev *vin)
 		if (ret)
 			return ret;
 	}
-
 	if (list_empty(&vin->group->notifier.asd_list))
 		return 0;
-
 	vin->group->notifier.ops = &vin_group_notify_ops;
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev,
-					   &vin->group->notifier);
+								&vin->group->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
 		v4l2_async_notifier_cleanup(&vin->group->notifier);
@@ -1169,15 +1120,11 @@ static int sp_vin_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 #endif
+	dev_dbg(&pdev->dev, "%s, %d\n", __func__, __LINE__);
 
-	vin_v4l2_unregister(vin);
-
-	v4l2_async_notifier_unregister(&vin->group->notifier);
-	v4l2_async_notifier_cleanup(&vin->group->notifier);
-	vin_group_put(vin);
-
+	v4l2_async_notifier_unregister(&vin->notifier);
+	v4l2_async_notifier_cleanup(&vin->notifier);
 	v4l2_ctrl_handler_free(&vin->ctrl_handler);
-
 	vin_dma_unregister(vin);
 
 	return 0;
