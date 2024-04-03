@@ -161,7 +161,7 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 	/* Build a mask for already enabled links. */
 	for (i = master_id; i < master_id + 4; i++) {
 
-		dev_dbg(vin->dev, "i:%d, group->vin[i]: 0x%px\n", i, group->vin[i]);
+		// dev_dbg(vin->dev, "i:%d, group->vin[i]: 0x%px\n", i, group->vin[i]);
 
 		if (!group->vin[i])
 			continue;
@@ -425,7 +425,6 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct vin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	const struct vin_group_route *route;
-	unsigned int i;
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
@@ -455,7 +454,7 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 
 		dev_dbg(vin->dev, "csi: %d, channel: %d, vin: %d, mask: 0x%08x\n",
 			route->csi, route->channel, route->vin, route->mask);
-		dev_dbg(vin->dev, "vin->group->vin[route->vin]: 0x%px\n", vin->group->vin[route->vin]);
+		// dev_dbg(vin->dev, "vin->group->vin[route->vin]: 0x%p\n", vin->group->vin[route->vin]);
 
 		/* Check that VIN is part of the group. */
 		if (!vin->group->vin[route->vin])
@@ -534,14 +533,12 @@ static void vin_notify_unbind(struct v4l2_async_notifier *notifier,
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
 	for (i = 0; i < VIN_MAX_NUM; i++)
-		if (vin->group->vin[i]) {
+		if (vin->group->vin[i])
 			vin_cnt++;
-			vin_dbg(vin, "vin->group->vin[%d] %lx\n", i, vin->group->vin[i]);
-		}
 	// clean group mdev when all vin unbind
-	if (vin_cnt == 1) {
+	if (vin_cnt == 1)
 		media_device_unregister(&vin->group->mdev);
-	}
+
 	mutex_lock(&vin->group->lock);
 	for (i = 0; i < VIN_CSI_MAX; i++) {
 		if (vin->group->csi[i].fwnode != asd->match.fwnode)
@@ -626,8 +623,6 @@ out:
 
 static int vin_parse_of_graph(struct vin_dev *vin)
 {
-	unsigned int count = 0, vin_mask = 0;
-	unsigned int i;
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
@@ -659,14 +654,14 @@ static int vin_init(struct vin_dev *vin)
 	if (ret)
 		return ret;
 
-		ret = vin_group_get(vin);
+	ret = vin_group_get(vin);
 	if (ret)
 		return ret;
 
 	/* Initialize v4l2 control and add a control */
 	ret = v4l2_ctrl_handler_init(&vin->ctrl_handler, 1);
 	if (ret < 0)
-			return ret;
+		return ret;
 
 	v4l2_ctrl_new_std(&vin->ctrl_handler, &vin_ctrl_ops,
 			  V4L2_CID_ALPHA_COMPONENT, 0, 255, 1, 255);
@@ -683,8 +678,8 @@ static int vin_init(struct vin_dev *vin)
 	if (ret)
 		vin_group_put(vin);
 
-		return ret;
-	}
+	return ret;
+}
 
 /* -----------------------------------------------------------------------------
  * Group async notifier
@@ -728,8 +723,7 @@ static int vin_group_notify_complete(struct v4l2_async_notifier *notifier)
 
 		dev_dbg(vin->dev, "csi: %d, channel: %d, vin: %d, mask: %d\n",
 			route->csi, route->channel, route->vin, route->mask);
-		dev_dbg(vin->dev, "vin->group->vin[route->vin]: 0x%px\n",
-			vin->group->vin[route->vin]);
+		// dev_dbg(vin->dev, "vin->group->vin[route->vin]: 0x%px\n", vin->group->vin[route->vin]);
 
 		/* Check that VIN is part of the group. */
 		if (!vin->group->vin[route->vin])
@@ -1051,7 +1045,7 @@ static int sp_vin_probe(struct platform_device *pdev)
 	if (IS_ERR(vin->base))
 		return PTR_ERR(vin->base);
 
-	dev_dbg(&pdev->dev, "vin->base: 0x%px\n", vin->base);
+	// dev_dbg(&pdev->dev, "vin->base: 0x%px\n", vin->base);
 
 	vin->clk = devm_clk_get(&pdev->dev, "clk_csiiw");
 	if (IS_ERR(vin->clk))
