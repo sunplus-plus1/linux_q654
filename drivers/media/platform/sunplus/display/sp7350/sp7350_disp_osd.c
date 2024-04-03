@@ -639,7 +639,6 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 	u32 tmp_width, tmp_height, tmp_color_mode;
 	u32 tmp_alpha = 0, value = 0;
 	u32 tmp_key = 0;
-	u32 tmp_r = 0,tmp_g = 0,tmp_b = 0,tmp_a = 0;
 	u32 *osd_header, *osd_palette;
 	int i;
 
@@ -669,10 +668,9 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 	}
 
 	if(info->alpha_info.color_key_en){
-		
 		value |= SP7350_OSD_HDR_KEY;
 	}
-	
+
 	if (info->color_mode == SP7350_OSD_COLOR_MODE_8BPP)
 		value |= SP7350_OSD_HDR_CULT;
 	osd_header[0] = SWAP32(value);
@@ -695,7 +693,6 @@ void sp7350_osd_layer_set_by_region(struct sp7350_osd_region *info, int osd_laye
 		osd_header[3] = 0;
 
 	}
-	
 
 	/* Fill DATA_start_row & DATA_start_column */
 	tmp_width = info->region_info.start_x;
