@@ -371,6 +371,7 @@ static struct shash_alg hash_algs[] = {
 			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
 		},
 	},
+	#if 0 // FIXME: failed in VPN:L2TP auth
 	{
 		.digestsize	= SHA256_DIGEST_SIZE,
 		.init		= sp_shash_init,
@@ -385,6 +386,7 @@ static struct shash_alg hash_algs[] = {
 			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
 		}
 	},
+	#endif
 	{
 		.digestsize	= SHA512_DIGEST_SIZE,
 		.init		= sp_shash_init,
