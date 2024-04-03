@@ -137,6 +137,7 @@ int sp7350_vpp_vscl_set(int x, int y, int xlen, int ylen, int img_dest_x,int img
 #endif
 int sp7350_vpp_vpost_set(int x, int y, int input_w, int input_h, int output_w, int output_h);
 int sp7350_vpp_vpost_opif_set(int act_x, int act_y, int act_w, int act_h, int output_w, int output_h);
+int sp7350_vpp_vpost_opif_alpha_set(int alpha, int mask_alpha);
 
 /*
  * SP7350 VPP register store/restore

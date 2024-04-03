@@ -830,6 +830,26 @@ int sp7350_vpp_vpost_opif_set(int act_x, int act_y, int act_w, int act_h, int ou
 }
 EXPORT_SYMBOL(sp7350_vpp_vpost_opif_set);
 
+int sp7350_vpp_vpost_opif_alpha_set(int alpha, int mask_alpha)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value;
+
+	value = readl(disp_dev->base + VPOST_OPIF_CONFIG);
+	value |= SP7350_VPP_VPOST_WIN_ALPHA_EN;
+	writel(value, disp_dev->base + VPOST_OPIF_CONFIG);
+
+	/*set alpha value*/
+	value = readl(disp_dev->base + VPOST_OPIF_ALPHA);
+	value &= ~(SP7350_VPP_VPOST_WIN_ALPHA_MASK | SP7350_VPP_VPOST_VPP_ALPHA_MASK);
+	value |= (SP7350_VPP_VPOST_WIN_ALPHA_SET(mask_alpha) |
+		SP7350_VPP_VPOST_VPP_ALPHA_SET(alpha));
+	writel(value, disp_dev->base + VPOST_OPIF_ALPHA);
+
+	return 0;
+}
+EXPORT_SYMBOL(sp7350_vpp_vpost_opif_alpha_set);
+
 int sp7350_vpp_resolution_init(struct sp_disp_device *disp_dev)
 {
 	/*

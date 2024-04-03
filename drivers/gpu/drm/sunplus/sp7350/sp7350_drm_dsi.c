@@ -96,6 +96,7 @@ struct sp7350_drm_dsi {
 	int xfer_result;
 
 	struct debugfs_regset32 regset;
+	struct debugfs_regset32 ao_moon3_regset;
 	struct drm_display_mode adj_mode_store;
 };
 
