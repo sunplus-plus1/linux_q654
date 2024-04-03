@@ -362,21 +362,15 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	 */
 
 	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND) {
-		struct sp7350_dmix_plane_alpha plane_alpha;
-
 		/*
 		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
 		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0x3f.
 		 */
-		plane_alpha.alpha_value = state->alpha >> 10;
-		plane_alpha.enable = 1;
-		plane_alpha.fix_alpha = 0;
-		/* NOTES: vpp layer used for media plane fixed. */
-		plane_alpha.layer = SP7350_DMIX_L3;
 
 		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
-				 plane->index, plane_alpha.alpha_value, state->alpha);
-		sp7350_dmix_plane_alpha_config(&plane_alpha);
+				 plane->index, state->alpha >> 10, state->alpha);
+		/* NOTES: vpp layer(SP7350_DMIX_L3) used for media plane fixed. */
+		sp7350_dmix_plane_alpha_config(SP7350_DMIX_L3, 1, 0, state->alpha >> 10);
 	}
 
 	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
@@ -514,20 +508,14 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	sp7350_osd_layer_set_by_region(&info, osd_layer_sel);
 
 	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND) {
-		struct sp7350_dmix_plane_alpha plane_alpha;
-
 		/*
 		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
 		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0x3f.
 		 */
-		plane_alpha.alpha_value = state->alpha >> 10;
-		plane_alpha.enable = 1;
-		plane_alpha.fix_alpha = 0;
-		plane_alpha.layer = layer;
 
 		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
-				 plane->index, plane_alpha.alpha_value, state->alpha);
-		sp7350_dmix_plane_alpha_config(&plane_alpha);
+				 plane->index, state->alpha >> 10, state->alpha);
+		sp7350_dmix_plane_alpha_config(layer, 1, 0, state->alpha >> 10);
 	}
 
 	DRM_DEBUG_ATOMIC("\n set osd region x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
