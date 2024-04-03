@@ -33,8 +33,7 @@ struct sp_aes_ctx {
 struct sp_aes_priv {
 	u8* va;
 	dma_addr_t pa;
-	bool done;
-	wait_queue_head_t wait;
+	volatile bool done;
 	struct mutex lock;
 } sp_aes;
 
@@ -66,7 +65,7 @@ static void sp_aes_hw_exec(u32 src, u32 dst, u32 bytes)
 	sp_aes.done = false;
 	smp_wmb(); /* memory barrier */
 	W(AESDMACS, SEC_DMA_SIZE(bytes) | SEC_DMA_ENABLE);
-	wait_event_interruptible_timeout(sp_aes.wait, sp_aes.done, 60*HZ);
+	while (!sp_aes.done); // busy wait, can't schedule
 }
 
 static void sp_aes_exec(struct crypto_tfm *tfm, u8 *out, const u8 *in, u32 mode)
@@ -328,7 +327,6 @@ int sp_aes_init(void)
 		crypto = sp_crypto_alloc_dev(SP_CRYPTO_AES);
 		dev = crypto->device;
 		reg = crypto->reg;
-		init_waitqueue_head(&sp_aes.wait);
 		mutex_init(&sp_aes.lock);
 		sp_aes.va = dma_alloc_coherent(dev, WORK_BUF_SIZE, &sp_aes.pa, GFP_KERNEL);
 	}
@@ -348,7 +346,6 @@ void sp_aes_irq(void *devid, u32 flag)
 {
 	if (flag & AES_DMA_IF) {
 		sp_aes.done = true;
-		wake_up(&sp_aes.wait);
 	}
 }
 EXPORT_SYMBOL(sp_aes_irq);
