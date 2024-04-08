@@ -340,7 +340,7 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 
 	if(f_max == 200000000)
 		clk_set_rate(host->clk, 800000000);
-	//spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
+	spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
 	spmmc_pr(INFO, "set bus clock to %d\n", clk);
 
 	if(clk_get_rate(host->clk) < SPMMC_SYS_CLK)
@@ -349,7 +349,7 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 		clkdiv = clk_get_rate(host->clk)/clk-1;
 
 	spmmc_pr(INFO, "clkdiv= %d\n", clkdiv);
-	//spmmc_pr(INFO, "bus clock = %d / %d\n", clk_get_rate(host->clk), (clkdiv + 1));
+	spmmc_pr(INFO, "bus clock = %d / %d\n", clk_get_rate(host->clk), (clkdiv + 1));
 	if (clkdiv > 0xfff) {
 		spmmc_pr(WARNING, "clock %d is too low to be set!\n", clk);
 		clkdiv = 0xfff;
@@ -661,6 +661,23 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 
 #endif
 #ifdef SPMMC_DMA_ALLOC
+#ifdef SPMMC_HIGH_MEM
+		host->xfer_len = data->blocks * data->blksz;
+		if (data->flags & MMC_DATA_WRITE) {
+			sg_copy_to_buffer(data->sg, data->sg_len,
+				host->buffer, host->xfer_len);
+				/* Switch ownership to the DMA */
+			dma_sync_single_for_device(host->dev,
+						host->buf_phys_addr,
+						host->xfer_len,
+						mmc_get_dma_dir(data));
+		}
+		dma_addr = host->buf_phys_addr;
+		dma_size = data->blocks - 1;
+		//pr_info("c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
+		writel(dma_addr, &host->base->dma_base_addr);
+		writel(dma_size, &host->base->sdram_sector_0_size);
+#else
 		if(data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) {
 			host->xfer_len = data->blocks * data->blksz;
 			count = 8;
@@ -695,6 +712,7 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 				writel(dma_size, &host->base->sdram_sector_7_size);
 			}
 		}
+#endif
 #else
 		for_each_sg(data->sg, sg, count, i) {
 			dma_addr = sg_dma_address(sg);
@@ -995,10 +1013,26 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 	cmd = mrq->cmd;
 	data = mrq->data;
 
+	if(cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK){
+ 		spmmc_get_rsp(host, cmd);
+	}
+
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 
 #ifdef SPMMC_DMA_ALLOC
+#ifdef SPMMC_HIGH_MEM
+		if(data->flags & MMC_DATA_READ) {
+			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
+			dma_sync_single_for_cpu(host->dev,
+				host->buf_phys_addr,
+				host->xfer_len,
+				DMA_FROM_DEVICE);
+			sg_copy_from_buffer(data->sg, data->sg_len,
+					host->buffer, host->xfer_len);
+
+		}
+#else
 		if((data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
 			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
 			count = 8;
@@ -1014,12 +1048,11 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 			}
 		}
 #endif
+#endif
 		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
-	if(cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK){
- 		spmmc_get_rsp(host, cmd);
-	}
+
 	spmmc_check_error(host, mrq);
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
@@ -1044,6 +1077,16 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+#ifdef SPMMC_HIGH_MEM
+			if(data->flags & MMC_DATA_READ) {
+				dma_sync_single_for_cpu(host->dev,
+					host->buf_phys_addr,
+					host->xfer_len,
+					DMA_FROM_DEVICE);
+				sg_copy_from_buffer(data->sg, data->sg_len,
+						host->buffer, host->xfer_len);
+			}
+#endif
 
 		dma_unmap_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
@@ -2395,6 +2438,14 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 
 
 #ifdef SPMMC_DMA_ALLOC
+#ifdef SPMMC_HIGH_MEM
+ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
+	if (ret)
+		pr_warn("%s: Failed to set 34-bit DMA mask.\n", mmc_hostname(mmc));
+
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(34);
+	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+#endif
 	host->dev = &pdev->dev;
 	host->buffer = devm_kmalloc(&pdev->dev, SPMMC_MAX_BLK_COUNT * 512, GFP_KERNEL | GFP_DMA);
 	if (!host->buffer) {
