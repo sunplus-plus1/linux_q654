@@ -340,7 +340,7 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 
 	if(f_max == 200000000)
 		clk_set_rate(host->clk, 800000000);
-	spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
+	//spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
 	spmmc_pr(INFO, "set bus clock to %d\n", clk);
 
 	if(clk_get_rate(host->clk) < SPMMC_SYS_CLK)
@@ -349,7 +349,7 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 		clkdiv = clk_get_rate(host->clk)/clk-1;
 
 	spmmc_pr(INFO, "clkdiv= %d\n", clkdiv);
-	spmmc_pr(INFO, "bus clock = %d / %d\n", clk_get_rate(host->clk), (clkdiv + 1));
+	//spmmc_pr(INFO, "bus clock = %d / %d\n", clk_get_rate(host->clk), (clkdiv + 1));
 	if (clkdiv > 0xfff) {
 		spmmc_pr(WARNING, "clock %d is too low to be set!\n", clk);
 		clkdiv = 0xfff;
