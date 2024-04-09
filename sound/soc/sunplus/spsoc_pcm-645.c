@@ -23,7 +23,8 @@ void __iomem *pcmaudio_base;
 //		Hardware definition	/Data structure
 //--------------------------------------------------------------------------
 static const struct snd_pcm_hardware spsoc_pcm_hardware = {
-	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_PAUSE,
+	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_PAUSE |
+		SNDRV_PCM_INFO_BATCH,
 	.formats		= (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_3LE),
 	.period_bytes_min	= PERIOD_BYTES_MIN_CONS,
 	.period_bytes_max	= PERIOD_BYTES_MAX_CONS,
