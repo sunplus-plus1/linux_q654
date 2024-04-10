@@ -1206,6 +1206,21 @@
 			};
 		};
 	};
+	ft5x06_ts: touchscreen@38 {
+		compatible = "edt,edt-ft5406";
+		reg = <0x38>;
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_int1_pins>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
+
+		touchscreen-size-x = <800>;
+		touchscreen-size-y = <480>;
+		touchscreen-inverted-x;
+		touchscreen-inverted-y;
+	};
 #endif
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c6 */
 	#address-cells = <1>;
