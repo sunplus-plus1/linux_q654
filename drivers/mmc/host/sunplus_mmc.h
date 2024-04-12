@@ -19,7 +19,7 @@
 
 #define MEASUREMENT_SIGNAL //timing measurement
 //#define SPMMC_SOFTPAD
-//#define SPMMC_DMA_ALLOC //Enable:software workaround for sector=128, Disable: HW sector=8
+#define SPMMC_DMA_ALLOC //Enable:software workaround for sector=128, Disable: HW sector=8
 //#define SPMMC_HIGH_MEM //Enable:for DRAM size 4GB/8GB, Disable: for DRAM size 3.75GB
 
 #define SPMMC_SUPPORT_VOLTAGE_1V8
