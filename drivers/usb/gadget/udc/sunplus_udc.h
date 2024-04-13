@@ -213,9 +213,9 @@
 
 /* USB device power state */
 enum udc_power_state {
-	UDC_POWER_OFF = 0,	/* USB Device power on */
-	UDC_POWER_LOW,		/* USB Device low power */
-	UDC_POWER_FULL,		/* USB Device power off */
+	UDC_POWER_OFF = 0,		/* USB Device power on */
+	UDC_POWER_LOW,			/* USB Device low power */
+	UDC_POWER_FULL,			/* USB Device power off */
 };
 
 /* base TRB data struct */
@@ -247,102 +247,102 @@ struct sp_desc{
  **********************************************/
 /* Transfer TRB data struct(normal TRB) */
 struct normal_trb {
-	uint32_t ptr;		/* Data buffer pointer */
-	uint32_t rsvd1;		/* Reserved shall always be 0 */
-	uint32_t tlen:17;	/* TRB transfer length */
-	uint32_t rsvd2:15;	/* Reserved for future use */
-	uint32_t cycbit:1;	/* Cycle bit */
-	uint32_t rsvd3:1;	/* Reserved for future use */
-	uint32_t isp:1;		/* Interrrupt on short packet */
-	uint32_t rsvd4:2;	/* Reserved for future use */
-	uint32_t ioc:1;		/* Interrupt on completion */
-	uint32_t idt:1;		/* Inmediate data */
-	uint32_t rsvd5:2;	/* Reserved for future use */
-	uint32_t bei:1;		/* Block event interrupt */
-	uint32_t type:6;	/* TRB type */
-	uint32_t dir:1;		/* OUT/IN transfer */
-	uint32_t rsvd6:3;	/* Reserved */
-	uint32_t fid:11;	/* Frame ID */
-	uint32_t sia:1;		/* Start ISOchronous ASAP */
+	uint32_t ptr;			/* Data buffer pointer */
+	uint32_t rsvd1;			/* Reserved shall always be 0 */
+	uint32_t tlen:17;		/* TRB transfer length */
+	uint32_t rsvd2:15;		/* Reserved for future use */
+	uint32_t cycbit:1;		/* Cycle bit */
+	uint32_t rsvd3:1;		/* Reserved for future use */
+	uint32_t isp:1;			/* Interrrupt on short packet */
+	uint32_t rsvd4:2;		/* Reserved for future use */
+	uint32_t ioc:1;			/* Interrupt on completion */
+	uint32_t idt:1;			/* Inmediate data */
+	uint32_t rsvd5:2;		/* Reserved for future use */
+	uint32_t bei:1;			/* Block event interrupt */
+	uint32_t type:6;		/* TRB type */
+	uint32_t dir:1;			/* OUT/IN transfer */
+	uint32_t rsvd6:3;		/* Reserved */
+	uint32_t fid:11;		/* Frame ID */
+	uint32_t sia:1;			/* Start ISOchronous ASAP */
 };
 
 /* Transfer TRB data struct(link TRB) */
 struct link_trb {
-	uint32_t rsvd1:4;	/* Reserved shall always be 0 */
-	uint32_t ptr:28;	/* Ring segment pointer */
-	uint32_t rsvd2;		/* Reserved shall always be 0 */
-	uint32_t rfu1;		/* Reserved for future use */
-	uint32_t cycbit:1;	/* Cycle bit */
-	uint32_t togbit:1;	/* Toggle bit */
-	uint32_t rfu2:3;	/* Reserved for future use */
-	uint32_t rfu3:5;	/* Reserved for future use */
-	uint32_t type:6;	/* Rrb type */
-	uint32_t rfu4:16;	/* Reserved for future use */
+	uint32_t rsvd1:4;		/* Reserved shall always be 0 */
+	uint32_t ptr:28;		/* Ring segment pointer */
+	uint32_t rsvd2;			/* Reserved shall always be 0 */
+	uint32_t rfu1;			/* Reserved for future use */
+	uint32_t cycbit:1;		/* Cycle bit */
+	uint32_t togbit:1;		/* Toggle bit */
+	uint32_t rfu2:3;		/* Reserved for future use */
+	uint32_t rfu3:5;		/* Reserved for future use */
+	uint32_t type:6;		/* Rrb type */
+	uint32_t rfu4:16;		/* Reserved for future use */
 };
 
 /* Event Ring segment table entry */
 struct segment_table {
-	uint32_t rsvd0:6;	/* Reserved shall always be 0 */
-	uint32_t rsba:26;	/* Ring segment base address */
-	uint32_t rsvd1;		/* Reserved for future use */
-	uint32_t rssz:16;	/* Reserved for future use */
-	uint32_t rsvd2:16;	/* Reserved for future use */
-	uint32_t rsvd3;		/* Reserved for future use */
+	uint32_t rsvd0:6;		/* Reserved shall always be 0 */
+	uint32_t rsba:26;		/* Ring segment base address */
+	uint32_t rsvd1;			/* Reserved for future use */
+	uint32_t rssz:16;		/* Reserved for future use */
+	uint32_t rsvd2:16;		/* Reserved for future use */
+	uint32_t rsvd3;			/* Reserved for future use */
 };
 
 /* event TRB (Transfer) */
 struct transfer_event_trb {
-	uint32_t trbp;		/* The pointer of the TRB which generated this event */
-	uint32_t rsvd1:32;	/* Reserved for future use */
-	uint32_t len:24;	/* TRB transfer length */
-	uint32_t cc:8;		/* Completion code */
-	uint32_t cycbit:1;	/* Cycle bit */
-	uint32_t rsvd2:9;	/* Reserved for future use */
-	uint32_t type:6;	/* TRB type */
-	uint32_t eid:5;		/* Endpoint ID */
-	uint32_t rsvd3:11;	/* Reserved for future use */
+	uint32_t trbp;			/* The pointer of the TRB which generated this event */
+	uint32_t rsvd1:32;		/* Reserved for future use */
+	uint32_t len:24;		/* TRB transfer length */
+	uint32_t cc:8;			/* Completion code */
+	uint32_t cycbit:1;		/* Cycle bit */
+	uint32_t rsvd2:9;		/* Reserved for future use */
+	uint32_t type:6;		/* TRB type */
+	uint32_t eid:5;			/* Endpoint ID */
+	uint32_t rsvd3:11;		/* Reserved for future use */
 };
 
 /* event TRB (device) */
 struct device_event_trb {
-	uint32_t rfu1;		/* Reserved for future use */
-	uint32_t rfu2;		/* Reserved for future use */
-	uint32_t rfu3:24;	/* Reserved for future use */
-	uint32_t cc:8;		/* Completion code */
-	uint32_t cycbit:1;	/* Cycle bit */
-	uint32_t rfu4:9;	/* Reserved for future use */
-	uint32_t type:6;	/* TRB type */
-	uint32_t rfu5:16;	/* Reserved for future use */
+	uint32_t rfu1;			/* Reserved for future use */
+	uint32_t rfu2;			/* Reserved for future use */
+	uint32_t rfu3:24;		/* Reserved for future use */
+	uint32_t cc:8;			/* Completion code */
+	uint32_t cycbit:1;		/* Cycle bit */
+	uint32_t rfu4:9;		/* Reserved for future use */
+	uint32_t type:6;		/* TRB type */
+	uint32_t rfu5:16;		/* Reserved for future use */
 };
 
 /* event TRB (setup) */
 struct setup_trb_t {
-	uint32_t sdl;		/* Low word of the setup data */
-	uint32_t sdh;		/* High word of the setup data */
-	uint32_t len:17;	/* Transfer length,always 8 */
-	uint32_t rdu1:7;	/* Reserved for future use */
-	uint32_t cc:8;		/* Completion code */
-	uint32_t cycbit:1;	/* Cycle bit */
-	uint32_t rfu:9;		/* Reserved for future use */
-	uint32_t type:6;	/* TRB type */
-	uint32_t epnum:4;	/* Endpoint number */
-	uint32_t rfu2:12;	/* Reserved for future use */
+	uint32_t sdl;			/* Low word of the setup data */
+	uint32_t sdh;			/* High word of the setup data */
+	uint32_t len:17;		/* Transfer length,always 8 */
+	uint32_t rdu1:7;		/* Reserved for future use */
+	uint32_t cc:8;			/* Completion code */
+	uint32_t cycbit:1;		/* Cycle bit */
+	uint32_t rfu:9;			/* Reserved for future use */
+	uint32_t type:6;		/* TRB type */
+	uint32_t epnum:4;		/* Endpoint number */
+	uint32_t rfu2:12;		/* Reserved for future use */
 };
 
 /* Endpoint 0 descriptor data struct */
 struct endpoint0_desc {
-	uint32_t cfgs:8;	/* Device configure setting */
-	uint32_t cfgm:8;	/* Device configure mask */
-	uint32_t speed:4;	/* Device speed */
-	uint32_t rsvd1:12;	/* Reserved for future use */
-	uint32_t sofic:3;	/* SOF interrupt control */
-	uint32_t rsvd2:1;	/* Reserved for future use */
-	uint32_t aset:4;	/* Auto setup */
-	uint32_t rsvd3:24;	/* Reserved for future use */
-	uint32_t rsvd4:32;	/* Reserved for future use */
-	uint32_t dcs:1;		/* De-queue cycle bit */
-	uint32_t rsvd5:3;	/* Reserved,shall always be 0 */
-	uint32_t dptr:28;	/* TR de-queue pointer */
+	uint32_t cfgs:8;		/* Device configure setting */
+	uint32_t cfgm:8;		/* Device configure mask */
+	uint32_t speed:4;		/* Device speed */
+	uint32_t rsvd1:12;		/* Reserved for future use */
+	uint32_t sofic:3;		/* SOF interrupt control */
+	uint32_t rsvd2:1;		/* Reserved for future use */
+	uint32_t aset:4;		/* Auto setup */
+	uint32_t rsvd3:24;		/* Reserved for future use */
+	uint32_t rsvd4:32;		/* Reserved for future use */
+	uint32_t dcs:1;			/* De-queue cycle bit */
+	uint32_t rsvd5:3;		/* Reserved,shall always be 0 */
+	uint32_t dptr:28;		/* TR de-queue pointer */
 };
 
 /* Endpoint number 1~15 descriptor data struct */
@@ -445,45 +445,46 @@ struct udc_endpoint {
 	struct list_head	 queue;
 };
 
-extern void __iomem 	*uphy0_regs;
-void __iomem 		*moon3_reg;
-void __iomem 		*moon4_reg;
+extern void __iomem 		*uphy0_regs;
+void __iomem 			*moon3_reg;
+void __iomem 			*moon4_reg;
 
 struct sp_udc {
-	bool 			 aset_flag; 			/* auto set flag, If this flag is true, zero packet will not be sent */
-	struct phy		*uphy[USB_PORT_NUM];
-	struct reset_control 	*rstc;
-	struct clk		*clock;
-	int 			 irq_num;
-	struct usb_phy	 	*usb_phy;
-	int 			 port_num;
-	uint32_t 		 frame_num;
-	bool 			 bus_reset_finish;
-	bool			 def_run_full_speed; 		/* default high speed mode */
-	struct timer_list 	 sof_polling_timer;
-	struct timer_list 	 before_sof_polling_timer;
-	bool			 vbus_active;
-	int			 usb_test_mode; 		/* USB IF device test mode */
+	enum usb_dr_mode		dr_mode;
+	bool 				aset_flag; 			/* auto set flag, If this flag is true, zero packet will not be sent */
+	struct phy			*uphy[USB_PORT_NUM];
+	struct reset_control 		*rstc;
+	struct clk			*clock;
+	int 			 	irq_num;
+	struct usb_phy	 		*usb_phy;
+	int 				port_num;
+	uint32_t 			frame_num;
+	bool 				bus_reset_finish;
+	bool				def_run_full_speed; 		/* default high speed mode */
+	struct timer_list 		sof_polling_timer;
+	struct timer_list 		before_sof_polling_timer;
+	bool				vbus_active;
+	int				usb_test_mode; 			/* USB IF device test mode */
 
-	spinlock_t		 lock;
-	struct tasklet_struct 	 event_task;
-	struct usb_gadget	 gadget;
-	struct usb_gadget_driver *driver;
-	struct device		 *dev;
+	spinlock_t			lock;
+	struct tasklet_struct 		event_task;
+	struct usb_gadget		gadget;
+	struct usb_gadget_driver	*driver;
+	struct device		 	*dev;
 
-	volatile struct udc_reg	 *reg;				/* UDC Register  */
-	struct sp_desc 		 *ep_desc;			/* ep description pointer */
-	dma_addr_t 		 ep_desc_pa;			/* ep desc phy address */
-	uint8_t			 event_ccs;			/* Consumer Cycle state */
-	uint8_t			 current_event_ring_seg;	/* current event ring segment index */
-	uint8_t			 event_ring_seg_total;		/* Total number of event ring seg */
-	struct segment_table 	 *event_seg_table;		/* evnet seg */
-	dma_addr_t 		 event_seg_table_pa;
-	struct udc_ring		 *event_ring;			/* evnet ring pointer ,pointer all segment event ring */
-	dma_addr_t		 event_ring_pa;			/* event ring pointer phy address */
-	struct trb_data		 *event_ring_dq;		/* event ring dequeue */
-	struct udc_endpoint 	 ep_data[UDC_MAX_ENDPOINT_NUM]; /* endpoint data struct */
-	struct usb_otg_caps      *otg_caps;
+	volatile struct udc_reg	 	*reg;				/* UDC Register  */
+	struct sp_desc 		 	*ep_desc;			/* ep description pointer */
+	dma_addr_t 		 	ep_desc_pa;			/* ep desc phy address */
+	uint8_t			 	event_ccs;			/* Consumer Cycle state */
+	uint8_t			 	current_event_ring_seg;	/* current event ring segment index */
+	uint8_t			 	event_ring_seg_total;		/* Total number of event ring seg */
+	struct segment_table 	 	*event_seg_table;		/* evnet seg */
+	dma_addr_t 		 	event_seg_table_pa;
+	struct udc_ring		 	*event_ring;			/* evnet ring pointer ,pointer all segment event ring */
+	dma_addr_t		 	event_ring_pa;			/* event ring pointer phy address */
+	struct trb_data		 	*event_ring_dq;			/* event ring dequeue */
+	struct udc_endpoint 	 	ep_data[UDC_MAX_ENDPOINT_NUM];	/* endpoint data struct */
+	struct usb_otg_caps      	*otg_caps;
 };
 
 int32_t hal_udc_init(struct sp_udc *udc);
