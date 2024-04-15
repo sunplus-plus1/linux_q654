@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Sunplus Parallel NAND Cotroller driver
- *
- * Copyright Sunplus Technology Co., Ltd.
+ * Parallel NAND Cotroller driver
  *
  * Derived from:
  *	Copyright (C) 2019-2021 Faraday Technology Corp.

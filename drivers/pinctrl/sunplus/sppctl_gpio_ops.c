@@ -1123,7 +1123,6 @@ int sppctl_gpio_drive_strength_get(struct gpio_chip *chip,
 				   unsigned int selector)
 {
 	struct sppctlgpio_chip_t *pc;
-	int ret = 0;
 	u32 ds0 = 0;
 	u32 ds1 = 0;
 	u32 ds2 = 0;

@@ -1,15 +1,4 @@
-/********************************************************
- *    ____               __
- *   / __/_ _____  ___  / /_ _____
- *  _\ \/ // / _ \/ _ \/ / // (_-<
- * /___/\_,_/_//_/ .__/_/\_,_/___/
- *              /_/
- * Sunplus Technology Co., Ltd.19, Innovation First Road,
- * Science-Based Industrial Park, Hsin-Chu, Taiwan, R.O.C.
- * ------------------------------------------------------
- * Description  : axi_monitor register file.
- * Create Date  : 2018-05-14 12:41:56 auto generated.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __REG_AXI_MONITOR_H__
 #define __REG_AXI_MONITOR_H__

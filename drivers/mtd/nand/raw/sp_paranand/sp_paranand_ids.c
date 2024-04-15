@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright Sunplus Technology Co., Ltd.
- *       All rights reserved.
- */
+
 #include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
 

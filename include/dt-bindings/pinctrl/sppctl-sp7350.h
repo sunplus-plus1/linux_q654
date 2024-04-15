@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Sunplus SP7350 pinmux pinctrl bindings.
- * Copyright (C) Sunplus Technology
- * Author: Wells Lu <wells.lu@sunplus.com>
- */
+
 
 #ifndef _DT_BINDINGS_PINCTRL_SPPCTL_SP7350_H
 #define _DT_BINDINGS_PINCTRL_SPPCTL_SP7350_H

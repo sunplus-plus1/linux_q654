@@ -1,11 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-/*
- * Sunplus USB 2.0 phy driver
- *
- * Copyright (C) 2022 Sunplus Technology Inc., All rights reserved.
- *
- */
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>

@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) Sunplus Technology Co., Ltd.
- *       All rights reserved.
- */
+
 //#define DEBUG
 #include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>

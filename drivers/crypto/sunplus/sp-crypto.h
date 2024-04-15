@@ -1,8 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Copyright (C) Sunplus Technology Co., Ltd.
- *       All rights reserved.
- */
+
 #ifndef __SP_CRYPTO_H__
 #define __SP_CRYPTO_H__
 

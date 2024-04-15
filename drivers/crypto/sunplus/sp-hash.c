@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright (C) Sunplus Technology Co., Ltd.
- *       All rights reserved.
- */
+
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/poly1305.h>

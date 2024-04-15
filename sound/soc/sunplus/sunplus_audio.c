@@ -1,26 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-//
-//	   Copyright (c) 2022 by Sunplus Inc.
-//
-//  This software is copyrighted by and	is the property	of Sunplus
-//  Inc. All rights are	reserved by Sunplus Inc.
-//  This software may only be used in accordance with the
-//  corresponding license agreement. Any unauthorized use, duplication,
-//  distribution, or disclosure	of this	software is expressly forbidden.
-//
-//  This Copyright notice MUST not be removed or modified without prior
-//  written consent of Sunplus Technology Co., Ltd.
-//
-//  Sunplus Inc. reserves the right to modify this software
-//  without notice.
-//
-//  Sunplus Inc.
-//  19,	Innovation First Road, Hsinchu Science Park
-//  Hsinchu City 30078,	Taiwan,	R.O.C.
-//
-//
-// @file sunplus-audio.c
-//
+
 //========================================================================
 //		H E A D E R	 F I L E S
 //========================================================================

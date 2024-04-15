@@ -1,8 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*
- * Copyright (C) Sunplus Technology Co., Ltd.
- *       All rights reserved.
- */
+
 #ifndef _DT_BINDINGS_CLOCK_SUNPLUS_SP7350_H
 #define _DT_BINDINGS_CLOCK_SUNPLUS_SP7350_H
 

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Sunplus Remote Processor driver
- *
- * Copyright (C) 2021 Sunplus Technology Co., Ltd.
+ * Remote Processor driver
  *
  * Based on origin Zynq Remote Processor driver
  *

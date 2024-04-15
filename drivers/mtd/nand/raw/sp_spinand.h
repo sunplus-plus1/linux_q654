@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+
 #ifndef __SP_SPINAND_H
 #define __SP_SPINAND_H
 #include <linux/clk.h>

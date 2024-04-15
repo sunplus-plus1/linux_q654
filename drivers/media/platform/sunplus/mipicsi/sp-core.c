@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Driver for Sunplus VIN
+ * Driver for VIN
  *
- * Copyright Sunplus Technology Co., Ltd.
- * All rights reserved.
- *
- * Based on Renesas R-Car VIN driver
  */
 
 #include <linux/clk.h>

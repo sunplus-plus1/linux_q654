@@ -1,8 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * Copyright (c) Sunplus Inc.
- * Author: Li-hao Kuo <lhjeff911@gmail.com>
- */
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>

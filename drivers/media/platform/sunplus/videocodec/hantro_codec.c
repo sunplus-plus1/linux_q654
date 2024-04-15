@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Hantro video codec driver
- * Copyright (C) 2021 Sunplus Technology Co.,Ldt.
  *
  */
 
