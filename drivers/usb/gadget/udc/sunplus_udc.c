@@ -2661,7 +2661,7 @@ static int sp_udc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-void device_run_stop_ctrl(int enable, int udc_restart)
+void device_run_stop_ctrl(int enable, int connect)
 {
 	struct sp_udc *udc = NULL;
 	volatile struct udc_reg *USBx = NULL;
@@ -2679,15 +2679,20 @@ void device_run_stop_ctrl(int enable, int udc_restart)
 		return;
 #endif
 
-	if (enable) {
-		if (udc_restart) {
-			hal_udc_device_connect(udc);
-		} else {
-			USBx->DEVC_ERSTSZ = udc->event_ring_seg_total;
-			USBx->DEVC_CS |= UDC_RUN;
-		}
+	if (udc->event_ring_dq == NULL)
+		return;
 
-		USBx->EP0_CS |= EP_EN;
+	if (enable) {
+		if (!(USBx->DEVC_CS & UDC_RUN)) {
+			if (connect) {
+				hal_udc_device_connect(udc);
+			} else {
+				USBx->DEVC_ERSTSZ = udc->event_ring_seg_total;
+				USBx->DEVC_CS |= UDC_RUN;
+			}
+
+			USBx->EP0_CS |= EP_EN;
+		}
 	} else {
 		USBx->DEVC_CS &= ~UDC_RUN;
 	}
@@ -2710,12 +2715,14 @@ void usb_switch(int device)
 									moon4_reg + M4_SCFG_10);
 
 		device_mode = true;
+		device_run_stop_ctrl(1, 1);
 	} else {
 		val = readl(moon4_reg + M4_SCFG_10);
 		writel(val | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE, moon4_reg + M4_SCFG_10);
 
 		device_mode = false;
 		pwr_uphy_pll(1);
+		device_run_stop_ctrl(0, 0);
 	}
 #endif
 }
@@ -3117,8 +3124,9 @@ static int udc_sunplus_drv_resume(struct device *dev)
 		return ret;
 
 	if (udc->driver) {
-		hal_udc_device_connect(udc);
 	#ifdef CONFIG_USB_SUNPLUS_OTG
+		hal_udc_device_connect(udc);
+
 		if (otg_id_pin == 1)
 	#else
 		if (device_mode == true)
