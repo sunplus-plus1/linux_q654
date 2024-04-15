@@ -1,8 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /**
- * (C) Copyright 2019 Sunplus Technology. <http://www.sunplus.com/>
- *
- * Sunplus SD host controller v3.0
+ * SD host controller v3.0
  */
 #ifndef __SPMMC_H__
 #define __SPMMC_H__

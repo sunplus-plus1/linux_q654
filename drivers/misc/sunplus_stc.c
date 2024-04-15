@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Sunplus STC Driver
- *
- * Copyright (C) 2023 Sunplus Technology Co., Ltd.
+ * STC Driver
  *
  */
 

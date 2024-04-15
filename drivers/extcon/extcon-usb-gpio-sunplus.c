@@ -1,10 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
- * drivers/extcon/extcon-usb-gpio-sunplus.c - USB GPIO extcon driver
- *
- * Copyright (C) 2022 Sunplus - https://www.sunplus.com
- * Author: ChingChouHuang <ChingChouHuang@sunplus.com>
- */
 
 #include <linux/extcon-provider.h>
 #include <linux/gpio.h>

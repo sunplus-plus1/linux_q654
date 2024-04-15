@@ -1,8 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/*
- * Copyright Sunplus Technology Co., Ltd.
- *       All rights reserved.
- */
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h>

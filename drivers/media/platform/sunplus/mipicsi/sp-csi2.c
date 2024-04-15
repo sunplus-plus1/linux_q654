@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Driver for Sunplus MIPI CSI-2 Receiver
+ * Driver for MIPI CSI-2 Receiver
  *
- * Copyright Sunplus Technology Co., Ltd.
- * All rights reserved.
- *
- * Based on Renesas R-Car MIPI CSI-2 Receiver driver
  */
 
 #include <linux/clk.h>
