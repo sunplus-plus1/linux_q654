@@ -460,7 +460,7 @@ static void csi2_vc_config(struct csi2_dev *priv)
 	csi_writel(priv, MIPI_CH2_CONFIG, 0x02<<30);		/* Connect CSI-IW2 to VC2 */
 	csi_writel(priv, MIPI_CH3_CONFIG, 0x03<<30);		/* Connect CSI-IW3 to VC3 */
 
-	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3. 
+	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3.
 	 * Configure MIPICSI23_SEL (G164) to select the virtual channel source
 	 * of VI23-CSIIW2 AND VI23-CSIIW3.
 	 */
@@ -996,8 +996,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 	ret = media_create_pad_link(&subdev->entity, pad,
 				     &priv->subdev.entity, 0,
-				     MEDIA_LNK_FL_ENABLED |
-				     MEDIA_LNK_FL_IMMUTABLE);
+				     MEDIA_LNK_FL_ENABLED);
 	if (ret) {
 		dev_err(priv->dev, "Error adding link from %s to %s",
 			subdev->entity.name, priv->subdev.entity.name);
@@ -1307,7 +1306,7 @@ static int csi2_probe_resources(struct csi2_dev *priv,
 	dev_dbg(priv->dev, "%s, res->start: 0x%08llx, name: %s\n",
 		__func__, res->start, res->name);
 
-	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3. 
+	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3.
 	 * They need to get resource MIPICSI23_SEL (G164) to select the virtual
 	 * channel source of VI23-CSIIW2 AND VI23-CSIIW3.
 	 */

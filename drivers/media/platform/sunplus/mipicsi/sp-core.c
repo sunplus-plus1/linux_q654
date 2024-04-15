@@ -50,6 +50,7 @@
  */
 
 /* group lock should be held when calling this function. */
+#if 0
 static int vin_group_entity_to_csi_id(struct vin_group *group,
 				       struct media_entity *entity)
 {
@@ -89,6 +90,7 @@ static unsigned int vin_group_get_mask(struct vin_dev *vin,
 
 	return mask;
 }
+#endif
 
 /*
  * Link setup for the links between a VIN and a CSI-2 receiver is a bit
@@ -118,14 +120,11 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 				  unsigned int notification)
 {
 	struct vin_group *group = container_of(link->graph_obj.mdev,
-						struct vin_group, mdev);
-	unsigned int master_id, channel, mask_new, i;
-	unsigned int mask = ~0;
+					struct vin_group, mdev);
 	struct media_entity *entity;
 	struct video_device *vdev;
-	struct media_pad *csi_pad;
 	struct vin_dev *vin = NULL;
-	int csi_id, ret;
+	int ret;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
@@ -152,6 +151,9 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 	/* Find the master VIN that controls the routes. */
 	vdev = media_entity_to_video_device(link->sink->entity);
 	vin = container_of(vdev, struct vin_dev, vdev);
+	dev_dbg(vin->dev, "%s, %d vin->id:%d flags:%d\n", __func__, __LINE__, vin->id, flags);
+
+#if 0
 	master_id = vin_group_id_to_master(vin->id);
 
 	if (WARN_ON(!group->vin[master_id])) {
@@ -211,6 +213,7 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 		goto out;
 
 out:
+#endif
 	mutex_unlock(&group->lock);
 
 	return ret;
