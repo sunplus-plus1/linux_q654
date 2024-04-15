@@ -783,6 +783,7 @@ done:
 static void vin_mc_try_format(struct vin_dev *vin,
 			       struct v4l2_pix_format *pix)
 {
+	const struct vin_video_format *fmt;
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
 	/*
@@ -796,7 +797,9 @@ static void vin_mc_try_format(struct vin_dev *vin,
 	pix->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix->colorspace);
 	pix->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true, pix->colorspace,
 							  pix->ycbcr_enc);
-
+	fmt = vin_format_from_pixel(vin, pix->pixelformat);
+	vin->mbus_code = fmt->mbus_code;
+	vin->vin_fmt = fmt;
 	vin_format_align(vin, pix);
 }
 
@@ -1200,7 +1203,6 @@ int vin_v4l2_formats_init(struct vin_dev *vin)
 	};
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-
 	pad = media_entity_remote_pad(&vin->pad);
 	if (!pad)
 		return -EPIPE;
