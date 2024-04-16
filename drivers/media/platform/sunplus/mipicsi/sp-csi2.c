@@ -151,6 +151,7 @@ struct csi2_dev {
 	void __iomem *base2;
 	const struct csi2_info *info;
 	struct clk *clk;
+	struct clk *clk_mipicsi23_sel;
 	struct reset_control *rstc;
 	unsigned int id;
 
@@ -458,13 +459,13 @@ static void csi2_vc_config(struct csi2_dev *priv)
 	csi_writel(priv, MIPI_CH0_CONFIG, 0x00<<30);		/* Connect CSI-IW0 to VC0 */
 	csi_writel(priv, MIPI_CH1_CONFIG, 0x01<<30);		/* Connect CSI-IW1 to VC1 */
 	csi_writel(priv, MIPI_CH2_CONFIG, 0x02<<30);		/* Connect CSI-IW2 to VC2 */
-	csi_writel(priv, MIPI_CH3_CONFIG, 0x03<<30);		/* Connect CSI-IW3 to VC3 */
-
+	csi_writel(priv, MIPI_CH3_CONFIG, 0x03<<30);		/* Connect CSI-IW3 to VC3 */	
 	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3.
 	 * Configure MIPICSI23_SEL (G164) to select the virtual channel source
 	 * of VI23-CSIIW2 AND VI23-CSIIW3.
 	 */
 	if ((priv->id == 2) || (priv->id == 3)) {
+		dev_dbg(priv->dev, "%s, %d priv->id: %d, priv->num_channels: %d\n", __func__, __LINE__, priv->id, priv->num_channels);
 		if (priv->base2 == NULL) {
 			dev_warn(priv->dev, "No MIPICSI23_SEL resource\n");
 		} else {
@@ -476,7 +477,7 @@ static void csi2_vc_config(struct csi2_dev *priv)
 			dev_dbg(priv->dev, "mipicsi23_sel: %08x, \n", readl(priv->base2));
 		}
 	}
-}
+	}
 
 static void csi2_dt_config(struct csi2_dev *priv, unsigned int dt)
 {
@@ -901,8 +902,7 @@ static int csi2_set_pad_format(struct v4l2_subdev *sd,
 		priv->mf = format->format;
 
 		/* Propagate the format to sink pad */
-		if (format->pad == CSI2_SINK)
-		{
+		if (format->pad == CSI2_SINK) {
 			int ret;
 
 			dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
@@ -1316,9 +1316,13 @@ static int csi2_probe_resources(struct csi2_dev *priv,
 		if (IS_ERR(priv->base2))
 			return PTR_ERR(priv->base2);
 
+		priv->clk_mipicsi23_sel = devm_clk_get(&pdev->dev, "clk_mipicsi23_sel");
+		if (IS_ERR(priv->clk_mipicsi23_sel))
+			return PTR_ERR(priv->clk_mipicsi23_sel);
 		dev_dbg(priv->dev, "%s, res->start: 0x%08llx, name: %s\n",
 			__func__, res->start, res->name);
 	} else {
+		priv->clk_mipicsi23_sel = NULL;
 		priv->base2 = NULL;
 	}
 
@@ -1374,6 +1378,14 @@ static int sp_csi2_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(priv->dev, "Failed to enable clock!\n");
 		return ret;
+	}
+
+	if (priv->clk_mipicsi23_sel) {
+		ret = clk_prepare_enable(priv->clk_mipicsi23_sel);
+		if (ret) {
+			dev_err(priv->dev, "Failed to enable clk_mipicsi23_sel clock!\n");
+			return ret;
+		}
 	}
 
 	ret = reset_control_deassert(priv->rstc);
@@ -1468,6 +1480,9 @@ static int sp_csi2_suspend(struct device *dev)
 
 	clk_disable_unprepare(priv->clk);
 
+	if (priv->clk_mipicsi23_sel)
+		clk_disable_unprepare(priv->clk_mipicsi23_sel);
+
 	ret = reset_control_assert(priv->rstc);
 	if (ret) {
 		dev_err(priv->dev, "Failed to deassert reset controller!\n");
@@ -1495,6 +1510,13 @@ static int sp_csi2_resume(struct device *dev)
 		dev_err(priv->dev, "Failed to enable clock!\n");
 		return ret;
 	}
+	if (priv->clk_mipicsi23_sel) {
+		ret = clk_prepare_enable(priv->clk_mipicsi23_sel);
+		if (ret) {
+			dev_err(priv->dev, "Failed to enable clk_mipicsi23_sel clock!\n");
+			return ret;
+		}
+	}
 
 	csi2_init(priv);
 
@@ -1508,6 +1530,9 @@ static int sp_csi2_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(priv->clk);
 
+	if (priv->clk_mipicsi23_sel)
+		clk_disable_unprepare(priv->clk);
+
 	return 0;
 }
 
@@ -1520,6 +1545,14 @@ static int sp_csi2_runtime_resume(struct device *dev)
 	if (ret) {
 		dev_err(priv->dev, "Failed to enable clock!\n");
 		return ret;
+	}
+
+	if (priv->clk_mipicsi23_sel) {
+		ret = clk_prepare_enable(priv->clk_mipicsi23_sel);
+		if (ret) {
+			dev_err(priv->dev, "Failed to enable clk_mipicsi23_sel clock!\n");
+			return ret;
+		}
 	}
 
 	csi2_init(priv);
