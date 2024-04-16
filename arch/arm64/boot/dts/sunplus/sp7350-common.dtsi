@@ -661,8 +661,8 @@
 		compatible = "sunplus,sp7350-mipicsi-rx";
 		reg = <0x0 0xf8005380 0x0 0x80>, <0x0 0xf8005200 0x0 0x80>;
 		reg-names = "mipicsi", "mipicsi23sel";
-		clocks = <&clkc MIPICSI2>;
-		clock-names = "clk_mipicsi";
+		clocks = <&clkc MIPICSI2>, <&clkc MIPICSI23_SEL>;
+		clock-names = "clk_mipicsi", "clk_mipicsi23_sel";
 		resets = <&rstc RST_MIPICSI2>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <2>;
@@ -703,8 +703,8 @@
 		compatible = "sunplus,sp7350-mipicsi-rx";
 		reg = <0x0 0xf8005400 0x0 0x80>, <0x0 0xf8005200 0x0 0x80>;
 		reg-names = "mipicsi", "mipicsi23sel";
-		clocks = <&clkc MIPICSI3>;
-		clock-names = "clk_mipicsi";
+		clocks = <&clkc MIPICSI3>, <&clkc MIPICSI23_SEL>;
+		clock-names = "clk_mipicsi", "clk_mipicsi23_sel";
 		resets = <&rstc RST_MIPICSI3>;
 		reset-names = "rstc_mipicsi";
 		sunplus,id = <3>;
