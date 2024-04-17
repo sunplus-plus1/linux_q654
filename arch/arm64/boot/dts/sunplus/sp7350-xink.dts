@@ -72,7 +72,7 @@
 #include "sp7350-common.dtsi"
 
 / {
-	model = "eYs3D eCV5546 XINK";
+	model = "Sunplus SP7350 XINK";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
