@@ -455,7 +455,7 @@ static void csi2_vc_config(struct csi2_dev *priv)
 	csi_writel(priv, MIPI_CH0_CONFIG, 0x00<<30);		/* Connect CSI-IW0 to VC0 */
 	csi_writel(priv, MIPI_CH1_CONFIG, 0x01<<30);		/* Connect CSI-IW1 to VC1 */
 	csi_writel(priv, MIPI_CH2_CONFIG, 0x02<<30);		/* Connect CSI-IW2 to VC2 */
-	csi_writel(priv, MIPI_CH3_CONFIG, 0x03<<30);		/* Connect CSI-IW3 to VC3 */	
+	csi_writel(priv, MIPI_CH3_CONFIG, 0x03<<30);		/* Connect CSI-IW3 to VC3 */
 	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3.
 	 * Configure MIPICSI23_SEL (G164) to select the virtual channel source
 	 * of VI23-CSIIW2 AND VI23-CSIIW3.
@@ -473,7 +473,7 @@ static void csi2_vc_config(struct csi2_dev *priv)
 			dev_dbg(priv->dev, "mipicsi23_sel: %08x, \n", readl(priv->base2));
 		}
 	}
-	}
+}
 
 static void csi2_dt_config(struct csi2_dev *priv, unsigned int dt)
 {
