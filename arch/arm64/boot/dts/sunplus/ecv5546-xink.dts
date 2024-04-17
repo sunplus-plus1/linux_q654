@@ -652,7 +652,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_0: sensor@10 {
+	camera_0: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -678,7 +678,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_2: sensor@10 {
+	camera_2: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -704,7 +704,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_0: sensor@44 {
+	camera_0: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
@@ -737,7 +737,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_2: sensor@44 {
+	camera_2: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
@@ -789,7 +789,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_1: sensor@10 {
+	camera_1: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -815,7 +815,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_3: sensor@10 {
+	camera_3: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -841,7 +841,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_1: sensor@44 {
+	camera_1: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
@@ -874,7 +874,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_3: sensor@44 {
+	camera_3: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
@@ -942,7 +942,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_4: sensor@10 {
+	camera_4: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -988,7 +988,7 @@
 		};
 	};
 #endif
-#ifdef OV5640_IN4 /* Add ov5647 subnode in i2c2 */
+#ifdef OV5640_IN4 /* Add ov5640 subnode in i2c2 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -1003,9 +1003,9 @@
 
 		port {
 			ov5640_4: endpoint {
-			remote-endpoint = <&csi2_4>;
-			clock-lanes = <0>;
-			data-lanes = <1 2>;
+				remote-endpoint = <&csi2_4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
 			};
 		};
 	};
@@ -1036,7 +1036,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_4: sensor@44 {
+	camera_4: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
@@ -1101,7 +1101,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_5: sensor@10 {
+	camera_5: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -1127,7 +1127,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_5: sensor@44 {
+	camera_5: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
@@ -1660,7 +1660,7 @@
 			};
 		};
 #endif
-#ifdef IMX708_IN4 /* Add OV5647 subnode in i2c2 */
+#ifdef IMX708_IN4 /* Add imx708 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
@@ -1673,7 +1673,7 @@
 			};
 		};
 #endif
-#ifdef OV5640_IN4 /* Add OV5647 subnode in i2c2 */
+#ifdef OV5640_IN4 /* Add ov5640 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 			/* MIPI CSI-2 bus endpoint */
@@ -1685,7 +1685,7 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN4 /* Add OV5647 subnode in i2c2 */
+#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
