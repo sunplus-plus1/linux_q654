@@ -2694,6 +2694,7 @@ void device_run_stop_ctrl(int enable, int connect)
 			USBx->EP0_CS |= EP_EN;
 		}
 	} else {
+		hal_udc_sw_stop_handle(udc);
 		USBx->DEVC_CS &= ~UDC_RUN;
 	}
 }
