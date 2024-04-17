@@ -10,22 +10,13 @@
 
 //#define MIPI_CSI_4VC
 //#define ESP876_IN5
-//#define IMX219_IN0
-//#define IMX219_IN1
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
 //#define IMX219_IN5
 //#define IMX708_IN4
 //#define OV5640_IN4
-//#define OV5647_IN1
 //#define OV5647_IN4
-//#define TP2815_IN0
-//#define TP2815_IN0_1LANE
-//#define TP2815_IN0_2VC
-//#define TP2815_IN1
-//#define TP2815_IN1_1LANE
-//#define TP2815_IN1_2VC
 //#define TP2815_IN2
 //#define TP2815_IN2_1LANE
 //#define TP2815_IN2_2LANES
@@ -634,7 +625,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo0_pins>;
-#if defined(IMX219_IN0) || defined(IMX219_IN2) || defined(TP2815_IN0) || defined(TP2815_IN2)
+#if defined(IMX219_IN2) || defined(TP2815_IN2)
 	status = "okay";
 #else
 	status = "disabled";
@@ -646,32 +637,6 @@
 	slave@50 {
 		compatible = "linux,slave-24c02";
 		reg = <0x40000050>;
-	};
-#endif
-#ifdef IMX219_IN0 /* Add imx219 subnode in i2c0 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_0: imx219@10 {
-		compatible = "sony,imx219";
-		reg = <0x10>;
-		clocks = <&imx219_clk>;
-		VANA-supply = <&imx219_vana_2v8>;
-		VDIG-supply = <&imx219_vdig_1v8>;
-		VDDL-supply = <&imx219_vddl_1v2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_0_pins>;
-		//power-gpios = <&pctl 71 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
-
-		port {
-			imx219_0: endpoint {
-				remote-endpoint = <&csi2_0>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
 	};
 #endif
 #ifdef IMX219_IN2 /* Add imx219 subnode in i2c0 */
@@ -695,39 +660,6 @@
 				remote-endpoint = <&csi2_2>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
-#ifdef TP2815_IN0 /* Add tp2815 subnode in i2c0 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_0: tp2815@44 {
-		compatible = "Techpoint,tp2815";
-		reg = <0x44>;
-		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN0_2VC
-		input-channel = <2>;
-	#else
-		input-channel = <1>;
-	#endif
-		input-standard = <0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_0_pins>;
-		//power-gpios = <&pctl 71 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
-
-		port {
-			tp2815_0: endpoint {
-				remote-endpoint = <&csi2_0>;
-	#ifdef TP2815_IN0_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-				clock-continuous;
 				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
@@ -779,38 +711,12 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN1) || defined(IMX219_IN3) || defined(OV5647_IN1) || defined(TP2815_IN1) || defined(TP2815_IN3)
+#if defined(IMX219_IN3) || defined(TP2815_IN3)
 	status = "okay";
 #else
 	status = "disabled";
 #endif
 
-#ifdef IMX219_IN1 /* Add imx219 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_1: imx219@10 {
-		compatible = "sony,imx219";
-		reg = <0x10>;
-		clocks = <&imx219_clk>;
-		VANA-supply = <&imx219_vana_2v8>;
-		VDIG-supply = <&imx219_vdig_1v8>;
-		VDDL-supply = <&imx219_vddl_1v2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_1_pins>;
-		//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
-
-		port {
-			imx219_1: endpoint {
-				remote-endpoint = <&csi2_1>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
 #ifdef IMX219_IN3 /* Add imx219 subnode in i2c1 */
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -832,39 +738,6 @@
 				remote-endpoint = <&csi2_3>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
-#ifdef TP2815_IN1 /* Add tp2815 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_1: tp2815@44 {
-		compatible = "Techpoint,tp2815";
-		reg = <0x44>;
-		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN1_2VC
-		input-channel = <2>;
-	#else
-		input-channel = <1>;
-	#endif
-		input-standard = <0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_1_pins>;
-		//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
-
-		port {
-			tp2815_1: endpoint {
-				remote-endpoint = <&csi2_1>;
-	#ifdef TP2815_IN1_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-				clock-continuous;
 				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
@@ -899,28 +772,6 @@
 	#endif
 				clock-continuous;
 				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
-#ifdef OV5647_IN1 /* Add ov5647 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_1: ov5647@36 {
-		compatible = "ovti,ov5647";
-		reg = <0x36>;
-		clocks = <&ov5647_clk>;
-		avdd-supply = <&ov5647_avdd_2v8>;
-		dovdd-supply = <&ov5647_dovdd_1v8>;
-		dvdd-supply = <&ov5647_dvdd_1v5>;
-
-		port {
-			ov5647_1: endpoint {
-				remote-endpoint = <&csi2_1>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <297000000>;
 			};
 		};
 	};
