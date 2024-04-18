@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/clock/sunplus,q645-clkc.yaml#
+$id: http://devicetree.org/schemas/clock/sunplus,sp7350-clkc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sunplus Q645 SoC Clock Controller Binding
+title: Sunplus SP7350 SoC Clock Controller Binding
 
 maintainers:
   - Qin Jian <qinjian@cqplus1.com>
 
 properties:
   compatible:
-    const: sunplus,q645-clkc
+    const: sunplus,sp7350-clkc
 
   "#clock-cells":
     const: 1
@@ -28,10 +28,11 @@ additionalProperties: false
 
 examples:
   - |
-    clkc: clkc@0xf8000000 {
-	    compatible = "sunplus,q645-clkc";
+    clkc: clkc@f8800104 {
+	    compatible = "sunplus,sp7350-clkc";
+	    reg = <0x00 0xf8800104 0x00 0x1fc>,
+	          <0x00 0xf8000f00 0x00 0x080>;
 	    #clock-cells = <1>;
-	    reg = <0x00 0xf8000000 0x00 0x280>;
     };
 
 ...
