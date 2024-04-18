@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-// ALSA	SoC Q645 i2s driver
+// ALSA	SoC SP7350 i2s driver
 //
-// Author:	 <@sunplus.com>
+// Author: ChingChou Huang <chingchouhuang@sunplus.com>
 //
 //
 #include <sound/pcm_params.h>
 #include <linux/clk.h>
 #include "aud_hw.h"
-#include "spsoc_pcm-645.h"
-#include "spsoc_util-645.h"
+#include "spsoc_pcm.h"
+#include "spsoc_util.h"
 
 void __iomem *i2saudio_base;
 struct clk *cpudai_plla;
@@ -326,7 +326,7 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 				;
 			regs0->aud_enable |= aud_enable_i2s0_c;
 		} else {
-			regs0->aud_fifo_enable &=	(~I2S_C_INC0);
+			regs0->aud_fifo_enable	&= (~I2S_C_INC0);
 			regs0->aud_enable	&= (~aud_enable_i2s0_c);
 		}
 	} else if (dev_no == SP_I2S_1) {
@@ -340,7 +340,7 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 				;
 			regs0->aud_enable |= aud_enable_i2s1_c;
 		} else {
-			regs0->aud_fifo_enable &=	(~I2S_C_INC1);
+			regs0->aud_fifo_enable	&= (~I2S_C_INC1);
 			regs0->aud_enable	&= (~aud_enable_i2s1_c);
 		}
 	} else if (dev_no == SP_I2S_2) {
@@ -354,7 +354,7 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 				;
 			regs0->aud_enable |= aud_enable_i2s2_c;
 		} else {
-			regs0->aud_fifo_enable &=	(~I2S_C_INC2);
+			regs0->aud_fifo_enable	&= (~I2S_C_INC2);
 			regs0->aud_enable	&= (~aud_enable_i2s2_c);
 		}
 	} else { //SPDIF
@@ -391,13 +391,13 @@ static int aud_cpudai_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		if (substream->pcm->device == SP_I2S_0)	{
-			regs0->G063_reserved_7 = 0x4B0;	//[7:4]	if0  [11:8] if1
-			regs0->G063_reserved_7 = regs0->G063_reserved_7	| 0x1; // enable
+			regs0->aud_asrc_ctrl = 0x4B0; //[7:4]	if0  [11:8] if1
+			regs0->aud_asrc_ctrl = regs0->aud_asrc_ctrl | 0x1; // enable
 		}
 	} else
 		sp_i2s_spdif_tx_dma_en(substream->pcm->device, true);
 
-	pr_debug("%s IN! G063_reserved_7 0x%x\n", __func__, regs0->G063_reserved_7);
+	pr_debug("%s IN! aud_asrc_ctrl 0x%x\n", __func__, regs0->aud_asrc_ctrl);
 	return 0;
 }
 
@@ -493,7 +493,7 @@ static void aud_cpudai_shutdown(struct snd_pcm_substream *substream, struct snd_
 
 static int spsoc_cpu_set_pll(struct snd_soc_dai	*dai, int pll_id, int source, unsigned int freq_in, unsigned int freq_out)
 {
-	dev_dbg(dai->dev, "%s IN %d %d\n", __func__, freq_out,	pll_id);
+	dev_dbg(dai->dev, "%s IN %d %d\n", __func__, freq_out, pll_id);
 	aud_clk_cfg(pll_id, freq_in, freq_out);
 	return 0;
 }
@@ -591,7 +591,7 @@ int sunplus_i2s_register(struct	device *dev)
 	AUDHW_Mixer_Setting(spauddata);
 	AUDHW_SystemInit(spauddata);
 	snd_aud_config(spauddata);
-	pr_debug("Q645/Q654 aud set done\n");
+	pr_debug("SP7350 aud set done\n");
 
 	ret = devm_snd_soc_register_component(dev, &sunplus_cpu_component, aud_cpu_dai,	ARRAY_SIZE(aud_cpu_dai));
 	return ret;

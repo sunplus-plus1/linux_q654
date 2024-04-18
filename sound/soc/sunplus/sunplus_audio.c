@@ -6,9 +6,7 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
-#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
-#include "spsoc_util-645.h"
-#endif
+#include "spsoc_util.h"
 
 //========================================================================
 //		F U N C T I O N    D E	C L A R	A T I O	N S
@@ -83,7 +81,7 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "enable clock 0 false.\n");
 		return err;
 	}
-#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
+
 	//reset
 	spauddata->clk_rst = devm_reset_control_get(&pdev->dev,	NULL);
 	if (IS_ERR(spauddata->clk_rst))	{
@@ -97,7 +95,7 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 	err = reset_control_deassert(spauddata->clk_rst);
 	if (err)
 		dev_err(&pdev->dev, "reset deassert fail\n");
-#endif
+
 	//plla setting
 	//spauddata->plla_clocken	= devm_clk_get(&pdev->dev, "pll_a");
 	//if (IS_ERR(spauddata->plla_clocken)) {

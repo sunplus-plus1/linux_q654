@@ -41,14 +41,13 @@
 //#define aud_enable_tdm_p    	(0x01 | (0x5f<<16))
 #define aud_enable_tdmpdm_c 	(0x01 << 12)
 
-
 #define aud_test_mode		(0)
 
 #define DRAM_HDMI_BUF_LENGTH	(DRAM_PCM_BUF_LENGTH * 4)
 
 struct spsoc_runtime_data {
 	spinlock_t	lock;
-	dma_addr_t 	dma_buffer;		/* physical address of dma buffer */
+	dma_addr_t 	dma_buffer; /* physical address of dma buffer */
 	dma_addr_t 	dma_buffer_end;	/* first address beyond DMA buffer */
 	size_t 		period_size;
 
@@ -76,11 +75,11 @@ struct spsoc_runtime_data {
 *							IOCTL Command
 *--------------------------------------------------------------------------*/
 typedef struct  t_AUD_FIFO_PARAMS {
-	//unsigned int en_flag;		// enable or disable
+	//unsigned int en_flag;	// enable or disable
 	//unsigned int fifo_status;
 	// A0~A4
-	unsigned long pcmtx_virtAddrBase;		// audhw_ya (virtual address)
-	dma_addr_t pcmtx_physAddrBase;		// audhw_ya (physical address)
+	unsigned long pcmtx_virtAddrBase; // audhw_ya (virtual address)
+	dma_addr_t pcmtx_physAddrBase; // audhw_ya (physical address)
 	//unsigned int pcmtx_length;
 	// IEC0
 	//unsigned long iec0tx_virtAddrBase;
@@ -99,56 +98,10 @@ typedef struct  t_AUD_FIFO_PARAMS {
 	unsigned int RxBuf_TotalLen;
 	unsigned int Buf_TotalLen;
 } AUD_FIFO_PARAMS;
-#if 0
-typedef struct t_AUD_GAIN_PARAMS {
-	unsigned int rampflag;		// Ramp up or down
-	unsigned int muteflag;
-	unsigned int volumeScale;	// master gain
-	unsigned int volumeVal;	//master gain
-	unsigned int fifoNum;
-	unsigned int fifoGain;
-} AUD_GAIN_PARAMS;
 
-typedef struct t_AUD_FSCLK_PARAMS {
-	unsigned int IntDAC_clk;
-	unsigned int ExtDAC_clk;
-	unsigned int IEC0_clk;
-	unsigned int hdmi_iec_clk;
-	unsigned int hdmi_i2s_clk;
-	unsigned int PCM_FS;	// the sample ratre of original content stream
-	unsigned int freq_mask;	// {0x0007(48K), 0x0067, 0x0667(192K)}
-} AUD_FSCLK_PARAMS;
-
-typedef enum
-{
-	extdac = 0x0,
-	intdac,
-	intadc,
-	extadc,
-	hdmitx,
-	hdmirx,
-} i2sfmt_e;
-
-typedef struct t_AUD_I2SCFG_PARAMS {
-	unsigned int path_type;
-	unsigned int input_cfg;
-	unsigned int extdac;
-	unsigned int intdac;
-	unsigned int intadc;
-	unsigned int extadc;
-	unsigned int hdmitx;
-	unsigned int hdmirx;
-} AUD_I2SCFG_PARAMS;
-#endif
 typedef struct t_auddrv_param
 {
 	AUD_FIFO_PARAMS	fifoInfo;
-	//AUD_GAIN_PARAMS	gainInfo;
-	//AUD_FSCLK_PARAMS	fsclkInfo;
-	//AUD_I2SCFG_PARAMS	i2scfgInfo;
-	//unsigned int spdif_mode;
-	//unsigned int hdmi_mode;
-	//unsigned int CGMS_mode;
 } auddrv_param;
 
 extern auddrv_param aud_param;

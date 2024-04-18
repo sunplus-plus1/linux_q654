@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-// ALSA	SoC Q645 aud driver
+// ALSA	SoC SP7350 aud driver
 //
-// Author:	 <@sunplus.com>
+// Author: ChingChou Huang <chingchouhuang@sunplus.com>
 //
 //
 
@@ -9,7 +9,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "aud_hw.h"
-#include "spsoc_util-645.h"
+#include "spsoc_util.h"
 
 static int spsoc_hw_params(struct snd_pcm_substream *substream,	struct snd_pcm_hw_params *params)
 {
@@ -20,7 +20,7 @@ static int spsoc_hw_params(struct snd_pcm_substream *substream,	struct snd_pcm_h
 
 	pll_out	= params_rate(params);
 	fmt = params_format(params);
-	pr_debug("%s IN,	pull_out %d fmt	%d channels %d\n", __func__, pll_out, fmt,
+	pr_debug("%s IN, pull_out %d fmt %d channels %d\n", __func__, pll_out, fmt,
 		 params_channels(params));
 	pr_debug("buffer_size 0x%x buffer_bytes 0x%x\n", params_buffer_size(params),
 		 params_buffer_bytes(params));
@@ -138,8 +138,8 @@ static struct snd_soc_dai_link spsoc_aud_dai[] = {
 };
 
 static struct snd_soc_card spsoc_smdk =	{
-	.name		= "sp-aud",		// card	name
-	.long_name	= "Q645/Q654, Sunplus Technology Inc.",
+	.name		= "sp-aud", // card name
+	.long_name	= "SP7350, Sunplus Technology Inc.",
 	.owner		= THIS_MODULE,
 	.dai_link	= spsoc_aud_dai,
 	.num_links	= ARRAY_SIZE(spsoc_aud_dai),
@@ -151,11 +151,11 @@ static int __init snd_spsoc_audio_init(void)
 {
 	int ret;
 
-	spsoc_snd_device = platform_device_alloc("soc-audio", -1); // soc-audio   aud3502-codec"
+	spsoc_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!spsoc_snd_device)
 		return -ENOMEM;
 
-	pr_info("%s , create soc_card\n", __func__);
+	pr_info("%s, create soc_card\n", __func__);
 	platform_set_drvdata(spsoc_snd_device, &spsoc_smdk);
 
 	ret = platform_device_add(spsoc_snd_device);
@@ -173,5 +173,5 @@ static void __exit snd_spsoc_audio_exit(void)
 module_exit(snd_spsoc_audio_exit);
 
 MODULE_AUTHOR("Sunplus Technology Inc.");
-MODULE_DESCRIPTION("Sunplus Q645 audio card driver");
+MODULE_DESCRIPTION("Sunplus SP7350 audio card driver");
 MODULE_LICENSE("GPL");
