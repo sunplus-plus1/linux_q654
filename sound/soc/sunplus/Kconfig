@@ -8,8 +8,8 @@ menuconfig SND_SOC_SUNPLUS
 	  the Sunplus SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
-config SND_SOC_AUD_Q654
-	tristate "support Q654 codec"
+config SND_SOC_AUD_SP7350
+	tristate "support SP7350 codec"
 	depends on SND_SOC_SUNPLUS && SOC_SP7350
 	default y
 

@@ -1,40 +1,40 @@
 // SPDX-License-Identifier: GPL-2.0
-// ALSA	SoC Q645 tdm driver
+// ALSA	SoC SP7350 tdm driver
 //
-// Author:	 <@sunplus.com>
+// Author: ChingChou Huang <chingchouhuang@sunplus.com>
 //
 //
 
 #include <sound/pcm_params.h>
-#include "spsoc_pcm-645.h"
-#include "spsoc_util-645.h"
+#include "spsoc_pcm.h"
+#include "spsoc_util.h"
 #include "aud_hw.h"
 
 void __iomem *tdmaudio_base;
 // Audio Registers
-#define	Main_PCM7			BIT(27)
-#define	Main_PCM6			BIT(26)
-#define	TDM_PDM_RX3			BIT(25)
-#define	TDM_PDM_RX2			BIT(24)
-#define	TDM_PDM_RX1			BIT(23)
-#define	TDM_PDM_RX0			BIT(22)
-#define	TDM_PDM_RX7			BIT(21)
-#define	Main_PCM5			BIT(20)
-#define	TDM_PDM_RX6			BIT(18)
-#define	TDM_PDM_RX5			BIT(17)
-#define	TDM_PDM_RX4			BIT(14)
-#define	Main_PCM4			BIT(4)
-#define	Main_PCM3			BIT(3)
-#define	Main_PCM2			BIT(2)
-#define	Main_PCM1			BIT(1)
-#define	Main_PCM0			BIT(0)
+#define	Main_PCM7		BIT(27)
+#define	Main_PCM6		BIT(26)
+#define	TDM_PDM_RX3		BIT(25)
+#define	TDM_PDM_RX2		BIT(24)
+#define	TDM_PDM_RX1		BIT(23)
+#define	TDM_PDM_RX0		BIT(22)
+#define	TDM_PDM_RX7		BIT(21)
+#define	Main_PCM5		BIT(20)
+#define	TDM_PDM_RX6		BIT(18)
+#define	TDM_PDM_RX5		BIT(17)
+#define	TDM_PDM_RX4		BIT(14)
+#define	Main_PCM4		BIT(4)
+#define	Main_PCM3		BIT(3)
+#define	Main_PCM2		BIT(2)
+#define	Main_PCM1		BIT(1)
+#define	Main_PCM0		BIT(0)
 
-#define	TDM_RX_SLAVE_ENABLE		BIT(8)
-#define	RX_PATH0_1_SELECT		BIT(4)
-#define	RX_PATH0_1_2_3_SELECT		(BIT(4) | BIT(5))
-#define	TDM_RX_ENABLE			BIT(0)
+#define	TDM_RX_SLAVE_ENABLE	BIT(8)
+#define	RX_PATH0_1_SELECT	BIT(4)
+#define	RX_PATH0_1_2_3_SELECT	(BIT(4) | BIT(5))
+#define	TDM_RX_ENABLE		BIT(0)
 
-#define	TDM_TX_ENABLE			BIT(0)
+#define	TDM_TX_ENABLE		BIT(0)
 
 void aud_tdm_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 {
@@ -74,7 +74,7 @@ static void sp_tdm_tx_en(bool on)
 	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
 	unsigned int val;
 
-	val =  regs0->tdm_tx_cfg0;
+	val = regs0->tdm_tx_cfg0;
 	if (on)	{
 		val |= TDM_TX_ENABLE;
 		regs0->tdmpdm_tx_sel = 0x01;
@@ -264,11 +264,11 @@ static int sp_tdm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_
 
 	//pr_debug("ts_width = %d\n", runtime->frame_bits);
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		regs0->tdm_rx_cfg1 = 0x00100000;// slot	delay =	1T
+		regs0->tdm_rx_cfg1 = 0x00100000; // slot delay = 1T
 		regs0->tdm_tx_cfg1 = 0x00100000;
-		regs0->tdm_rx_cfg2 = 0x00010000;// FSYNC_HI_WIDTH = 1
-		regs0->tdm_tx_cfg2 = 0x00010000;// FSYNC_HI_WIDTH = 1
-		val = (wd_width	<< 12) | (ts_width << 8) | 0x10;//ch_num;// bit# per word = 20,	bit# per slot =	24, slot# per frame = 8
+		regs0->tdm_rx_cfg2 = 0x00010000; // FSYNC_HI_WIDTH = 1
+		regs0->tdm_tx_cfg2 = 0x00010000; // FSYNC_HI_WIDTH = 1
+		val = (wd_width	<< 12) | (ts_width << 8) | 0x10; //ch_num;// bit# per word = 20, bit# per slot = 24, slot# per frame = 8
 		regs0->tdm_rx_cfg3 = val;
 		regs0->tdm_tx_cfg3 = val;
 
@@ -276,15 +276,15 @@ static int sp_tdm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_
 		pr_debug("tdm_rx_cfg2 0x%x\n", regs0->tdm_rx_cfg2);
 		pr_debug("tdm_rx_cfg3 0x%x\n", regs0->tdm_rx_cfg3);
 	} else {
-		regs0->tdm_tx_cfg1 = 0x00100000;// slot	delay =	1T, //0x00100110 word and slot right justify
-		regs0->tdm_tx_cfg2 = 0x00010000;// FSYNC_HI_WIDTH = 1
-		val = (wd_width	<< 12) | (ts_width << 8) | 0x10;//ch_num; hard code set	16 chs// bit# per word = 20, bit# per slot = 24, slot# per frame = 8
+		regs0->tdm_tx_cfg1 = 0x00100000; // slot delay = 1T, //0x00100110 word and slot right justify
+		regs0->tdm_tx_cfg2 = 0x00010000; // FSYNC_HI_WIDTH = 1
+		val = (wd_width	<< 12) | (ts_width << 8) | 0x10; //ch_num; hard code set	16 chs// bit# per word = 20, bit# per slot = 24, slot# per frame = 8
 		regs0->tdm_tx_cfg3 = val;
 
 		pr_debug("tdm_tx_cfg1 0x%x\n", regs0->tdm_tx_cfg1);
 		pr_debug("tdm_tx_cfg2 0x%x\n", regs0->tdm_tx_cfg2);
 		pr_debug("tdm_tx_cfg3 0x%x\n", regs0->tdm_tx_cfg3);
-		sp_tdm_tx_dma_en(true);//Need to add here
+		sp_tdm_tx_dma_en(true); //Need to add here
 	}
 	return ret;
 }
@@ -330,7 +330,7 @@ static int sp_tdm_startup(struct snd_pcm_substream *substream, struct snd_soc_da
 {
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 
-	pr_debug("%s IN, operation c or p %d\n",	__func__, capture);
+	pr_debug("%s IN, operation c or p %d\n", __func__, capture);
 	//aud_tdm_clk_cfg(41100);
 	if (capture)
 		sp_tdm_rx_en(true);
@@ -397,8 +397,8 @@ static struct snd_soc_dai_driver sp_tdm_dai = {
 	.capture	= {
 		.channels_min	= 2,
 		.channels_max	= 16,
-		.rates		= AUD_RATES_C,//SP_TDM_RATES,  //AUD_RATES_C
-		.formats	= AUD_FORMATS,//SP_TDM_FMTBIT, //AUD_FORMATS
+		.rates		= AUD_RATES_C, //SP_TDM_RATES,  //AUD_RATES_C
+		.formats	= AUD_FORMATS, //SP_TDM_FMTBIT, //AUD_FORMATS
 	},
 	.playback	= {
 		.channels_min	= 2,

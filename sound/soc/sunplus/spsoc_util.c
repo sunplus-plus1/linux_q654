@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 // ALSA SoC AUD7021 UTILITY MACRO
 //
-// Author:	 <@sunplus.com>
+// Author: ChingChou Huang <chingchouhuang@sunplus.com>
 //
 //
 
@@ -10,9 +10,8 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/timer.h>
-#if IS_ENABLED(CONFIG_SND_SOC_AUD_Q654)
-#include "spsoc_util-645.h"
-#endif
+#include "spsoc_util.h"
+
 //#define SYNCHRONIZE_IO		__asm__ __volatile__ ("dmb" : : : "memory")
 #define SYNCHRONIZE_IO	(__asm__ __volatile__ ("" : : : "memory"))
 
