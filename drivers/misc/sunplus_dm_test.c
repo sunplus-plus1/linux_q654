@@ -40,7 +40,7 @@
  *    8. show setting parameter
  *    9. show measure result
  *
- * Author: Hammer Hsieh <hammerh0314@gmail.com>
+ * Author: Hammer Hsieh <hammer.hsieh@sunplus.com>
  */
 #include <linux/bitfield.h>
 #include <linux/clk.h>
@@ -66,10 +66,10 @@
 #define DM_TOTAL_CMD_CNT	0x024
 #define DM_TOTAL_CYCLE_CNT	0x028
 
-#define Q654_SYSTEM_CLOCK 600000 /* 600 MHz*/
-#define Q654_DRAM_CLOCK 1600000 /* 1600 MHz*/
-#define Q654_MAX_BANDWIDTH_DM0 (Q654_DRAM_CLOCK * 8)
-#define Q654_MAX_BANDWIDTH_DM1 (Q654_DRAM_CLOCK * 8 / 2)
+#define SP7350_SYSTEM_CLOCK 600000 /* 600 MHz*/
+#define SP7350_DRAM_CLOCK 1600000 /* 1600 MHz*/
+#define SP7350_MAX_BANDWIDTH_DM0 (SP7350_DRAM_CLOCK * 8)
+#define SP7350_MAX_BANDWIDTH_DM1 (SP7350_DRAM_CLOCK * 8 / 2)
 
 static const char * const DummyMasterDefine[] = {
 	"op_mode", 		/* G14.00 */
@@ -134,17 +134,17 @@ u32 unfinished_cmd_cnt[11] = {
 };
 
 u32 target_bandwidth[11] = {
-	(Q654_DRAM_CLOCK * 8/1000) * 1 / 10, //Target BW 10%
-	(Q654_DRAM_CLOCK * 8/1000) * 2 / 10, //Target BW 20%
-	(Q654_DRAM_CLOCK * 8/1000) * 3 / 10, //Target BW 30%
-	(Q654_DRAM_CLOCK * 8/1000) * 4 / 10, //Target BW 40%
-	(Q654_DRAM_CLOCK * 8/1000) * 5 / 10, //Target BW 50%
-	(Q654_DRAM_CLOCK * 8/1000) * 6 / 10, //Target BW 60%
-	(Q654_DRAM_CLOCK * 8/1000) * 7 / 10, //Target BW 70%
-	(Q654_DRAM_CLOCK * 8/1000) * 8 / 10, //Target BW 80%
-	(Q654_DRAM_CLOCK * 8/1000) * 9 / 10, //Target BW 90%
-	(Q654_DRAM_CLOCK * 8/1000), //Target BW 100%
-	(Q654_DRAM_CLOCK * 8/1000), //Target BW max  (1.1 cycle)
+	(SP7350_DRAM_CLOCK * 8/1000) * 1 / 10, //Target BW 10%
+	(SP7350_DRAM_CLOCK * 8/1000) * 2 / 10, //Target BW 20%
+	(SP7350_DRAM_CLOCK * 8/1000) * 3 / 10, //Target BW 30%
+	(SP7350_DRAM_CLOCK * 8/1000) * 4 / 10, //Target BW 40%
+	(SP7350_DRAM_CLOCK * 8/1000) * 5 / 10, //Target BW 50%
+	(SP7350_DRAM_CLOCK * 8/1000) * 6 / 10, //Target BW 60%
+	(SP7350_DRAM_CLOCK * 8/1000) * 7 / 10, //Target BW 70%
+	(SP7350_DRAM_CLOCK * 8/1000) * 8 / 10, //Target BW 80%
+	(SP7350_DRAM_CLOCK * 8/1000) * 9 / 10, //Target BW 90%
+	(SP7350_DRAM_CLOCK * 8/1000), //Target BW 100%
+	(SP7350_DRAM_CLOCK * 8/1000), //Target BW max  (1.1 cycle)
 };
 
 struct sunplus_moon0 {
@@ -370,7 +370,10 @@ struct sunplus_dummy_master {
 	void __iomem *clken; /* moon0 clken REGISTER */
 	void __iomem *base0;  /* G14  DummyMaster0 REGISTER */
 	void __iomem *base1;  /* G337 DummyMaster1 REGISTER */
+	/* clock */
 	struct clk *clk_dm0, *clk_dm1;
+	/* reset */
+	struct reset_control	*rstc_dm0, *rstc_dm1;
 };
 
 struct sunplus_dummy_master *sp_dm_test;
@@ -435,8 +438,8 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			/*
 			 * Calculate req_period from target BW 10% to 100%
 			 */
-			tmp_value1 = Q654_SYSTEM_CLOCK;
-			tmp_value2 = Q654_MAX_BANDWIDTH_DM0/(set_write_length*16*10);
+			tmp_value1 = SP7350_SYSTEM_CLOCK;
+			tmp_value2 = SP7350_MAX_BANDWIDTH_DM0/(set_write_length*16*10);
 			for(i = 0; i < 10; i++) {
 				if(tmp_value1%(tmp_value2 *(i+1)) != 0) {
 					tmp_value = tmp_value1/(tmp_value2*(i+1));
@@ -451,7 +454,7 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			}
 			/*
 			 * LEN=16, WBE=1
-			 * OP_MODE=1/2/3/15(SP7021), OP_MODE=1/2/3/10(Q645/Q654)
+			 * OP_MODE=1/2/3/15
 			 */
 			tmp_value = 0;
 			tmp_value = set_write_length << 8 | 1 << 4 | set_op_mode;
@@ -483,7 +486,7 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			writel(0x00000000 , sp_dm_test->base1 + DM_CONTROL); /* Dummy Master 1 Disable */
 
 			pr_info("sysclk = %dMHz,  dramclk = %dMHz, max_BW = %dMBps\n",
-				Q654_SYSTEM_CLOCK/1000, Q654_DRAM_CLOCK/1000, Q654_MAX_BANDWIDTH_DM0/1000);
+				SP7350_SYSTEM_CLOCK/1000, SP7350_DRAM_CLOCK/1000, SP7350_MAX_BANDWIDTH_DM0/1000);
 			pr_info("-- Dummy Master Parameter Setting --\n");
 			tmp_value = FIELD_GET(GENMASK(3, 0), readl(sp_dm_test->base0 + DM_OP_MODE));
 			pr_info("    OP_Mode = %d (%s)\n", tmp_value, show_op_mode[tmp_value]);	
@@ -506,8 +509,8 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			pr_info("-- Dummy Master Test Result --\n");
 			pr_info("-- Target / Measure / Theory / percentage(%%) --\n");
 			for(i = 0; i < 11; i++) {
-				//measure_bandwidth[i] = (total_cmd_count[i] * 256 * (Q654_SYSTEM_CLOCK / 100000) / (total_cycle_count[i] / 100));
-				measure_bandwidth[i] = (u32)DIV_ROUND_CLOSEST_ULL((u64)total_cmd_count[i]*256*Q654_SYSTEM_CLOCK, (u64)total_cycle_count[i]*1000);
+				//measure_bandwidth[i] = (total_cmd_count[i] * 256 * (SP7350_SYSTEM_CLOCK / 100000) / (total_cycle_count[i] / 100));
+				measure_bandwidth[i] = (u32)DIV_ROUND_CLOSEST_ULL((u64)total_cmd_count[i]*256*SP7350_SYSTEM_CLOCK, (u64)total_cycle_count[i]*1000);
 				measure_bandwidth[i] = (u32)DIV_ROUND_CLOSEST_ULL((u64)measure_bandwidth[i]*1000*1000, (u64)1024*1024);
 				//pr_info("%d%% req_period 0x%08x\n", (i+1)*10, request_period_bw[i]);
 				if (i == 10)
@@ -527,8 +530,8 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			/*
 			 * Calculate req_period from target BW 10% to 100%
 			 */
-			tmp_value1 = Q654_SYSTEM_CLOCK;
-			tmp_value2 = Q654_MAX_BANDWIDTH_DM1/(set_write_length*16*10);
+			tmp_value1 = SP7350_SYSTEM_CLOCK;
+			tmp_value2 = SP7350_MAX_BANDWIDTH_DM1/(set_write_length*16*10);
 			for(i = 0; i < 10; i++) {
 				if(tmp_value1%(tmp_value2 *(i+1)) != 0) {
 					tmp_value = tmp_value1/(tmp_value2*(i+1));
@@ -543,7 +546,7 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			}
 			/*
 			 * LEN=16, WBE=1
-			 * OP_MODE=1/2/3/15(SP7021), OP_MODE=1/2/3/10(Q645/Q654)
+			 * OP_MODE=1/2/3/15
 			 */
 			tmp_value = 0;
 			tmp_value = set_write_length << 8 | 1 << 4 | set_op_mode;
@@ -574,9 +577,8 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			writel(0x00000000 , sp_dm_test->base0 + DM_CONTROL); /* Dummy Master 0 Disable */
 			writel(0x00000000 , sp_dm_test->base1 + DM_CONTROL); /* Dummy Master 1 Disable */
 
-			/* For Q654 */
 			pr_info("sysclk = %dMHz,  dramclk = %dMHz, max_BW = %dMBps\n",
-				Q654_SYSTEM_CLOCK/1000, Q654_DRAM_CLOCK/1000, Q654_MAX_BANDWIDTH_DM1/1000);
+				SP7350_SYSTEM_CLOCK/1000, SP7350_DRAM_CLOCK/1000, SP7350_MAX_BANDWIDTH_DM1/1000);
 			pr_info("-- Dummy Master Parameter Setting --\n");
 			tmp_value = FIELD_GET(GENMASK(3, 0), readl(sp_dm_test->base1 + DM_OP_MODE));
 			pr_info("    OP_Mode = %d (%s)\n", tmp_value, show_op_mode[tmp_value]);	
@@ -599,8 +601,8 @@ static int test_set(const char *val, const struct kernel_param *kp)
 			pr_info("-- Dummy Master Test Result --\n");
 			pr_info("-- Target / Measure / Theory / percentage(%%) --\n");
 			for(i = 0; i < 11; i++) {
-				//measure_bandwidth[i] = (total_cmd_count[i] * 256 * (Q654_SYSTEM_CLOCK / 100) / (total_cycle_count[i] / 100))/1000;
-				measure_bandwidth[i] = (u32)DIV_ROUND_CLOSEST_ULL((u64)total_cmd_count[i]*256*Q654_SYSTEM_CLOCK, (u64)total_cycle_count[i]*1000);
+				//measure_bandwidth[i] = (total_cmd_count[i] * 256 * (SP7350_SYSTEM_CLOCK / 100) / (total_cycle_count[i] / 100))/1000;
+				measure_bandwidth[i] = (u32)DIV_ROUND_CLOSEST_ULL((u64)total_cmd_count[i]*256*SP7350_SYSTEM_CLOCK, (u64)total_cycle_count[i]*1000);
 				measure_bandwidth[i] = (u32)DIV_ROUND_CLOSEST_ULL((u64)measure_bandwidth[i]*1000*1000, (u64)1024*1024);
 				//pr_info("%d%% req_period 0x%08x\n", (i+1)*10, request_period_bw[i]);
 				if (i == 10)
@@ -644,7 +646,7 @@ static int test_set(const char *val, const struct kernel_param *kp)
 		else if ((value1 == 11) && (value2 == 0) && (value3 == 0)) {
 			pr_info("Dump current setting\n");
 			pr_info("sysclk = %dMHz,  dramclk = %dMHz, max_BW = %dMBps(DM0) %dMBps(DM1)\n",
-				Q654_SYSTEM_CLOCK/1000, Q654_DRAM_CLOCK/1000, Q654_MAX_BANDWIDTH_DM0/1000, Q654_MAX_BANDWIDTH_DM1/1000);	
+				SP7350_SYSTEM_CLOCK/1000, SP7350_DRAM_CLOCK/1000, SP7350_MAX_BANDWIDTH_DM0/1000, SP7350_MAX_BANDWIDTH_DM1/1000);	
 			pr_info("set_start_address = 0x%08x(%d)\nset_end_address = 0x%08x(%d)\n",
 				set_start_address, set_start_address, set_end_address, set_end_address);
 			pr_info("set_write_length = %d\nset_op_mode = %d (%s)\n",
@@ -742,13 +744,81 @@ static int sp_dm_test_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base1))
 		return PTR_ERR(priv->base1);
 
+	/*
+	 * init clk & reset
+	 */
+	priv->clk_dm0 = devm_clk_get(dev, "clk_dm0");
+	if (IS_ERR(priv->clk_dm0))
+		return PTR_ERR(priv->clk_dm0);
+	priv->clk_dm1 = devm_clk_get(dev, "clk_dm1");
+	if (IS_ERR(priv->clk_dm1))
+		return PTR_ERR(priv->clk_dm1);
+
+	#if 0
+	priv->rstc_dm0 = devm_reset_control_get_exclusive(&pdev->dev, "rstc_dm0");
+	if (IS_ERR(priv->rstc_dm0))
+		return dev_err_probe(dev, PTR_ERR(priv->rstc_dm0), "err get dm0 reset\n");
+
+	ret = reset_control_deassert(priv->rstc_dm0);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to deassert dm0 reset\n");
+
+	priv->rstc_dm1 = devm_reset_control_get_exclusive(&pdev->dev, "rstc_dm1");
+	if (IS_ERR(priv->rstc_dm1))
+		return dev_err_probe(dev, PTR_ERR(priv->rstc_dm1), "err get dm1 reset\n");
+
+	ret = reset_control_deassert(priv->rstc_dm1);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to deassert dm1 reset\n");
+	#endif
+
+	ret = clk_prepare_enable(priv->clk_dm0);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(priv->clk_dm1);
+	if (ret)
+		return ret;
+
 	return ret;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int sp_dm_suspend(struct device *dev)
+{
+	//struct sunplus_dummy_master *priv = dev_get_drvdata(dev);
+
+	//clk_disable_unprepare(priv->clk_dm0);
+	//clk_disable_unprepare(priv->clk_dm1);
+	//reset_control_assert(priv->rstc_dm0);
+	//reset_control_assert(priv->rstc_dm1);
+
+	return 0;
+}
+
+static int sp_dm_resume(struct device *dev)
+{
+	//struct sunplus_dummy_master *priv = dev_get_drvdata(dev);
+
+	//reset_control_deassert(priv->rstc_dm0);
+	//reset_control_deassert(priv->rstc_dm1);
+	//clk_prepare_enable(priv->clk_dm0);
+	//clk_prepare_enable(priv->clk_dm1);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops sp_dm_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sp_dm_suspend,
+				sp_dm_resume)
+};
 
 static struct platform_driver sp_dm_test_driver = {
 	.probe		= sp_dm_test_probe,
 	.driver		= {
 		.name	= "sp_dm_test",
+		.pm		= &sp_dm_pm_ops,
 		.owner	= THIS_MODULE,
 		.of_match_table = sp_dm_test_of_match,
 	},
@@ -757,5 +827,5 @@ static struct platform_driver sp_dm_test_driver = {
 module_platform_driver(sp_dm_test_driver);
 
 MODULE_DESCRIPTION("Sunplus SoC DM Test Driver");
-MODULE_AUTHOR("Hammer Hsieh <hammerh0314@gmail.com>");
+MODULE_AUTHOR("Hammer Hsieh <hammer.hsieh@sunplus.com>");
 MODULE_LICENSE("GPL");

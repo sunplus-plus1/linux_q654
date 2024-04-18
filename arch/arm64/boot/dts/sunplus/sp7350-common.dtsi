@@ -1339,15 +1339,15 @@
 		reset-names = "rstc_vip9000";
 	};
 
-#if 0
 	dummymaster: dm@f8000700 {
 		compatible = "sunplus,sp7350-dm-test";
 		reg = <0x0 0xf8800100 0x0 0x80>, <0x0 0xf8000700 0x0 0x80>,
 			<0x0 0xf800a880 0x0 0x80>; /* G14 G337 */
 		clocks = <&clkc DUMMY_MASTER0>, <&clkc DUMMY_MASTER1>;
+		clock-names = "clk_dm0", "clk_dm1";
 		resets = <&rstc DUMMY_MASTER0>, <&rstc DUMMY_MASTER1>;
+		reset-names = "rstc_dm0", "rstc_dm1";
 	};
-#endif
 
 	watchdog: watchdog@f800061c {
 		compatible = "sunplus,sp7350-wdt";
