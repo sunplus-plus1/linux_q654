@@ -465,7 +465,7 @@ config PWM_SUNPLUS
 	depends on SOC_SP7350
 	default y if SOC_SP7350
 	help
-	  Generic PWM driver for Sunplus Q654 SoC.
+	  Generic PWM driver for Sunplus SP7350 SoC.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-sp7350.
