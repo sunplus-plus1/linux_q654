@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-// ALSA	SoC Q645 codec driver
+// ALSA	SoC SP7350 codec driver
 //
-// Author:	 <@sunplus.com>
+// Author: ChingChou Huang <chingchouhuang@sunplus.com>
 //
 //
 
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <sound/tlv.h>
-#include "spsoc_util-645.h"
+#include "spsoc_util.h"
 
 void __iomem *codecaudio_base;
 #define	AUD_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_3LE)
@@ -27,7 +27,7 @@ static int aud_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	int rate = params_rate(params);
 
-	dev_dbg(dai->dev, "%s IN, rate	%d\n", __func__, rate);
+	dev_dbg(dai->dev, "%s IN, rate %d\n", __func__, rate);
 	return 0;
 }
 
@@ -148,7 +148,7 @@ static const struct snd_kcontrol_new aud_snd_controls[]	= {
 	SOC_DOUBLE_TLV("A20 Playback Volume",	reg_aud_grm_gain_control_10,	0,	8,	0x80,	0,	volume_tlv),
 
 	/* Mux */
-	SOC_ENUM("pcm0 pcm5 Output",	cpm0_5_out_enum),
+	SOC_ENUM("pcm0 pcm5 Output", cpm0_5_out_enum),
 
 	/* Mix */
 	SOC_SINGLE("Mix0",	reg_aud_grm_mix_control_0,	0,	1,	0),
