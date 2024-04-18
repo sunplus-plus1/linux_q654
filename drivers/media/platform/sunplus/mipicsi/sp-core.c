@@ -1061,7 +1061,7 @@ static const struct vin_group_route sp_info_sp7350_routes[] = {
 };
 
 static const struct vin_info sp_info_sp7350 = {
-	.model = SP_Q654,
+	.model = SP7350,
 	.use_mc = false,
 	.nv12 = false,
 	.max_width = 4608, // for imx708(12mp sensor 4608x2592)

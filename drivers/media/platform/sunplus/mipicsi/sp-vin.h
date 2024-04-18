@@ -36,9 +36,8 @@
 struct vin_group;
 
 enum model_id {
-	SP_Q628,
-	SP_Q645,
-	SP_Q654,
+	SP7021,
+	SP7350,
 };
 
 enum vin_csi_id {

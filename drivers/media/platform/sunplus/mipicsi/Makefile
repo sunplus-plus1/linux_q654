@@ -4,5 +4,5 @@
 #
 sp-vin-objs = sp-core.o sp-dma.o sp-v4l2.o
 
-obj-$(CONFIG_VIDEO_SUNPLUS_Q654_CSI2)       += sp-csi2.o
-obj-$(CONFIG_VIDEO_SUNPLUS_Q654_VIN)        += sp-vin.o
+obj-$(CONFIG_VIDEO_SUNPLUS_SP7350_CSI2)       += sp-csi2.o
+obj-$(CONFIG_VIDEO_SUNPLUS_SP7350_VIN)        += sp-vin.o

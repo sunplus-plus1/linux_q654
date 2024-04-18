@@ -3,8 +3,8 @@
 # Sunplus MIPI/CSI RX driver configuration
 #
 
-config VIDEO_SUNPLUS_Q654_CSI2
-	tristate "Sunplus Q654 MIPI CSI-2 Receiver"
+config VIDEO_SUNPLUS_SP7350_CSI2
+	tristate "Sunplus SP7350 MIPI CSI-2 RX Driver"
 	depends on VIDEO_V4L2 && OF
 	depends on SOC_SP7350
 	select MEDIA_CONTROLLER
@@ -13,13 +13,13 @@ config VIDEO_SUNPLUS_Q654_CSI2
 	select V4L2_FWNODE
 	help
 	  Support for Sunplus MIPI CSI-2 receiver.
-	  Supports Q654 SoC.
+	  Supports SP7350 SoC.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called sp-mipi-q654.
+	  module will be called sp-mipi-sp7350.
 
-config VIDEO_SUNPLUS_Q654_VIN
-	tristate "Sunplus Q654 Video Input (VIN) Driver"
+config VIDEO_SUNPLUS_SP7350_VIN
+	tristate "Sunplus SP7350 Video Input (VIN) Driver"
 	depends on VIDEO_V4L2 && OF
 	depends on SOC_SP7350
 	select MEDIA_CONTROLLER
@@ -28,7 +28,7 @@ config VIDEO_SUNPLUS_Q654_VIN
 	select V4L2_FWNODE
 	help
 	  Support for Sunplus Video Input (VIN) driver.
-	  Supports Q654 SoC.
+	  Supports SP7350 SoC.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called sp-vin-q654.
+	  module will be called sp-vin-sp7350.
