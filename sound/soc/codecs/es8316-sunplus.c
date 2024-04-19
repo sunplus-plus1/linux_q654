@@ -854,7 +854,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	struct device *dev = &i2c_client->dev;
 	struct es8316_priv *es8316;
 	int ret;
-	struct snd_soc_component *component;
+	//struct snd_soc_component *component;
 
 	es8316 = devm_kzalloc(&i2c_client->dev, sizeof(struct es8316_priv),
 			      GFP_KERNEL);
@@ -879,7 +879,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 			es8316->irq = -ENXIO;
 		}
 	}
-
+#if 0 // not binding with sound card
 	ret = devm_snd_soc_register_component(&i2c_client->dev,
 					      &soc_component_dev_es8316,
 					      &es8316_dai, 1);
@@ -887,9 +887,11 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	component = snd_soc_lookup_component_nolocked(dev, NULL);
 	es8316_probe(component);
 	return ret;
-	//return devm_snd_soc_register_component(&i2c_client->dev,
-	//			      &soc_component_dev_es8316,
-	//			      &es8316_dai, 1);
+#else
+	return devm_snd_soc_register_component(&i2c_client->dev,
+					       &soc_component_dev_es8316,
+					       &es8316_dai, 1);
+#endif
 }
 
 static const struct i2c_device_id es8316_i2c_id[] = {
