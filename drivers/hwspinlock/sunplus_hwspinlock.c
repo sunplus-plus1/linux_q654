@@ -110,6 +110,7 @@ static int sp_hwspinlock_remove(struct platform_device *pdev)
 
 static int __maybe_unused sp_hwspinlock_runtime_suspend(struct device *dev)
 {
+	#if 0
 	int i;
 	struct sp_hwspinlock *hw = dev_get_drvdata(dev);
 
@@ -122,12 +123,13 @@ static int __maybe_unused sp_hwspinlock_runtime_suspend(struct device *dev)
 	}
 
 	clk_disable_unprepare(hw->clk);
-
+	#endif
 	return 0;
 }
 
 static int __maybe_unused sp_hwspinlock_runtime_resume(struct device *dev)
 {
+	#if 0
 	int i;
 	struct sp_hwspinlock *hw = dev_get_drvdata(dev);
 
@@ -138,7 +140,7 @@ static int __maybe_unused sp_hwspinlock_runtime_resume(struct device *dev)
 		if(hw->reg_status[i])
 			readl(lock_addr);
 	}
-
+	#endif
 	return 0;
 }
 
