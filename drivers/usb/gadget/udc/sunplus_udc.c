@@ -2719,7 +2719,8 @@ void usb_switch(int device)
 		device_run_stop_ctrl(1, 1);
 	} else {
 		val = readl(moon4_reg + M4_SCFG_10);
-		writel(val | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE, moon4_reg + M4_SCFG_10);
+		writel((val & (~MO1_USBC0_USB0_TYPE)) | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE,
+									moon4_reg + M4_SCFG_10);
 
 		device_mode = false;
 		pwr_uphy_pll(1);
