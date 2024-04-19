@@ -294,7 +294,13 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 					I2C_CLASS_HWMON : I2C_CLASS_DEPRECATED;
 	ACPI_COMPANION_SET(&adap->dev, ACPI_COMPANION(&pdev->dev));
 	adap->dev.of_node = pdev->dev.of_node;
-	adap->nr = -1;
+	if (pdev->dev.of_node) {
+		adap->nr = of_alias_get_id(pdev->dev.of_node, "i2cno");
+		if (adap->nr< 0 )
+			adap->nr = -1;
+		}
+	else
+		adap->nr = -1;
 
 	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
 		dev_pm_set_driver_flags(&pdev->dev,
