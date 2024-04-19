@@ -2637,8 +2637,6 @@
 };
 
 &sp_uphy0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&otg_pins>;
 };
 
 &ehci0 {
@@ -2651,6 +2649,8 @@
 };
 
 &otg {
+	pinctrl-names = "default";
+	pinctrl-0 = <&otg_pins>;
 };
 
 &extcon_dwc3drd {

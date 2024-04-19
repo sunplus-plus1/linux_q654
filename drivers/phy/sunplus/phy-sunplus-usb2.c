@@ -68,8 +68,7 @@
 #define MASK_MO1_USBC0_USB0_SEL			BIT(1 + 16)
 #define MO1_USBC0_USB0_CTRL			BIT(0)
 #define MASK_MO1_USBC0_USB0_CTRL		BIT(0 + 16)
-#define USB_HOST_MODE				(MO1_USBC0_USB0_TYPE | MO1_USBC0_USB0_SEL | \
-										MO1_USBC0_USB0_CTRL)
+#define USB_HOST_MODE				(MO1_USBC0_USB0_SEL | MO1_USBC0_USB0_CTRL)
 #define USB_DEVICE_MODE				MO1_USBC0_USB0_CTRL
 #define MASK_USB_HOST_DEVICE_MODE		(MASK_MO1_USBC0_USB0_TYPE| MASK_MO1_USBC0_USB0_SEL | \
 										MASK_MO1_USBC0_USB0_CTRL)
@@ -169,7 +168,7 @@ static int sp_uphy_init(struct phy *phy)
 	val = readl(usbphy->moon4_regs + M4_SCFG_10);
 
 #if defined(CONFIG_USB_EHCI_SUNPLUS) || defined(CONFIG_USB_OHCI_SUNPLUS)
-	writel(val | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE,
+	writel((val & (~MO1_USBC0_USB0_TYPE)) | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE,
 							usbphy->moon4_regs + M4_SCFG_10);
 #else
 	writel((val & (~MO1_USBC0_USB0_TYPE) & (~MO1_USBC0_USB0_SEL))
