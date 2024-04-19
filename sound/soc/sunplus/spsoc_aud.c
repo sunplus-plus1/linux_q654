@@ -8,6 +8,8 @@
 #include <linux/module.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <linux/of_platform.h>
+#include <linux/i2c.h>
 #include "aud_hw.h"
 #include "spsoc_util.h"
 
@@ -89,12 +91,12 @@ SND_SOC_DAILINK_DEFS(sp_spdif,
 		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-spdif-dai")),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
-//#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
-//SND_SOC_DAILINK_DEFS(es8316,
-//		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
-//		     DAILINK_COMP_ARRAY(COMP_CODEC("es8316.1-0011", "ES8316 HiFi")),
-//		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
-//#endif
+#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+SND_SOC_DAILINK_DEFS(es8316,
+		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
+		     DAILINK_COMP_ARRAY(COMP_CODEC("es8316.0-0011", "ES8316 HiFi")),
+		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
+#endif
 
 static struct snd_soc_dai_link spsoc_aud_dai[] = {
 	{
@@ -127,14 +129,14 @@ static struct snd_soc_dai_link spsoc_aud_dai[] = {
 		.ops		= &spsoc_aud_ops,
 		SND_SOC_DAILINK_REG(sp_spdif),
 	},
-//#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
-//	{
-//		.name		= "analog_es8316",
-//		.stream_name	= "afe",
-//		.ops		= &spsoc_aud_ops,
-//		SND_SOC_DAILINK_REG(es8316),
-//	},
-//#endif
+#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+	{
+		.name		= "analog_es8316",
+		.stream_name	= "afe",
+		.ops		= &spsoc_aud_ops,
+		SND_SOC_DAILINK_REG(es8316),
+	},
+#endif
 };
 
 static struct snd_soc_card spsoc_smdk =	{
@@ -150,6 +152,32 @@ static struct platform_device *spsoc_snd_device;
 static int __init snd_spsoc_audio_init(void)
 {
 	int ret;
+#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+	int i;
+	struct snd_soc_card *card = &spsoc_smdk;
+	struct snd_soc_dai_link *dai_link;
+	struct device_node *np;
+	struct i2c_client *client;
+	struct snd_soc_component *component;
+
+	// Get i2c codec device name
+	np = of_find_compatible_node(NULL, NULL, "everest,es8316");
+	if (np) {
+		client = of_find_i2c_device_by_node(np);
+		if (client)
+			component = snd_soc_lookup_component_nolocked(&client->dev, NULL);
+		else
+			pr_err("### No i2c device found\n");
+		//if (!of_property_read_string(np, "codec-name", &name))
+		//	printk("%s \n", name);
+	} else
+		pr_err("### No i2c device node found\n");
+
+	for_each_card_prelinks(card, i, dai_link) {
+		if (strstr(dai_link->codecs->name, client->name)) // Change default code name by i2c dev codec name.
+			dai_link->codecs->name = component->name;
+	}
+#endif
 
 	spsoc_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!spsoc_snd_device)
