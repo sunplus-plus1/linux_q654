@@ -41,6 +41,17 @@
 		serial6 = &uart6;
 		serial7 = &uart7;
 
+		i2cno0 = &i2c0;
+		i2cno1 = &i2c1;
+		i2cno2 = &i2c2;
+		i2cno3 = &i2c3;
+		i2cno4 = &i2c4;
+		i2cno5 = &i2c5;
+		i2cno6 = &i2c6;
+		i2cno7 = &i2c7;
+		i2cno8 = &i2c8;
+		i2cno9 = &i2c9;
+
 		spim0 = &spi_controller0;
 		spim1 = &spi_controller1;
 		spim2 = &spi_controller2;
