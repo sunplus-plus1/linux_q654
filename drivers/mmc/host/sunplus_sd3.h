@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /**
- * SD host controller v3.0
+ * (C) Copyright 2019 Sunplus Technology. <http://www.sunplus.com/>
+ *
+ * Sunplus SD host controller v3.0
  */
 #ifndef __SPSDC_H__
 #define __SPSDC_H__
@@ -40,13 +42,12 @@
 #define SPMMC_SUPPORT_VOLTAGE_1V8
 //#define SPMMC_SUPPORT_EXECUTE_TUNING
 
-//#define SPMMC_HIGH_SEGS
-
 #ifdef SPMMC_SUPPORT_VOLTAGE_1V8
 //#define HW_VOLTAGE_1V8
 #endif
 
 #define SPSDC_MAX_SEGS 128
+#define SPSDC_HW_SEGS 8
 #define SPSDC_MAX_BLK_CNT 2560
 #define SPSDC_MAX_BLK_SIZE  512
 #define SPSDC_MAX_REQ_SIZE SPSDC_MAX_BLK_CNT * SPSDC_MAX_BLK_SIZE
@@ -375,6 +376,8 @@ struct spsdc_host {
 	int power_state; /* current power state: off/up/on */
 	int ddr_enabled;
 	int signal_voltage;
+	int segs_no;
+	int ram;
 
 #define SPSDC_DMA_MODE 0
 #define SPSDC_PIO_MODE 1

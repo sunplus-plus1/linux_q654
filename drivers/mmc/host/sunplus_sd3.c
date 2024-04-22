@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /**
- * SD host controller v3.0
+ * (C) Copyright 2019 Sunplus Technology. <http://www.sunplus.com/>
+ *
+ * Sunplus SD host controller v3.0
  *
  */
 #include <linux/module.h>
@@ -500,37 +502,56 @@ static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 			data->error = -EINVAL;
 			return;
 		}
-		if(data->sg_len > SPSDC_MAX_DMA_MEMORY_SECTORS) {
+
+		if((host->ram >= 8) && (data->sg_len > SPSDC_HW_SEGS) ) {
 			host->xfer_len = data->blocks * data->blksz;
-			count = 8;
-		}
-		for_each_sg(data->sg, sg, count, i) {
-			dma_addr = sg_dma_address(sg);
-			sg_xlen = sg_dma_len(sg);
-			dma_size = sg_xlen / data->blksz - 1;
-			if (i == 0) {
-				writel(dma_addr, &host->base->dma_base_addr);
-				writel(dma_size, &host->base->sdram_sector_0_size);
-				host->xfer_len -= sg_xlen;
-			} else if ((i < 7) || (data->sg_len <= SPSDC_MAX_DMA_MEMORY_SECTORS)) {
-				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
-				writel(dma_addr, reg_addr);
-				writel(dma_size, reg_addr + 1);
-				host->xfer_len -= sg_xlen;
-			} else {
-				if (data->flags & MMC_DATA_WRITE) {
-					sg_copy_to_buffer(sg, data->sg_len-7,
-					  	host->buffer, host->xfer_len);
+			if (data->flags & MMC_DATA_WRITE) {
+				sg_copy_to_buffer(data->sg, data->sg_len,
+					host->buffer, host->xfer_len);
 					/* Switch ownership to the DMA */
-					dma_sync_single_for_device(host->dev,
+				dma_sync_single_for_device(host->dev,
 							host->buf_phys_addr,
 							host->xfer_len,
 							mmc_get_dma_dir(data));
+			}
+			dma_addr = host->buf_phys_addr;
+			dma_size = data->blocks - 1;
+			//pr_info("c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
+			writel(dma_addr, &host->base->dma_base_addr);
+			writel(dma_size, &host->base->sdram_sector_0_size);
+		} else {
+			if(data->sg_len > SPSDC_HW_SEGS) {
+			host->xfer_len = data->blocks * data->blksz;
+			count = 8;
+		}
+			for_each_sg(data->sg, sg, count, i) {
+				dma_addr = sg_dma_address(sg);
+				sg_xlen = sg_dma_len(sg);
+				dma_size = sg_xlen / data->blksz - 1;
+				if (i == 0) {
+					writel(dma_addr, &host->base->dma_base_addr);
+					writel(dma_size, &host->base->sdram_sector_0_size);
+					host->xfer_len -= sg_xlen;
+				} else if ((i < 7) || (data->sg_len <= SPSDC_MAX_DMA_MEMORY_SECTORS)) {
+					reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
+					writel(dma_addr, reg_addr);
+					writel(dma_size, reg_addr + 1);
+					host->xfer_len -= sg_xlen;
+				} else {
+					if (data->flags & MMC_DATA_WRITE) {
+						sg_copy_to_buffer(sg, data->sg_len-7,
+					  		host->buffer, host->xfer_len);
+						/* Switch ownership to the DMA */
+						dma_sync_single_for_device(host->dev,
+							host->buf_phys_addr,
+							host->xfer_len,
+							mmc_get_dma_dir(data));
+					}
+					dma_addr = host->buf_phys_addr;
+					dma_size = host->xfer_len / data->blksz - 1;
+					writel(dma_addr, &host->base->sdram_sector_7_addr);
+					writel(dma_size, &host->base->sdram_sector_7_size);
 				}
-				dma_addr = host->buf_phys_addr;
-				dma_size = host->xfer_len / data->blksz - 1;
-				writel(dma_addr, &host->base->sdram_sector_7_addr);
-				writel(dma_size, &host->base->sdram_sector_7_size);
 			}
 		}
 
@@ -778,20 +799,28 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 
 	if (data && SPSDC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-
-	if((data->sg_len > SPSDC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
-		count = 8;
-		for_each_sg(data->sg, sg, count, i) {
-			if (i == 7) {
+		if ((data->flags & MMC_DATA_READ) && (data->sg_len > SPSDC_HW_SEGS) ){
+			if(host->ram >= 8) {
 				dma_sync_single_for_cpu(host->dev,
 					host->buf_phys_addr,
 					host->xfer_len,
 					DMA_FROM_DEVICE);
-				sg_copy_from_buffer(sg, data->sg_len -7,
+				sg_copy_from_buffer(data->sg, data->sg_len,
+					host->buffer, host->xfer_len);
+			} else {
+				count = 8;
+				for_each_sg(data->sg, sg, count, i) {
+					if (i == 7) {
+						dma_sync_single_for_cpu(host->dev,
+						host->buf_phys_addr,
+						host->xfer_len,
+						DMA_FROM_DEVICE);
+						sg_copy_from_buffer(sg, data->sg_len -7,
 						   host->buffer, host->xfer_len);
+					}
+				}
 			}
 		}
-	}
 		dma_unmap_sg(host->dev, data->sg, data->sg_len, dma_direction);
 		host->dma_use_int = 0;
 	}
@@ -1291,6 +1320,20 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node, "sunplus-driver-type", &host->target_drv))
 		host->target_drv = 0;	//0:TypeB 1:TypeA 2:TypeC 3:TypeD		
 
+	if (device_property_read_bool(&pdev->dev, "high-segs"))
+		host->segs_no = SPSDC_MAX_SEGS;
+	else
+		host->segs_no = SPSDC_HW_SEGS;
+
+	if (host->segs_no < SPSDC_HW_SEGS) 
+		host->segs_no = SPSDC_HW_SEGS;
+
+	if (device_property_read_bool(&pdev->dev, "high-mem"))
+		host->ram = 8;
+	else
+		host->ram = 3;
+       spsdc_pr(host->mode, ERROR, "seg_no:%d mem_no:%d\n",host->segs_no,host->ram );
+
 	host->mmc = mmc;
 	host->power_state = MMC_POWER_OFF;
 	host->dma_int_threshold = 1024;
@@ -1354,38 +1397,41 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 
 	host->dev = &pdev->dev;
 
-#ifdef SPMMC_HIGH_SEGS
-	/*
-	* When we just support one segment, we can get significant
-	* speedups by the help of a bounce buffer to group scattered
-	* reads/writes together.
-	*/
-	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (ret)
-		pr_warn("%s: Failed to set 32-bit DMA mask.\n", mmc_hostname(mmc));
+	if(host->segs_no > SPSDC_HW_SEGS) {
+		if(host->ram >= 8) {
+			/*
+			* When we just support one segment, we can get significant
+			* speedups by the help of a bounce buffer to group scattered
+			* reads/writes together.
+			*/
+			ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(33));
+			if (ret)
+				pr_warn("%s: Failed to set 32-bit DMA mask.\n", mmc_hostname(mmc));
 
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+			pdev->dev.coherent_dma_mask = DMA_BIT_MASK(33);
+			pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+		}
 
-	host->buffer = devm_kmalloc(&pdev->dev, SPSDC_MAX_BLK_CNT * 512, GFP_KERNEL | GFP_DMA);
-	if (!host->buffer) {
-		pr_err("%s: failed to allocate bytes for bounce buffer, falling back to single segments\n",
+		host->buffer = devm_kmalloc(&pdev->dev, SPSDC_MAX_BLK_CNT * 512, GFP_KERNEL | GFP_DMA);
+		if (!host->buffer) {
+			pr_err("%s: failed to allocate bytes for bounce buffer, falling back to single segments\n",
 			mmc_hostname(mmc));
-		/*
-		* Exiting with zero here makes sure we proceed with
-		* mmc->max_segs == 128.
-		*/
-		goto probe_free_host;
-	}
+			/*
+			* Exiting with zero here makes sure we proceed with
+			* mmc->max_segs == 128.
+			*/
+			goto probe_free_host;
+		}
 
-	host->buf_phys_addr = dma_map_single(&pdev->dev,
+		host->buf_phys_addr = dma_map_single(&pdev->dev,
 					host->buffer,
 					SPSDC_MAX_BLK_CNT * 512,
 					DMA_BIDIRECTIONAL);
-	ret = dma_mapping_error(&pdev->dev, host->buf_phys_addr);
-	if (ret)
-		goto probe_free_host;
-#endif
+
+		ret = dma_mapping_error(&pdev->dev, host->buf_phys_addr);
+		if (ret)
+			goto probe_free_host;
+	}
 
 	ret = reset_control_assert(host->rstc);
 	if (ret)
@@ -1416,11 +1462,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	/* Host controller supports up to "SPSDC_MAX_DMA_MEMORY_SECTORS",
 	 * a.k.a. max scattered memory segments per request
 	 */
-	 #ifdef SPMMC_HIGH_SEGS
-		mmc->max_segs = SPSDC_MAX_SEGS;
-	 #else
-		mmc->max_segs = SPSDC_MAX_DMA_MEMORY_SECTORS;
-	 #endif
+	mmc->max_segs = host->segs_no;
 	//mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
 	mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
 	mmc->max_req_size = SPSDC_MAX_BLK_CNT * 512;
