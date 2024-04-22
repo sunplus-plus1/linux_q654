@@ -2500,14 +2500,6 @@
 	typec-gpios = <&pctl 98 GPIO_ACTIVE_HIGH>;
 };
 
-&pcm_driver {
-	//status = "disabled";
-};
-
-&aud_codec {
-	//status = "disabled";
-};
-
 &audio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;

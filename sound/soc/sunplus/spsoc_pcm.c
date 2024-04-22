@@ -1294,7 +1294,7 @@ static int snd_spsoc_pcm_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
-	dev_dbg(&pdev->dev, "%s \n", __func__);
+	dev_info(&pdev->dev, "%s \n", __func__);
 	pcmaudio_base = pcm_get_spaud_data();
 	pr_debug("audio_base2=%p\n", pcmaudio_base);
 
@@ -1315,25 +1315,56 @@ static int snd_spsoc_remove(struct platform_device *pdev)
 	dma_free_dma_buffers(pdev);
 	return 0;
 }
-
+#if 0
 static const struct of_device_id sunplus_audio_pcm_dt_ids[] = {
 	{ .compatible = "sunplus,audio-pcm", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sunplus_audio_pcm_dt_ids);
-
+#endif
 static struct platform_driver snd_spsoc_driver = {
 	.driver = {
 		.name		= "spsoc-pcm-driver",
-		//.owner	= THIS_MODULE,
-		.of_match_table	= of_match_ptr(sunplus_audio_pcm_dt_ids),
+		.owner	= THIS_MODULE,
+		//.of_match_table	= of_match_ptr(sunplus_audio_pcm_dt_ids),
 	},
 
 	.probe	= snd_spsoc_pcm_probe,
 	.remove = snd_spsoc_remove,
 };
+#if 0
 module_platform_driver(snd_spsoc_driver);
+#else
+static struct platform_device *spsoc_pcm_device;
+static int __init snd_spsoc_pcm_init(void)
+{
+	int ret = 0;
 
+	ret = platform_driver_register(&snd_spsoc_driver);
+	if (ret)
+		pr_err("pcm driver register error\n");
+
+	spsoc_pcm_device = platform_device_alloc("spsoc-pcm-driver", -1);
+	if (!spsoc_pcm_device) {
+		pr_err("device error\n");
+		return -ENOMEM;
+	}
+
+	ret = platform_device_add(spsoc_pcm_device);
+	if (ret)
+		platform_device_put(spsoc_pcm_device);
+
+	return ret;
+}
+module_init(snd_spsoc_pcm_init);
+
+static void __exit snd_spsoc_pcm_exit(void)
+{
+	platform_device_unregister(spsoc_pcm_device);
+	platform_driver_unregister(&snd_spsoc_driver);
+}
+module_exit(snd_spsoc_pcm_exit);
+#endif
 MODULE_AUTHOR("Sunplus Technology Inc.");
 MODULE_DESCRIPTION("Sunplus SoC ALSA PCM module");
 MODULE_LICENSE("GPL");
