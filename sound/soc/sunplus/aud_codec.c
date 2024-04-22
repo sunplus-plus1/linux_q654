@@ -324,24 +324,55 @@ static int aud_codec_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
+#if 0
 static const struct of_device_id sunplus_audio_codec_dt_ids[] =	{
 	{ .compatible =	"sunplus,audio-codec", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of,	sunplus_audio_codec_dt_ids);
-
+#endif
 static struct platform_driver spaud_codec_driver = {
 	.driver	= {
 		.name		= "aud-codec",
-		//.owner	= THIS_MODULE,
-		.of_match_table	= of_match_ptr(sunplus_audio_codec_dt_ids),
+		.owner	= THIS_MODULE,
+		//.of_match_table	= of_match_ptr(sunplus_audio_codec_dt_ids),
 	},
 	.probe	= aud_codec_probe,
 	.remove	= aud_codec_remove,
 };
+#if 0
 module_platform_driver(spaud_codec_driver);
+#else
+static struct platform_device *spsoc_codec_device;
+static int __init snd_spsoc_codec_init(void)
+{
+	int ret = 0;
 
+	ret = platform_driver_register(&spaud_codec_driver);
+	if (ret)
+		pr_err("spsoc codec driver register error\n");
+
+	spsoc_codec_device = platform_device_alloc("aud-codec", -1);
+	if (!spsoc_codec_device) {
+		pr_err("codec device error\n");
+		return -ENOMEM;
+	}
+
+	ret = platform_device_add(spsoc_codec_device);
+	if (ret)
+		platform_device_put(spsoc_codec_device);
+
+	return ret;
+}
+module_init(snd_spsoc_codec_init);
+
+static void __exit snd_spsoc_codec_exit(void)
+{
+	platform_device_unregister(spsoc_codec_device);
+	platform_driver_unregister(&spaud_codec_driver);
+}
+module_exit(snd_spsoc_codec_exit);
+#endif
 MODULE_AUTHOR("Sunplus Technology Inc.");
 MODULE_DESCRIPTION("Sunplus codec driver");
 MODULE_LICENSE("GPL");

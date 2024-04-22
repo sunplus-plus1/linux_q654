@@ -1237,14 +1237,6 @@
 		#phy-cells = <0>;
 	};
 
-	pcm_driver: spsoc-pcm-driver {
-		compatible = "sunplus,audio-pcm";
-	};
-
-	aud_codec: aud-codec {
-		compatible = "sunplus,audio-codec";
-	};
-
 	audio: audio@f8800480 {
 		compatible = "sunplus,audio";
 		reg = <0x00 0xf8800480 0x00 0x700>;
