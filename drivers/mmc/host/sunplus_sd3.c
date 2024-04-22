@@ -1332,7 +1332,6 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 		host->ram = 8;
 	else
 		host->ram = 3;
-       spsdc_pr(host->mode, ERROR, "seg_no:%d mem_no:%d\n",host->segs_no,host->ram );
 
 	host->mmc = mmc;
 	host->power_state = MMC_POWER_OFF;
