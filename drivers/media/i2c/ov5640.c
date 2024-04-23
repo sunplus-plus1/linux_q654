@@ -3784,7 +3784,8 @@ static int ov5640_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_put_autosuspend(&sensor->i2c_client->dev);
+	// pm_runtime_put_autosuspend(&sensor->i2c_client->dev);
+	pm_runtime_put(&sensor->i2c_client->dev);
 
 	return 0;
 }
@@ -3859,8 +3860,8 @@ static int ov5640_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = -EINVAL;
 		break;
 	}
-
-	pm_runtime_put_autosuspend(&sensor->i2c_client->dev);
+	// pm_runtime_put_autosuspend(&sensor->i2c_client->dev);
+	pm_runtime_put(&sensor->i2c_client->dev);
 
 	return ret;
 }
@@ -4195,8 +4196,10 @@ static int ov5640_s_stream(struct v4l2_subdev *sd, int enable)
 out:
 	mutex_unlock(&sensor->lock);
 
+	// if (!enable || ret)
+	// pm_runtime_put_autosuspend(&sensor->i2c_client->dev);
 	if (!enable || ret)
-		pm_runtime_put_autosuspend(&sensor->i2c_client->dev);
+		pm_runtime_put(&sensor->i2c_client->dev);
 
 	return ret;
 }
@@ -4392,7 +4395,8 @@ static int ov5640_probe(struct i2c_client *client)
 	// }
 
 	pm_runtime_set_active(dev);
-	pm_runtime_get_noresume(dev);
+	// pm_runtime_get_noresume(dev);
+	pm_runtime_idle(dev);
 	pm_runtime_enable(dev);
 
 	ret = ov5640_check_chip_id(sensor);
@@ -4403,9 +4407,9 @@ static int ov5640_probe(struct i2c_client *client)
 	if (ret)
 		goto err_pm_runtime;
 
-	pm_runtime_set_autosuspend_delay(dev, 1000);
-	pm_runtime_use_autosuspend(dev);
-	pm_runtime_put_autosuspend(dev);
+	// pm_runtime_set_autosuspend_delay(dev, 20000);
+	// pm_runtime_use_autosuspend(dev);
+	// pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
