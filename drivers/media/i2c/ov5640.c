@@ -3296,6 +3296,9 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
+	if (mbus_fmt->field == V4L2_FIELD_ANY)
+		mbus_fmt->field = V4L2_FIELD_NONE;
+
 	if (new_mode != sensor->current_mode) {
 		sensor->current_fr = new_mode->def_fps;
 		sensor->current_mode = new_mode;
