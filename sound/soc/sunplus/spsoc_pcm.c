@@ -1273,19 +1273,20 @@ void __iomem *pcm_get_spaud_data(void)
 
 	if (!np) {
 		dev_err(&spaudpdev->dev, "devicetree status is not available\n");
-		goto out;
+		of_node_put(np);
+		return  NULL;
 	}
 
 	spaudpdev = of_find_device_by_node(np);
-	if (!spaudpdev)
-		goto out;
+	if (!spaudpdev) {
+		pr_info("No audio driver\n");
+		of_node_put(np);
+		return  NULL;
+	}
 
 	spauddata = dev_get_drvdata(&spaudpdev->dev);
 	if (!spauddata)
 		spauddata = ERR_PTR(-EPROBE_DEFER);
-
-out:
-	of_node_put(np);
 
 	return spauddata->audio_base;
 }
