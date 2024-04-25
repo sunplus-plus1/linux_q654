@@ -98,6 +98,8 @@ static const struct csi2_format csi2_formats[] = {
 	{ .code = MEDIA_BUS_FMT_YVYU8_2X8, .datatype = 0x1e, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_RGB565_2X8_LE, .datatype = 0x22, .bpp = 16 },
 	{ .code = MEDIA_BUS_FMT_RGB565_2X8_BE, .datatype = 0x22, .bpp = 16 },
+	{ .code = MEDIA_BUS_FMT_RGB888_1X24, .datatype = 0x24, .bpp = 24 },
+	{ .code = MEDIA_BUS_FMT_BGR888_1X24, .datatype = 0x24, .bpp = 24 },
 	{ .code = MEDIA_BUS_FMT_SBGGR8_1X8, .datatype = 0x2a, .bpp = 8 },
 	{ .code = MEDIA_BUS_FMT_SGBRG8_1X8, .datatype = 0x2a, .bpp = 8 },
 	{ .code = MEDIA_BUS_FMT_SGRBG8_1X8, .datatype = 0x2a, .bpp = 8 },
@@ -491,6 +493,7 @@ static void csi2_dt_config(struct csi2_dev *priv, unsigned int dt)
 	default:
 	case 0x1e:	/* YUY2 */
 	case 0x22:	/*RGB565*/
+	case 0x24:	/*RGB888*/
 	case 0x2a:	/* RAW8 */
 		set_field(&mix_cfg, 2, 0x7<<16);	/* Source is 8 bits per pixel */
 		break;

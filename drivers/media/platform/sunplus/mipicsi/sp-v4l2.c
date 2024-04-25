@@ -59,9 +59,21 @@ static const struct vin_video_format vin_formats[] = {
 		.fourcc			= V4L2_PIX_FMT_RGB565X,
 		.mbus_code		= MEDIA_BUS_FMT_RGB565_2X8_BE,
 		.bpp			= 16,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
-
+	/* RGB888 */
+	{
+		.fourcc			= V4L2_PIX_FMT_RGB24,
+		.mbus_code		= MEDIA_BUS_FMT_RGB888_1X24,
+		.bpp			= 24,
+		.bpc			= 8,
+	},
+	{
+		.fourcc			= V4L2_PIX_FMT_BGR24,
+		.mbus_code		= MEDIA_BUS_FMT_BGR888_1X24,
+		.bpp			= 24,
+		.bpc			= 8,
+	},
 	/* RAW8 */
 	{
 		.fourcc			= V4L2_PIX_FMT_SBGGR8,
@@ -907,6 +919,7 @@ static int vin_mc_enum_fmt_vid_cap(struct file *file, void *priv,
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_BGR888_1X24:
 		break;
 	case MEDIA_BUS_FMT_SBGGR8_1X8:
 		if (f->index)
