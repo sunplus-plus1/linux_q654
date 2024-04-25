@@ -353,6 +353,13 @@ static const struct ov5640_pixfmt ov5640_csi2_formats[] = {
 		.code		= MEDIA_BUS_FMT_BGR888_1X24,
 		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.bpp		= 24,
+		.ctrl00		= 0x2f,
+		.mux		= OV5640_FMT_MUX_RGB,
+	}, {
+		/* RGB888: RGB */
+		.code		= MEDIA_BUS_FMT_RGB888_1X24,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
+		.bpp		= 24,
 		.ctrl00		= 0x23,
 		.mux		= OV5640_FMT_MUX_RGB,
 	}, {
