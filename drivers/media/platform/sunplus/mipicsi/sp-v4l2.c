@@ -538,6 +538,61 @@ static int vin_g_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
+static int vin_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
+{
+	struct vin_dev *vin = video_drvdata(file);
+	struct v4l2_subdev_frame_interval fi;
+	struct v4l2_subdev *sd;
+	struct media_pad *pad;
+	int ret;
+
+	pad = media_entity_remote_pad(&vin->pad);
+	if (!pad)
+		return -EPIPE;
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	memset(&fi, 0, sizeof(fi));
+
+	sd = media_entity_to_v4l2_subdev(pad->entity);
+	ret = v4l2_subdev_call(sd, video, g_frame_interval, &fi);
+	if (ret < 0)
+		return ret;
+
+	a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	a->parm.capture.timeperframe = fi.interval;
+
+	return 0;
+}
+
+static int vin_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
+{
+	struct vin_dev *vin = video_drvdata(file);
+	struct v4l2_subdev_frame_interval fi;
+	struct v4l2_subdev *sd;
+	struct media_pad *pad;
+	int ret;
+
+	pad = media_entity_remote_pad(&vin->pad);
+	if (!pad)
+		return -EPIPE;
+
+	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	memset(&fi, 0, sizeof(fi));
+	fi.interval = a->parm.capture.timeperframe;
+	sd = media_entity_to_v4l2_subdev(pad->entity);
+	ret = v4l2_subdev_call(sd, video, s_frame_interval, &fi);
+	if (ret < 0)
+		return ret;
+	a->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
+	a->parm.capture.timeperframe = fi.interval;
+
+	return 0;
+}
+
 static int vin_enum_fmt_vid_cap(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
@@ -690,6 +745,8 @@ static const struct v4l2_ioctl_ops vin_ioctl_ops = {
 
 	.vidioc_enum_framesizes		= vin_enum_framesizes,
 	.vidioc_enum_frameintervals	= vin_enum_frameintervals,
+	.vidioc_g_parm				= vin_g_parm,
+	.vidioc_s_parm				= vin_s_parm,
 
 	.vidioc_reqbufs			= vb2_ioctl_reqbufs,
 	.vidioc_create_bufs		= vb2_ioctl_create_bufs,
