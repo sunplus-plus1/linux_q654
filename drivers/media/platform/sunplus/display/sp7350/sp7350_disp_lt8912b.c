@@ -31,7 +31,10 @@
 #define I2C_CEC_DSI 1
 #define I2C_ADDR_CEC_DSI 0x49
 
-#define I2C_MAX_IDX 2
+#define I2C_HDMITX_DSI 2
+#define I2C_ADDR_HDMITX_DSI 0x4a
+
+#define I2C_MAX_IDX 3
 
 struct lt8912 {
 	struct device *dev;
@@ -213,6 +216,7 @@ static int lt8912_init_i2c(struct lt8912 *lt, struct i2c_client *client)
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("lt8912p0", I2C_ADDR_MAIN), },
 		{ I2C_BOARD_INFO("lt8912p1", I2C_ADDR_CEC_DSI), },
+		{ I2C_BOARD_INFO("lt8912p2", I2C_ADDR_HDMITX_DSI), },
 	};
 
 	if (!lt)
@@ -301,6 +305,31 @@ int lt8912_video_setup(struct lt8912 *lt)
 	return ret;
 }
 
+static int lt8912_audio_setup(struct lt8912 *lt)
+{
+	int ret;
+
+	if (!lt)
+		return -EINVAL;
+
+	ret = regmap_write(lt->regmap[I2C_MAIN], 0xb2, 0x01);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x6, 0x08);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x7, 0xf0);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x9, 0x00);
+
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0xf, 0x2b);
+
+	//32k:4096, 44.1k:6272, 48k:6144, 88.2k:12544, 96k:12288, 176k:25088, 196k:24576.
+	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x37, (u8) (6144 / 0x10000));
+	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x36, (u8) ((6144 & 0xffff) / 0x100));
+	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x35, (u8) (6144 & 0xff));
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x34, 0xe2);
+
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x3c, 0x41);
+
+	return ret;
+}
+
 int lt8912_soft_power_on(struct lt8912 *lt)
 {
 	u32 lanes = 0;
@@ -368,6 +397,9 @@ int lt8912_video_on(struct lt8912 *lt)
 	//ret = lt8912_write_lvds_config(lt);
 	//if (ret < 0)
 	//	goto end;
+	ret = lt8912_audio_setup(lt);
+	if (ret < 0)
+		goto end;
 
 end:
 	return ret;
