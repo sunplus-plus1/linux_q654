@@ -836,6 +836,30 @@ out:
 	return ret;
 }
 
+static int csi_s_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_frame_interval *fi)
+{
+	struct csi2_dev *priv = sd_to_csi2(sd);
+	int ret = 0;
+
+	dev_dbg(priv->dev, "%s, %d subdevname: %s\n", __func__, __LINE__, priv->remote->name);
+	ret = v4l2_subdev_call(priv->remote, video, s_frame_interval, fi);
+
+	return ret;
+}
+
+static int csi_g_frame_interval(struct v4l2_subdev *sd,
+				struct v4l2_subdev_frame_interval *fi)
+{
+	struct csi2_dev *priv = sd_to_csi2(sd);
+	int ret = 0;
+
+	dev_dbg(priv->dev, "%s, %d subdevname: %s\n", __func__, __LINE__, priv->remote->name);
+	ret = v4l2_subdev_call(priv->remote, video, g_frame_interval, fi);
+
+	return ret;
+}
+
 static int csi2_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
@@ -953,6 +977,8 @@ static int csi2_get_pad_format(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops car_csi2_video_ops = {
 	.s_stream = csi2_s_stream,
+	.g_frame_interval = csi_g_frame_interval,
+	.s_frame_interval = csi_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops car_csi2_pad_ops = {
