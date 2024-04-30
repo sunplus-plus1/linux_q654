@@ -2072,7 +2072,7 @@
 	snps,force_sf_dma_mode;
 	/*LPI switch*/
 	snps,en-tx-lpi-clockgating;
-	snps,multicast-filter-bins = <256>;
+	snps,multicast-filter-bins = <64>;
 	snps,perfect-filter-entries = <128>;
 	snps,ps-speed = <1000>;
 	//snps,pbl = <16>;
