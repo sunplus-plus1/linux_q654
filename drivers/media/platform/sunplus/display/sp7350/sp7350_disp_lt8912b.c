@@ -312,7 +312,7 @@ static int lt8912_audio_setup(struct lt8912 *lt)
 	if (!lt)
 		return -EINVAL;
 
-	ret = regmap_write(lt->regmap[I2C_MAIN], 0xb2, 0x01);
+	ret = regmap_update_bits(lt->regmap[I2C_MAIN], 0xb2, BIT(0), BIT(0));
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x6, 0x08);
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x7, 0xf0);
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x9, 0x00);
