@@ -189,13 +189,6 @@
 	};
 
 	clocks {
-		mipiclk: mipiclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <320000000>;
-			clock-output-names = "f_320m";
-		};
-
 		imx219_clk: camera-imx219-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
