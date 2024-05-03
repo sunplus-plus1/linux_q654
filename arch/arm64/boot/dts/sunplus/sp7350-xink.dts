@@ -177,13 +177,6 @@
 	};
 
 	clocks {
-		mipiclk: mipiclk {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <320000000>;
-			clock-output-names = "f_320m";
-		};
-
 		esp876_clk: camera-esp876-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
