@@ -897,6 +897,7 @@
 		reg = <0x0 0xf8802f00 0x0 0x80>;
 		clocks = <&clkc SAR12B>;
 		resets = <&rstc RST_SAR12B>;
+		#io-channel-cells = <1>;
 		hwlocks = <&hwlock 1>;
 	};
 
