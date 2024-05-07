@@ -35,9 +35,9 @@
 static int startchn = 0;
 module_param(startchn, int, 0644);
 
-extern const struct nand_flash_dev sp_pnand_ids[];
+extern const struct nand_flash_dev sp_nfc_ids[];
 
-/* Note: The unit of tWPST/tRPST/tWPRE/tRPRE field of sp_pnand_chip_timing is ns.
+/* Note: The unit of tWPST/tRPST/tWPRE/tRPRE field of sp_nfc_chip_timing is ns.
  *
  * tWH, tCH, tCLH, tALH, tCALH, tWP, tREH, tCR, tRSTO, tREAID,
  * tREA, tRP, tWB, tRB, tWHR, tWHR2, tRHW, tRR, tAR, tRC
@@ -45,7 +45,7 @@ extern const struct nand_flash_dev sp_pnand_ids[];
  * tRPRE, tWPST, tRPST, tWPSTH, tRPSTH, tDQSHZ, tDQSCK, tCAD, tDSL
  * tDSH, tDQSL, tDQSH, tDQSD, tCKWR, tWRCK, tCK, tCALS2, tDQSRE, tWPRE2, tRPRE2, tCEH
  */
-static struct sp_pnand_chip_timing chip_timing[] = {
+static struct sp_nfc_chip_timing chip_timing[] = {
 	{ //SAMSUNG_K9F2G08U0A_ZEBU
 	10, 5, 5, 5, 0, 12, 10, 0, 0, 0,
 	20, 12, 100, 0, 60, 0, 100, 20, 10, 0,
@@ -120,7 +120,7 @@ static struct sp_pnand_chip_timing chip_timing[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
-static struct sp_pnand_chip_timing sync_timing[] = {
+static struct sp_nfc_chip_timing sync_timing[] = {
 	{ //MT29F32G08ABXXX 4GiB 8-bit mode 0 20MHz
 	0, 10, 0, 0, 10, 0, 0, 0, 0, 0,
 	0, 0, 100, 0, 80, 0, 100, 20, 0, 0,
@@ -159,7 +159,7 @@ static struct sp_pnand_chip_timing sync_timing[] = {
 	0, 0, 0, 18, 3, 20, 10, 0, 0, 0, 0, 0}
 };
 
-static int sp_pnand_ooblayout_ecc(struct mtd_info *mtd, int section,
+static int sp_nfc_ooblayout_ecc(struct mtd_info *mtd, int section,
 				struct mtd_oob_region *oobregion)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -173,7 +173,7 @@ static int sp_pnand_ooblayout_ecc(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-static int sp_pnand_ooblayout_free(struct mtd_info *mtd, int section,
+static int sp_nfc_ooblayout_free(struct mtd_info *mtd, int section,
 				struct mtd_oob_region *oobregion)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
@@ -187,45 +187,45 @@ static int sp_pnand_ooblayout_free(struct mtd_info *mtd, int section,
 	return 0;
 }
 
-static const struct mtd_ooblayout_ops sp_pnand_ooblayout_ops = {
-	.ecc = sp_pnand_ooblayout_ecc,
-	.free = sp_pnand_ooblayout_free,
+static const struct mtd_ooblayout_ops sp_nfc_ooblayout_ops = {
+	.ecc = sp_nfc_ooblayout_ecc,
+	.free = sp_nfc_ooblayout_free,
 };
 
-static void sp_pnand_set_warmup_cycle(struct nand_chip *chip,
+static void sp_nfc_set_warmup_cycle(struct nand_chip *chip,
 			u8 wr_cyc, u8 rd_cyc)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	int val;
 
-	val = readl(data->io_base + MEM_ATTR_SET2);
+	val = readl(nfc->regs + MEM_ATTR_SET2);
 	val &= ~(0xFF);
 	val |= (((rd_cyc & 0x3) << 4) | (wr_cyc & 0x3));
-	writel(val, data->io_base + MEM_ATTR_SET2);
+	writel(val, nfc->regs + MEM_ATTR_SET2);
 }
 
-static struct sp_pnand_chip_timing *sp_pnand_scan_timing(struct nand_chip *chip)
+static struct sp_nfc_chip_timing *sp_nfc_scan_timing(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 
-	DBGLEVEL2(sp_pnand_dbg("data->name %s\n", data->name));
-	if(strcmp(data->name, "K9F2G08XXX 256MiB ZEBU 8-bit") == 0)
+	DBGLEVEL2(sp_nfc_dbg("nfc->name %s\n", nfc->name));
+	if(strcmp(nfc->name, "K9F2G08XXX 256MiB ZEBU 8-bit") == 0)
 		return &chip_timing[0];
-	else if(strcmp(data->name, "9FS2G8F2A 256MiB 1.8V 8-bit") == 0)
+	else if(strcmp(nfc->name, "9FS2G8F2A 256MiB 1.8V 8-bit") == 0)
 		return &chip_timing[1];
-	else if(strcmp(data->name, "9AU4G8F3A 512MiB 3.3V 8-bit") == 0)
+	else if(strcmp(nfc->name, "9AU4G8F3A 512MiB 3.3V 8-bit") == 0)
 		return &chip_timing[2];
-	else if(strcmp(data->name, "9FU4G8F4B 512MiB 3.3V 8-bit") == 0)
+	else if(strcmp(nfc->name, "9FU4G8F4B 512MiB 3.3V 8-bit") == 0)
 		return &chip_timing[3];
-	else if(strcmp(data->name, "W29N08GZSIBA 1GiB 1.8V 8-bit") == 0)
+	else if(strcmp(nfc->name, "W29N08GZSIBA 1GiB 1.8V 8-bit") == 0)
 		return &chip_timing[4];
-	else if(strcmp(data->name, "K9GBG08U0B 4GiB 3.3V 8-bit") == 0)
+	else if(strcmp(nfc->name, "K9GBG08U0B 4GiB 3.3V 8-bit") == 0)
 		return &chip_timing[5];
-	else if(strcmp(data->name, "MT29F32G08ABXXX 4GiB 8-bit") == 0) {
-		if (data->flash_type == ONFI2) {
-			return &sync_timing[data->timing_mode];
+	else if(strcmp(nfc->name, "MT29F32G08ABXXX 4GiB 8-bit") == 0) {
+		if (nfc->flash_type == ONFI2) {
+			return &sync_timing[nfc->timing_mode];
 		} else {
-			return &chip_timing[6 + data->timing_mode];
+			return &chip_timing[6 + nfc->timing_mode];
 		}
 	}
 	else
@@ -240,28 +240,28 @@ static struct sp_pnand_chip_timing *sp_pnand_scan_timing(struct nand_chip *chip)
  * ==> N > Time * Hclk / 1000
  * ==> N = (Time * Hclk + 999) / 1000
  */
-static void sp_pnand_calc_timing(struct nand_chip *chip)
+static void sp_nfc_calc_timing(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	int tWH, tWP, tREH, tRES, tBSY, tBUF1;
 	int tBUF2, tBUF3, tBUF4, tPRE, tRLAT, t1;
 	int tPST, tPSTH, tWRCK;
 	int i, toggle_offset = 0;
-	struct sp_pnand_chip_timing *p;
+	struct sp_nfc_chip_timing *p;
 	u32 CLK, FtCK, timing[4];
 
-	CLK = data->clkfreq / 1000000;
+	CLK = nfc->clkfreq / 1000000;
 
 	tWH = tWP = tREH = tRES =  0;
 	tRLAT = tBSY = t1 = 0;
 	tBUF4 = tBUF3 = tBUF2 = tBUF1 = 0;
 	tPRE = tPST = tPSTH = tWRCK = 0;
 
-	p = sp_pnand_scan_timing(chip);
+	p = sp_nfc_scan_timing(chip);
 	if(!p)
-		DBGLEVEL1(sp_pnand_dbg("Failed to get AC timing!\n"));
+		DBGLEVEL1(sp_nfc_dbg("Failed to get AC timing!\n"));
 
-	if(data->flash_type == LEGACY_FLASH) {
+	if(nfc->flash_type == LEGACY_FLASH) {
 		// tWH = max(tWH, tCH, tCLH, tALH)
 		tWH = max_4(p->tWH, p->tCH, (int)p->tCLH, (int)p->tALH);
 		tWH = (tWH * CLK) / 1000;
@@ -288,21 +288,21 @@ static void sp_pnand_calc_timing(struct nand_chip *chip)
 		tWRCK = (tWRCK * CLK) / 1000;
 	}
 
-	else if(data->flash_type == ONFI2) {
+	else if(nfc->flash_type == ONFI2) {
 
-		if (data->clkfreq == 400000000) {//unit = 2.5ns
+		if (nfc->clkfreq == 400000000) {//unit = 2.5ns
 			//mode 0 20MHz ---> 50ns
-			if(data->timing_mode == 0)
+			if(nfc->timing_mode == 0)
 				tRES = 10;
-			else if(data->timing_mode == 1)// mode 1 33MHz ---> 30ns
+			else if(nfc->timing_mode == 1)// mode 1 33MHz ---> 30ns
 				tRES = 6;
-			else if(data->timing_mode == 2)// mode 2 50MHz ---> 20ns
+			else if(nfc->timing_mode == 2)// mode 2 50MHz ---> 20ns
 				tRES = 4;
-			else if(data->timing_mode == 3)// mode 3 67MHz ---> 15ns
+			else if(nfc->timing_mode == 3)// mode 3 67MHz ---> 15ns
 				tRES = 3;
-			else if(data->timing_mode == 4)// mode 4 83MHz ---> 12ns
+			else if(nfc->timing_mode == 4)// mode 4 83MHz ---> 12ns
 				tRES = 3; // 2*2.5 < 6 < 3*2.5
-			else if(data->timing_mode == 5)// mode 5 100MHz ---> 10ns
+			else if(nfc->timing_mode == 5)// mode 5 100MHz ---> 10ns
 				tRES = 2;
 		}
 		// tWP = tCAD
@@ -353,12 +353,12 @@ static void sp_pnand_calc_timing(struct nand_chip *chip)
 	tBUF3 = (tBUF3 * CLK) / 1000;
 	// tBUF4 = max(tWHR, tWHR2)
 	tBUF4 = max_2((int)p->tWHR, p->tWHR2);
-	if(data->flash_type == ONFI3)
+	if(nfc->flash_type == ONFI3)
 		tBUF4 = max_2(tBUF4, p->tCCS);
 	tBUF4 = (tBUF4 * CLK) / 1000;
 
 	// For FPGA, we use the looser AC timing
-	if(data->flash_type == TOGGLE1 || data->flash_type == TOGGLE2) {
+	if(nfc->flash_type == TOGGLE1 || nfc->flash_type == TOGGLE2) {
 
 		toggle_offset = 3;
 		tREH += toggle_offset;
@@ -394,10 +394,10 @@ static void sp_pnand_calc_timing(struct nand_chip *chip)
 	timing[3] = (tPRE << 28) | (tPST << 24) | (tPSTH << 16) | tWRCK;
 
 	for (i = 0;i < MAX_CHANNEL;i++) {
-		writel(timing[0], data->io_base + FL_AC_TIMING0(i));
-		writel(timing[1], data->io_base + FL_AC_TIMING1(i));
-		writel(timing[2], data->io_base + FL_AC_TIMING2(i));
-		writel(timing[3], data->io_base + FL_AC_TIMING3(i));
+		writel(timing[0], nfc->regs + FL_AC_TIMING0(i));
+		writel(timing[1], nfc->regs + FL_AC_TIMING1(i));
+		writel(timing[2], nfc->regs + FL_AC_TIMING2(i));
+		writel(timing[3], nfc->regs + FL_AC_TIMING3(i));
 
 		/* A380: Illegal data latch occur at setting "rlat" field
 		 * of ac timing register from 0 to 1.
@@ -407,30 +407,30 @@ static void sp_pnand_calc_timing(struct nand_chip *chip)
 		 * Fixed in IP version 2.2.0
 		 */
 		if (tRLAT) {
-			if (readl(data->io_base + REVISION_NUM) < 0x020200) {
-				writel((1 << i), data->io_base + NANDC_SW_RESET);
+			if (readl(nfc->regs + REVISION_NUM) < 0x020200) {
+				writel((1 << i), nfc->regs + NANDC_SW_RESET);
 				// Wait for the NANDC024 reset is complete
-				while(readl(data->io_base + NANDC_SW_RESET) & (1 << i)) ;
+				while(readl(nfc->regs + NANDC_SW_RESET) & (1 << i)) ;
 			}
 		}
 	}
 
-	DBGLEVEL1(sp_pnand_dbg("AC Timing 0:0x%08x\n", timing[0]));
-	DBGLEVEL1(sp_pnand_dbg("AC Timing 1:0x%08x\n", timing[1]));
-	DBGLEVEL1(sp_pnand_dbg("AC Timing 2:0x%08x\n", timing[2]));
-	DBGLEVEL1(sp_pnand_dbg("AC Timing 3:0x%08x\n", timing[3]));
+	DBGLEVEL1(sp_nfc_dbg("AC Timing 0:0x%08x\n", timing[0]));
+	DBGLEVEL1(sp_nfc_dbg("AC Timing 1:0x%08x\n", timing[1]));
+	DBGLEVEL1(sp_nfc_dbg("AC Timing 2:0x%08x\n", timing[2]));
+	DBGLEVEL1(sp_nfc_dbg("AC Timing 3:0x%08x\n", timing[3]));
 }
 
-static void sp_pnand_onfi_set_feature(struct nand_chip *chip, int val, int mode)
+static void sp_nfc_onfi_set_feature(struct nand_chip *chip, int val, int mode)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct cmd_feature cmd_f;
 
 	/* val is sub-feature Parameter P1 (P2~P4 = 0)
 	 * b[5:4] means Data interface: 0x0(SDR); 0x1(NV-DDR); 0x2(NV-DDR2)
 	 * b[3:0] means Timing mode number
 	 */
-	writel(val, data->io_base + SPARE_SRAM + (data->cur_chan << data->spare_ch_offset));
+	writel(val, nfc->regs + SPARE_SRAM + (nfc->cur_chan << nfc->spare_ch_offset));
 
 	/* 0x1 is Timing mode feature address */
 	cmd_f.row_cycle = ROW_ADDR_1CYCLE;
@@ -439,22 +439,22 @@ static void sp_pnand_onfi_set_feature(struct nand_chip *chip, int val, int mode)
 	cmd_f.cq2 = 0;
 	cmd_f.cq3 = 0;
 	cmd_f.cq4 = CMD_COMPLETE_EN | CMD_FLASH_TYPE(mode) |\
-			CMD_START_CE(data->sel_chip) | CMD_BYTE_MODE | CMD_SPARE_NUM(4) |\
+			CMD_START_CE(nfc->sel_chip) | CMD_BYTE_MODE | CMD_SPARE_NUM(4) |\
 			CMD_INDEX(ONFI_FIXFLOW_SETFEATURE);
 
-	sp_pnand_issue_cmd(chip, &cmd_f);
+	sp_nfc_issue_cmd(chip, &cmd_f);
 
-	sp_pnand_wait(chip);
+	sp_nfc_wait(chip);
 
 }
 
-static u32 sp_pnand_onfi_get_feature(struct nand_chip *chip, int type)
+static u32 sp_nfc_onfi_get_feature(struct nand_chip *chip, int type)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct cmd_feature cmd_f;
 	u32 val;
 
-	writel(0xffff, data->io_base + SPARE_SRAM + (data->cur_chan << data->spare_ch_offset));
+	writel(0xffff, nfc->regs + SPARE_SRAM + (nfc->cur_chan << nfc->spare_ch_offset));
 
 	/* 0x1 is Timing mode feature address */
 	cmd_f.row_cycle = ROW_ADDR_1CYCLE;
@@ -463,39 +463,39 @@ static u32 sp_pnand_onfi_get_feature(struct nand_chip *chip, int type)
 	cmd_f.cq2 = 0;
 	cmd_f.cq3 = 0;
 	cmd_f.cq4 = CMD_COMPLETE_EN | CMD_FLASH_TYPE(type) |\
-			CMD_START_CE(data->sel_chip) | CMD_BYTE_MODE | CMD_SPARE_NUM(4) |\
+			CMD_START_CE(nfc->sel_chip) | CMD_BYTE_MODE | CMD_SPARE_NUM(4) |\
 			CMD_INDEX(ONFI_FIXFLOW_GETFEATURE);
 
-	sp_pnand_issue_cmd(chip, &cmd_f);
+	sp_nfc_issue_cmd(chip, &cmd_f);
 
-	sp_pnand_wait(chip);
+	sp_nfc_wait(chip);
 
-	val = readl(data->io_base + SPARE_SRAM + (data->cur_chan << data->spare_ch_offset));
+	val = readl(nfc->regs + SPARE_SRAM + (nfc->cur_chan << nfc->spare_ch_offset));
 
 	return val;
 }
 
-static int sp_pnand_onfi_sync(struct nand_chip *chip)
+static int sp_nfc_onfi_sync(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	u32 val, expect_val;
 	int ret = -1;
 
-	sp_pnand_select_chip(chip, 0);
-	val = sp_pnand_onfi_get_feature(chip, LEGACY_FLASH);
-	printk("SDR feature for Ch %d, CE %d: 0x%x\n", data->cur_chan, data->sel_chip, val);
+	sp_nfc_select_chip(chip, 0);
+	val = sp_nfc_onfi_get_feature(chip, LEGACY_FLASH);
+	printk("SDR feature for Ch %d, CE %d: 0x%x\n", nfc->cur_chan, nfc->sel_chip, val);
 
 	//Check if the SP support DDR interface
-	val = readl(data->io_base + FEATURE_1);
+	val = readl(nfc->regs + FEATURE_1);
 	if ((val & DDR_IF_EN) == 0)
 		return ret;
 
-	expect_val = (data->timing_mode | 0x10);
+	expect_val = (nfc->timing_mode | 0x10);
 
-	sp_pnand_onfi_set_feature(chip, expect_val, LEGACY_FLASH);
+	sp_nfc_onfi_set_feature(chip, expect_val, LEGACY_FLASH);
 
-	val = sp_pnand_onfi_get_feature(chip, ONFI2);
-	printk("NV-DDR feature for Ch %d, CE %d: 0x%x\n", data->cur_chan, data->sel_chip, val);
+	val = sp_nfc_onfi_get_feature(chip, ONFI2);
+	printk("NV-DDR feature for Ch %d, CE %d: 0x%x\n", nfc->cur_chan, nfc->sel_chip, val);
 
 	expect_val |= (expect_val << 8);
 	if (val != expect_val) {
@@ -505,18 +505,18 @@ static int sp_pnand_onfi_sync(struct nand_chip *chip)
 	return 0;
 }
 
-static void sp_pnand_read_raw_id(struct nand_chip *chip)
+static void sp_nfc_read_raw_id(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct cmd_feature cmd_f;
 	u8 id_size = 5;
 
-	data->cur_chan = 0;
-	data->sel_chip = 0;
+	nfc->cur_chan = 0;
+	nfc->sel_chip = 0;
 
 	// Set the flash to Legacy mode, in advance.
-	if(data->flash_type == ONFI2 || data->flash_type == ONFI3) {
-		sp_pnand_onfi_set_feature(chip, 0x00, LEGACY_FLASH);
+	if(nfc->flash_type == ONFI2 || nfc->flash_type == ONFI3) {
+		sp_nfc_onfi_set_feature(chip, 0x00, LEGACY_FLASH);
 	}
 
 	// Issue the RESET cmd
@@ -524,11 +524,11 @@ static void sp_pnand_read_raw_id(struct nand_chip *chip)
 	cmd_f.cq2 = 0;
 	cmd_f.cq3 = 0;
 	cmd_f.cq4 = CMD_COMPLETE_EN | CMD_FLASH_TYPE(LEGACY_FLASH) |\
-			CMD_START_CE(data->sel_chip) | CMD_INDEX(FIXFLOW_RESET);
+			CMD_START_CE(nfc->sel_chip) | CMD_INDEX(FIXFLOW_RESET);
 
-	sp_pnand_issue_cmd(chip, &cmd_f);
+	sp_nfc_issue_cmd(chip, &cmd_f);
 
-	sp_pnand_wait(chip);
+	sp_nfc_wait(chip);
 
 	// Issue the READID cmd
 	cmd_f.row_cycle = ROW_ADDR_1CYCLE;
@@ -537,24 +537,24 @@ static void sp_pnand_read_raw_id(struct nand_chip *chip)
 	cmd_f.cq2 = 0;
 	cmd_f.cq3 = CMD_COUNT(1);
 	cmd_f.cq4 = CMD_FLASH_TYPE(LEGACY_FLASH) | CMD_COMPLETE_EN |\
-			CMD_INDEX(FIXFLOW_READID) | CMD_START_CE(data->sel_chip) |\
+			CMD_INDEX(FIXFLOW_READID) | CMD_START_CE(nfc->sel_chip) |\
 			CMD_BYTE_MODE | CMD_SPARE_NUM(id_size);
 
-	sp_pnand_issue_cmd(chip, &cmd_f);
+	sp_nfc_issue_cmd(chip, &cmd_f);
 
-	sp_pnand_wait(chip);
+	sp_nfc_wait(chip);
 
-	memcpy(data->flash_raw_id, data->io_base + SPARE_SRAM + (data->cur_chan << data->spare_ch_offset) , id_size);
+	memcpy(nfc->flash_raw_id, nfc->regs + SPARE_SRAM + (nfc->cur_chan << nfc->spare_ch_offset) , id_size);
 
-	DBGLEVEL2(sp_pnand_dbg("ID@(ch:%d, ce:%d):0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n",
-					data->cur_chan, data->sel_chip, data->flash_raw_id[0],
-					data->flash_raw_id[1], data->flash_raw_id[2],
-					data->flash_raw_id[3], data->flash_raw_id[4]));
+	DBGLEVEL2(sp_nfc_dbg("ID@(ch:%d, ce:%d):0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n",
+					nfc->cur_chan, nfc->sel_chip, nfc->flash_raw_id[0],
+					nfc->flash_raw_id[1], nfc->flash_raw_id[2],
+					nfc->flash_raw_id[3], nfc->flash_raw_id[4]));
 }
 
-static void sp_pnand_calibrate_dqs_delay(struct nand_chip *chip)
+static void sp_nfc_calibrate_dqs_delay(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct cmd_feature cmd_f;
 	int i, max_dqs_delay = 0;
 	int id_size = 5;
@@ -567,38 +567,38 @@ static void sp_pnand_calibrate_dqs_delay(struct nand_chip *chip)
 	p = kmalloc(id_size_ddr, GFP_KERNEL);
 	golden_p = kmalloc(id_size_ddr, GFP_KERNEL);
 
-	if(data->flash_type == ONFI2 || data->flash_type == ONFI3) {
-		/* Extent the data from SDR to DDR.
+	if(nfc->flash_type == ONFI2 || nfc->flash_type == ONFI3) {
+		/* Extent the nfc from SDR to DDR.
 		   Ex. If "0xaa, 0xbb, 0xcc, 0xdd, 0xee" is in SDR,
 		          "0xaa, 0xaa, 0xbb, 0xbb, 0xcc, 0xcc, 0xdd, 0xdd, 0xee, 0xee" is in DDR(ONFI).
 		*/
 		for(i = 0; i< id_size; i++) {
-			*(golden_p + (i << 1) + 0) = *(data->flash_raw_id + i);
-			*(golden_p + (i << 1) + 1) = *(data->flash_raw_id + i);
+			*(golden_p + (i << 1) + 0) = *(nfc->flash_raw_id + i);
+			*(golden_p + (i << 1) + 1) = *(nfc->flash_raw_id + i);
 		}
-		DBGLEVEL2(sp_pnand_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+		DBGLEVEL2(sp_nfc_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 					*golden_p, *(golden_p+1), *(golden_p+2),
 					*(golden_p+3), *(golden_p+4), *(golden_p+5)));
 		max_dqs_delay = 20;
 	}
-	else if(data->flash_type == TOGGLE1 || data->flash_type == TOGGLE2) {
-		/* Extent the data from SDR to DDR.
+	else if(nfc->flash_type == TOGGLE1 || nfc->flash_type == TOGGLE2) {
+		/* Extent the nfc from SDR to DDR.
 		   Ex. If "0xaa, 0xbb, 0xcc, 0xdd, 0xee" is in SDR,
 		          "0xaa, 0xbb, 0xbb, 0xcc, 0xcc, 0xdd, 0xdd, 0xee, 0xee" is in DDR(TOGGLE).
 		*/
 		for(i = 0; i< id_size; i++) {
-			*(golden_p + (i << 1) + 0) = *(data->flash_raw_id + i);
-			*(golden_p + (i << 1) + 1) = *(data->flash_raw_id + i);
+			*(golden_p + (i << 1) + 0) = *(nfc->flash_raw_id + i);
+			*(golden_p + (i << 1) + 1) = *(nfc->flash_raw_id + i);
 		}
 		golden_p ++;
 
-		DBGLEVEL2(sp_pnand_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+		DBGLEVEL2(sp_nfc_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 					*golden_p, *(golden_p+1), *(golden_p+2),
 					*(golden_p+3), *(golden_p+4), *(golden_p+5)));
 		max_dqs_delay = 18;
 	}
 	else {
-		printk("%s:Type:%d isn't allowed\n", __func__, data->flash_type);
+		printk("%s:Type:%d isn't allowed\n", __func__, nfc->flash_type);
 		goto out;
 	}
 
@@ -606,7 +606,7 @@ static void sp_pnand_calibrate_dqs_delay(struct nand_chip *chip)
 	state = 0;
 	for(i = 0; i <= max_dqs_delay; i++) {
 		// setting the dqs delay before READID.
-		writel(i, data->io_base + DQS_DELAY);
+		writel(i, nfc->regs + DQS_DELAY);
 		memset(p, 0, id_size_ddr);
 
 		// Issuing the READID
@@ -615,17 +615,17 @@ static void sp_pnand_calibrate_dqs_delay(struct nand_chip *chip)
 		cmd_f.cq1 = 0;
 		cmd_f.cq2 = 0;
 		cmd_f.cq3 = CMD_COUNT(1);
-		cmd_f.cq4 = CMD_FLASH_TYPE(data->flash_type) | CMD_COMPLETE_EN |\
+		cmd_f.cq4 = CMD_FLASH_TYPE(nfc->flash_type) | CMD_COMPLETE_EN |\
 				CMD_INDEX(FIXFLOW_READID) | CMD_BYTE_MODE |\
-				CMD_START_CE(data->sel_chip) | CMD_SPARE_NUM(id_size_ddr);
+				CMD_START_CE(nfc->sel_chip) | CMD_SPARE_NUM(id_size_ddr);
 
-		sp_pnand_issue_cmd(chip, &cmd_f);
+		sp_nfc_issue_cmd(chip, &cmd_f);
 
-		sp_pnand_wait(chip);
+		sp_nfc_wait(chip);
 
 
-		if(data->flash_type == ONFI2 || data->flash_type == ONFI3) {
-			memcpy(p, data->io_base + SPARE_SRAM + (data->cur_chan<< data->spare_ch_offset), id_size_ddr);
+		if(nfc->flash_type == ONFI2 || nfc->flash_type == ONFI3) {
+			memcpy(p, nfc->regs + SPARE_SRAM + (nfc->cur_chan<< nfc->spare_ch_offset), id_size_ddr);
 			if(state == 0 && memcmp(golden_p, p, id_size_ddr) == 0) {
 				dqs_lower_bound = i;
 				state = 1;
@@ -635,8 +635,8 @@ static void sp_pnand_calibrate_dqs_delay(struct nand_chip *chip)
 				break;
 			}
 		}
-		else if(data->flash_type == TOGGLE1 || data->flash_type == TOGGLE2) {
-			memcpy(p, data->io_base + SPARE_SRAM + (data->cur_chan<< data->spare_ch_offset), id_size_ddr-1);
+		else if(nfc->flash_type == TOGGLE1 || nfc->flash_type == TOGGLE2) {
+			memcpy(p, nfc->regs + SPARE_SRAM + (nfc->cur_chan<< nfc->spare_ch_offset), id_size_ddr-1);
 
 			if(state == 0 && memcmp(golden_p, p, (id_size_ddr - 1)) == 0) {
 				dqs_lower_bound = i;
@@ -648,16 +648,16 @@ static void sp_pnand_calibrate_dqs_delay(struct nand_chip *chip)
 			}
 
 		}
-		DBGLEVEL2(sp_pnand_dbg("===============================================\n"));
-		DBGLEVEL2(sp_pnand_dbg("ID       :0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+		DBGLEVEL2(sp_nfc_dbg("===============================================\n"));
+		DBGLEVEL2(sp_nfc_dbg("ID       :0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 							*p, *(p+1), *(p+2), *(p+3),
 							*(p+4), *(p+5), *(p+6), *(p+7),
 							*(p+8) ));
-		DBGLEVEL2(sp_pnand_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+		DBGLEVEL2(sp_nfc_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
 							*golden_p, *(golden_p+1), *(golden_p+2), *(golden_p+3),
 							*(golden_p+4), *(golden_p+5),*(golden_p+6), *(golden_p+7),
 							*(golden_p+8) ));
-		DBGLEVEL2(sp_pnand_dbg("===============================================\n"));
+		DBGLEVEL2(sp_nfc_dbg("===============================================\n"));
 	}
 	// Prevent the dqs_upper_bound is zero when ID still accuracy on the max dqs delay
 	if(i == max_dqs_delay + 1)
@@ -666,19 +666,19 @@ static void sp_pnand_calibrate_dqs_delay(struct nand_chip *chip)
 	printk("Upper:%d & Lower:%d for DQS, then Middle:%d\n",
 		dqs_upper_bound, dqs_lower_bound, ((dqs_upper_bound + dqs_lower_bound) >> 1));
 	// Setting the middle dqs delay
-	val = readl(data->io_base + DQS_DELAY);
+	val = readl(nfc->regs + DQS_DELAY);
 	val &= ~0x1F;
 	val |= (((dqs_lower_bound + dqs_upper_bound) >> 1) & 0x1F);
-	writel(val, data->io_base + DQS_DELAY);
+	writel(val, nfc->regs + DQS_DELAY);
 out:
 	kfree(p);
 	kfree(golden_p);
 
 }
 
-static void sp_pnand_calibrate_rlat(struct nand_chip *chip)
+static void sp_nfc_calibrate_rlat(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct cmd_feature cmd_f;
 	int i, max_rlat;
 	int id_size = 5;
@@ -690,23 +690,23 @@ static void sp_pnand_calibrate_rlat(struct nand_chip *chip)
 	p = kmalloc(id_size, GFP_KERNEL);
 	golden_p = kmalloc(id_size, GFP_KERNEL);
 
-	if(data->flash_type == LEGACY_FLASH) {
+	if(nfc->flash_type == LEGACY_FLASH) {
 		for(i = 0; i< id_size; i++) {
-			*(golden_p + i) = *(data->flash_raw_id + i);
+			*(golden_p + i) = *(nfc->flash_raw_id + i);
 		}
 	} else {
-		printk("%s:Type:%d isn't allowed\n", __func__, data->flash_type);
+		printk("%s:Type:%d isn't allowed\n", __func__, nfc->flash_type);
 		goto out;
 	}
 
-	ac_reg0 = readl(data->io_base + FL_AC_TIMING0(0));
+	ac_reg0 = readl(nfc->regs + FL_AC_TIMING0(0));
 	max_rlat = (ac_reg0 & 0x1F) + ((ac_reg0 >> 8) & 0xF);
-	ac_reg1 = readl(data->io_base + FL_AC_TIMING1(0));
+	ac_reg1 = readl(nfc->regs + FL_AC_TIMING1(0));
 	state = 0;
 	for(i = 0; i <= max_rlat; i++) {
 		// setting the trlat delay before READID.
 		val = (ac_reg1 & ~(0x3F<<16)) | (i<<16);
-		writel(val, data->io_base + FL_AC_TIMING1(0));
+		writel(val, nfc->regs + FL_AC_TIMING1(0));
 		memset(p, 0, id_size);
 
 		// Issuing the READID
@@ -715,15 +715,15 @@ static void sp_pnand_calibrate_rlat(struct nand_chip *chip)
 		cmd_f.cq1 = 0;
 		cmd_f.cq2 = 0;
 		cmd_f.cq3 = CMD_COUNT(1);
-		cmd_f.cq4 = CMD_FLASH_TYPE(data->flash_type) | CMD_COMPLETE_EN |\
+		cmd_f.cq4 = CMD_FLASH_TYPE(nfc->flash_type) | CMD_COMPLETE_EN |\
 				CMD_INDEX(FIXFLOW_READID) | CMD_BYTE_MODE |\
-				CMD_START_CE(data->sel_chip) | CMD_SPARE_NUM(id_size);
+				CMD_START_CE(nfc->sel_chip) | CMD_SPARE_NUM(id_size);
 
-		sp_pnand_issue_cmd(chip, &cmd_f);
+		sp_nfc_issue_cmd(chip, &cmd_f);
 
-		sp_pnand_wait(chip);
+		sp_nfc_wait(chip);
 
-		memcpy(p, data->io_base + SPARE_SRAM + (data->cur_chan<< data->spare_ch_offset), id_size);
+		memcpy(p, nfc->regs + SPARE_SRAM + (nfc->cur_chan<< nfc->spare_ch_offset), id_size);
 		if(state == 0 && memcmp(golden_p, p, id_size) == 0) {
 			rlat_lower_bound = i;
 			state = 1;
@@ -733,70 +733,70 @@ static void sp_pnand_calibrate_rlat(struct nand_chip *chip)
 			break;
 		}
 
-		DBGLEVEL2(sp_pnand_dbg("===============================================\n"));
-		DBGLEVEL2(sp_pnand_dbg("ID       :0x%x 0x%x 0x%x 0x%x 0x%x\n",
+		DBGLEVEL2(sp_nfc_dbg("===============================================\n"));
+		DBGLEVEL2(sp_nfc_dbg("ID       :0x%x 0x%x 0x%x 0x%x 0x%x\n",
 							*p, *(p+1), *(p+2), *(p+3), *(p+4)));
-		DBGLEVEL2(sp_pnand_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x\n",
+		DBGLEVEL2(sp_nfc_dbg("Golden ID:0x%x 0x%x 0x%x 0x%x 0x%x\n",
 							*golden_p, *(golden_p+1), *(golden_p+2), *(golden_p+3), *(golden_p+4)));
-		DBGLEVEL2(sp_pnand_dbg("===============================================\n"));
+		DBGLEVEL2(sp_nfc_dbg("===============================================\n"));
 	}
 
 	// Prevent the dqs_upper_bound is zero when ID still accuracy on the max dqs delay
 	if(i == max_rlat + 1)
 		rlat_upper_bound = max_rlat;
 
-	DBGLEVEL2(sp_pnand_dbg("Upper:%d & Lower:%d for tRLAT, then Middle:%d\n",
+	DBGLEVEL2(sp_nfc_dbg("Upper:%d & Lower:%d for tRLAT, then Middle:%d\n",
 		rlat_upper_bound, rlat_lower_bound, ((rlat_upper_bound + rlat_lower_bound) >> 1)));
 
 	// Setting the middle tRLAT
 	val = ac_reg1&~(0x3F<<16);
 	val |= ((((rlat_upper_bound + rlat_lower_bound) >> 1) & 0x3F) << 16);
-	writel(val, data->io_base + FL_AC_TIMING1(0));
+	writel(val, nfc->regs + FL_AC_TIMING1(0));
 out:
 	kfree(p);
 	kfree(golden_p);
 }
 
-static int sp_pnand_available_oob(struct mtd_info *mtd)
+static int sp_nfc_available_oob(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 
 	int ret = 0;
 	int consume_byte, eccbyte, eccbyte_spare;
 	int available_spare;
 
-	if (data->useecc < 0)
+	if (nfc->useecc < 0)
 		goto out;
-	if (data->protect_spare != 0)
-		data->protect_spare = 1;
+	if (nfc->protect_spare != 0)
+		nfc->protect_spare = 1;
 	else
-		data->protect_spare = 0;
+		nfc->protect_spare = 0;
 
-	eccbyte = (data->useecc * 14) / 8;
-	if (((data->useecc * 14) % 8) != 0)
+	eccbyte = (nfc->useecc * 14) / 8;
+	if (((nfc->useecc * 14) % 8) != 0)
 		eccbyte++;
 
-	consume_byte = (eccbyte * data->sector_per_page);
-	if (data->protect_spare == 1) {
+	consume_byte = (eccbyte * nfc->sector_per_page);
+	if (nfc->protect_spare == 1) {
 
-		eccbyte_spare = (data->useecc_spare * 14) / 8;
-		if (((data->useecc_spare * 14) % 8) != 0)
+		eccbyte_spare = (nfc->useecc_spare * 14) / 8;
+		if (((nfc->useecc_spare * 14) % 8) != 0)
 			eccbyte_spare++;
 		consume_byte += eccbyte_spare;
 	}
 	consume_byte += CONFIG_BI_BYTE;
-	available_spare = data->spare - consume_byte;
+	available_spare = nfc->spare - consume_byte;
 
-	DBGLEVEL2(sp_pnand_dbg(
+	DBGLEVEL2(sp_nfc_dbg(
 		"mtd->erasesize:%d, mtd->writesize:%d\n", mtd->erasesize, mtd->writesize));
-	DBGLEVEL2(sp_pnand_dbg(
-		"page num:%d, data->eccbasft:%d, protect_spare:%d, spare:%d Byte\n",
-		mtd->erasesize/mtd->writesize,data->eccbasft, data->protect_spare,
-		data->spare));
-	DBGLEVEL2(sp_pnand_dbg(
+	DBGLEVEL2(sp_nfc_dbg(
+		"page num:%d, nfc->eccbasft:%d, protect_spare:%d, spare:%d Byte\n",
+		mtd->erasesize/mtd->writesize,nfc->eccbasft, nfc->protect_spare,
+		nfc->spare));
+	DBGLEVEL2(sp_nfc_dbg(
 		"consume_byte:%d, eccbyte:%d, eccbytes(spare):%d, useecc:%d bit\n",
-		consume_byte, eccbyte, eccbyte_spare, data->useecc));
+		consume_byte, eccbyte, eccbyte_spare, nfc->useecc));
 
 	/*----------------------------------------------------------
 	 * YAFFS require 16 bytes OOB without ECC, 28 bytes with
@@ -804,8 +804,8 @@ static int sp_pnand_available_oob(struct mtd_info *mtd)
 	 * BBT require 5 bytes for Bad Block Table marker.
 	 */
 	if (available_spare >= 4) {
-		if (available_spare >= data->max_spare) {
-			ret = data->max_spare;
+		if (available_spare >= nfc->max_spare) {
+			ret = nfc->max_spare;
 		}
 		else {
 			if (available_spare >= 64) {
@@ -827,29 +827,29 @@ static int sp_pnand_available_oob(struct mtd_info *mtd)
 		printk(KERN_INFO "Available OOB is %d byte, but we use %d bytes in page mode.\n", available_spare, ret);
 	} else {
 		printk(KERN_INFO "Not enough OOB, try to reduce ECC correction bits.\n");
-		printk(KERN_INFO "(Currently ECC setting for Data:%d)\n", data->useecc);
-		printk(KERN_INFO "(Currently ECC setting for Spare:%d)\n", data->useecc_spare);
+		printk(KERN_INFO "(Currently ECC setting for Data:%d)\n", nfc->useecc);
+		printk(KERN_INFO "(Currently ECC setting for Spare:%d)\n", nfc->useecc_spare);
 	}
 out:
 	return ret;
 }
 
-static u8 sp_pnand_read_byte(struct nand_chip *chip)
+static u8 sp_nfc_read_byte(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	u32 lv;
 	u8 b = 0;
 
-	switch (data->cur_cmd) {
+	switch (nfc->cur_cmd) {
 	case NAND_CMD_READID:
-		b = readb(data->io_base + SPARE_SRAM + (data->cur_chan << data->spare_ch_offset) + data->byte_ofs);
-		data->byte_ofs += 1;
-		if (data->byte_ofs == data->max_spare)
-			data->byte_ofs = 0;
+		b = readb(nfc->regs + SPARE_SRAM + (nfc->cur_chan << nfc->spare_ch_offset) + nfc->byte_ofs);
+		nfc->byte_ofs += 1;
+		if (nfc->byte_ofs == nfc->max_spare)
+			nfc->byte_ofs = 0;
 		break;
 	case NAND_CMD_STATUS:
-		lv = readl(data->io_base + READ_STATUS0);
-		lv = lv >> (data->cur_chan * 8);
+		lv = readl(nfc->regs + READ_STATUS0);
+		lv = lv >> (nfc->cur_chan * 8);
 		b = (lv & 0xFF);
 		break;
 	}
@@ -857,29 +857,29 @@ static u8 sp_pnand_read_byte(struct nand_chip *chip)
 }
 
 
-static void sp_pnand_cmdfunc(struct nand_chip *chip, unsigned command,
+static void sp_nfc_cmdfunc(struct nand_chip *chip, unsigned command,
 				    int column, int page_addr)
 {
 //	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct cmd_feature cmd_f;
 	int real_pg, cmd_sts;
 	u8 id_size = 5;
 
-	cmd_f.cq4 = CMD_COMPLETE_EN | CMD_FLASH_TYPE(data->flash_type);
-	data->cur_cmd = command;
+	cmd_f.cq4 = CMD_COMPLETE_EN | CMD_FLASH_TYPE(nfc->flash_type);
+	nfc->cur_cmd = command;
 	if (page_addr != -1)
-		data->page_addr = page_addr;
+		nfc->page_addr = page_addr;
 	if (column != -1)
-		data->column = column;
+		nfc->column = column;
 
 	switch (command) {
 	case NAND_CMD_READID:
-		DBGLEVEL2(sp_pnand_dbg( "Read ID@(CH:%d, CE:%d)\n", data->cur_chan, data->sel_chip));
-		data->byte_ofs = 0;
+		DBGLEVEL2(sp_nfc_dbg( "Read ID@(CH:%d, CE:%d)\n", nfc->cur_chan, nfc->sel_chip));
+		nfc->byte_ofs = 0;
 		// ID size is doubled when the mode is DDR.
-		if(data->flash_type == TOGGLE1 || data->flash_type == TOGGLE2 ||
-		   data->flash_type == ONFI2 || data->flash_type == ONFI3) {
+		if(nfc->flash_type == TOGGLE1 || nfc->flash_type == TOGGLE2 ||
+		   nfc->flash_type == ONFI2 || nfc->flash_type == ONFI3) {
 			id_size = (id_size << 1);
 		}
 
@@ -888,61 +888,61 @@ static void sp_pnand_cmdfunc(struct nand_chip *chip, unsigned command,
 		cmd_f.cq1 = 0;
 		cmd_f.cq2 = 0;
 		cmd_f.cq3 = CMD_COUNT(1);
-		cmd_f.cq4 |= CMD_START_CE(data->sel_chip) | CMD_BYTE_MODE |\
+		cmd_f.cq4 |= CMD_START_CE(nfc->sel_chip) | CMD_BYTE_MODE |\
 				CMD_SPARE_NUM(id_size) | CMD_INDEX(FIXFLOW_READID);
 
-		cmd_sts = sp_pnand_issue_cmd(chip, &cmd_f);
+		cmd_sts = sp_nfc_issue_cmd(chip, &cmd_f);
 		if(!cmd_sts)
-			sp_pnand_wait(chip);
+			sp_nfc_wait(chip);
 		else
 			printk(KERN_ERR "Read ID err\n");
 
 		break;
 	case NAND_CMD_RESET:
-		DBGLEVEL2(sp_pnand_dbg("Cmd Reset@(CH:%d, CE:%d)\n", data->cur_chan, data->sel_chip));
+		DBGLEVEL2(sp_nfc_dbg("Cmd Reset@(CH:%d, CE:%d)\n", nfc->cur_chan, nfc->sel_chip));
 
 		cmd_f.cq1 = 0;
 		cmd_f.cq2 = 0;
 		cmd_f.cq3 = 0;
-		cmd_f.cq4 |= CMD_START_CE(data->sel_chip);
-		if (data->flash_type == ONFI2 || data->flash_type == ONFI3)
+		cmd_f.cq4 |= CMD_START_CE(nfc->sel_chip);
+		if (nfc->flash_type == ONFI2 || nfc->flash_type == ONFI3)
 			cmd_f.cq4 |= CMD_INDEX(ONFI_FIXFLOW_SYNCRESET);
 		else
 			cmd_f.cq4 |= CMD_INDEX(FIXFLOW_RESET);
 
-		cmd_sts = sp_pnand_issue_cmd(chip, &cmd_f);
+		cmd_sts = sp_nfc_issue_cmd(chip, &cmd_f);
 		if(!cmd_sts)
-			sp_pnand_wait(chip);
+			sp_nfc_wait(chip);
 		else
 			printk(KERN_ERR "Reset Flash err\n");
 
 		break;
 	case NAND_CMD_STATUS:
-		DBGLEVEL2(sp_pnand_dbg( "Read Status\n"));
+		DBGLEVEL2(sp_nfc_dbg( "Read Status\n"));
 
 		cmd_f.cq1 = 0;
 		cmd_f.cq2 = 0;
 		cmd_f.cq3 = CMD_COUNT(1);
-		cmd_f.cq4 |= CMD_START_CE(data->sel_chip) | CMD_INDEX(FIXFLOW_READSTATUS);
+		cmd_f.cq4 |= CMD_START_CE(nfc->sel_chip) | CMD_INDEX(FIXFLOW_READSTATUS);
 
-		cmd_sts = sp_pnand_issue_cmd(chip, &cmd_f);
+		cmd_sts = sp_nfc_issue_cmd(chip, &cmd_f);
 		if(!cmd_sts)
-			sp_pnand_wait(chip);
+			sp_nfc_wait(chip);
 		else
 			printk(KERN_ERR "Read Status err\n");
 
 		break;
 	case NAND_CMD_ERASE1:
-		real_pg = data->page_addr;
-		DBGLEVEL2(sp_pnand_dbg(
-			"Erase Page: 0x%x, Real:0x%x\n", data->page_addr, real_pg));
+		real_pg = nfc->page_addr;
+		DBGLEVEL2(sp_nfc_dbg(
+			"Erase Page: 0x%x, Real:0x%x\n", nfc->page_addr, real_pg));
 
 		cmd_f.cq1 = real_pg;
 		cmd_f.cq2 = 0;
 		cmd_f.cq3 = CMD_COUNT(1);
-		cmd_f.cq4 |= CMD_START_CE(data->sel_chip) | CMD_SCALE(1);
+		cmd_f.cq4 |= CMD_START_CE(nfc->sel_chip) | CMD_SCALE(1);
 
-		if (data->large_page) {
+		if (nfc->large_page) {
 			cmd_f.row_cycle = ROW_ADDR_3CYCLE;
 			cmd_f.col_cycle = COL_ADDR_2CYCLE;
 			cmd_f.cq4 |= CMD_INDEX(LARGE_FIXFLOW_ERASE);
@@ -953,12 +953,12 @@ static void sp_pnand_cmdfunc(struct nand_chip *chip, unsigned command,
 		}
 
 		/* Someone may be curious the following snippet that
-		* sp_pnand_issue_cmd doesn't be followed by
-		* sp_pnand_wait.
+		* sp_nfc_issue_cmd doesn't be followed by
+		* sp_nfc_wait.
 		* Waiting cmd complete will be call on the mtd upper layer via
 		* the registered chip->waitfunc.
 		*/
-		cmd_sts = sp_pnand_issue_cmd(chip, &cmd_f);
+		cmd_sts = sp_nfc_issue_cmd(chip, &cmd_f);
 		if(cmd_sts)
 			printk(KERN_ERR "Erase block err\n");
 
@@ -967,82 +967,82 @@ static void sp_pnand_cmdfunc(struct nand_chip *chip, unsigned command,
 	case NAND_CMD_PAGEPROG:
 	case NAND_CMD_SEQIN:
 	default:
-		DBGLEVEL2(sp_pnand_dbg( "Unimplemented command (cmd=%u)\n", command));
+		DBGLEVEL2(sp_nfc_dbg( "Unimplemented command (cmd=%u)\n", command));
 		break;
 	}
 }
 
-void sp_pnand_select_chip(struct nand_chip *chip, int cs)
+void sp_nfc_select_chip(struct nand_chip *chip, int cs)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 
-	data->cur_chan = 0;
-	data->sel_chip = 0;
-	DBGLEVEL2(sp_pnand_dbg("==>chan = %d, ce = %d\n", data->cur_chan, data->sel_chip));
+	nfc->cur_chan = 0;
+	nfc->sel_chip = 0;
+	DBGLEVEL2(sp_nfc_dbg("==>chan = %d, ce = %d\n", nfc->cur_chan, nfc->sel_chip));
 }
 
 static void sp_nand_set_ecc(struct nand_chip *chip)
 {
 	u32 val;
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 
-	if (data->useecc > 0) {
-		DBGLEVEL1(sp_pnand_dbg("ECC correction bits: %d\n", data->useecc));
-		writel(0x01010101, data->io_base + ECC_THRES_BITREG1);
-		writel(0x01010101, data->io_base + ECC_THRES_BITREG2);
-		val = (data->useecc - 1) | ((data->useecc - 1) << 8) |
-			((data->useecc - 1) << 16) | ((data->useecc - 1) << 24);
-		writel(val, data->io_base + ECC_CORRECT_BITREG1);
-		writel(val, data->io_base + ECC_CORRECT_BITREG2);
+	if (nfc->useecc > 0) {
+		DBGLEVEL1(sp_nfc_dbg("ECC correction bits: %d\n", nfc->useecc));
+		writel(0x01010101, nfc->regs + ECC_THRES_BITREG1);
+		writel(0x01010101, nfc->regs + ECC_THRES_BITREG2);
+		val = (nfc->useecc - 1) | ((nfc->useecc - 1) << 8) |
+			((nfc->useecc - 1) << 16) | ((nfc->useecc - 1) << 24);
+		writel(val, nfc->regs + ECC_CORRECT_BITREG1);
+		writel(val, nfc->regs + ECC_CORRECT_BITREG2);
 
-		val = readl(data->io_base + ECC_CONTROL);
+		val = readl(nfc->regs + ECC_CONTROL);
 		val &= ~ECC_BASE;
-		if (data->eccbasft > 9)
+		if (nfc->eccbasft > 9)
 			val |= ECC_BASE;
 		val |= (ECC_EN(0xFF) | ECC_ERR_MASK(0xFF));
-		writel(val, data->io_base + ECC_CONTROL);
-		writel(ECC_INTR_THRES_HIT | ECC_INTR_CORRECT_FAIL, data->io_base + ECC_INTR_EN);
+		writel(val, nfc->regs + ECC_CONTROL);
+		writel(ECC_INTR_THRES_HIT | ECC_INTR_CORRECT_FAIL, nfc->regs + ECC_INTR_EN);
 	} else {
-		DBGLEVEL1(sp_pnand_dbg("ECC disabled\n"));
-		writel(0, data->io_base + ECC_THRES_BITREG1);
-		writel(0, data->io_base + ECC_THRES_BITREG2);
-		writel(0, data->io_base + ECC_CORRECT_BITREG1);
-		writel(0, data->io_base + ECC_CORRECT_BITREG2);
+		DBGLEVEL1(sp_nfc_dbg("ECC disabled\n"));
+		writel(0, nfc->regs + ECC_THRES_BITREG1);
+		writel(0, nfc->regs + ECC_THRES_BITREG2);
+		writel(0, nfc->regs + ECC_CORRECT_BITREG1);
+		writel(0, nfc->regs + ECC_CORRECT_BITREG2);
 
-		val = readl(data->io_base + ECC_CONTROL);
+		val = readl(nfc->regs + ECC_CONTROL);
 		val &= ~ECC_BASE;
 		val &= ~(ECC_EN(0xFF) | ECC_ERR_MASK(0xFF));
 		val |= ECC_NO_PARITY;
-		writel(val, data->io_base + ECC_CONTROL);
+		writel(val, nfc->regs + ECC_CONTROL);
 	}
 
 	// Enable the Status Check Intr
-	val = readl(data->io_base + INTR_ENABLE);
+	val = readl(nfc->regs + INTR_ENABLE);
 	val &= ~INTR_ENABLE_STS_CHECK_EN(0xff);
 	val |= INTR_ENABLE_STS_CHECK_EN(0xff);
-	writel(val, data->io_base + INTR_ENABLE);
+	writel(val, nfc->regs + INTR_ENABLE);
 
 	// Setting the ecc capability & threshold for spare
-	writel(0x01010101, data->io_base + ECC_THRES_BIT_FOR_SPARE_REG1);
-	writel(0x01010101, data->io_base + ECC_THRES_BIT_FOR_SPARE_REG2);
-	val = (data->useecc_spare-1) | ((data->useecc_spare-1) << 8) |
-		((data->useecc_spare-1) << 16) | ((data->useecc_spare-1) << 24);
-	writel(val, data->io_base + ECC_CORRECT_BIT_FOR_SPARE_REG1);
-	writel(val, data->io_base + ECC_CORRECT_BIT_FOR_SPARE_REG2);
+	writel(0x01010101, nfc->regs + ECC_THRES_BIT_FOR_SPARE_REG1);
+	writel(0x01010101, nfc->regs + ECC_THRES_BIT_FOR_SPARE_REG2);
+	val = (nfc->useecc_spare-1) | ((nfc->useecc_spare-1) << 8) |
+		((nfc->useecc_spare-1) << 16) | ((nfc->useecc_spare-1) << 24);
+	writel(val, nfc->regs + ECC_CORRECT_BIT_FOR_SPARE_REG1);
+	writel(val, nfc->regs + ECC_CORRECT_BIT_FOR_SPARE_REG2);
 }
 
-void sp_pnand_set_actiming(struct nand_chip *chip)
+void sp_nfc_set_actiming(struct nand_chip *chip)
 {
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 
 	/* TODO: calibrate the DQS delay for Sync */
-	if (strcmp(data->name, "MT29F32G08ABXXX 4GiB 8-bit") == 0) {
-		if (data->ddr_enable) {
-			data->timing_mode = 3;
-			data->flash_type = ONFI2;
+	if (strcmp(nfc->name, "MT29F32G08ABXXX 4GiB 8-bit") == 0) {
+		if (nfc->ddr_enable) {
+			nfc->timing_mode = 3;
+			nfc->flash_type = ONFI2;
 		} else {
-			data->timing_mode = 5;
-			data->flash_type = LEGACY_FLASH;
+			nfc->timing_mode = 5;
+			nfc->flash_type = LEGACY_FLASH;
 		}
 	}
 
@@ -1051,56 +1051,56 @@ void sp_pnand_set_actiming(struct nand_chip *chip)
 	 * Synch mode, then use flash as Async mode(Normal speed) and
 	 * use LEGACY_LARGE fix flow.
 	 */
-	if (data->flash_type == ONFI2 || data->flash_type == ONFI3) {
-		if (sp_pnand_onfi_sync(chip) == 0) {
-			sp_pnand_calc_timing(chip);
-			sp_pnand_calibrate_dqs_delay(chip);
+	if (nfc->flash_type == ONFI2 || nfc->flash_type == ONFI3) {
+		if (sp_nfc_onfi_sync(chip) == 0) {
+			sp_nfc_calc_timing(chip);
+			sp_nfc_calibrate_dqs_delay(chip);
 		} else {
-			data->flash_type = LEGACY_FLASH;
+			nfc->flash_type = LEGACY_FLASH;
 		}
 	}
 
 	// Toggle & ONFI flash has set the proper timing before READ ID.
 	// We don't do that twice.
-	if(data->flash_type == LEGACY_FLASH) {
-		sp_pnand_calc_timing(chip);
-		sp_pnand_calibrate_rlat(chip);
+	if(nfc->flash_type == LEGACY_FLASH) {
+		sp_nfc_calc_timing(chip);
+		sp_nfc_calibrate_rlat(chip);
 	}
 }
 
 
-static int sp_pnand_attach_chip(struct nand_chip *chip)
+static int sp_nfc_attach_chip(struct nand_chip *chip)
 {
 	struct nand_memory_organization *memorg;
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct sp_pnand_data *data = nand_get_controller_data(chip);
+	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	struct nand_device *base = &chip->base;
 	const struct nand_ecc_props *requirements = nanddev_get_ecc_requirements(base);
 	u32 val;
 	int i;
 
-	data->eccbasft = fls(requirements->step_size) - 1;
-	data->useecc = requirements->strength;
-	data->protect_spare = 1;
-	data->useecc_spare = 4;
-	data->sector_per_page = mtd->writesize >> data->eccbasft;
-	data->spare = mtd->oobsize;
+	nfc->eccbasft = fls(requirements->step_size) - 1;
+	nfc->useecc = requirements->strength;
+	nfc->protect_spare = 1;
+	nfc->useecc_spare = 4;
+	nfc->sector_per_page = mtd->writesize >> nfc->eccbasft;
+	nfc->spare = mtd->oobsize;
 
 	memorg = nanddev_get_memorg(&chip->base);
 
 	//usually, spare size is 1/32 page size
-	if (data->spare < (mtd->writesize >> 5))
-		data->spare = (mtd->writesize >> 5);
+	if (nfc->spare < (mtd->writesize >> 5))
+		nfc->spare = (mtd->writesize >> 5);
 
-	val = readl(data->io_base + MEM_ATTR_SET);
+	val = readl(nfc->regs + MEM_ATTR_SET);
 	val &= ~(0x7 << 16);
 
 	if(mtd->writesize > 512) {
-		data->large_page = 1;
+		nfc->large_page = 1;
 		val |= ((fls(mtd->writesize) - 11) << 16); //bit[18:16] 1/2/3/4 -> PageSize=2k/4k/8k/16k
 	} else {
-		data->large_page = 0;
+		nfc->large_page = 0;
 		val |= PG_SZ_512;
 	}
 
@@ -1110,78 +1110,78 @@ static int sp_pnand_attach_chip(struct nand_chip *chip)
 	val &= ~BI_BYTE_MASK;
 	val |= (CONFIG_BI_BYTE << 19);
 //~lichun
-	writel(val, data->io_base + MEM_ATTR_SET);
+	writel(val, nfc->regs + MEM_ATTR_SET);
 
-	val = readl(data->io_base + MEM_ATTR_SET2);
+	val = readl(nfc->regs + MEM_ATTR_SET2);
 	val &= ~(0x3FF << 16);
 	val |=  VALID_PAGE((mtd->erasesize / mtd->writesize - 1));
-	writel(val, data->io_base + MEM_ATTR_SET2);
+	writel(val, nfc->regs + MEM_ATTR_SET2);
 
-	i = sp_pnand_available_oob(mtd);
+	i = sp_nfc_available_oob(mtd);
 	if (likely(i >= 4)) {
-		if (i > data->max_spare)
-			memorg->oobsize = data->max_spare;
+		if (i > nfc->max_spare)
+			memorg->oobsize = nfc->max_spare;
 		else
 			memorg->oobsize = i;
-		data->spare = memorg->oobsize;
+		nfc->spare = memorg->oobsize;
 	} else
 		return -ENXIO;
 
-	DBGLEVEL1(sp_pnand_dbg("total oobsize: %d\n", memorg->oobsize));
+	DBGLEVEL1(sp_nfc_dbg("total oobsize: %d\n", memorg->oobsize));
 
 	sp_nand_set_ecc(chip);
 
 	ecc->engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	ecc->size = requirements->step_size;
-	ecc->bytes = (data->useecc * 14) / 8;//why is 0
+	ecc->bytes = (nfc->useecc * 14) / 8;//why is 0
 	ecc->strength = requirements->strength;
 
-	ecc->read_oob = sp_pnand_read_oob;
-	ecc->write_oob = sp_pnand_write_oob;
-	ecc->read_page_raw = sp_pnand_read_page;
+	ecc->read_oob = sp_nfc_read_oob;
+	ecc->write_oob = sp_nfc_write_oob;
+	ecc->read_page_raw = sp_nfc_read_page;
 
-	if (data->dmac) {
-		ecc->read_page = sp_pnand_read_page_by_dma;
-		ecc->write_page = sp_pnand_write_page_by_dma;
-		DBGLEVEL1(sp_pnand_dbg("Transfer: DMA\n"));
+	if (nfc->dmac) {
+		ecc->read_page = sp_nfc_read_page_by_dma;
+		ecc->write_page = sp_nfc_write_page_by_dma;
+		DBGLEVEL1(sp_nfc_dbg("Transfer: DMA\n"));
 	} else {
-		ecc->read_page = sp_pnand_read_page;
-		ecc->write_page = sp_pnand_write_page;
-		DBGLEVEL1(sp_pnand_dbg("Transfer: PIO\n"));
+		ecc->read_page = sp_nfc_read_page;
+		ecc->write_page = sp_nfc_write_page;
+		DBGLEVEL1(sp_nfc_dbg("Transfer: PIO\n"));
 	}
 
-	mtd_set_ooblayout(mtd, &sp_pnand_ooblayout_ops);
+	mtd_set_ooblayout(mtd, &sp_nfc_ooblayout_ops);
 
-	DBGLEVEL2(sp_pnand_dbg("Use nand flash %s\n", mtd->name));
-	DBGLEVEL2(sp_pnand_dbg("data->eccbasft: %d\n", data->eccbasft));
-	DBGLEVEL2(sp_pnand_dbg("data->useecc: %d\n", data->useecc));
-	DBGLEVEL2(sp_pnand_dbg("data->protect_spare: %d\n", data->protect_spare));
-	DBGLEVEL2(sp_pnand_dbg("data->useecc_spare: %d\n", data->useecc_spare));
-	DBGLEVEL2(sp_pnand_dbg("data->spare: %d\n", data->spare));
-	DBGLEVEL2(sp_pnand_dbg("data->flash_type: %d\n", data->flash_type));
-	DBGLEVEL2(sp_pnand_dbg("data->sector_per_page: %d\n", data->sector_per_page));
+	DBGLEVEL2(sp_nfc_dbg("Use nand flash %s\n", mtd->name));
+	DBGLEVEL2(sp_nfc_dbg("nfc->eccbasft: %d\n", nfc->eccbasft));
+	DBGLEVEL2(sp_nfc_dbg("nfc->useecc: %d\n", nfc->useecc));
+	DBGLEVEL2(sp_nfc_dbg("nfc->protect_spare: %d\n", nfc->protect_spare));
+	DBGLEVEL2(sp_nfc_dbg("nfc->useecc_spare: %d\n", nfc->useecc_spare));
+	DBGLEVEL2(sp_nfc_dbg("nfc->spare: %d\n", nfc->spare));
+	DBGLEVEL2(sp_nfc_dbg("nfc->flash_type: %d\n", nfc->flash_type));
+	DBGLEVEL2(sp_nfc_dbg("nfc->sector_per_page: %d\n", nfc->sector_per_page));
 
 	return 0;
 }
 
-static const struct nand_controller_ops sp_pnand_controller_ops = {
-	.attach_chip = sp_pnand_attach_chip,
+static const struct nand_controller_ops sp_nfc_controller_ops = {
+	.attach_chip = sp_nfc_attach_chip,
 };
 
-static void sp_clk_disable_unprepare(void *data)
+static void sp_clk_disable_unprepare(void *nfc)
 {
-	clk_disable_unprepare(data);
+	clk_disable_unprepare(nfc);
 }
 
-static void sp_reset_control_assert(void *data)
+static void sp_reset_control_assert(void *nfc)
 {
-	reset_control_assert(data);
+	reset_control_assert(nfc);
 }
 
-static int sp_pnand_probe(struct platform_device *pdev)
+static int sp_nfc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct sp_pnand_data *data;
+	struct sp_nfc *nfc;
 	struct mtd_info *mtd;
 	struct nand_chip *chip;
 	struct resource *r;
@@ -1196,46 +1196,46 @@ static int sp_pnand_probe(struct platform_device *pdev)
 	/*
 	 * Initialize the parameter
 	 */
-	data = devm_kzalloc(dev, sizeof(struct sp_pnand_data), GFP_KERNEL);
-	if (!data) {
+	nfc = devm_kzalloc(dev, sizeof(struct sp_nfc), GFP_KERNEL);
+	if (!nfc) {
 		dev_err(dev, "failed to allocate device structure.\n");
 		ret = -ENOMEM;
 	}
 
-	chip = &data->chip;
-	chip->controller = &data->controller;
+	chip = &nfc->chip;
+	chip->controller = &nfc->controller;
 
 	/* reset */
-	data->rstc = devm_reset_control_get(dev, NULL);
-	if (IS_ERR(data->rstc))
-		return dev_err_probe(dev, PTR_ERR(data->rstc), "Failed to get reset\n");
+	nfc->rstc = devm_reset_control_get(dev, NULL);
+	if (IS_ERR(nfc->rstc))
+		return dev_err_probe(dev, PTR_ERR(nfc->rstc), "Failed to get reset\n");
 
-	reset_control_deassert(data->rstc);
+	reset_control_deassert(nfc->rstc);
 
-	ret = devm_add_action_or_reset(dev, sp_reset_control_assert, data->rstc);
+	ret = devm_add_action_or_reset(dev, sp_reset_control_assert, nfc->rstc);
 	if (ret)
 		return ret;
 
 	/* clk */
-	data->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(data->clk))
-		return dev_err_probe(dev, PTR_ERR(data->clk), "Failed to get clock\n");
+	nfc->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(nfc->clk))
+		return dev_err_probe(dev, PTR_ERR(nfc->clk), "Failed to get clock\n");
 
-	ret = clk_prepare_enable(data->clk);
+	ret = clk_prepare_enable(nfc->clk);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable clock\n");
 
-	ret = devm_add_action_or_reset(dev, sp_clk_disable_unprepare, data->clk);
+	ret = devm_add_action_or_reset(dev, sp_clk_disable_unprepare, nfc->clk);
 	if (ret)
 		return ret;
 
-	data->io_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(data->io_base)) {
+	nfc->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(nfc->regs)) {
 		dev_err(dev, "Failed to ioremap for register.\n");
-		return PTR_ERR(data->io_base);
+		return PTR_ERR(nfc->regs);
 	}
 
-	DBGLEVEL2(sp_pnand_dbg("data->io_base:0x%08lx", (unsigned long)data->io_base));
+	DBGLEVEL2(sp_nfc_dbg("nfc->regs:0x%08lx", (unsigned long)nfc->regs));
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	chip->legacy.IO_ADDR_R = devm_ioremap_resource(dev, r);
@@ -1244,25 +1244,25 @@ static int sp_pnand_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->legacy.IO_ADDR_R);
 	}
 
-	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency", &data->clkfreq))
-		data->clkfreq = CONFIG_SP_CLK_100M;
+	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency", &nfc->clkfreq))
+		nfc->clkfreq = CONFIG_SP_CLK_100M;
 
-	ret = clk_set_rate(data->clk, data->clkfreq);
+	ret = clk_set_rate(nfc->clk, nfc->clkfreq);
 	if (ret) {
 		dev_err(dev, "Failed to set clk rate\n");
 		return ret;
 	}
 
-	data->clkfreq = clk_get_rate(data->clk);
-	DBGLEVEL1(sp_pnand_dbg("data->clkfreq %d\n", data->clkfreq));
+	nfc->clkfreq = clk_get_rate(nfc->clk);
+	DBGLEVEL1(sp_nfc_dbg("nfc->clkfreq %d\n", nfc->clkfreq));
 
-	data->dmac = NULL;
+	nfc->dmac = NULL;
 #if 1//turn off the DMA mode
 	/* request dma channel */
-	data->dmac = dma_request_chan(dev, "rxtx");
-	if (IS_ERR(data->dmac)) {
-		ret = PTR_ERR(data->dmac);
-		data->dmac = NULL;
+	nfc->dmac = dma_request_chan(dev, "rxtx");
+	if (IS_ERR(nfc->dmac)) {
+		ret = PTR_ERR(nfc->dmac);
+		nfc->dmac = NULL;
 		return dev_err_probe(dev, ret, "Failed to request DMA channel\n");
 	} else {
 		struct dma_slave_config dmac_cfg = {};
@@ -1273,69 +1273,69 @@ static int sp_pnand_probe(struct platform_device *pdev)
 		dmac_cfg.dst_addr_width = dmac_cfg.src_addr_width;
 		dmac_cfg.src_maxburst = 16;
 		dmac_cfg.dst_maxburst = 16;
-		ret = dmaengine_slave_config(data->dmac, &dmac_cfg);
+		ret = dmaengine_slave_config(nfc->dmac, &dmac_cfg);
 		if (ret < 0) {
 			dev_err(dev, "Failed to configure DMA channel\n");
-			dma_release_channel(data->dmac);
-			data->dmac = NULL;
+			dma_release_channel(nfc->dmac);
+			nfc->dmac = NULL;
 		}
 	}
 #endif
-	nand_controller_init(&data->controller);
-	data->controller.ops = &sp_pnand_controller_ops;
+	nand_controller_init(&nfc->controller);
+	nfc->controller.ops = &sp_nfc_controller_ops;
 
-	data->inverse = 0;		/* disable */
-	data->scramble = 0;		/* disable */
-	data->seed_val = 0;
-	data->max_spare = 128;
-	data->spare_ch_offset = 7;	/* shift 7 means 0x80*/
-	data->flash_type = LEGACY_FLASH;
-	data->timing_mode = 5;
-	data->ddr_enable = 1;
+	nfc->inverse = 0;		/* disable */
+	nfc->scramble = 0;		/* disable */
+	nfc->seed_val = 0;
+	nfc->max_spare = 128;
+	nfc->spare_ch_offset = 7;	/* shift 7 means 0x80*/
+	nfc->flash_type = LEGACY_FLASH;
+	nfc->timing_mode = 5;
+	nfc->ddr_enable = 1;
 	// Reset the HW
-	// Note: We can't use the function of sp_pnand_soft_reset to reset the hw
-	//       because the private data field of sp_pnand_data is null.
-	writel(1, data->io_base + GLOBAL_RESET);
-	while (readl(data->io_base + GLOBAL_RESET)) ;
+	// Note: We can't use the function of sp_nfc_soft_reset to reset the hw
+	//       because the private data field of sp_nfc_data is null.
+	writel(1, nfc->regs + GLOBAL_RESET);
+	while (readl(nfc->regs + GLOBAL_RESET)) ;
 
 	val = BUSY_RDY_LOC(6) | CMD_STS_LOC(0) | CE_NUM(2);
-	if (data->inverse)
+	if (nfc->inverse)
 		val |= DATA_INVERSE;
-	if (data->scramble)
+	if (nfc->scramble)
 		val |= DATA_SCRAMBLER;
 
-	writel(val, data->io_base + GENERAL_SETTING);
+	writel(val, nfc->regs + GENERAL_SETTING);
 
-	if (data->scramble) {
+	if (nfc->scramble) {
 		/* Support FW to program scramble seed */
-		val = readl(data->io_base + NANDC_EXT_CTRL);
+		val = readl(nfc->regs + NANDC_EXT_CTRL);
 		for(i = 0; i < MAX_CHANNEL; i++)
 			val |= SEED_SEL(i);
-		writel(val, data->io_base + NANDC_EXT_CTRL);
+		writel(val, nfc->regs + NANDC_EXT_CTRL);
 		/* random set, b[13:0] */
-		data->seed_val = 0x2fa5;
+		nfc->seed_val = 0x2fa5;
 	}
 
-	val = readl(data->io_base + AHB_SLAVEPORT_SIZE);
+	val = readl(nfc->regs + AHB_SLAVEPORT_SIZE);
 	val &= ~0xFFF0FF;
 	val |= AHB_SLAVE_SPACE_32KB;//64K?
 	for(i = 0; i < MAX_CHANNEL; i++)
 		val |= AHB_PREFETCH(i);
 	val |= AHB_PRERETCH_LEN(128);
-	writel(val, data->io_base + AHB_SLAVEPORT_SIZE);
+	writel(val, nfc->regs + AHB_SLAVEPORT_SIZE);
 
-	nand_set_controller_data(&data->chip, data);
-	mtd = nand_to_mtd(&data->chip);
+	nand_set_controller_data(&nfc->chip, nfc);
+	mtd = nand_to_mtd(&nfc->chip);
 	mtd->owner = THIS_MODULE;
 	mtd->dev.parent = &pdev->dev;
 	/* Set the name same as uboot cmdline */
 	mtd->name = NAME_DEFINE_IN_UBOOT;
-	data->dev = &pdev->dev;
+	nfc->dev = &pdev->dev;
 	chip->legacy.IO_ADDR_W = chip->legacy.IO_ADDR_R;
-	chip->legacy.select_chip = sp_pnand_select_chip;
-	chip->legacy.cmdfunc = sp_pnand_cmdfunc;
-	chip->legacy.read_byte = sp_pnand_read_byte;
-	chip->legacy.waitfunc = sp_pnand_wait;
+	chip->legacy.select_chip = sp_nfc_select_chip;
+	chip->legacy.cmdfunc = sp_nfc_cmdfunc;
+	chip->legacy.read_byte = sp_nfc_read_byte;
+	chip->legacy.waitfunc = sp_nfc_wait;
 	chip->legacy.chip_delay = 0;
 	chip->options = NAND_NO_SUBPAGE_WRITE;// | NAND_OWN_BUFFERS;
 #if 0
@@ -1344,25 +1344,25 @@ static int sp_pnand_probe(struct platform_device *pdev)
 #endif
 	chip->options |= NAND_USES_DMA;
 	chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
-	platform_set_drvdata(pdev, data);
+	platform_set_drvdata(pdev, nfc);
 
 	// Set the default AC timing/Warmup cyc for sp_pnand.
 	// The register of AC timing/Warmup  keeps the value
 	// set before although the Global Reset is set.
-	sp_pnand_set_default_timing(chip);
-	sp_pnand_set_warmup_cycle(chip, 0, 0);
+	sp_nfc_set_default_timing(chip);
+	sp_nfc_set_warmup_cycle(chip, 0, 0);
 
 	/* Store the device id to calibrate dqs delay */
-	sp_pnand_read_raw_id(chip);
+	sp_nfc_read_raw_id(chip);
 
 	/* Scan to find existance of the device */
 	for (i = startchn; i < MAX_CHANNEL; i++) {
 		printk(KERN_INFO "Scan Channel %d...\n", i);
-		data->cur_chan = i;
-		if (!nand_scan_with_ids(chip, MAX_CE, (struct nand_flash_dev *)sp_pnand_ids)) {
+		nfc->cur_chan = i;
+		if (!nand_scan_with_ids(chip, MAX_CE, (struct nand_flash_dev *)sp_nfc_ids)) {
 			if (((max_sz - size) > mtd->size)
 			    && ((chipnum + nanddev_ntargets(&chip->base)) <= NAND_MAX_CHIPS)) {
-				data->valid_chip[i] = nanddev_ntargets(&chip->base);
+				nfc->valid_chip[i] = nanddev_ntargets(&chip->base);
 				chipnum += nanddev_ntargets(&chip->base);
 				size += (chipnum * nanddev_target_size(&chip->base));
 			} else {
@@ -1371,7 +1371,7 @@ static int sp_pnand_probe(struct platform_device *pdev)
 			}
 		}
 	}
-	// Disable the scan-state for sp_pnand_select_chip
+	// Disable the scan-state for sp_nfc_select_chip
 	//data->scan_state = 0;
 
 	if (chipnum == 0) {
@@ -1379,9 +1379,9 @@ static int sp_pnand_probe(struct platform_device *pdev)
 	}
 
 	mtd->size = size;
-	data->name = chip->parameters.model;
+	nfc->name = chip->parameters.model;
 
-	sp_pnand_set_actiming(chip);
+	sp_nfc_set_actiming(chip);
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
@@ -1396,10 +1396,10 @@ static int sp_pnand_probe(struct platform_device *pdev)
 /*
  * Remove a NAND device.
  */
-static int sp_pnand_remove(struct platform_device *pdev)
+static int sp_nfc_remove(struct platform_device *pdev)
 {
-	struct sp_pnand_data *data = platform_get_drvdata(pdev);
-	struct nand_chip *chip = &data->chip;
+	struct sp_nfc *nfc = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &nfc->chip;
 	int ret;
 
 	iounmap(chip->legacy.IO_ADDR_R);
@@ -1408,18 +1408,18 @@ static int sp_pnand_remove(struct platform_device *pdev)
 	WARN_ON(ret);
 	nand_cleanup(chip);
 
-	iounmap(data->io_base);
-	kfree(data);
+	iounmap(nfc->regs);
+	kfree(nfc);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
 static u32 regs[124];// 7 + 55 + 60 + 1 + 1
-static int sp_pnand_suspend(struct device *dev)
+static int sp_nfc_suspend(struct device *dev)
 {
-	struct sp_pnand_data *data = dev_get_drvdata(dev);
-	void __iomem *base = data->io_base;
+	struct sp_nfc *nfc = dev_get_drvdata(dev);
+	void __iomem *base = nfc->regs;
 	u32 i, index;
 
 	//printk(">>>>>> [DEBUG] PNAND suspend <<<<<<\n");
@@ -1437,17 +1437,17 @@ static int sp_pnand_suspend(struct device *dev)
 		index = (i - 0x300) / 4;
 		regs[62 + index] = readl(base + i);
 	}
-	regs[122] = readl(data->io_base + 0x42C);
-	regs[123] = readl(data->io_base + 0x508);
+	regs[122] = readl(nfc->regs + 0x42C);
+	regs[123] = readl(nfc->regs + 0x508);
 
 	return 0;
 }
 
-static int sp_pnand_resume(struct device *dev)
+static int sp_nfc_resume(struct device *dev)
 {
-	struct sp_pnand_data *data = dev_get_drvdata(dev);
-	struct nand_chip *chip = &data->chip;
-	void __iomem *base = data->io_base;
+	struct sp_nfc *nfc = dev_get_drvdata(dev);
+	struct nand_chip *chip = &nfc->chip;
+	void __iomem *base = nfc->regs;
 	u32 i, index, val;
 
 	//printk(">>>>>> [DEBUG] PNAND resume <<<<<<\n");
@@ -1468,18 +1468,18 @@ static int sp_pnand_resume(struct device *dev)
 	writel_relaxed(regs[122], base + 0x42C);
 	writel_relaxed(regs[123], base + 0x508);
 
-	sp_pnand_abort(chip);
+	sp_nfc_abort(chip);
 
-	if (data->flash_type == ONFI2) {
-		data->flash_type = LEGACY_FLASH;
-		data->timing_mode = 0;
-		sp_pnand_calc_timing(chip);
-		sp_pnand_onfi_set_feature(chip, 0x13, LEGACY_FLASH);
+	if (nfc->flash_type == ONFI2) {
+		nfc->flash_type = LEGACY_FLASH;
+		nfc->timing_mode = 0;
+		sp_nfc_calc_timing(chip);
+		sp_nfc_onfi_set_feature(chip, 0x13, LEGACY_FLASH);
 
-		data->flash_type = ONFI2;
-		data->timing_mode = 3;
-		sp_pnand_calc_timing(chip);
-		val = sp_pnand_onfi_get_feature(chip, ONFI2);
+		nfc->flash_type = ONFI2;
+		nfc->timing_mode = 3;
+		sp_nfc_calc_timing(chip);
+		val = sp_nfc_onfi_get_feature(chip, ONFI2);
 		if (val != 0x1313)
 			dev_err(dev, "failed to switch to ONFI2\n");
 	}
@@ -1488,30 +1488,30 @@ static int sp_pnand_resume(struct device *dev)
 }
 #endif
 
-static const struct of_device_id sp_pnand_dt_ids[] = {
+static const struct of_device_id sp_nfc_dt_ids[] = {
 	{ .compatible = "sunplus,sp7350-para-nand" },
 	{ }
 };
 
-MODULE_DEVICE_TABLE(of, sp_pnand_dt_ids);
+MODULE_DEVICE_TABLE(of, sp_nfc_dt_ids);
 
-static const struct dev_pm_ops sp_pnand_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(sp_pnand_suspend,
-				sp_pnand_resume)
+static const struct dev_pm_ops sp_nfc_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sp_nfc_suspend,
+				sp_nfc_resume)
 };
 
-static struct platform_driver sp_pnand_driver __refdata = {
-	.probe	= sp_pnand_probe,
-	.remove	= sp_pnand_remove,
+static struct platform_driver sp_nfc_driver __refdata = {
+	.probe	= sp_nfc_probe,
+	.remove	= sp_nfc_remove,
 	.driver	= {
 		.name = "sp7350-para-nand",
 		.owner = THIS_MODULE,
-		.pm		= &sp_pnand_pm_ops,
-		.of_match_table = of_match_ptr(sp_pnand_dt_ids),
+		.pm		= &sp_nfc_pm_ops,
+		.of_match_table = of_match_ptr(sp_nfc_dt_ids),
 	},
 };
 
-module_platform_driver(sp_pnand_driver);
+module_platform_driver(sp_nfc_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Sunplus Technology Corporation");

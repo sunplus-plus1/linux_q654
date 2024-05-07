@@ -7,7 +7,7 @@
  * Chip ID list
  * name, device ID, page size, chip size in MiB, eraseblock size, options
  */
-const struct nand_flash_dev sp_pnand_ids[] = {
+const struct nand_flash_dev sp_nfc_ids[] = {
 	{"K9F2G08XXX 256MiB ZEBU 8-bit",
 		{ .id = {0xec, 0xaa, 0x80, 0x15, 0x50} },
 		  SZ_2K, SZ_256, SZ_128K, 0, 5, 64, NAND_ECC_INFO(2, SZ_512), },
