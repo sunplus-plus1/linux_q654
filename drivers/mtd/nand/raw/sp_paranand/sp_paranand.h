@@ -196,9 +196,9 @@
 
 #if CONFIG_SP_DEBUG > 0
 	#define TAG "Parallel Nand: "
-	#define sp_pnand_dbg(fmt, ...) printk(KERN_INFO TAG fmt, ##__VA_ARGS__);
+	#define sp_nfc_dbg(fmt, ...) printk(KERN_INFO TAG fmt, ##__VA_ARGS__);
 #else
-	#define sp_pnand_dbg(fmt, ...) do {} while (0)
+	#define sp_nfc_dbg(fmt, ...) do {} while (0)
 #endif
 
 #if CONFIG_SP_DEBUG > 0
@@ -234,7 +234,7 @@ struct sp_pnandchip_attr {
 	flashtype flash_type;
 };
 
-struct sp_pnand_chip_timing {
+struct sp_nfc_chip_timing {
 	uint8_t		tWH;
 	uint8_t		tCH;
 	uint8_t		tCLH;
@@ -302,10 +302,10 @@ struct cmd_feature {
 	u8 col_cycle;
 };
 
-struct sp_pnand_data {
+struct sp_nfc {
 	struct nand_chip chip;
 	struct nand_controller controller;
-	void __iomem *io_base;
+	void __iomem *regs;
 	struct clk *clk;
 	struct reset_control *rstc;
 	int sel_chip;
@@ -343,20 +343,20 @@ struct sp_pnand_data {
 	unsigned long priv ____cacheline_aligned;
 };
 
-void sp_pnand_select_chip(struct nand_chip *chip, int cs);
-void sp_pnand_abort(struct nand_chip *chip);
-void sp_pnand_regdump(struct nand_chip *chip);
+void sp_nfc_select_chip(struct nand_chip *chip, int cs);
+void sp_nfc_abort(struct nand_chip *chip);
+void sp_nfc_regdump(struct nand_chip *chip);
 
-extern int sp_pnand_issue_cmd(struct nand_chip *, struct cmd_feature *);
-extern void sp_pnand_set_default_timing(struct nand_chip *);
-extern int sp_pnand_wait(struct nand_chip *);
-extern void sp_pnand_fill_prog_code(struct nand_chip *, int, int);
-extern void sp_pnand_fill_prog_flow(struct nand_chip *, int *, int);
-extern int sp_pnand_read_page(struct nand_chip *, uint8_t *, int, int);
-extern int sp_pnand_write_page(struct nand_chip *, const uint8_t *, int, int);
+extern int sp_nfc_issue_cmd(struct nand_chip *, struct cmd_feature *);
+extern void sp_nfc_set_default_timing(struct nand_chip *);
+extern int sp_nfc_wait(struct nand_chip *);
+extern void sp_nfc_fill_prog_code(struct nand_chip *, int, int);
+extern void sp_nfc_fill_prog_flow(struct nand_chip *, int *, int);
+extern int sp_nfc_read_page(struct nand_chip *, uint8_t *, int, int);
+extern int sp_nfc_write_page(struct nand_chip *, const uint8_t *, int, int);
 
-extern int sp_pnand_read_page_by_dma(struct nand_chip *nand, uint8_t *buf, int oob_required, int page);
-extern int sp_pnand_write_page_by_dma(struct nand_chip *nand, const uint8_t *buf, int oob_required, int page);
+extern int sp_nfc_read_page_by_dma(struct nand_chip *chip, uint8_t *buf, int oob_required, int page);
+extern int sp_nfc_write_page_by_dma(struct nand_chip *chip, const uint8_t *buf, int oob_required, int page);
 
-extern int sp_pnand_read_oob(struct nand_chip *, int);
-extern int sp_pnand_write_oob(struct nand_chip *, int);
+extern int sp_nfc_read_oob(struct nand_chip *, int);
+extern int sp_nfc_write_oob(struct nand_chip *, int);
