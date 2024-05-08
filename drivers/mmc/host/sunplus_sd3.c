@@ -214,6 +214,10 @@ static void spsdc_set_bus_clk(struct spsdc_host *host, int clk)
 		clk = f_min;
 	if (clk > f_max)
 		clk = f_max;
+	if(host->work_clk == clk) {
+		spsdc_pr(host->mode, VERBOSE, "clk %d is set\n", clk);
+		return;
+	}
 	if (host->soc_clk != soc_clk){
 		clk_set_rate(host->clk, host->soc_clk);
 		soc_clk  = clk_get_rate(host->clk);
@@ -232,6 +236,7 @@ static void spsdc_set_bus_clk(struct spsdc_host *host, int clk)
 	}
 	value = bitfield_replace(value, SPSDC_sdfqsel_w12, 12, clkdiv);
 	writel(value, &host->base->sd_config0);
+	host->work_clk = clk;
 
 	/* In order to reduce the frequency of context switch,
 	 * if it is high speed or upper, we do not use interrupt
@@ -252,6 +257,11 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 	int hs_en = 1;
 	union spmmc_reg_timing_config0 reg_timing;
 	char *timing_name;
+
+	if(host->timing == timing) {
+		spsdc_pr(host->mode, VERBOSE, "timing %d is set\n", timing);
+		return;
+	}
 
 	host->ddr_enabled = 0;
 	reg_timing.bits.sd_wr_dat_dly_sel = wr_delay;
@@ -323,6 +333,8 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 		writel(value, &host->base->sd_config0);
 	}
 
+
+	host->timing = timing;
 	spsdc_pr(host->mode, INFO, "set bus timing to %s\n", timing_name);
 
 }
@@ -1320,7 +1332,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node, "sunplus-driver-type", &host->target_drv))
 		host->target_drv = 0;	//0:TypeB 1:TypeA 2:TypeC 3:TypeD		
 
-	if (device_property_read_bool(&pdev->dev, "high-segs"))
+	if (device_property_read_bool(&pdev->dev, "sunplus-high-segs"))
 		host->segs_no = SPSDC_MAX_SEGS;
 	else
 		host->segs_no = SPSDC_HW_SEGS;
@@ -1328,7 +1340,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	if (host->segs_no < SPSDC_HW_SEGS) 
 		host->segs_no = SPSDC_HW_SEGS;
 
-	if (device_property_read_bool(&pdev->dev, "high-mem"))
+	if (device_property_read_bool(&pdev->dev, "sunplus-high-mem"))
 		host->ram = 8;
 	else
 		host->ram = 3;
@@ -1450,6 +1462,8 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	spsdc_select_mode(host);
 	host->soc_clk = dev_mode->source_clk;
 	clk_set_rate(host->clk, host->soc_clk);
+	host->work_clk = 0;
+	host->timing = 10;
 	if (!of_property_read_u32(pdev->dev.of_node, "delay-val", &host->val))
 		host->val = host->val;
 	else
@@ -1553,6 +1567,8 @@ static int spsdc_pm_resume(struct device *dev)
 		return ret;
 	spsdc_controller_init(host);
 	if (host->mmc->pm_flags & MMC_PM_KEEP_POWER){
+		host->work_clk = 0;
+		host->timing = 10;
 		spsdc_set_ios(host->mmc, &host->mmc->ios);
 		spmmc_start_signal_voltage_switch(host->mmc, &host->mmc->ios);
 	}

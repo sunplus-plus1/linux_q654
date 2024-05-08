@@ -371,6 +371,8 @@ struct spsdc_host {
 	struct mmc_request *mrq; /* current mrq */
 
 	int soc_clk;
+	int work_clk;
+	int timing;
 	int irq;
 	int use_int; /* should raise irq when done */
 	int power_state; /* current power state: off/up/on */
