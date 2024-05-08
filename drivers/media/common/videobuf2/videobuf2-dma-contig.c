@@ -21,9 +21,9 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-memops.h>
-
+#if defined(CONFIG_SOC_SP7350)
 static bool dmaremap;
-
+#endif
 struct vb2_dc_buf {
 	struct device			*dev;
 	void				*vaddr;
@@ -183,19 +183,42 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		printk(KERN_ERR "No buffer to map\n");
 		return -EINVAL;
 	}
+#if defined(CONFIG_SOC_SP7350)
 	if (dmaremap) {
 		vma->vm_flags |= VM_LOCKED;
-		if (remap_pfn_range(vma, vma->vm_start, buf->dma_addr >> PAGE_SHIFT, vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
+		if (remap_pfn_range(vma,
+				    vma->vm_start,
+		buf->dma_addr >> PAGE_SHIFT,
+		vma->vm_end - vma->vm_start,
+		vma->vm_page_prot
+		)) {
 			pr_err("%s(): remap_pfn_range() failed\n", __func__);
 			return -ENOBUFS;
 		}
 	} else {
-		ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr, buf->size, buf->attrs);
+		ret = dma_mmap_attrs(buf->dev,
+				     vma,
+		buf->cookie,
+		buf->dma_addr,
+		buf->size,
+		buf->attrs);
 		if (ret) {
 			pr_err("Remapping memory failed, error: %d\n", ret);
 			return ret;
 		}
 	}
+#else
+	ret = dma_mmap_attrs(buf->dev,
+			     vma,
+	buf->cookie,
+	buf->dma_addr,
+	buf->size,
+	buf->attrs);
+	if (ret) {
+		pr_err("Remapping memory failed, error: %d\n", ret);
+		return ret;
+	}
+#endif
 
 	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data	= &buf->handler;
@@ -751,11 +774,11 @@ int vb2_dma_contig_set_max_seg_size(struct device *dev, unsigned int size)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_dma_contig_set_max_seg_size);
-
+#if defined(CONFIG_SOC_SP7350)
 module_param_named(dmaremap, dmaremap, bool, 0644);
 MODULE_PARM_DESC(dmaremap,
 		 "enable | disable dmaremap. (default: disable)");
-
+#endif
 MODULE_DESCRIPTION("DMA-contig memory handling routines for videobuf2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
