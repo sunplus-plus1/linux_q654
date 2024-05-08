@@ -22,6 +22,8 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-memops.h>
 
+static bool dmaremap;
+
 struct vb2_dc_buf {
 	struct device			*dev;
 	void				*vaddr;
@@ -181,13 +183,18 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		printk(KERN_ERR "No buffer to map\n");
 		return -EINVAL;
 	}
-
-	ret = dma_mmap_attrs(buf->dev, vma, buf->cookie,
-		buf->dma_addr, buf->size, buf->attrs);
-
-	if (ret) {
-		pr_err("Remapping memory failed, error: %d\n", ret);
-		return ret;
+	if (dmaremap) {
+		vma->vm_flags |= VM_LOCKED;
+		if (remap_pfn_range(vma, vma->vm_start, buf->dma_addr >> PAGE_SHIFT, vma->vm_end - vma->vm_start, vma->vm_page_prot)) {
+			pr_err("%s(): remap_pfn_range() failed\n", __func__);
+			return -ENOBUFS;
+		}
+	} else {
+		ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr, buf->size, buf->attrs);
+		if (ret) {
+			pr_err("Remapping memory failed, error: %d\n", ret);
+			return ret;
+		}
 	}
 
 	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
@@ -744,6 +751,10 @@ int vb2_dma_contig_set_max_seg_size(struct device *dev, unsigned int size)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_dma_contig_set_max_seg_size);
+
+module_param_named(dmaremap, dmaremap, bool, 0644);
+MODULE_PARM_DESC(dmaremap,
+		 "enable | disable dmaremap. (default: disable)");
 
 MODULE_DESCRIPTION("DMA-contig memory handling routines for videobuf2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>");
