@@ -186,34 +186,24 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 #if defined(CONFIG_SOC_SP7350)
 	if (dmaremap) {
 		vma->vm_flags |= VM_LOCKED;
-		if (remap_pfn_range(vma,
-				    vma->vm_start,
-		buf->dma_addr >> PAGE_SHIFT,
-		vma->vm_end - vma->vm_start,
-		vma->vm_page_prot
-		)) {
+		if (remap_pfn_range(vma, vma->vm_start,
+				    buf->dma_addr >> PAGE_SHIFT,
+				    vma->vm_end - vma->vm_start,
+				    vma->vm_page_prot)) {
 			pr_err("%s(): remap_pfn_range() failed\n", __func__);
 			return -ENOBUFS;
 		}
 	} else {
-		ret = dma_mmap_attrs(buf->dev,
-				     vma,
-		buf->cookie,
-		buf->dma_addr,
-		buf->size,
-		buf->attrs);
+		ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
+				     buf->size, buf->attrs);
 		if (ret) {
 			pr_err("Remapping memory failed, error: %d\n", ret);
 			return ret;
 		}
 	}
 #else
-	ret = dma_mmap_attrs(buf->dev,
-			     vma,
-	buf->cookie,
-	buf->dma_addr,
-	buf->size,
-	buf->attrs);
+	ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
+			     buf->size, buf->attrs);
 	if (ret) {
 		pr_err("Remapping memory failed, error: %d\n", ret);
 		return ret;
