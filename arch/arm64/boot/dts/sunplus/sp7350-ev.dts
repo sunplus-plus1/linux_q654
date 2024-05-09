@@ -2703,6 +2703,13 @@
 	clock-frequency = <400000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&para_nand_pins>;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	nand@0 {
+		reg = <0>;
+		mtd-name = "sp_paranand.0";
+	};
 };
 
 &vcodec_emem {
