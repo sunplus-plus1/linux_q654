@@ -11,6 +11,12 @@
 **********************************************************/
 #define NAME_DEFINE_IN_UBOOT		"sp_paranand.0"
 
+#define NFC_MAX_NSELS		8
+#define NFC_MAX_CHANNEL		8
+#define NFC_MAX_DATAPORT	4
+#define NFC_DATAPORT		1 /* Q654 has only one data port */
+#define NFC_AHB_SPACE		512
+
 /* Frequency Setting (unit: HZ) */
 #define CONFIG_SP_CLK_100M		100000000
 #define CONFIG_SP_CLK_200M		200000000
@@ -190,10 +196,6 @@
 #define CMD_ECC_FAIL_ON_DATA		(1 << 3)
 #define CMD_ECC_FAIL_ON_SPARE		(1 << 4)
 
-/* Feature Setting */
-#define CONFIG_PAGE_MODE
-//#define CONFIG_SECTOR_MODE
-
 #if CONFIG_SP_DEBUG > 0
 	#define TAG "Parallel Nand: "
 	#define sp_nfc_dbg(fmt, ...) printk(KERN_INFO TAG fmt, ##__VA_ARGS__);
@@ -302,12 +304,40 @@ struct cmd_feature {
 	u8 col_cycle;
 };
 
+struct sp_nfc_cfg {
+	int use_dma;
+	int ddr_enable; // Set DDR mode if nand support sync interface
+	int max_spare;
+};
+
+struct sp_nfc_nand_chip {
+	struct list_head node;
+	struct nand_chip chip;
+
+	u16 boot_blks;
+	u16 metadata_size;
+	u32 boot_ecc;
+	u32 timing;
+
+	u8 chan;
+	u8 nsels;
+	u8 sels[];
+	/* Nothing after this field. */
+};
+
 struct sp_nfc {
 	struct nand_chip chip;
 	struct nand_controller controller;
+	const struct sp_nfc_cfg *cfg;
 	void __iomem *regs;
+	void __iomem *data_port;
 	struct clk *clk;
 	struct reset_control *rstc;
+	struct completion done;
+	struct list_head chips;
+	unsigned long assigned_cs;
+	u8 nchips;
+
 	int sel_chip;
 	int cur_cmd;
 	int page_addr;
@@ -336,7 +366,8 @@ struct sp_nfc {
 	int scramble;
 	int clkfreq;
 	int timing_mode;
-	int ddr_enable; // Set DDR mode if nand support sync interface
+	int ddr_enable;
+
 	const char *name;
 	struct dma_chan *dmac;
 

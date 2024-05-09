@@ -12,23 +12,23 @@
  * 	than nand_attr[].
  *
  */
-#include <linux/io.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
+#include <linux/clk.h>
 #include <linux/slab.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/rawnand.h>
-#include <linux/mtd/partitions.h>
-#include <linux/vmalloc.h>
+#include <linux/reset.h>
+
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/module.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/rawnand.h>
+#include <linux/mtd/bbm.h>
+
+#include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/delay.h>
 #include <linux/ktime.h>
 #include <linux/scatterlist.h>
-#include <linux/delay.h>
-#include <linux/clk.h>
-#include <linux/reset.h>
-#include <linux/mtd/bbm.h>
 
 #include "sp_paranand.h"
 
@@ -788,13 +788,13 @@ static int sp_nfc_available_oob(struct mtd_info *mtd)
 	consume_byte += CONFIG_BI_BYTE;
 	available_spare = nfc->spare - consume_byte;
 
-	DBGLEVEL2(sp_nfc_dbg(
+	DBGLEVEL1(sp_nfc_dbg(
 		"mtd->erasesize:%d, mtd->writesize:%d\n", mtd->erasesize, mtd->writesize));
-	DBGLEVEL2(sp_nfc_dbg(
+	DBGLEVEL1(sp_nfc_dbg(
 		"page num:%d, nfc->eccbasft:%d, protect_spare:%d, spare:%d Byte\n",
-		mtd->erasesize/mtd->writesize,nfc->eccbasft, nfc->protect_spare,
+		mtd->erasesize/mtd->writesize, nfc->eccbasft, nfc->protect_spare,
 		nfc->spare));
-	DBGLEVEL2(sp_nfc_dbg(
+	DBGLEVEL1(sp_nfc_dbg(
 		"consume_byte:%d, eccbyte:%d, eccbytes(spare):%d, useecc:%d bit\n",
 		consume_byte, eccbyte, eccbyte_spare, nfc->useecc));
 
@@ -806,8 +806,7 @@ static int sp_nfc_available_oob(struct mtd_info *mtd)
 	if (available_spare >= 4) {
 		if (available_spare >= nfc->max_spare) {
 			ret = nfc->max_spare;
-		}
-		else {
+		} else {
 			if (available_spare >= 64) {
 				ret = 64;
 			}
@@ -1037,7 +1036,7 @@ void sp_nfc_set_actiming(struct nand_chip *chip)
 
 	/* TODO: calibrate the DQS delay for Sync */
 	if (strcmp(nfc->name, "MT29F32G08ABXXX 4GiB 8-bit") == 0) {
-		if (nfc->ddr_enable) {
+		if (nfc->cfg->ddr_enable) {
 			nfc->timing_mode = 3;
 			nfc->flash_type = ONFI2;
 		} else {
@@ -1071,14 +1070,12 @@ void sp_nfc_set_actiming(struct nand_chip *chip)
 
 static int sp_nfc_attach_chip(struct nand_chip *chip)
 {
-	struct nand_memory_organization *memorg;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sp_nfc *nfc = nand_get_controller_data(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	struct nand_device *base = &chip->base;
 	const struct nand_ecc_props *requirements = nanddev_get_ecc_requirements(base);
 	u32 val;
-	int i;
 
 	nfc->eccbasft = fls(requirements->step_size) - 1;
 	nfc->useecc = requirements->strength;
@@ -1086,8 +1083,11 @@ static int sp_nfc_attach_chip(struct nand_chip *chip)
 	nfc->useecc_spare = 4;
 	nfc->sector_per_page = mtd->writesize >> nfc->eccbasft;
 	nfc->spare = mtd->oobsize;
-
-	memorg = nanddev_get_memorg(&chip->base);
+	nfc->spare_ch_offset = 7;	/* shift 7 means 0x80*/
+	nfc->flash_type = LEGACY_FLASH;
+	nfc->timing_mode = 5;
+	/* temp, remove the nfc->max_spare */
+	nfc->max_spare = nfc->cfg->max_spare;
 
 	//usually, spare size is 1/32 page size
 	if (nfc->spare < (mtd->writesize >> 5))
@@ -1117,17 +1117,9 @@ static int sp_nfc_attach_chip(struct nand_chip *chip)
 	val |=  VALID_PAGE((mtd->erasesize / mtd->writesize - 1));
 	writel(val, nfc->regs + MEM_ATTR_SET2);
 
-	i = sp_nfc_available_oob(mtd);
-	if (likely(i >= 4)) {
-		if (i > nfc->max_spare)
-			memorg->oobsize = nfc->max_spare;
-		else
-			memorg->oobsize = i;
-		nfc->spare = memorg->oobsize;
-	} else
+	nfc->spare = sp_nfc_available_oob(mtd);
+	if (nfc->spare < 4)
 		return -ENXIO;
-
-	DBGLEVEL1(sp_nfc_dbg("total oobsize: %d\n", memorg->oobsize));
 
 	sp_nand_set_ecc(chip);
 
@@ -1178,70 +1170,265 @@ static void sp_reset_control_assert(void *nfc)
 	reset_control_assert(nfc);
 }
 
+static void sp_nfc_hw_init(struct sp_nfc *nfc, u8 nsels, u8 chan)
+{
+	int i;
+	u32 val;
+
+	// Reset the HW
+	writel(1, nfc->regs + GLOBAL_RESET);
+	while (readl(nfc->regs + GLOBAL_RESET));
+
+	/* Set the CEs number of every channel, multi of 2 */
+	if (nsels >> 3)
+		i = 3;
+	else if (nsels >> 2)
+		i = 2;
+	else if (nsels >> 1)
+		i = 1;
+	else
+		i = 0;
+
+	val = CE_NUM(i);
+	writel(val, nfc->regs + GENERAL_SETTING);
+
+	/* Configure the AHB slave port */
+	val = readl_relaxed(nfc->regs + AHB_SLAVEPORT_SIZE);
+	val &= ~0xFFF0FF;
+	val |= AHB_SLAVE_SPACE_16KB; /* HW decide */
+	for(i = 0; i < NFC_DATAPORT; i++) /* Only one AHB data port */
+		val |= AHB_PREFETCH(i);
+	val |= AHB_PRERETCH_LEN(128); /* 128 words <= sector size */
+
+	writel(val, nfc->regs + AHB_SLAVEPORT_SIZE);
+
+	writel(0x0f1f0f1f, nfc->regs + FL_AC_TIMING0(chan));
+	writel(0x00007f7f, nfc->regs + FL_AC_TIMING1(chan));
+	writel(0x7f7f7f7f, nfc->regs + FL_AC_TIMING2(chan));
+	writel(0xff1f001f, nfc->regs + FL_AC_TIMING3(chan));
+}
+
+static int sp_nfc_nand_chip_init(struct device *dev, struct sp_nfc *nfc,
+				 struct device_node *np)
+{
+	struct sp_nfc_nand_chip *spnand;
+	struct nand_chip *chip;
+	struct mtd_info *mtd;
+	int nsels, chan;
+	u32 tmp;
+	int ret;
+	int i;
+	const char *mt_name, *node_name;
+
+	if (of_node_name_eq(np, "nand")) {
+		node_name = kbasename(np->full_name);
+		ret = sscanf(node_name, "nand@%d", &chan);
+		if (ret == 1)
+			DBGLEVEL2(sp_nfc_dbg("chan %d\n", chan));
+	}
+
+	if (!of_get_property(np, "reg", &nsels))//'nsels': the length of property value
+		return -ENODEV;
+	nsels /= sizeof(u32);
+	DBGLEVEL2(sp_nfc_dbg("nsels %d\n", nsels));
+	if (!nsels || nsels > NFC_MAX_NSELS) {
+		dev_err(dev, "invalid reg property size %d\n", nsels);
+		return -EINVAL;
+	}
+
+
+	if (!of_property_read_string(np, "mtd-name", &mt_name))
+		DBGLEVEL2(sp_nfc_dbg("name %s\n", mt_name));
+
+	spnand = devm_kzalloc(dev, sizeof(*spnand) + nsels * sizeof(u8),
+			      GFP_KERNEL);
+	if (!spnand)
+		return -ENOMEM;
+
+	spnand->nsels = nsels;
+	spnand->chan = chan;
+	for (i = 0; i < nsels; i++) {
+		ret = of_property_read_u32_index(np, "reg", i, &tmp);
+		if (ret) {
+			dev_err(dev, "reg property failure : %d\n", ret);
+			return ret;
+		}
+
+		if (tmp >= NFC_MAX_NSELS) {
+			dev_err(dev, "invalid CS: %u\n", tmp);
+			return -EINVAL;
+		}
+
+		if (test_and_set_bit(tmp, &nfc->assigned_cs)) {
+			dev_err(dev, "CS %u already assigned\n", tmp);
+			return -EINVAL;
+		}
+
+		spnand->sels[i] = tmp;
+	}
+
+	chip = &spnand->chip;
+	chip->controller = &nfc->controller;
+
+	chip->legacy.IO_ADDR_W = chip->legacy.IO_ADDR_R = nfc->data_port;
+	chip->legacy.select_chip = sp_nfc_select_chip;
+	chip->legacy.cmdfunc = sp_nfc_cmdfunc;
+	chip->legacy.read_byte = sp_nfc_read_byte;
+	chip->legacy.waitfunc = sp_nfc_wait;
+	chip->legacy.chip_delay = 0;
+
+	nand_set_flash_node(chip, np);
+
+	nand_set_controller_data(chip, nfc);
+
+	chip->options |= NAND_USES_DMA | NAND_NO_SUBPAGE_WRITE;
+	chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
+
+	/* Set default mode in case dt entry is missing. */
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
+
+	mtd = nand_to_mtd(chip);
+	mtd->owner = THIS_MODULE;
+	mtd->dev.parent = dev;
+	mtd->name = mt_name;
+	//mtd->name = NAME_DEFINE_IN_UBOOT;//Will be any bug?
+	//mtd->name = devm_kasprintf(dev, GFP_KERNEL, "%s.%d", np->name);
+	DBGLEVEL2(sp_nfc_dbg("mtd->name %s\n", mtd->name));
+
+	mtd_set_ooblayout(mtd, &sp_nfc_ooblayout_ops);
+	sp_nfc_hw_init(nfc, nsels, spnand->chan);
+	//////////////////////////    LOG  10.10
+	ret = nand_scan_with_ids(chip, nsels, (struct nand_flash_dev *)sp_nfc_ids);
+	//ret = nand_scan(chip, nsels);
+	if (ret)
+		return ret;
+
+	// nfc->name -> spnand->name
+	nfc->name = chip->parameters.model;
+
+	sp_nfc_set_actiming(chip);
+
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret) {
+		dev_err(dev, "MTD parse partition error\n");
+		nand_cleanup(chip);
+		return ret;
+	}
+
+	list_add_tail(&spnand->node, &nfc->chips);
+
+	return 0;
+}
+
+static void sp_nfc_chips_cleanup(struct sp_nfc *nfc)
+{
+	struct sp_nfc_nand_chip *spnand, *tmp;
+	struct nand_chip *chip;
+	int ret;
+
+	list_for_each_entry_safe(spnand, tmp, &nfc->chips, node) {
+		chip = &spnand->chip;
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
+		list_del(&spnand->node);
+	}
+}
+
+static int sp_nfc_nand_chips_init(struct device *dev, struct sp_nfc *nfc)
+{
+	struct device_node *np = dev->of_node, *nand_np;
+	int nchips = of_get_child_count(np);
+	int ret;
+
+	if (!nchips || nchips > NFC_MAX_NSELS) {
+		dev_err(nfc->dev, "incorrect number of NAND chips (%d)\n",
+			nchips);
+		return -EINVAL;
+	}
+
+	nfc->nchips = nchips;
+
+	for_each_child_of_node(np, nand_np) {
+		ret = sp_nfc_nand_chip_init(dev, nfc, nand_np);
+		if (ret) {
+			of_node_put(nand_np);
+			sp_nfc_chips_cleanup(nfc);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static const struct sp_nfc_cfg sp_nfc_default_cfg = {
+		.use_dma = 1,
+		.ddr_enable = 0,
+		.max_spare = 128,
+};
+
+static const struct of_device_id sp_nfc_id_table[] = {
+	{
+		.compatible = "sunplus,sp7350-para-nand",
+		.data = &sp_nfc_default_cfg
+	},
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, sp_nfc_id_table);
+
 static int sp_nfc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct resource *res;
 	struct sp_nfc *nfc;
-	struct mtd_info *mtd;
-	struct nand_chip *chip;
-	struct resource *r;
-	int ret, chipnum;
-	uint64_t size, max_sz = -1;
-	int i, type;
-	u32 val;
+	int ret, irq;
 
-	ret = chipnum = size = type = 0;
-	/* Allocate memory for the device structure (and zero it) */
-
-	/*
-	 * Initialize the parameter
-	 */
-	nfc = devm_kzalloc(dev, sizeof(struct sp_nfc), GFP_KERNEL);
-	if (!nfc) {
-		dev_err(dev, "failed to allocate device structure.\n");
+	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
+	if (!nfc)
 		ret = -ENOMEM;
+
+	nand_controller_init(&nfc->controller);
+	INIT_LIST_HEAD(&nfc->chips);
+	nfc->controller.ops = &sp_nfc_controller_ops;
+
+	nfc->cfg = of_device_get_match_data(dev);
+	if (!nfc->cfg) {
+		ret = -ENODEV;
+		goto release_nfc;
 	}
 
-	chip = &nfc->chip;
-	chip->controller = &nfc->controller;
+	DBGLEVEL2(sp_nfc_dbg("use_dma %d, ddr_enable %d\n", nfc->cfg->use_dma, nfc->cfg->ddr_enable));
+	nfc->dev = dev;
 
-	/* reset */
-	nfc->rstc = devm_reset_control_get(dev, NULL);
-	if (IS_ERR(nfc->rstc))
-		return dev_err_probe(dev, PTR_ERR(nfc->rstc), "Failed to get reset\n");
-
-	reset_control_deassert(nfc->rstc);
-
-	ret = devm_add_action_or_reset(dev, sp_reset_control_assert, nfc->rstc);
-	if (ret)
-		return ret;
-
-	/* clk */
-	nfc->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(nfc->clk))
-		return dev_err_probe(dev, PTR_ERR(nfc->clk), "Failed to get clock\n");
-
-	ret = clk_prepare_enable(nfc->clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable clock\n");
-
-	ret = devm_add_action_or_reset(dev, sp_clk_disable_unprepare, nfc->clk);
-	if (ret)
-		return ret;
+	init_completion(&nfc->done);
 
 	nfc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(nfc->regs)) {
-		dev_err(dev, "Failed to ioremap for register.\n");
-		return PTR_ERR(nfc->regs);
+		ret = PTR_ERR(nfc->regs);
+		goto release_nfc;
 	}
 
-	DBGLEVEL2(sp_nfc_dbg("nfc->regs:0x%08lx", (unsigned long)nfc->regs));
+	/* Variable res is used by dmac_cfg.src_addr */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	nfc->data_port = devm_ioremap_resource(dev, res);
+	if (IS_ERR(nfc->data_port)) {
+		ret = PTR_ERR(nfc->data_port);
+		goto release_nfc;
+	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	chip->legacy.IO_ADDR_R = devm_ioremap_resource(dev, r);
-	if (IS_ERR(chip->legacy.IO_ADDR_R)) {
-		dev_err(dev, "Failed to ioremap for data port.\n");
-		return PTR_ERR(chip->legacy.IO_ADDR_R);
+	nfc->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(nfc->clk)) {
+		dev_err(dev, "No clk\n");
+		ret = PTR_ERR(nfc->clk);
+		goto release_nfc;
+	}
+
+	ret = clk_prepare_enable(nfc->clk);
+	if (ret) {
+		dev_err(dev, "Failed to enable clk\n");
+		clk_disable_unprepare(nfc->clk);
+		goto release_nfc;
 	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency", &nfc->clkfreq))
@@ -1250,147 +1437,42 @@ static int sp_nfc_probe(struct platform_device *pdev)
 	ret = clk_set_rate(nfc->clk, nfc->clkfreq);
 	if (ret) {
 		dev_err(dev, "Failed to set clk rate\n");
-		return ret;
+		goto release_nfc;
 	}
+	DBGLEVEL2(sp_nfc_dbg("nfc->clkfreq %ld\n", clk_get_rate(nfc->clk)));
 
-	nfc->clkfreq = clk_get_rate(nfc->clk);
-	DBGLEVEL1(sp_nfc_dbg("nfc->clkfreq %d\n", nfc->clkfreq));
-
-	nfc->dmac = NULL;
-#if 1//turn off the DMA mode
-	/* request dma channel */
-	nfc->dmac = dma_request_chan(dev, "rxtx");
-	if (IS_ERR(nfc->dmac)) {
-		ret = PTR_ERR(nfc->dmac);
-		nfc->dmac = NULL;
-		return dev_err_probe(dev, ret, "Failed to request DMA channel\n");
-	} else {
-		struct dma_slave_config dmac_cfg = {};
-
-		dmac_cfg.src_addr = (phys_addr_t)r->start;
-		dmac_cfg.dst_addr = dmac_cfg.src_addr;
-		dmac_cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_16_BYTES;
-		dmac_cfg.dst_addr_width = dmac_cfg.src_addr_width;
-		dmac_cfg.src_maxburst = 16;
-		dmac_cfg.dst_maxburst = 16;
-		ret = dmaengine_slave_config(nfc->dmac, &dmac_cfg);
-		if (ret < 0) {
-			dev_err(dev, "Failed to configure DMA channel\n");
-			dma_release_channel(nfc->dmac);
+	if(nfc->cfg->use_dma) {
+		/* request dma channel */
+		nfc->dmac = dma_request_chan(dev, "rxtx");
+		if (IS_ERR(nfc->dmac)) {
+			ret = PTR_ERR(nfc->dmac);
 			nfc->dmac = NULL;
-		}
-	}
-#endif
-	nand_controller_init(&nfc->controller);
-	nfc->controller.ops = &sp_nfc_controller_ops;
+			return dev_err_probe(dev, ret, "Failed to request DMA channel\n");
+		} else {
+			struct dma_slave_config dmac_cfg = {};
 
-	nfc->inverse = 0;		/* disable */
-	nfc->scramble = 0;		/* disable */
-	nfc->seed_val = 0;
-	nfc->max_spare = 128;
-	nfc->spare_ch_offset = 7;	/* shift 7 means 0x80*/
-	nfc->flash_type = LEGACY_FLASH;
-	nfc->timing_mode = 5;
-	nfc->ddr_enable = 1;
-	// Reset the HW
-	// Note: We can't use the function of sp_nfc_soft_reset to reset the hw
-	//       because the private data field of sp_nfc_data is null.
-	writel(1, nfc->regs + GLOBAL_RESET);
-	while (readl(nfc->regs + GLOBAL_RESET)) ;
-
-	val = BUSY_RDY_LOC(6) | CMD_STS_LOC(0) | CE_NUM(2);
-	if (nfc->inverse)
-		val |= DATA_INVERSE;
-	if (nfc->scramble)
-		val |= DATA_SCRAMBLER;
-
-	writel(val, nfc->regs + GENERAL_SETTING);
-
-	if (nfc->scramble) {
-		/* Support FW to program scramble seed */
-		val = readl(nfc->regs + NANDC_EXT_CTRL);
-		for(i = 0; i < MAX_CHANNEL; i++)
-			val |= SEED_SEL(i);
-		writel(val, nfc->regs + NANDC_EXT_CTRL);
-		/* random set, b[13:0] */
-		nfc->seed_val = 0x2fa5;
-	}
-
-	val = readl(nfc->regs + AHB_SLAVEPORT_SIZE);
-	val &= ~0xFFF0FF;
-	val |= AHB_SLAVE_SPACE_32KB;//64K?
-	for(i = 0; i < MAX_CHANNEL; i++)
-		val |= AHB_PREFETCH(i);
-	val |= AHB_PRERETCH_LEN(128);
-	writel(val, nfc->regs + AHB_SLAVEPORT_SIZE);
-
-	nand_set_controller_data(&nfc->chip, nfc);
-	mtd = nand_to_mtd(&nfc->chip);
-	mtd->owner = THIS_MODULE;
-	mtd->dev.parent = &pdev->dev;
-	/* Set the name same as uboot cmdline */
-	mtd->name = NAME_DEFINE_IN_UBOOT;
-	nfc->dev = &pdev->dev;
-	chip->legacy.IO_ADDR_W = chip->legacy.IO_ADDR_R;
-	chip->legacy.select_chip = sp_nfc_select_chip;
-	chip->legacy.cmdfunc = sp_nfc_cmdfunc;
-	chip->legacy.read_byte = sp_nfc_read_byte;
-	chip->legacy.waitfunc = sp_nfc_wait;
-	chip->legacy.chip_delay = 0;
-	chip->options = NAND_NO_SUBPAGE_WRITE;// | NAND_OWN_BUFFERS;
-#if 0
-	// FIXME: Expect bad block management properly work after removing the option.
-	chip->options |= NAND_SKIP_BBTSCAN | NAND_NO_BBM_QUIRK;
-#endif
-	chip->options |= NAND_USES_DMA;
-	chip->bbt_options = NAND_BBT_USE_FLASH | NAND_BBT_NO_OOB;
-	platform_set_drvdata(pdev, nfc);
-
-	// Set the default AC timing/Warmup cyc for sp_pnand.
-	// The register of AC timing/Warmup  keeps the value
-	// set before although the Global Reset is set.
-	sp_nfc_set_default_timing(chip);
-	sp_nfc_set_warmup_cycle(chip, 0, 0);
-
-	/* Store the device id to calibrate dqs delay */
-	sp_nfc_read_raw_id(chip);
-
-	/* Scan to find existance of the device */
-	for (i = startchn; i < MAX_CHANNEL; i++) {
-		printk(KERN_INFO "Scan Channel %d...\n", i);
-		nfc->cur_chan = i;
-		if (!nand_scan_with_ids(chip, MAX_CE, (struct nand_flash_dev *)sp_nfc_ids)) {
-			if (((max_sz - size) > mtd->size)
-			    && ((chipnum + nanddev_ntargets(&chip->base)) <= NAND_MAX_CHIPS)) {
-				nfc->valid_chip[i] = nanddev_ntargets(&chip->base);
-				chipnum += nanddev_ntargets(&chip->base);
-				size += (chipnum * nanddev_target_size(&chip->base));
-			} else {
-				printk(KERN_INFO "Can not accept more flash chips.\n");
-				break;
+			dmac_cfg.src_addr = (phys_addr_t)res->start;
+			dmac_cfg.dst_addr = dmac_cfg.src_addr;
+			dmac_cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_16_BYTES;
+			dmac_cfg.dst_addr_width = dmac_cfg.src_addr_width;
+			dmac_cfg.src_maxburst = 16;
+			dmac_cfg.dst_maxburst = 16;
+			ret = dmaengine_slave_config(nfc->dmac, &dmac_cfg);
+			if (ret < 0) {
+				dev_err(dev, "Failed to configure DMA channel\n");
+				dma_release_channel(nfc->dmac);
+				nfc->dmac = NULL;
 			}
 		}
-	}
-	// Disable the scan-state for sp_nfc_select_chip
-	//data->scan_state = 0;
-
-	if (chipnum == 0) {
-		return -ENXIO;
+	} else {
+		nfc->dmac = NULL;
 	}
 
-	mtd->size = size;
-	nfc->name = chip->parameters.model;
+	platform_set_drvdata(pdev, nfc);
+	ret = sp_nfc_nand_chips_init(dev, nfc);
 
-	sp_nfc_set_actiming(chip);
-
-	ret = mtd_device_register(mtd, NULL, 0);
-	if (ret) {
-		dev_err(dev, "Failed to register mtd device\n");
-		nand_cleanup(chip);
-		return ret;
-	}
-
-	return 0;
+release_nfc:
+	return ret;
 }
 
 /*
@@ -1488,13 +1570,6 @@ static int sp_nfc_resume(struct device *dev)
 }
 #endif
 
-static const struct of_device_id sp_nfc_dt_ids[] = {
-	{ .compatible = "sunplus,sp7350-para-nand" },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(of, sp_nfc_dt_ids);
-
 static const struct dev_pm_ops sp_nfc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sp_nfc_suspend,
 				sp_nfc_resume)
@@ -1507,7 +1582,7 @@ static struct platform_driver sp_nfc_driver __refdata = {
 		.name = "sp7350-para-nand",
 		.owner = THIS_MODULE,
 		.pm		= &sp_nfc_pm_ops,
-		.of_match_table = of_match_ptr(sp_nfc_dt_ids),
+		.of_match_table = sp_nfc_id_table,
 	},
 };
 
