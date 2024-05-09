@@ -307,7 +307,7 @@ int lt8912_video_setup(struct lt8912 *lt)
 
 static int lt8912_audio_setup(struct lt8912 *lt)
 {
-	int ret;
+	int ret, avi_pb0, avi_pb1, avi_pb2, hdmi_vic;
 
 	if (!lt)
 		return -EINVAL;
@@ -326,6 +326,17 @@ static int lt8912_audio_setup(struct lt8912 *lt)
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x34, 0xe2);
 
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x3c, 0x41);
+
+	//avi settings
+	hdmi_vic = 0x10; // 47: 720p/60=0x04; 1080p/60=0x10; 1080p/50=0x1f; non-standard=0x00
+	avi_pb1 = 0x10; // 44: color space, YUV444=0x70; YUV422=0x30; RGB=0x10
+	avi_pb2 = 0x2a; // 45: picture aspect reate, 4:3=0x19, 16:9=0x2a
+	avi_pb0 = hdmi_vic + avi_pb1 + avi_pb2;
+	// 43: checksum
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x43, (avi_pb0 <= 0x6f ? (0x6f - avi_pb0) : avi_pb0));
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x44, avi_pb1);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x45, avi_pb2);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x47, hdmi_vic);
 
 	return ret;
 }
