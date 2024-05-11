@@ -96,7 +96,12 @@ static void vb2_dc_prepare(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
-
+#if defined(CONFIG_SOC_SP7350)
+	if (dmaremap) {
+		dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+#endif
 	if (!sgt)
 		return;
 
@@ -107,7 +112,12 @@ static void vb2_dc_finish(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
-
+#if defined(CONFIG_SOC_SP7350)
+	if (dmaremap) {
+		dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+#endif
 	if (!sgt)
 		return;
 
