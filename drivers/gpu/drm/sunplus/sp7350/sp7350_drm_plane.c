@@ -596,7 +596,7 @@ static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	if (state->crtc_w % 16 || state->crtc_h % 16) {
+	if (state->crtc_w % 16 /*|| state->crtc_h % 16*/) {
 		DRM_DEBUG_ATOMIC("Check fail[crtc(%d,%d)], must be align to 16 byets.\n",
 				state->crtc_w, state->crtc_h);
 		return -EINVAL;
