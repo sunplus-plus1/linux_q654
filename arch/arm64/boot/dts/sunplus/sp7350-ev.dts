@@ -1218,13 +1218,20 @@
 		//compatible = "lontium,lt8912b-builtin";
 		reg = <0x48>;
 		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
-		#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
+		#if defined(LT8912B_HDMI_480X272)
+		hdmi-mode = <0x0>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
+		hdmi-timing = <0x0>;
+		#elif defined(LT8912B_HDMI_480P)
+		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
 		hdmi-timing = <0x0>;
 		#elif defined(LT8912B_HDMI_720P)
+		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
 		hdmi-timing = <0x2>;
 		#elif defined(LT8912B_HDMI_1080P)
+		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
 		hdmi-timing = <0x3>;
 		#else
+		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
 		hdmi-timing = <0x2>;
 		#endif
 		/*
@@ -2372,6 +2379,7 @@
 	sp7350,osd0_layer = <0 0 480 272 0x8>; /* 0x8 = RGB565 */
 	sp7350,vpp0_layer = <0 0 720 480 480 272 0x2>; /* 0x2 = YUY2 */
 	sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
+	sp7350,lt8912b_hdmi_mode = <0x0>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
 	#elif defined(LT8912B_HDMI_480P)
 	sp7350,osd0_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
 	sp7350,osd1_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
@@ -2379,6 +2387,7 @@
 	sp7350,osd3_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
 	sp7350,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
 	sp7350,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
+	sp7350,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
 	#elif defined(LT8912B_HDMI_720P)
 	sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 	sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
@@ -2386,6 +2395,7 @@
 	sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 	sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
 	sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
+	sp7350,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
 	#elif defined(LT8912B_HDMI_1080P)
 	sp7350,osd0_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
 	sp7350,osd1_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
@@ -2393,6 +2403,7 @@
 	sp7350,osd3_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
 	sp7350,vpp0_layer = <0 0 720 480 1920 1080 0x2>; /* 0x2 = YUY2 */
 	sp7350,disp_output = <1920 1080 0x0>; /* 0x0:MIPITX DSI */
+	sp7350,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
 	#else
 	sp7350,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 	sp7350,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
@@ -2400,6 +2411,7 @@
 	sp7350,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
 	sp7350,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
 	sp7350,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
+	sp7350,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
 	#endif
 	sp7350,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
 	sp7350,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
