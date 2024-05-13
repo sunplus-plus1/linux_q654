@@ -50,6 +50,7 @@ struct lt8912 {
 
 	struct videomode mode;
 	u32 mode_sel;
+	u32 hdmi_dvi_sel;
 	u8 data_lanes;
 };
 
@@ -305,38 +306,130 @@ int lt8912_video_setup(struct lt8912 *lt)
 	return ret;
 }
 
-static int lt8912_audio_setup(struct lt8912 *lt)
+int lt8912_audio_setup(struct lt8912 *lt)
 {
-	int ret, avi_pb0, avi_pb1, avi_pb2, hdmi_vic;
+	u8 avi_pb0, avi_pb1, avi_pb2, avi_pb4, chksum;
+	u8 avi_pb6, avi_pb7, avi_pb8, avi_pb9;
+	u8 avi_pb10, avi_pb11, avi_pb12, avi_pb13;
+	int ret;
 
 	if (!lt)
 		return -EINVAL;
 
+	/*
+	 * bit0   : HDMI Mode 0: DVI mode, 1: HDMI mode
+	 */
 	ret = regmap_update_bits(lt->regmap[I2C_MAIN], 0xb2, BIT(0), BIT(0));
+
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x6, 0x08);
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x7, 0xf0);
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x9, 0x00);
 
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0xf, 0x2b);
+	/*
+	 * bit7-4 : Set Audio Freq
+	 *          0x0: 44.1k, 0x2: 48k, 0x3: 32k,
+	 *          0x8: 88.2k, 0xa:96k, 0xc: 176.4k, 0xe: 192k
+	 */
+	#if 1 //audio 48k
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0xf, 0x2b); // set audio 48kHz
+	/*
+	 * N Value : 32k:4096, 44.1k:6272, 48k:6144,
+	 *           88.2k:12544, 96k:12288, 176k:25088, 196k:24576
+	 */
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x37, 0x00);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x36, 0x18);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x35, 0x00); //N = 6144(0x1800)
+	#else //audio 44.1k
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0xf, 0x0b); // set audio 44.1kHz
+	/*
+	 * N Value : 32k:4096, 44.1k:6272, 48k:6144,
+	 *           88.2k:12544, 96k:12288, 176k:25088, 196k:24576
+	 */
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x37, 0x00);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x36, 0x18);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x35, 0x80); //N = 6272(0x1880)
+	#endif
 
-	//32k:4096, 44.1k:6272, 48k:6144, 88.2k:12544, 96k:12288, 176k:25088, 196k:24576.
-	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x37, (u8) (6144 / 0x10000));
-	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x36, (u8) ((6144 & 0xffff) / 0x100));
-	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x35, (u8) (6144 & 0xff));
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x34, 0xe2);
-
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x3c, 0x41);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x34, 0xe2); //0x52 --> 0xE2
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x3c, 0x41); //0x40 --> 0x41
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x3e, 0x0a); //0x0a (default)
 
 	//avi settings
-	hdmi_vic = 0x10; // 47: 720p/60=0x04; 1080p/60=0x10; 1080p/50=0x1f; non-standard=0x00
-	avi_pb1 = 0x10; // 44: color space, YUV444=0x70; YUV422=0x30; RGB=0x10
-	avi_pb2 = 0x2a; // 45: picture aspect reate, 4:3=0x19, 16:9=0x2a
-	avi_pb0 = hdmi_vic + avi_pb1 + avi_pb2;
-	// 43: checksum
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x43, (avi_pb0 <= 0x6f ? (0x6f - avi_pb0) : avi_pb0));
+	if (lt->mode_sel == 0x02) { //720P60
+		ret |= regmap_write(lt->regmap[I2C_MAIN], 0xab, 0x03); //Positive Polarity
+		avi_pb1 = 0x1C;
+		avi_pb2 = 0xa8;
+		avi_pb4 = 0x04; //VIC_CODE = 4
+
+		avi_pb6 = 0x19; //25
+		avi_pb7 = 0x00;
+		avi_pb8 = 0xe9; //745
+		avi_pb9 = 0x02;
+		avi_pb10 = 0x04; //260
+		avi_pb11 = 0x01;
+		avi_pb12 = 0x04; //1540
+		avi_pb13 = 0x06;
+	} else if (lt->mode_sel == 0x03) { //1080P60
+		ret |= regmap_write(lt->regmap[I2C_MAIN], 0xab, 0x03); //Positive Polarity
+		avi_pb1 = 0x1C;
+		avi_pb2 = 0xa8;
+		avi_pb4 = 0x10; //VIC_CODE = 16
+
+		avi_pb6 = 0x29; //41
+		avi_pb7 = 0x00;
+		avi_pb8 = 0x61; //1121
+		avi_pb9 = 0x04;
+		avi_pb10 = 0xc0; //192
+		avi_pb11 = 0x00;
+		avi_pb12 = 0x40; //2112
+		avi_pb13 = 0x08;
+	} else if (lt->mode_sel == 0x00) { //480P60
+		ret |= regmap_write(lt->regmap[I2C_MAIN], 0xab, 0x0c); //Negtive Polarity
+		avi_pb1 = 0x1C;
+		avi_pb2 = 0x58;
+		avi_pb4 = 0x02; //VIC_CODE = 2
+
+		avi_pb6 = 0x24; //36
+		avi_pb7 = 0x00;
+		avi_pb8 = 0x04; //516
+		avi_pb9 = 0x02;
+		avi_pb10 = 0x7a; //122
+		avi_pb11 = 0x00;
+		avi_pb12 = 0x4a; //842
+		avi_pb13 = 0x03;
+	} else {
+		avi_pb1 = 0x00;
+		avi_pb2 = 0x00;
+		avi_pb4 = 0x00;
+	}
+
+	chksum = 0x82 + 0x02 + 0x0d + avi_pb1 + avi_pb2 + avi_pb4;
+	chksum += (avi_pb6 + avi_pb7 +avi_pb8 + avi_pb9);
+	chksum += (avi_pb10 + avi_pb11 +avi_pb12 + avi_pb13);
+	avi_pb0 = 0x100 - chksum;
+	/*
+	 * 43: avi info pb0 checksum
+	 */
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x43, avi_pb0);
+	/*
+	 * 44 - 47: avi info PB1 - PB4
+	 */
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x44, avi_pb1);
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x45, avi_pb2);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x47, hdmi_vic);
+	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x46, 0x00); //fixed 0
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x47, avi_pb4);
+	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x48, 0x00); //fixed 0
+	/*
+	 * 49 - 50: avi info PB6 - PB13
+	 */
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x49, avi_pb6);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4a, avi_pb7);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4b, avi_pb8);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4c, avi_pb9);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4d, avi_pb10);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4e, avi_pb11);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4f, avi_pb12);
+	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x50, avi_pb13);
 
 	return ret;
 }
@@ -362,10 +455,10 @@ int lt8912_soft_power_on(struct lt8912 *lt)
  */
 static const u32 lt8912_input_timing[11][10] = {
 	/* (w   h)   HSA   HFP   HBP   HACT  VSA  VFP  VBP   VACT */
-	{ 720,  480, 0x3e, 0x3c, 0x10,  720, 0x6, 0x9, 0x1E,  480}, /* 480P */
+	{ 720,  480, 0x3e, 0x10, 0x3c,  720, 0x6, 0x9, 0x1E,  480}, /* 480P */
 	{ 720,  576, 0x80, 0x28, 0x58,  720, 0x4, 0x1, 0x17,  576}, /* 576P */
-	{1280,  720, 0x28, 0xdc, 0x6e, 1280, 0x5, 0x5, 0x14,  720}, /* 720P */
-	{1920, 1080, 0x2c, 0x94, 0x58, 1920, 0x5, 0x4, 0x24, 1080}, /* 1080P */
+	{1280,  720, 0x28, 0x6e, 0xdc, 1280, 0x5, 0x5, 0x14,  720}, /* 720P */
+	{1920, 1080, 0x2c, 0x58, 0x94, 1920, 0x5, 0x4, 0x24, 1080}, /* 1080P */
 	{  64,   64, 0x14, 0x28, 0x58,   64, 0x5, 0x5, 0x24,   64}, /* 64x64 */
 	{ 128,  128, 0x14, 0x28, 0x58,  128, 0x5, 0x5, 0x24,  128}, /* 128x128 */
 	{  64, 2880, 0x14, 0x28, 0x58,   64, 0x5, 0x5, 0x24, 2880}, /* 64x2880 */
@@ -408,9 +501,14 @@ int lt8912_video_on(struct lt8912 *lt)
 	//ret = lt8912_write_lvds_config(lt);
 	//if (ret < 0)
 	//	goto end;
-	ret = lt8912_audio_setup(lt);
-	if (ret < 0)
-		goto end;
+	if (lt->hdmi_dvi_sel) {
+		pr_info("lt8912 bridge in hdmi mode\n");
+		ret = lt8912_audio_setup(lt);
+		if (ret < 0)
+			goto end;
+	} else {
+		pr_info("lt8912 bridge in dvi mode\n");
+	}
 
 end:
 	return ret;
@@ -422,6 +520,7 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	struct device *dev = lt->dev;
 	int ret;
 	int data_lanes;
+	u32 hdmi_mode;
 	u32 mode;
 	struct device_node *port_node;
 	struct device_node *endpoint;
@@ -434,6 +533,12 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 		return ret;
 	}
 	lt->gp_reset = gp_reset;
+
+	ret = of_property_read_u32(dev->of_node, "hdmi-mode", &hdmi_mode);
+	if (ret)
+		lt->hdmi_dvi_sel = 0;
+	else
+		lt->hdmi_dvi_sel = hdmi_mode;
 
 	ret = of_property_read_u32(dev->of_node, "hdmi-timing", &mode);
 	if (ret)
