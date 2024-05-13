@@ -1332,7 +1332,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node, "sunplus.driver-type", &host->target_drv))
 		host->target_drv = 0;	//0:TypeB 1:TypeA 2:TypeC 3:TypeD		
 
-	if (device_property_read_bool(&pdev->dev, "sunplus.high-segs"))
+	if (device_property_read_bool(&pdev->dev, "sunplus,high-segs"))
 		host->segs_no = SPSDC_MAX_SEGS;
 	else
 		host->segs_no = SPSDC_HW_SEGS;
@@ -1340,7 +1340,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	if (host->segs_no < SPSDC_HW_SEGS)
 		host->segs_no = SPSDC_HW_SEGS;
 
-	if (device_property_read_bool(&pdev->dev, "sunplus.high-mem"))
+	if (device_property_read_bool(&pdev->dev, "sunplus,high-mem"))
 		host->ram = 8;
 	else
 		host->ram = 3;
