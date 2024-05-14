@@ -1286,7 +1286,8 @@ define filechk_utsrelease.h
 	  echo '"$(KERNELRELEASE)" exceeds $(uts_len) characters' >&2;    \
 	  exit 1;                                                         \
 	fi;                                                               \
-	echo -e "#define UTS_RELEASE \"$(KERNELRELEASE)\"\n#define LOCAL_VERSION \"$(LOCAL_VERSION)\""
+	echo \#define UTS_RELEASE \"$(KERNELRELEASE)\";                   \
+	echo \#define LOCAL_VERSION \"$(LOCAL_VERSION)\"
 endef
 
 define filechk_version.h
