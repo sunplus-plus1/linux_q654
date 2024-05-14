@@ -346,16 +346,16 @@ static int sp7350_cpufreq_probe(struct platform_device *pdev)
 		list_add(&info->list_head, &dvfs_info_list);
 	}
 
+	ca55_memctl = sp_clk_reg_base() + (31 + 32 + 14) * 4; /* G4.14 */
+
+	info->hwlock = hwspin_lock_request_specific(SP_DVFS_HWLOCK_ID);
+
 	ret = cpufreq_register_driver(&sp7350_cpufreq_driver);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sp7350 cpufreq driver\n");
 		goto release_dvfs_info_list;
 	}
 	
-	ca55_memctl = sp_clk_reg_base() + (31 + 32 + 14) * 4; /* G4.14 */
-
-	info->hwlock = hwspin_lock_request_specific(SP_DVFS_HWLOCK_ID);
-
 	return 0;
 
 release_dvfs_info_list:
