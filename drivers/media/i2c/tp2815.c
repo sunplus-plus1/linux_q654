@@ -466,11 +466,13 @@ static const struct imx219_reg raw10_framefmt_regs[] = {
 static const char * const imx219_test_pattern_menu[] = {
 	"Disabled",
 	"Solid Color",
+	"Color Bars"
 };
 
 static const int imx219_test_pattern_val[] = {
 	IMX219_TEST_PATTERN_DISABLE,
 	IMX219_TEST_PATTERN_SOLID_COLOR,
+	IMX219_TEST_PATTERN_COLOR_BARS,
 };
 #else
 static const char * const imx219_test_pattern_menu[] = {
@@ -1339,7 +1341,11 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 		case 1:		// 1 virtual channel
 			if (imx219->bus.num_data_lanes == 4) {
 				if (imx219->fmt.width == 1280)
+#if 0 //CCHo: Use 594MHz for scan test
+					output = MIPI_1CH4LANE_594M;
+#else
 					output = MIPI_1CH4LANE_297M;
+#endif
 				else
 					output = (TP2815_MIPI_CSI_HS_CLOCK_RATE_MHZ == 148)?
 								MIPI_1CH4LANE_148M : MIPI_1CH4LANE_74M;
@@ -1396,6 +1402,9 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 		imx219_write_reg(imx219, 0x34, IMX219_REG_VALUE_08BIT, 0x9c); // VC0/1/2/3
 #else
 		imx219_write_reg(imx219, 0x34, IMX219_REG_VALUE_08BIT, 0xe4); // VC0/2/3/1 (default)
+#endif
+#if 0 //CCHo: Data bit rate is 1.5GHz for scan test
+		imx219_write_reg(imx219, 0x12, IMX219_REG_VALUE_08BIT, 0x5a); // PLL Control3 (FB Divider)
 #endif
 		imx219_write_reg(imx219, 0x15, IMX219_REG_VALUE_08BIT, 0x0c);
 		imx219_write_reg(imx219, 0x25, IMX219_REG_VALUE_08BIT, 0x08);
@@ -1583,14 +1592,121 @@ static int imx219_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	return 0;
 }
 
+int tp2815_test_pattern_cfg(struct imx219 *imx219, struct i2c_client *client, u32 enable, u32 colorbar)
+{
+	u32 val;
+	int ret;
+
+	/* Page Register(0x40)
+	 * 0x40[6]	 - APAGE - Enable audio register access
+	 * 0x40[3]	 - MPAGE - Enable MIPI register access
+	 * 0x40[2]	 - ALLWE - Enable writing all channel page register
+	 * 0x40[1:0] - PAGE  - Select channel page register
+	 * ALLWE  PAGE	  Write Register	  Read Register
+	 * 0	  0 	  VIN1 Video		  VIN1 Video
+	 * 0	  1 	  VIN2 Video		  VIN2 Video
+	 * 0	  2 	  VIN3 Video		  VIN3 Video
+	 * 0	  3 	  VIN4 Video		  VIN4 Video
+	 * 1	  0 	  All VIN1-4 Video	  VIN1 Video
+	 * 1	  1 	  All VIN1-4 Video	  VIN2 Video
+	 * 1	  2 	  All VIN1-4 Video	  VIN3 Video
+	 * 1	  3 	  All VIN1-4 Video	  VIN4 Video
+	 */
+
+	dev_dbg(&client->dev, "%s, %d, enable: %d colorbar: %d\n", __func__, __LINE__, enable, colorbar); // CCHo addied for debugging
+
+	/* Select Decoder Register Page */
+	if (imx219->input_ch == 1)
+		imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, imx219->input_ch-1);
+	else
+		imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, CH_ALL);
+
+	/* FCS(0x2A[3]) - Fource free run mode
+	 * 0 = Disabled
+	 * 1 = Fource free-run
+	 */
+	imx219_read_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, &val);
+	dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+
+	val = val & (~0x00000008);
+	val = val | (enable<<3);
+	ret = imx219_write_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, val);
+	if (ret < 0 ) return ret;
+	dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+
+
+	/* Select MIPI Register Page */
+	imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, MIPI_PAGE);
+
+	/* TP_ENA(0x21[7]) - Test pattern output
+	 * 0 = Normal output
+	 * 1 = Test pattern output
+	 */
+	imx219_read_reg(imx219, 0x21, IMX219_REG_VALUE_08BIT, &val);
+	dev_dbg(&client->dev, "%s, %d, Reg 0x21: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+
+	val = val & (~0x00000080);
+	val = val | (colorbar<<7);
+	ret = imx219_write_reg(imx219, 0x21, IMX219_REG_VALUE_08BIT, val);
+	if (ret < 0 ) return ret;
+	dev_dbg(&client->dev, "%s, %d, Reg 0x21: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+
+	return 0;
+}
+
+int tp2815_test_pattern_blue_cfg(struct imx219 *imx219, struct i2c_client *client, u32 value)
+{
+	u32 val;
+	int ret;
+
+	/* Page Register(0x40)
+	 * 0x40[6]	 - APAGE - Enable audio register access
+	 * 0x40[3]	 - MPAGE - Enable MIPI register access
+	 * 0x40[2]	 - ALLWE - Enable writing all channel page register
+	 * 0x40[1:0] - PAGE  - Select channel page register
+	 * ALLWE  PAGE	  Write Register	  Read Register
+	 * 0	  0 	  VIN1 Video		  VIN1 Video
+	 * 0	  1 	  VIN2 Video		  VIN2 Video
+	 * 0	  2 	  VIN3 Video		  VIN3 Video
+	 * 0	  3 	  VIN4 Video		  VIN4 Video
+	 * 1	  0 	  All VIN1-4 Video	  VIN1 Video
+	 * 1	  1 	  All VIN1-4 Video	  VIN2 Video
+	 * 1	  2 	  All VIN1-4 Video	  VIN3 Video
+	 * 1	  3 	  All VIN1-4 Video	  VIN4 Video
+	 */
+
+	dev_dbg(&client->dev, "%s, %d, value: 0x%02x\n", __func__, __LINE__, value); // CCHo addied for debugging
+
+	/* Select Decoder Register Page */
+	if (imx219->input_ch == 1)
+		imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, imx219->input_ch-1);
+	else
+		imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, CH_ALL);
+
+	/* LCS(0x2A[2]) - Fource free run mode color control
+	 * 0 = Normal input video data
+	 * 1 = Blue screen
+	 */
+	imx219_read_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, &val);
+	dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+
+	val = val & (~0x00000004);
+	val = val | (value<<2);
+	ret = imx219_write_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, val);
+	if (ret < 0) return ret;
+	dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+
+	return 0;
+}
+
 static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx219 *imx219 =
 		container_of(ctrl->handler, struct imx219, ctrl_handler);
 	struct i2c_client *client = v4l2_get_subdevdata(&imx219->sd);
-	u32 val;
 	int ret;
 
+	dev_dbg(&client->dev, "%s, %d\n", __func__, __LINE__); // CCHo addied for debugging
 	dev_dbg(&client->dev, "%s, %d, ctrl->id: 0x%08x\n", __func__, __LINE__, ctrl->id); // CCHo addied for debugging
 
 	if (ctrl->id == V4L2_CID_VBLANK) {
@@ -1605,6 +1721,8 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 					 exposure_max, imx219->exposure->step,
 					 exposure_def);
 	}
+
+	dev_dbg(&client->dev, "%s, %d\n", __func__, __LINE__); // CCHo addied for debugging
 
 	/*
 	 * Applying V4L2 control value only happens
@@ -1642,37 +1760,21 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_TEST_PATTERN:
 #if 1 /* CCHo */
-		/* Page Register(0x40)
-		 * 0x40[6]   - APAGE - Enable audio register access
-		 * 0x40[3]   - MPAGE - Enable MIPI register access
-		 * 0x40[2]   - ALLWE - Enable writing all channel page register
-		 * 0x40[1:0] - PAGE  - Select channel page register
-		 * ALLWE  PAGE    Write Register      Read Register
-		 * 0      0       VIN1 Video          VIN1 Video
-		 * 0      1       VIN2 Video          VIN2 Video
-		 * 0      2       VIN3 Video          VIN3 Video
-		 * 0      3       VIN4 Video          VIN4 Video
-		 * 1      0       All VIN1-4 Video    VIN1 Video
-		 * 1      1       All VIN1-4 Video    VIN2 Video
-		 * 1      2       All VIN1-4 Video    VIN3 Video
-		 * 1      3       All VIN1-4 Video    VIN4 Video
-		 */
-		if (imx219->input_ch == 1)
-			imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, imx219->input_ch-1);
-		else
-			imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, CH_ALL);
+		dev_dbg(&client->dev, "%s, %d, ctrl->val: 0x%02x\n", __func__, __LINE__, ctrl->val); // CCHo addied for debugging
 
-		/* FCS(0x2A[3]) - Fource free run mode
-		 * 0 = Disabled
-		 * 1 = Fource free-run                                     */
-		imx219_read_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, &val);
-		dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x, ctrl->val: 0x%02x\n", __func__, __LINE__, val, ctrl->val); // CCHo addied for debugging
+		switch(ctrl->val) {
+			case IMX219_TEST_PATTERN_DISABLE:
+				ret = tp2815_test_pattern_cfg(imx219, client, 0, 0);
+				break;
 
-		val = val & (~0x00000008);
-		val = val | (imx219_test_pattern_val[ctrl->val]<<3);
-		ret = imx219_write_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, val);
+			case IMX219_TEST_PATTERN_SOLID_COLOR:
+				ret = tp2815_test_pattern_cfg(imx219, client, 1, 0);
+				break;
 
-		dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+			case IMX219_TEST_PATTERN_COLOR_BARS:
+				ret = tp2815_test_pattern_cfg(imx219, client, 1, 1);
+				break;
+		}
 #else
 		ret = imx219_write_reg(imx219, IMX219_REG_TEST_PATTERN,
 				       IMX219_REG_VALUE_16BIT,
@@ -1716,37 +1818,7 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_TEST_PATTERN_BLUE:
 #if 1 /* CCHo */
-		/* Page Register(0x40)
-		 * 0x40[6]   - APAGE - Enable audio register access
-		 * 0x40[3]   - MPAGE - Enable MIPI register access
-		 * 0x40[2]   - ALLWE - Enable writing all channel page register
-		 * 0x40[1:0] - PAGE  - Select channel page register
-		 * ALLWE  PAGE    Write Register      Read Register
-		 * 0      0       VIN1 Video          VIN1 Video
-		 * 0      1       VIN2 Video          VIN2 Video
-		 * 0      2       VIN3 Video          VIN3 Video
-		 * 0      3       VIN4 Video          VIN4 Video
-		 * 1      0       All VIN1-4 Video    VIN1 Video
-		 * 1      1       All VIN1-4 Video    VIN2 Video
-		 * 1      2       All VIN1-4 Video    VIN3 Video
-		 * 1      3       All VIN1-4 Video    VIN4 Video
-		 */
-		if (imx219->input_ch == 1)
-			imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, imx219->input_ch-1);
-		else
-			imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, CH_ALL);
-
-		/* LCS(0x2A[2]) - Fource free run mode color control
-		 * 0 = Normal input video data
-		 * 1 = Blue screen                                         */
-		imx219_read_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, &val);
-		dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x, ctrl->val: 0x%02x\n", __func__, __LINE__, val, ctrl->val); // CCHo addied for debugging
-
-		val = val & (~0x00000004);
-		val = val | (ctrl->val<<2);
-		ret = imx219_write_reg(imx219, 0x2a, IMX219_REG_VALUE_08BIT, val);
-
-		dev_dbg(&client->dev, "%s, %d, Reg 0x2A: 0x%02x\n", __func__, __LINE__, val); // CCHo addied for debugging
+		ret = tp2815_test_pattern_blue_cfg(imx219, client, ctrl->val);
 #else
 		ret = imx219_write_reg(imx219, IMX219_REG_TESTP_BLUE,
 				       IMX219_REG_VALUE_16BIT, ctrl->val);
@@ -2403,7 +2475,7 @@ static int imx219_init_controls(struct imx219 *imx219)
 				  IMX219_TESTP_COLOUR_MIN,
 				  IMX219_TESTP_COLOUR_MAX,
 				  IMX219_TESTP_COLOUR_STEP,
-				  IMX219_TESTP_COLOUR_MAX);
+				  IMX219_TESTP_COLOUR_MIN);
 		/* The "Solid color" pattern is white by default */
 	}
 
