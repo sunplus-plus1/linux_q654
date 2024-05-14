@@ -1279,13 +1279,14 @@ endif
 # KERNELRELEASE can change from a few different places, meaning version.h
 # needs to be updated, so this check is forced on all builds
 
+LOCAL_VERSION = $(shell $(srctree)/scripts/setlocalversion)
 uts_len := 64
 define filechk_utsrelease.h
 	if [ `echo -n "$(KERNELRELEASE)" | wc -c ` -gt $(uts_len) ]; then \
 	  echo '"$(KERNELRELEASE)" exceeds $(uts_len) characters' >&2;    \
 	  exit 1;                                                         \
 	fi;                                                               \
-	echo \#define UTS_RELEASE \"$(KERNELRELEASE)\"
+	echo -e "#define UTS_RELEASE \"$(KERNELRELEASE)\"\n#define LOCAL_VERSION \"$(LOCAL_VERSION)\""
 endef
 
 define filechk_version.h
