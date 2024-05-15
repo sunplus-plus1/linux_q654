@@ -214,10 +214,9 @@ static void spsdc_set_bus_clk(struct spsdc_host *host, int clk)
 		clk = f_min;
 	if (clk > f_max)
 		clk = f_max;
-	if(host->work_clk == clk) {
-		spsdc_pr(host->mode, VERBOSE, "clk %d is set\n", clk);
+	if(host->work_clk == clk)
 		return;
-	}
+
 	if (host->soc_clk != soc_clk){
 		clk_set_rate(host->clk, host->soc_clk);
 		soc_clk  = clk_get_rate(host->clk);
@@ -258,10 +257,8 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 	union spmmc_reg_timing_config0 reg_timing;
 	char *timing_name;
 
-	if(host->timing == timing) {
-		spsdc_pr(host->mode, VERBOSE, "timing %d is set\n", timing);
+	if(host->timing == timing)
 		return;
-	}
 
 	host->ddr_enabled = 0;
 	reg_timing.bits.sd_wr_dat_dly_sel = wr_delay;
@@ -744,6 +741,8 @@ static void spsdc_controller_init(struct spsdc_host *host)
 	value = bitfield_replace(value, SPSDC_MediaType_w03, 3, SPSDC_MEDIA_SD);
 	writel(value, &host->base->card_mediatype_srcdst);
 	host->signal_voltage = MMC_SIGNAL_VOLTAGE_330;
+	host->work_clk = 0;
+	host->timing = 10;
 
 	/* Because we do not have a regulator to change the voltage at
 	 * runtime, we can only rely on hardware circuit to ensure that
@@ -1010,7 +1009,7 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 	struct spsdc_host *host = mmc_priv(mmc);
 	u32 value;
 
-	spsdc_pr(host->mode, INFO, "start_signal_voltage_switch: host->voltage %d ios->voltage %d!\n", host->signal_voltage, ios->signal_voltage);
+	spsdc_pr(host->mode, INFO, "signal_vol_sw: host->vol %d ios->vol %d!\n", host->signal_voltage, ios->signal_voltage);
 
 	if (host->signal_voltage == ios->signal_voltage) {
 
@@ -1024,7 +1023,11 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 		return -EIO;
 
 	if (ios->signal_voltage != MMC_SIGNAL_VOLTAGE_180) {
-		spsdc_pr(host->mode, INFO, "can not switch voltage, only support 3.3v -> 1.8v switch!\n");
+		spsdc_pr(host->mode, INFO, "can not sw volt, only 3.3v -> 1.8v!\n");
+		//if(!(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS)){
+		//	msleep(380);
+		//	spsdc_txdummy(host, 400);
+		//}
 		return -EIO;
 	}
 
@@ -1051,11 +1054,9 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 			i++;
 		spsdc_pr(host->mode, INFO, "1V8 result %d\n", value >> 4);
 	}
-
 		spsdc_pr(host->mode, INFO, "1V8 result out %d\n", value >> 4);
 
 #else
-
 
 	value = readl(&host->base->sd_vol_ctrl);
 	value = bitfield_replace(value, SPSDC_sw_set_vol_w01, 1, 1);
@@ -1462,8 +1463,6 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	spsdc_select_mode(host);
 	host->soc_clk = dev_mode->source_clk;
 	clk_set_rate(host->clk, host->soc_clk);
-	host->work_clk = 0;
-	host->timing = 10;
 	if (!of_property_read_u32(pdev->dev.of_node, "delay-val", &host->val))
 		host->val = host->val;
 	else
@@ -1567,8 +1566,6 @@ static int spsdc_pm_resume(struct device *dev)
 		return ret;
 	spsdc_controller_init(host);
 	if (host->mmc->pm_flags & MMC_PM_KEEP_POWER){
-		host->work_clk = 0;
-		host->timing = 10;
 		spsdc_set_ios(host->mmc, &host->mmc->ios);
 		spmmc_start_signal_voltage_switch(host->mmc, &host->mmc->ios);
 	}
