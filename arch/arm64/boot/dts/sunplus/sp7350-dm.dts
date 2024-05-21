@@ -41,8 +41,8 @@
 //#define TP2815_IN5_2VC
 //#define TP2815_IN5_4VC
 
-//#define AP6256_WIFI
-//#define AP6256_BT
+#define AP6256_WIFI
+#define AP6256_BT
 
 //#define CONFIG_DISP_DRM_SUPPORT
 
