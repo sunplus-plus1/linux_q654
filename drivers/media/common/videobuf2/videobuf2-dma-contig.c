@@ -22,7 +22,7 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-memops.h>
 #if defined(CONFIG_SOC_SP7350)
-static bool dmaremap;
+static bool remap;
 #endif
 struct vb2_dc_buf {
 	struct device			*dev;
@@ -97,7 +97,7 @@ static void vb2_dc_prepare(void *buf_priv)
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
 #if defined(CONFIG_SOC_SP7350)
-	if (dmaremap) {
+	if (remap) {
 		dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
 		return;
 	}
@@ -113,7 +113,7 @@ static void vb2_dc_finish(void *buf_priv)
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
 #if defined(CONFIG_SOC_SP7350)
-	if (dmaremap) {
+	if (remap) {
 		dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
 		return;
 	}
@@ -194,7 +194,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 #if defined(CONFIG_SOC_SP7350)
-	if (dmaremap) {
+	if (remap) {
 		vma->vm_flags |= VM_LOCKED;
 		if (remap_pfn_range(vma, vma->vm_start,
 				    buf->dma_addr >> PAGE_SHIFT,
@@ -775,9 +775,9 @@ int vb2_dma_contig_set_max_seg_size(struct device *dev, unsigned int size)
 }
 EXPORT_SYMBOL_GPL(vb2_dma_contig_set_max_seg_size);
 #if defined(CONFIG_SOC_SP7350)
-module_param_named(dmaremap, dmaremap, bool, 0644);
-MODULE_PARM_DESC(dmaremap,
-		 "enable | disable dmaremap. (default: disable)");
+module_param_named(remap, remap, bool, 0644);
+MODULE_PARM_DESC(remap,
+		 "enable | disable remap. (default: disable)");
 #endif
 MODULE_DESCRIPTION("DMA-contig memory handling routines for videobuf2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>");
