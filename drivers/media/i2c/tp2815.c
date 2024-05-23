@@ -33,6 +33,7 @@
 //#define TP2815_TEST_PATTERN_LOW_PIXEL_RATE	// Output test pattern at low pixel rate 
 //#define TP2815_VC_SEQUENCE_0123					// VC sequence is VC0, VC1, VC2, VC3
 //#define TP2815_REGULATOR_CONTROL				// Original requlator control
+//#define TP2815_BIT_RATE_1P5G					// Output 1.5GHz bit-rate signals in color-bars mode
 
 /* Constants for TP2815 chip */
 #define TP2815_MIPI_CSI_HS_CLOCK_RATE_MHZ	74
@@ -1341,8 +1342,8 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 		case 1:		// 1 virtual channel
 			if (imx219->bus.num_data_lanes == 4) {
 				if (imx219->fmt.width == 1280)
-#if 0 //CCHo: Use 594MHz for scan test
-					output = MIPI_1CH4LANE_594M;
+#if TP2815_BIT_RATE_1P5G
+					output = MIPI_1CH4LANE_594M;	// Use 594MHz for scan test
 #else
 					output = MIPI_1CH4LANE_297M;
 #endif
@@ -1403,7 +1404,7 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 #else
 		imx219_write_reg(imx219, 0x34, IMX219_REG_VALUE_08BIT, 0xe4); // VC0/2/3/1 (default)
 #endif
-#if 0 //CCHo: Data bit rate is 1.5GHz for scan test
+#if TP2815_BIT_RATE_1P5G
 		imx219_write_reg(imx219, 0x12, IMX219_REG_VALUE_08BIT, 0x5a); // PLL Control3 (FB Divider)
 #endif
 		imx219_write_reg(imx219, 0x15, IMX219_REG_VALUE_08BIT, 0x0c);
@@ -1488,6 +1489,9 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 		imx219_write_reg(imx219, 0x34, IMX219_REG_VALUE_08BIT, 0x9c); // VC0/1/2/3
 #else
 		imx219_write_reg(imx219, 0x34, IMX219_REG_VALUE_08BIT, 0xe4); // VC0/2/3/1 (default)
+#endif
+#if TP2815_BIT_RATE_1P5G
+		imx219_write_reg(imx219, 0x12, IMX219_REG_VALUE_08BIT, 0x5a); // PLL Control3 (FB Divider)
 #endif
 		imx219_write_reg(imx219, 0x15, IMX219_REG_VALUE_08BIT, 0x0c);
 		imx219_write_reg(imx219, 0x25, IMX219_REG_VALUE_08BIT, 0x08);
