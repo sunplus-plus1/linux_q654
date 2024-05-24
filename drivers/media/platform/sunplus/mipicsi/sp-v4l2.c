@@ -48,6 +48,30 @@ static const struct vin_video_format vin_formats[] = {
 		.bpp			= 16,
 		.bpc 			= 8,
 	},
+	{
+		.fourcc 		= V4L2_PIX_FMT_YUYV,
+		.mbus_code		= MEDIA_BUS_FMT_YUYV8_1X16,
+		.bpp			= 16,
+		.bpc			= 8,
+	},
+	{
+		.fourcc 		= V4L2_PIX_FMT_YVYU,
+		.mbus_code		= MEDIA_BUS_FMT_YVYU8_1X16,
+		.bpp			= 16,
+		.bpc			= 8,
+	},
+	{
+		.fourcc 		= V4L2_PIX_FMT_UYVY,
+		.mbus_code		= MEDIA_BUS_FMT_UYVY8_1X16,
+		.bpp			= 16,
+		.bpc			= 8,
+	},
+	{
+		.fourcc 		= V4L2_PIX_FMT_VYUY,
+		.mbus_code		= MEDIA_BUS_FMT_VYUY8_1X16,
+		.bpp			= 16,
+		.bpc			= 8,
+	},
 	/* RGB565 */
 	{
 		.fourcc			= V4L2_PIX_FMT_RGB565,
