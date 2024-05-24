@@ -1342,7 +1342,7 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 		case 1:		// 1 virtual channel
 			if (imx219->bus.num_data_lanes == 4) {
 				if (imx219->fmt.width == 1280)
-#if TP2815_BIT_RATE_1P5G
+#ifdef TP2815_BIT_RATE_1P5G
 					output = MIPI_1CH4LANE_594M;	// Use 594MHz for scan test
 #else
 					output = MIPI_1CH4LANE_297M;
@@ -1404,7 +1404,7 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 #else
 		imx219_write_reg(imx219, 0x34, IMX219_REG_VALUE_08BIT, 0xe4); // VC0/2/3/1 (default)
 #endif
-#if TP2815_BIT_RATE_1P5G
+#ifdef TP2815_BIT_RATE_1P5G
 		imx219_write_reg(imx219, 0x12, IMX219_REG_VALUE_08BIT, 0x5a); // PLL Control3 (FB Divider)
 #endif
 		imx219_write_reg(imx219, 0x15, IMX219_REG_VALUE_08BIT, 0x0c);
@@ -1490,7 +1490,7 @@ void tp2815_mipi_cfg(struct imx219 *imx219)
 #else
 		imx219_write_reg(imx219, 0x34, IMX219_REG_VALUE_08BIT, 0xe4); // VC0/2/3/1 (default)
 #endif
-#if TP2815_BIT_RATE_1P5G
+#ifdef TP2815_BIT_RATE_1P5G
 		imx219_write_reg(imx219, 0x12, IMX219_REG_VALUE_08BIT, 0x5a); // PLL Control3 (FB Divider)
 #endif
 		imx219_write_reg(imx219, 0x15, IMX219_REG_VALUE_08BIT, 0x0c);
