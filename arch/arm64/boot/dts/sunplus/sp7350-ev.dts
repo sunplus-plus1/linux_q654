@@ -72,6 +72,10 @@
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
 
+#define DRAM_SIZE_3_75GB
+//#define DRAM_SIZE_4GB
+//#define DRAM_SIZE_8GB
+
 #include "sp7350-common.dtsi"
 
 / {
@@ -84,7 +88,16 @@
 
 	memory@0 {
 		device_type = "memory";
+		#ifdef DRAM_SIZE_3_75GB
 		reg = <0x0 0x0        0x0 0xf0000000>;
+		#elif defined(DRAM_SIZE_4GB)
+		reg = <0x0 0x0        0x0 0xf0000000>,
+			<0x1 0x0        0x0 0x10000000>;
+		#elif defined(DRAM_SIZE_8GB)
+		reg = <0x0 0x0        0x0 0xf0000000>,
+			<0x1 0x0        0x1 0x00000000>,
+			<0x3 0x0        0x0 0x10000000>;
+		#endif
 	};
 
 	reserved-memory {
