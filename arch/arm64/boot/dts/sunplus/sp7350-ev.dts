@@ -72,6 +72,7 @@
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
 
+//#define DRAM_SIZE_2GB
 #define DRAM_SIZE_3_75GB
 //#define DRAM_SIZE_4GB
 //#define DRAM_SIZE_8GB
@@ -88,7 +89,9 @@
 
 	memory@0 {
 		device_type = "memory";
-		#ifdef DRAM_SIZE_3_75GB
+		#ifdef DRAM_SIZE_2GB
+		reg = <0x0 0x0        0x0 0x80000000>;
+		#elif defined(DRAM_SIZE_3_75GB)
 		reg = <0x0 0x0        0x0 0xf0000000>;
 		#elif defined(DRAM_SIZE_4GB)
 		reg = <0x0 0x0        0x0 0xf0000000>,
