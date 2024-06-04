@@ -31,6 +31,7 @@
 
 #include "remoteproc_internal.h"
 #include "remoteproc_elf_helpers.h"
+#include <linux/kobject.h>
 
 #define MAX_NUM_VRINGS 2
 #define NOTIFYID_ANY (-1)
@@ -106,9 +107,37 @@ static void mbox_tx_test(u32 arg)
 }
 #endif
 
+static int remoteproc_power_event(struct notifier_block *this, unsigned long event,void *ptr)
+{
+	char *envp[] = {
+		"DEVICE=wlan0",
+		NULL
+	};
+
+    switch (event)
+	{
+        case PM_POST_SUSPEND:
+			kobject_uevent_env(&rproc->dev.kobj, KOBJ_ONLINE,envp);
+			break;
+        case PM_SUSPEND_PREPARE:
+             break;
+        default:
+            return NOTIFY_DONE;
+      }
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block remoteproc_power_notifier = {
+        .notifier_call = remoteproc_power_event,
+};
+
 void suspend_work_func(struct work_struct *work)
 {
-	pm_suspend(PM_SUSPEND_MEM);
+	char *envp[] = {
+		"DEVICE=wlan0",
+		NULL
+	};
+	kobject_uevent_env(&rproc->dev.kobj, KOBJ_OFFLINE,envp);
 }
 
 static void sp7350_request_firmware_callback(const struct firmware *fw, void *context)
@@ -480,11 +509,15 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 		dev_err(dev, "rproc registration failed: %d\n", ret);
 		goto probe_failed;
 	}
+	ret = register_pm_notifier(&remoteproc_power_notifier);
+	if (ret) {
+		dev_err(dev, "pm registration failed: %d\n", ret);
+		goto probe_failed;
+	}
 	return 0;
 
 probe_failed:
 	rproc_free(rproc);
-
 	return ret;
 }
 
