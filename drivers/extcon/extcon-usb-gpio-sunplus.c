@@ -13,13 +13,42 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/of_platform.h>
 
 #define USB_GPIO_DEBOUNCE_MS	20	/* ms */
+
+struct u2phy_regs {
+	unsigned int cfg[32];		       // 149.0
+};
+
+struct u3phy_regs {
+	unsigned int cfg[32];		       // 149.0
+};
+
+struct u3blkdev_regs {
+	unsigned int cfg[32];		       // 149.0
+};
+
+struct usb3_phy {
+	struct device		*dev;
+	void __iomem		*u3phy_base_addr;
+	void __iomem		*u3_portsc_addr;
+	void __iomem		*u3_blkdev_addr;
+	struct clk		*u3_clk;
+	struct clk		*u3phy_clk;
+	struct reset_control	*u3phy_rst;
+	int			irq;
+	wait_queue_head_t	wq;
+	int			busy;
+	struct delayed_work	typecdir;
+	int			dir;
+	struct gpio_desc	*gpiodir;
+};
 
 struct usb_extcon_info {
 	struct device *dev;
 	struct extcon_dev *edev;
-
+	void __iomem *u2phy_base_addr;
 	struct gpio_desc *id_gpiod;
 	struct gpio_desc *vbus_gpiod;
 	int id_irq;
@@ -27,6 +56,9 @@ struct usb_extcon_info {
 
 	unsigned long debounce_jiffies;
 	struct delayed_work wq_detcable;
+	struct usb3_phy *spphydata;
+	/* Usb3 vbus eco solution */
+	int chip_version;
 };
 
 static const unsigned int usb_extcon_cable[] = {
@@ -53,18 +85,41 @@ static const unsigned int usb_extcon_cable[] = {
  * - ID only - we want to distinguish between [1] and [4], so VBUS = ID.
 */
 static int pre_id = 2;
+static int pre_u3linkstate = 0;
 static void usb_extcon_detect_cable(struct work_struct *work)
 {
-	int id, vbus;
+	int id, vbus, u3linkstate;
 	struct usb_extcon_info *info = container_of(to_delayed_work(work),
 						    struct usb_extcon_info,
 						    wq_detcable);
+	struct u2phy_regs *phy_reg;
 
+	phy_reg = (struct u2phy_regs *) info->u2phy_base_addr;
 	/* check ID and VBUS and update cable state */
 	id = info->id_gpiod ?
 		gpiod_get_value_cansleep(info->id_gpiod) : 1;
 	vbus = info->vbus_gpiod ?
 		gpiod_get_value_cansleep(info->vbus_gpiod) : id;
+	/* workaround for vbus issue */
+	if (info->chip_version == 0xa30) {
+		if (id) {
+			struct u3blkdev_regs *exconblkdev_reg = info->spphydata->u3_blkdev_addr;
+
+			u3linkstate = (readl(&exconblkdev_reg->cfg[3]) & 0x3c0000) >> 18;
+			if (u3linkstate != pre_u3linkstate) {
+				if (u3linkstate == 0x4) {
+					int temp_reg = readl(&exconblkdev_reg->cfg[1]);
+
+					temp_reg &= ~0x1e0;
+					writel(temp_reg, &exconblkdev_reg->cfg[1]);
+					temp_reg |= (0x6 << 5);
+					writel(temp_reg, &exconblkdev_reg->cfg[1]);
+				}
+				pre_u3linkstate = u3linkstate;
+			}
+		}
+	}
+
 	if (id != pre_id) {
 		pre_id = id;
 		//printk("usb_extcon_detect_cable id 0x%x vbus 0x%x\n", id, vbus);
@@ -75,10 +130,15 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 			extcon_set_state_sync(info->edev, EXTCON_USB, false);
 
 		if (!id) {
+			/* Usb3 vbus eco solution */
+			phy_reg->cfg[29] |= (1 << 30);
 			extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
 		} else {
-			if (vbus)
+			if (vbus) {
+				/* Usb3 vbus eco solution */
+				phy_reg->cfg[29] &= ~(1 << 30);
 				extcon_set_state_sync(info->edev, EXTCON_USB, true);
+			}
 		}
 	}
 	schedule_delayed_work(&info->wq_detcable, msecs_to_jiffies(150));
@@ -90,6 +150,10 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct usb_extcon_info *info;
 	int ret;
+	struct resource *u2phy_res_mem;
+	struct device_node *phynp = of_find_compatible_node(NULL, NULL, "sunplus,usb3-phy");
+	struct platform_device *spphypdev = of_find_device_by_node(phynp);
+	void __iomem *stamp;
 
 	if (!np)
 		return -EINVAL;
@@ -113,12 +177,30 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	if (IS_ERR(info->vbus_gpiod))
 		return PTR_ERR(info->vbus_gpiod);
 
+	/* Usb3 vbus eco solution */
+	stamp = ioremap(0xf8800000, 1);
+	info->chip_version = readl(stamp);
+	iounmap(stamp);
+
+	u2phy_res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	info->u2phy_base_addr = devm_ioremap(&pdev->dev, u2phy_res_mem->start, resource_size(u2phy_res_mem));
+	if (IS_ERR(info->u2phy_base_addr))
+		return PTR_ERR(info->u2phy_base_addr);
+
 	info->edev = devm_extcon_dev_allocate(dev, usb_extcon_cable);
 	if (IS_ERR(info->edev)) {
 		dev_err(dev, "failed to allocate extcon device\n");
 		return -ENOMEM;
 	}
 
+	if (!phynp)
+		dev_err(dev, "!!!no phy\n");
+	else {
+		info->spphydata = dev_get_drvdata(&spphypdev->dev);
+		if (!info->spphydata)
+			dev_err(dev, "!!!no phy data\n");
+	}
+	/* Usb3 vbus eco solution end*/
 	ret = devm_extcon_dev_register(dev, info->edev);
 	if (ret < 0) {
 		dev_err(dev, "failed to register extcon device\n");
@@ -142,7 +224,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 
 	/* Perform initial detection */
 	usb_extcon_detect_cable(&info->wq_detcable.work);
-
+	pr_info("*****usb_extcon_probe end\n");
 	return 0;
 }
 
