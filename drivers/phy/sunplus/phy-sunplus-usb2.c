@@ -154,6 +154,11 @@ static int sp_uphy_init(struct phy *phy)
 	val &= ~(RX_CLK_SEL | TX_CLK_SEL);
 	writel(val, usbphy->phy_regs + GLO_CTRL1_OFFSET);
 
+	/* usb3 vbus eco solution */
+	val = readl(usbphy->phy_regs + 0xf4);
+	val |= (1 << 31);
+	writel(val, usbphy->phy_regs + 0xf4);
+	/* usb3 vbus eco solution end */
 #if 0
 	/* battery charger */
 	writel(J_TBCWAIT_1P1_MS | J_TVDM_SRC_DIS_8P2_MS | J_TVDM_SRC_EN_1P6_MS | J_BC_EN,
