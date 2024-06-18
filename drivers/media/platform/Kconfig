@@ -4,7 +4,7 @@
 #	Most drivers here are currently for webcam support
 
 menuconfig VIP9000_NPU_DRIVERS
-	tristate "ML Inference Processor VIP9000_NPU"
+	tristate "ML Inference Processor NPU"
 	help
 	  Say Y here to enable hardware ml inference processor
 
