@@ -66,18 +66,18 @@
 #include "gc_hal_kernel_platform.h"
 #include <dt-bindings/clock/sp-sp7350.h>
 
-#define WORKAROUND_FOR_NPU_SMS_RESET_BUG 1
+#define NPU_WORKAROUND_REG	0xF880007C
+#define CHIP_VERSION_REG 	0xF8800000
 
-#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
-#define NPU_WORKAROUND_BIT	0xF880007C
+static void __iomem *npu_sms_reset_reg_base = NULL;
+static void __iomem *chip_version_reg_base = NULL;
+static void __iomem *npu_ios_reg_base = NULL;
 
-static void __iomem *npu_sms_reset_reg_base;
-#endif
-static void __iomem *npu_ios_reg_base;
 static struct clk *clk;
 static struct regulator *vcc_reg;
 static struct reset_control *dec_rstc;
 static bool isPowerOn;
+static int 	version;
 
 static void npu_iso_contrl(int enable)
 {
@@ -94,6 +94,9 @@ static void npu_iso_contrl(int enable)
 
 static void npu_sms_reset(void)
 {
+	if(npu_sms_reset_reg_base == NULL)
+		return;
+
 	writel(0x5811, npu_sms_reset_reg_base);
 	udelay(30);
 	writel(0x5807, npu_sms_reset_reg_base);
@@ -139,11 +142,11 @@ static gceSTATUS npu_power_on(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE
 	npu_iso_contrl(0);
 	dev_dbg(dev, "NPU ISO disable\n");
 
-#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
 	/*NPU HW reset SMS*/
-	npu_sms_reset();
-	dev_dbg(dev, "NPU HW reset SMS\n");
-#endif
+	if(version == 0xa30){
+		npu_sms_reset();
+		dev_dbg(dev, "NPU HW reset SMS\n");
+	}
 
 	/*NPU HW reset deassert*/
 	ret = reset_control_deassert(dec_rstc);
@@ -162,6 +165,8 @@ static gceSTATUS npu_power_on(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE
 	dev_dbg(dev, "NPU HW clock enable\n");
 
 	isPowerOn = true;
+
+	dev_dbg(dev, "NPU HW wait for enable\n");
 	udelay(300);
 
 	dev_dbg(dev, "%s enable ret %d\n", __func__, ret);
@@ -240,6 +245,7 @@ _AdjustParam(
 
 	struct platform_device *pdev = platform->device;
 	struct device *dev = &platform->device->dev;
+	struct resource *mmio;
 
 	if (IS_ERR(clk)) {
 		dev_err(dev, "Can't find clock source\n");
@@ -247,14 +253,21 @@ _AdjustParam(
 	}
 
 	irqLine = platform_get_irq(pdev, 0);
-	dev_info(dev, "galcore irq number is %d\n", irqLine);
-
 	if (irqLine < 0)
 		return gcvSTATUS_OUT_OF_RESOURCES;
-
+	dev_info(dev, "galcore irq number is %d\n", irqLine);
 	args->irqs[gcvCORE_MAJOR] = irqLine;
-	args->registerBases[0] = 0xF8140000;
-	args->registerSizes[0] = 0x20000;
+
+	mmio = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (mmio) {
+		args->registerBases[gcvCORE_MAJOR] = mmio->start;
+		args->registerSizes[gcvCORE_MAJOR] = resource_size(mmio);
+		dev_info(dev, "NPU mmio %llx 0x%lx\n",
+			args->registerBases[gcvCORE_MAJOR], args->registerSizes[gcvCORE_MAJOR]);
+	} else {
+		dev_err(dev, "error: failed to get LPE base at idx\n");
+		return -EINVAL;
+	}
 
 	if (of_property_read_u32(pdev->dev.of_node, "clock-frequency", &npu_clock))
 		npu_clock = 500000000;
@@ -276,12 +289,6 @@ gceSTATUS _GetPower(IN gcsPLATFORM *platform)
 		return gcvSTATUS_FALSE;
 	}
 
-	clk = devm_clk_get(dev, 0);
-	if (IS_ERR(clk)) {
-		dev_err(dev, "Can't find clock source\n");
-		return PTR_ERR(clk);
-	}
-
 	dec_rstc = devm_reset_control_get(dev, "rstc_vip9000");
 	if (IS_ERR(dec_rstc)) {
 		dev_err(dev, "failed to retrieve reset controller\n");
@@ -294,13 +301,25 @@ gceSTATUS _GetPower(IN gcsPLATFORM *platform)
 		return gcvSTATUS_OUT_OF_MEMORY;
 	}
 
-#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
-	npu_sms_reset_reg_base = ioremap(NPU_WORKAROUND_BIT, 4);
-	if (npu_sms_reset_reg_base == NULL) {
-		dev_err(dev, "failed to get workaroud base\n");
+	chip_version_reg_base = ioremap(CHIP_VERSION_REG, 4);
+	if (chip_version_reg_base == NULL) {
+		dev_err(dev, "failed to get chip version base\n");
 		return gcvSTATUS_OUT_OF_MEMORY;
 	}
-#endif
+	version = readl(chip_version_reg_base);
+	iounmap(chip_version_reg_base);
+	dev_dbg(dev, "version: 0x%x\n", version);
+
+	if(version == 0xa30){
+		dev_dbg(dev, "sms reset enable\n");
+		npu_sms_reset_reg_base = ioremap(NPU_WORKAROUND_REG, 4);
+		if (npu_sms_reset_reg_base == NULL) {
+			dev_err(dev, "failed to get workaroud base\n");
+			return gcvSTATUS_OUT_OF_MEMORY;
+		}
+	}
+
+	clk = devm_clk_get(dev, 0);
 	if (IS_ERR(clk)) {
 		dev_err(dev, "Can't find clock source\n");
 		return PTR_ERR(clk);
@@ -334,11 +353,12 @@ gceSTATUS _PutPower(gcsPLATFORM *platform)
 	clk = NULL;
 	vcc_reg = NULL;
 	dec_rstc = NULL;
+
 	iounmap(npu_ios_reg_base);
 
-#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
-	iounmap(npu_sms_reset_reg_base);
-#endif
+	if(version == 0xa30 && npu_sms_reset_reg_base){
+		iounmap(npu_sms_reset_reg_base);
+	}
 
 	dev_info(dev, "NPU put power success\n");
 
@@ -418,11 +438,11 @@ gceSTATUS _Reset(gcsPLATFORM *platform, gctUINT32 devIndex, gceCORE gpu)
 	npu_iso_contrl(0);
 	dev_info(dev, "NPU ISO disable\n");
 
-#if WORKAROUND_FOR_NPU_SMS_RESET_BUG
-	/*NPU HW reset SMS*/
-	npu_sms_reset();
-	dev_info(dev, "NPU HW reset SMS\n");
-#endif
+	if(version == 0xa30){
+		/*NPU HW reset sms*/
+		npu_sms_reset();
+		dev_info(dev, "NPU HW reset sms\n");
+	}
 
 	/*NPU HW reset deassert*/
 	ret = reset_control_deassert(dec_rstc);
