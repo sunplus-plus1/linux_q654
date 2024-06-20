@@ -2755,6 +2755,7 @@
 };
 
 &galcore {
+	npu_core-supply = <&npu_core_0v8>;
 	status = "okay";
 };
 

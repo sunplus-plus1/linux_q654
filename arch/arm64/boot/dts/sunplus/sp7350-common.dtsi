@@ -1327,7 +1327,6 @@
 		memory-region = <&npu_reserve>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
-		npu_core-supply = <&npu_core_0v8>;
 		clocks = <&clkc NPU>;
 		clock-names = "clk_vip9000";
 		clock-frequency = <900000000>;
