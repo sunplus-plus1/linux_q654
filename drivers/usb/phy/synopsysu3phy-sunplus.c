@@ -17,6 +17,7 @@ struct usb3_phy {
 	struct device		*dev;
 	void __iomem		*u3phy_base_addr;
 	void __iomem		*u3_portsc_addr;
+	void __iomem		*u3_blkdev_addr;
 	struct clk		*u3_clk;
 	struct clk		*u3phy_clk;
 	struct reset_control	*u3phy_rst;
@@ -247,6 +248,11 @@ static int sunplus_usb_synopsys_u3phy_probe(struct platform_device *pdev)
 	u3phy->u3_portsc_addr = devm_ioremap(&pdev->dev, u3phy_res_mem->start, resource_size(u3phy_res_mem));
 	if (IS_ERR(u3phy->u3_portsc_addr))
 		return PTR_ERR(u3phy->u3_portsc_addr);
+
+	u3phy_res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	u3phy->u3_blkdev_addr = devm_ioremap(&pdev->dev, u3phy_res_mem->start, resource_size(u3phy_res_mem));
+	if (IS_ERR(u3phy->u3_blkdev_addr))
+		return PTR_ERR(u3phy->u3_blkdev_addr);
 
 	u3phy->irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&u3phy->wq);

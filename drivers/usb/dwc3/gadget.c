@@ -2258,9 +2258,7 @@ static void dwc3_gadget_enable_irq(struct dwc3 *dwc)
 			DWC3_DEVTEN_WKUPEVTEN |
 			DWC3_DEVTEN_CONNECTDONEEN |
 			DWC3_DEVTEN_USBRSTEN |
-			DWC3_DEVTEN_DISCONNEVTEN |
-			// WORKAROUND for q654 vbus issue
-			DWC3_DEVTEN_ULSTCNGEN);
+			DWC3_DEVTEN_DISCONNEVTEN);
 
 	if (DWC3_VER_IS_PRIOR(DWC3, 250A))
 		reg |= DWC3_DEVTEN_ULSTCNGEN;
@@ -3648,32 +3646,23 @@ static void dwc3_gadget_linksts_change_interrupt(struct dwc3 *dwc,
 		}
 	}
 
-	if (DWC3_VER_IS(DWC3, 330B)) { // WORKAROUND for q654 vbus issue
-		switch (next) {
-		case DWC3_LINK_STATE_SS_DIS:
-			dwc3_gadget_set_link_state(dwc, DWC3_LINK_STATE_SS_INACT);
-		default:
-			/* do nothing */
-			break;
-		}
-	} else {
-		switch (next) {
-		case DWC3_LINK_STATE_U1:
-			if (dwc->speed == USB_SPEED_SUPER)
-				dwc3_suspend_gadget(dwc);
-			break;
-		case DWC3_LINK_STATE_U2:
-		case DWC3_LINK_STATE_U3:
+	switch (next) {
+	case DWC3_LINK_STATE_U1:
+		if (dwc->speed == USB_SPEED_SUPER)
 			dwc3_suspend_gadget(dwc);
-			break;
-		case DWC3_LINK_STATE_RESUME:
-			dwc3_resume_gadget(dwc);
-			break;
-		default:
-			/* do nothing */
-			break;
-		}
+		break;
+	case DWC3_LINK_STATE_U2:
+	case DWC3_LINK_STATE_U3:
+		dwc3_suspend_gadget(dwc);
+		break;
+	case DWC3_LINK_STATE_RESUME:
+		dwc3_resume_gadget(dwc);
+		break;
+	default:
+		/* do nothing */
+		break;
 	}
+
 	dwc->link_state = next;
 }
 
