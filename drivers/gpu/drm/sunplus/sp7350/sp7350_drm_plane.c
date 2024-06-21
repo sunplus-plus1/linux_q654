@@ -327,14 +327,12 @@ static void sp7350_scl_coordinate_adjust(int32_t src_w, int32_t src_h,
 	if (factor_1000x_w < factor_1000x_h) {
 		dst_val = *dst_h;
 		*dst_h = src_h * factor_1000x_w / 1000;
-		*dst_h = (*dst_h / 16 + 1) * 16;
-		*dst_h = dst_val < *dst_h ? dst_val : *dst_h;
+		//*dst_h = (*dst_h / 16) *16;
 		*dst_y += (dst_val - *dst_h) / 2;
 	} else if (factor_1000x_w > factor_1000x_h) {
 		dst_val = *dst_w;
 		*dst_w = src_w * factor_1000x_h / 1000;
-		*dst_w = (*dst_w / 16 + 1) * 16;
-		*dst_w = dst_val < *dst_w ? dst_val : *dst_w;
+		*dst_w = (*dst_w / 16) * 16;
 		*dst_x += (dst_val - *dst_w) / 2;
 	}
 }
