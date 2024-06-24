@@ -45,6 +45,7 @@
 //#define AP6256_WIFI
 //#define AP6256_BT
 
+/* test code for drm_new branch , will remove it while job done */
 //#define CONFIG_DISP_DRM_SUPPORT
 
 //#define DISP_MIPITX_CSI
