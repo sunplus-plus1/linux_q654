@@ -19,6 +19,15 @@
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_drv.h"
 
+/* FIXME: For DISPLAY TGEN HW SETTING Temporary.
+ *  The correct way is map TGEN registers in crtc controller.
+ */
+#include <media/sunplus/disp/sp7350/sp7350_disp_osd.h>
+#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_vpp.h"
+#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_dmix.h"
+#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_tgen.h"
+extern int sp7350_resolution_set(unsigned int width, unsigned int height);
+
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
 
@@ -36,6 +45,13 @@ static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
 {
 	/* TODO reference to vkms_crtc_atomic_check */
 	DRM_DEBUG_DRIVER("[TODO]\n");
+	if (state->mode_changed) {
+		struct drm_display_mode *adj_mode = &state->adjusted_mode;
+		DRM_DEBUG_DRIVER("Update TGEN Timing...\n");
+		sp7350_resolution_set(adj_mode->hdisplay, adj_mode->vdisplay);
+		/* TODO: Check mode valid first. refer to sp7350_dsi_mode_check */
+		//sp7350_tgen_init();
+	}
 	return 0;
 }
 
@@ -71,6 +87,9 @@ static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	DRM_DEBUG_DRIVER("Start\n");
 
+	if (crtc->state->mode_changed) {
+		sp7350_tgen_init();
+	}
 	if (event) {
 		crtc->state->event = NULL;
 
@@ -195,6 +214,7 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	struct drm_crtc *crtc;
 	int ret;
 
+	DRM_DEV_DEBUG_DRIVER(dev, "start.\n");
 	sp7350_drm_crtc = devm_kzalloc(dev, sizeof(*sp7350_drm_crtc), GFP_KERNEL);
 	if (!sp7350_drm_crtc)
 		return -ENOMEM;
@@ -214,6 +234,12 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	/* TODO: setting debugfs_regset32 for C3V DISPLAY REGISTER */
 	//sp7350_drm_crtc->regset.regs = crtc_regs;
 	//sp7350_drm_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
+
+	/* FIXME: Do once at fisrt. */
+	//dmix must first init
+	sp7350_dmix_init();
+	sp7350_osd_init();
+	sp7350_osd_header_init();
 
 	ret = sp7350_drm_crtc_init(drm, crtc);
 	if (ret)

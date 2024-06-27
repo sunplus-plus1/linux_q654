@@ -1009,6 +1009,15 @@ static int lt8912_probe(struct i2c_client *client,
 	if (ret)
 		goto err_i2c;
 
+	#if defined(CONFIG_DRM_SP7350)
+	{ /* Check chip valid */
+		unsigned int reg_val;
+		ret = regmap_read(lt->regmap[I2C_MAIN], 0xC1, &reg_val);
+		if (ret)
+			goto err_i2c;
+	}
+	#endif
+
 	i2c_set_clientdata(client, lt);
 
 	lt->bridge.funcs = &lt8912_bridge_funcs;

@@ -31,6 +31,7 @@
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_dsi.h"
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_mipitx.h"
+#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_tcon.h"
 
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
@@ -111,6 +112,53 @@ struct sp7350_dsi_encoder {
 #define to_sp7350_dsi_encoder(target)\
 	container_of(target, struct sp7350_dsi_encoder, base.base)
 
+/* SP7350 TCON HW config reference to sp7350_disp_tcon.c */
+/* FIXME: How to generate tcon timing???
+ * Just copy from sp7350_disp_tcon.c now.
+ */
+/*
+ * sp_tcon_para_dsi[x][y]
+ * y = 0-1, TCON width & height
+ * y = 2-11, TCON DE_H & Vsync_H & Hsync & DE_V & VTOP_V
+ */
+static const u32 sp_tcon_para_dsi[11][12] = {
+	/* (w   h)    DE_H       Vsync_H     Hsync       DE_V        VTOP_V     */
+	{ 720,  480,    0,  719,  850,  854,  850,  854,    0,    0,  524,    0}, /* 480P */
+	{ 720,  576,    0,  719,  856,  856,  856,  860,    0,    0,  624,    0}, /* 576P */
+	{1280,  720,    0, 1279, 1642, 1646, 1642, 1646,    0,    0,  749,    0}, /* 720P */
+	{1920, 1080,    0, 1919, 2192, 2196, 2192, 2196,    0,    0, 1124,    0}, /* 1080P */
+	//{  64,   64,    0,   63,  353,  353,  353,  356,    0,    0,   99,    0}, /* 64x64 */
+	{ 480, 1280,    0,  479,  612,  616,  612,  616,    0,    0, 1313,    0}, /* 480x1280 */
+	{ 128,  128,    0,  127,  352,  352,  352,  356,    0,    0,  149,    0}, /* 128x128 */
+	//{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  363,    0}, /* 240x320 */
+	{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  353,    0}, /* 240x320 */
+	{3840,   64,    0, 3839, 4600, 4600, 4600, 4604,    0,    0,   99,    0}, /* 3840x64 */
+	{3840, 2880,    0, 3839, 4600, 4600, 4600, 4604,    0,    0, 3199,    0}, /* 3840x2880 */
+	{ 800,  480,    0,  799,  865,  869,  865,  869,    0,    0,  509,    0}, /* 800x480 */
+	{1024,  600,    0, 1023, 1336, 1336, 1336, 1340,    0,    0,  634,    0}  /* 1024x600 */
+};
+
+/*
+ * sp_tcon_tpg_para_dsi[x][y]
+ * y = 0-1, TCON width & height
+ * y = 2-9, TCON Hstep & Vstep & Hcnt & Vcnt & Hact & Vact & A_LINE & DITHER
+ */
+static const u32 sp_tcon_tpg_para_dsi[11][10] = {
+	/* (w   h)    Hstep Vstep Hcnt  Vcnt  Hact  Vact A_LINE DITHER */
+	{ 720,  480,    4,    4,  857,  524,  719,  479,  35, 0x01}, /* 480P */
+	{ 720,  576,    4,    4,  863,  624,  719,  575,  17, 0x41}, /* 576P */
+	{1280,  720,    4,    4, 1649,  749, 1279,  719,  24, 0x41}, /* 720P */
+	{1920, 1080,    4,    4, 2199, 1124, 1919, 1079,  40, 0x01}, /* 1080P */
+	//{  64,   64,    4,    4,  359,   99,   63,   63,  17, 0xC1}, /* 64x64 */
+	{ 480, 1280,    4,    4,  619, 1313,  479, 1279,  16, 0x01}, /* 480x1280 */
+	{ 128,  128,    4,    4,  359,  149,  127,  127,  17, 0x49}, /* 128x128 */
+	{ 240,  320,    4,    4,  682,  353,  239,  319,  25, 0x01}, /* 240x320 */
+	{3840,   64,    4,    4, 4607,   99, 3839,   63,  17, 0x01}, /* 3840x64 */
+	{3840, 2880,    4,    4, 4607, 3199, 3839, 2879,  17, 0x01}, /* 3840x2880 */
+	{ 800,  480,    4,    4,  872,  509,  799,  479,  22, 0x01}, /* 800x480 */
+	{1024,  600,    4,    4, 1343,  634, 1023,  599,  17, 0x01}  /* 1024x600 */
+};
+
 /*
  * TODO: reference to sp7350_disp_mipitx.c,
  *   but should comes from panel driver parameters.
@@ -163,6 +211,9 @@ static const u32 sp_mipitx_output_timing[10] = {
 	0x10,  /* T_HS-ZERO */
 };
 
+static int sp7350_dsi_mode_check(const struct drm_display_mode *mode);
+static void sp7350_dsi_tcon_init(struct sp7350_drm_dsi *dsi);
+static void sp7350_dsi_tcon_timing_setting(struct sp7350_drm_dsi *dsi, struct drm_display_mode *mode);
 static void sp7350_mipitx_dsi_phy_init(struct sp7350_drm_dsi *dsi);
 static void sp7350_mipitx_dsi_pllclk_init(struct sp7350_drm_dsi *dsi);
 static void sp7350_mipitx_dsi_lane_control_set(struct sp7350_drm_dsi *dsi);
@@ -193,6 +244,9 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 	enum drm_mode_status ret;
 
 	DRM_DEBUG_DRIVER("[Start]\n");
+
+	if (sp7350_dsi_mode_check(mode))
+		return MODE_NOMODE;
 
 	/*
 	 * The crtc might adjust the mode, so go through the
@@ -232,8 +286,10 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 			 mode->hdisplay, mode->vdisplay,
 		adj_mode->hdisplay, adj_mode->vdisplay);
 
+	sp7350_dsi_tcon_timing_setting(dsi, adj_mode);
 	sp7350_mipitx_dsi_pllclk_set(dsi, adj_mode);
 	sp7350_mipitx_dsi_video_mode_setting(dsi, adj_mode);
+
 	/* store */
 	drm_mode_copy(&dsi->adj_mode_store, adj_mode);
 }
@@ -409,6 +465,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 	sp7350_mipitx_dsi_phy_init(dsi);
 	sp7350_mipitx_dsi_pllclk_init(dsi);
 	sp7350_mipitx_dsi_lane_control_set(dsi);
+	sp7350_dsi_tcon_init(dsi);
 
 	return 0;
 }
@@ -475,6 +532,9 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	//const struct of_device_id *match;
 	//dma_cap_mask_t dma_mask;
 	int ret;
+	int child_count = 0;
+	u32 endpoint_id = 0;
+	struct device_node  *port, *endpoint;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "start.\n");
 	//match = of_match_device(sp7350_dsi_dt_match, dev);
@@ -497,9 +557,33 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 
 	/*
 	 * Get the endpoint node. In our case, dsi has one output port1
-	 * to which the external HDMI bridge is connected.
+	 * to which the internal panel or external HDMI bridge connected.
+	 * Cannot support both at the same time, internal panel first.
 	 */
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
+	//ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
+	port = of_graph_get_port_by_id(dev->of_node, 1);
+	if (!port) {
+		DRM_DEV_ERROR(dev,
+			      "can't found port point, please init lvds panel port!\n");
+		return -EINVAL;
+	}
+	for_each_child_of_node(port, endpoint) {
+		child_count++;
+		of_property_read_u32(endpoint, "reg", &endpoint_id);
+		DRM_DEV_DEBUG(dev, "endpoint_id:%d\n", endpoint_id);
+		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, endpoint_id,
+						  &panel, &dsi->bridge);
+		of_node_put(endpoint);
+		if (!ret) {
+			break;
+		}
+	}
+	of_node_put(port);
+	if (!child_count) {
+		DRM_DEV_ERROR(dev, "dsi0 port does not have any children\n");
+		ret = -EINVAL;
+		return ret;
+	}
 	if (ret) {
 		DRM_DEV_ERROR(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
 		/* If the bridge or panel pointed by dev->of_node is not
@@ -702,6 +786,142 @@ struct platform_driver sp7350_dsi_driver = {
 		.of_match_table = sp7350_dsi_dt_match,
 	},
 };
+
+/* sp7350_tcon_timing_set_dsi */
+static void sp7350_dsi_tcon_timing_setting(struct sp7350_drm_dsi *dsi, struct drm_display_mode *mode)
+{
+	u32 width, height;
+	int i, time_cnt = 0;
+	u32 value = 0;
+
+	width = mode->hdisplay;
+	height = mode->vdisplay;
+
+	for (i = 0; i < 11; i++) {
+		if ((sp_tcon_para_dsi[i][0] == width) &&
+			(sp_tcon_para_dsi[i][1] == height)) {
+				time_cnt = i;
+				break;
+		}
+	}
+
+	pr_info("%s (w h)(%d %d)\n", __func__,
+		sp_tcon_para_dsi[time_cnt][0], sp_tcon_para_dsi[time_cnt][1]);
+	/*
+	 * TCON H&V timing parameter
+	 */
+	writel(sp_tcon_para_dsi[time_cnt][2], dsi->regs + TCON_DE_HSTART); //DE_HSTART
+	writel(sp_tcon_para_dsi[time_cnt][3], dsi->regs + TCON_DE_HEND); //DE_HEND
+
+	writel(sp_tcon_para_dsi[time_cnt][4], dsi->regs + TCON_OEV_START); //TC_VSYNC_HSTART
+	writel(sp_tcon_para_dsi[time_cnt][5], dsi->regs + TCON_OEV_END); //TC_VSYNC_HEND
+
+	writel(sp_tcon_para_dsi[time_cnt][6], dsi->regs + TCON_HSYNC_START); //HSYNC_START
+	writel(sp_tcon_para_dsi[time_cnt][7], dsi->regs + TCON_HSYNC_END); //HSYNC_END
+
+	writel(sp_tcon_para_dsi[time_cnt][8], dsi->regs + TCON_DE_VSTART); //DE_VSTART
+	writel(sp_tcon_para_dsi[time_cnt][9], dsi->regs + TCON_DE_VEND); //DE_VEND
+
+	writel(sp_tcon_para_dsi[time_cnt][10], dsi->regs + TCON_STVU_START); //VTOP_VSTART
+	writel(sp_tcon_para_dsi[time_cnt][11], dsi->regs + TCON_STVU_END); //VTOP_VEND
+
+	/*
+	 * TPG(Test Pattern Gen) parameter
+	 */
+	writel(sp_tcon_tpg_para_dsi[time_cnt][4], dsi->regs + TCON_TPG_HCOUNT);
+	value |= (sp_tcon_tpg_para_dsi[time_cnt][2] << 12) | sp_tcon_tpg_para_dsi[time_cnt][5];
+	writel(value, dsi->regs + TCON_TPG_VCOUNT);
+	writel(sp_tcon_tpg_para_dsi[time_cnt][6], dsi->regs + TCON_TPG_HACT_COUNT);
+	value = 0;
+	value |= (sp_tcon_tpg_para_dsi[time_cnt][3] << 12) | sp_tcon_tpg_para_dsi[time_cnt][7];
+	writel(value, dsi->regs + TCON_TPG_VACT_COUNT);
+
+	writel(sp_tcon_tpg_para_dsi[time_cnt][8], dsi->regs + TCON_TPG_ALINE_START);
+
+	//writel(sp_tcon_tpg_para_dsi[time_cnt][9], disp_dev->base + TCON_DITHER_TVOUT);
+}
+
+static int sp7350_dsi_mode_check(const struct drm_display_mode *mode)
+{
+	int i, time_cnt = 0;
+
+	for (i = 0; i < 11; i++) {
+		if ((sp_tcon_para_dsi[i][0] == mode->hdisplay) &&
+			(sp_tcon_para_dsi[i][1] == mode->vdisplay)) {
+				time_cnt = i;
+				break;
+		}
+	}
+	if (time_cnt >= 11) {
+		DRM_ERROR("invalid mode with  (w h)(%d %d)\n", mode->hdisplay, mode->vdisplay);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 11; i++) {
+		if ((sp_mipitx_phy_pllclk_dsi[i][0] == mode->hdisplay) &&
+		    (sp_mipitx_phy_pllclk_dsi[i][1] == mode->vdisplay)) {
+			time_cnt = i;
+			break;
+		}
+	}
+	if (time_cnt >= 11) {
+		DRM_ERROR("invalid mode with  (w h)(%d %d)\n", mode->hdisplay, mode->vdisplay);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*sp7350_tcon_init*/
+static void sp7350_dsi_tcon_init(struct sp7350_drm_dsi *dsi)
+{
+	u32 value;
+
+	value = 0;
+	if (dsi->format == DSI_PFORMAT_RGB565)
+		value |= SP7350_TCON_OUT_PACKAGE_SET(SP7350_TCON_OUT_PACKAGE_DSI_RGB565);
+	else if (dsi->format == DSI_PFORMAT_RGB666)
+		value |= SP7350_TCON_OUT_PACKAGE_SET(SP7350_TCON_OUT_PACKAGE_DSI_RGB666_18);
+	else if (dsi->format == DSI_PFORMAT_RGB666_PACKED)
+		value |= SP7350_TCON_OUT_PACKAGE_SET(SP7350_TCON_OUT_PACKAGE_DSI_RGB666_24);
+	else if (dsi->format == DSI_PFORMAT_RGB888)
+		value |= SP7350_TCON_OUT_PACKAGE_SET(SP7350_TCON_OUT_PACKAGE_DSI_RGB888);
+	else
+		value |= SP7350_TCON_OUT_PACKAGE_SET(SP7350_TCON_OUT_PACKAGE_DSI_RGB888);
+
+	value |= SP7350_TCON_DOT_RGB888_MASK |
+		SP7350_TCON_DOT_ORDER_SET(SP7350_TCON_DOT_ORDER_RGB) |
+		SP7350_TCON_HVIF_EN | SP7350_TCON_YU_SWAP;
+
+	writel(value, dsi->regs + TCON_TCON0);
+
+	value = 0;
+	value |= (SP7350_TCON_EN | SP7350_TCON_YUV_UV_SWAP |
+		SP7350_TCON_STHLR_DLY_SET(SP7350_TCON_STHLR_DLY_1T));
+	writel(value, dsi->regs + TCON_TCON1);
+
+	value = 0;
+	//value |= SP7350_TCON_HDS_FILTER;
+	writel(value, dsi->regs + TCON_TCON2); //don't care
+
+	value = 0;
+	//value |= SP7350_TCON_OEH_POL;
+	writel(value, dsi->regs + TCON_TCON3); //don't care
+
+	value = 0;
+	value |= SP7350_TCON_PIX_EN_SEL_SET(SP7350_TCON_PIX_EN_DIV_1_CLK_TCON);
+	writel(value, dsi->regs + TCON_TCON4); //fixed , don't change it
+
+	value = 0;
+	value |= SP7350_TCON_CHK_SUM_EN;
+	writel(value, dsi->regs + TCON_TCON5); //don't care
+
+	value = readl(dsi->regs + MIPITX_INFO_STATUS); //G204.28
+	if ((FIELD_GET(GENMASK(24,24), value) == 1) && (FIELD_GET(GENMASK(0,0), value) == 0)) {
+		//pr_info("  MIPITX working, skip tcon setting\n");
+		return;
+	}
+}
 
 /* SP7350 MIPITX HW config reference to sp7350_disp_mipitx.c */
 static void sp7350_mipitx_dsi_phy_init(struct sp7350_drm_dsi *dsi)

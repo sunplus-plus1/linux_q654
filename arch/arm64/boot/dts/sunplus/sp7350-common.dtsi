@@ -1612,31 +1612,21 @@
 	};
 
 	/* Display controller0 */
-	crtc0: crtc0 {
+	crtc0: crtc {
 		compatible = "sunplus,sp7350-crtc0";
 
 		port {
 			crtc0_out: endpoint {
-				remote-endpoint = <&dsi_in0>;
+				remote-endpoint = <&dsi0_in0>;
 			};
 		};
 	};
 
-	crtc1: crtc1 {
-		compatible = "sunplus,example_crtc";
-		status = "disabled";
-
-		port {
-			crtc1_out: endpoint {
-				remote-endpoint = <&dsi_in_example>;
-			};
-		};
-	};
-
-	dsi0: mipi-dsi@f8006600 {
+	dsi0: mipi-dsi@f8006380 {
 		compatible = "sunplus,sp7350-dsi0";
 
-		reg = <0x00 0xf8006600 0x00 0xb8>, <0x00 0xf8800180 0x00 0x80>;
+		//0xf8006380-66b8 and 0xf8800180 used for DRM DSI Driver.
+		reg = <0x00 0xf8006380 0x00 0x338>, <0x00 0xf8800180 0x00 0x80>;
 		interrupt-parent = <&gic>;
 		interrupts =
 			<GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
@@ -1676,26 +1666,22 @@
 			#size-cells = <0>;
 
 			/* 0 for input port */
-			port@0 {
+			dsi0_in: port@0 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0>;
-				dsi_in0: endpoint@0 {
+				dsi0_in0: endpoint@0 {
 					remote-endpoint = <&crtc0_out>;
 					reg = <0>;
-				};
-				dsi_in_example: endpoint@1 {
-					remote-endpoint = <&crtc1_out>;
-					reg = <1>;
 				};
 			};
 
 			/* 1 for output port */
-			port@1 {
+			dsi0_out: port@1 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <1>;
-				dsi_out0: endpoint@0 {
+				dsi0_out0: endpoint@0 {
 					reg = <0>;
 				};
 			};

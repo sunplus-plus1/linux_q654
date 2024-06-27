@@ -68,6 +68,15 @@
 //#define LT8912B_HDMI_720P
 #define LT8912B_HDMI_1080P
 
+#ifdef CONFIG_DISP_DRM_SUPPORT
+#if defined(LT8912B_HDMI_ENABLE)
+#define RASPBERRYPI_DSI_PANEL
+#endif
+#if defined(RASPBERRYPI_DSI_PANEL)
+#define LT8912B_HDMI_ENABLE
+#endif
+#endif
+
 #include "sp7350-common.dtsi"
 #include <dt-bindings/input/input.h>
 
@@ -378,6 +387,7 @@
 		compatible = "hdmi-connector";
 		label = "hdmi";
 		type = "a";
+		//ddc-i2c-bus = <&i2c5>;
 
 		port {
 			hdmi_con_out: endpoint {
@@ -1089,7 +1099,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo3_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c4 {
@@ -1199,7 +1209,11 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo5_pins>;
+#if defined(LT8912B_HDMI_ENABLE)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
 };
 
 &i2c6 {
@@ -2185,6 +2199,8 @@
 
 &display {
 	status = "okay";
+
+#ifndef CONFIG_DISP_DRM_SUPPORT
 #if defined(DISP_MIPITX_CSI)
 	#if defined(DISP_MIPITX_CSI_480P)
 	sp7350,dev_name = "MIPITX-CSI-TEST_480P";
@@ -2357,7 +2373,6 @@
 	sp7350,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
 #endif
 
-#ifndef CONFIG_DISP_DRM_SUPPORT
 #if defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
 	port {
 		disp_phy: endpoint {
@@ -2372,8 +2387,8 @@
 	};
 #endif
 #else
-	//0xf8006600-66b8 and 0xf8800180 used for DRM DSI Driver.
-	reg = <0x00 0xf8005c80 0x00 0x980>;
+	//0xf8006380-66b8 and 0xf8800180 used for DRM DSI Driver.
+	reg = <0x00 0xf8005c80 0x00 0x700>;
 #endif
 };
 
@@ -3098,23 +3113,29 @@
 &lontium_lt8912b {
 	status = "okay";
 };
-&dsi_out0 {
-	remote-endpoint = <&lt8912b_in>;
+&dsi0_out {
+	dsi0_out1: endpoint@1 {
+		reg = <1>;
+	};
 };
 &lt8912b_in {
-	remote-endpoint = <&dsi_out0>;
+	remote-endpoint = <&dsi0_out1>;
 };
-#else
-//&raspberrypi_lcd {
-//	status = "okay";
-//};
-&dsi_out0 {
-	remote-endpoint = <&panel_dsi_port>;
-};
-&panel_dsi_port {
-	remote-endpoint = <&dsi_out0>;
+&dsi0_out1 {
+	remote-endpoint = <&lt8912b_in>;
 };
 #endif
+#ifdef RASPBERRYPI_DSI_PANEL
+&raspberrypi_lcd {
+	status = "okay";
+};
+#endif
+&panel_dsi_port {
+	remote-endpoint = <&dsi0_out0>;
+};
+&dsi0_out0 {
+	remote-endpoint = <&panel_dsi_port>;
+};
 #else
 &fb_disp_device {
 	memory-region = <&disp_reserve>;
