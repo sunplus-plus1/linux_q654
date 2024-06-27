@@ -4,8 +4,8 @@
 #
 obj-$(CONFIG_VIDEO_SP7350_DISP) += display_sp7350.o
 display_sp7350-objs := sp7350_display.o
-display_sp7350-objs += sp7350_disp_tcon.o
 ifndef CONFIG_DRM_SP7350
+display_sp7350-objs += sp7350_disp_tcon.o
 display_sp7350-objs += sp7350_disp_mipitx.o
 endif
 display_sp7350-objs += sp7350_disp_dmix.o

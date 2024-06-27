@@ -242,6 +242,7 @@ static irqreturn_t sp7350_display_irq_int2(int irq, void *param)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_DRM_SP7350
 static const char * const mipitx_format_str_dsi[] = {
 	"DSI-RGB565-16bits", "DSI-RGB666-18bits", "DSI-RGB666-24bits",
 	"DSI-RGB888-24bits", "none", "none", "none", "none"};
@@ -564,6 +565,18 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 
 	return ret;
 }
+#else
+/* TODO: For tgen setting temporary */
+int sp7350_resolution_set(unsigned int width, unsigned int height)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+
+	disp_dev->out_res.width = width;
+	disp_dev->out_res.height = height;
+	disp_dev->out_res.mipitx_mode = SP7350_MIPITX_DSI;
+	return 0;
+}
+#endif
 
 static const char * const sp7350_disp_clkc[] = {
 	"clkc_dispsys", "clkc_dmix", "clkc_gpost0", "clkc_gpost1",
@@ -704,6 +717,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		//}
 	}
 
+#ifndef CONFIG_DRM_SP7350
 	/*
 	 * get all necessary resolution from dts
 	 */
@@ -720,7 +734,6 @@ static int sp7350_display_probe(struct platform_device *pdev)
 
 	sp7350_vpp_init();
 
-#ifndef CONFIG_DRM_SP7350
 	/* dmix setting
 	 * L6   L5   L4   L3   L2   L1   BG
 	 * OSD0 OSD1 OSD2 OSD3 ---- VPP0 PTG
@@ -768,7 +781,6 @@ static int sp7350_display_probe(struct platform_device *pdev)
 		}
 	}
 	#endif
-#endif
 
 	/*
 	 * init resolution setting for osd layers
@@ -780,7 +792,6 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	 */
 	sp7350_vpp_resolution_init(disp_dev);
 
-#ifndef CONFIG_DRM_SP7350
 	#ifdef SP_DISP_V4L2_SUPPORT
 	/*
 	 * init layer setting for v4l2
@@ -946,8 +957,8 @@ static int sp7350_display_suspend(struct platform_device *pdev, pm_message_t sta
 	 */
 	sp7350_dmix_layer_cfg_store();
 	sp7350_tgen_store();
-	sp7350_tcon_store();
 #ifndef CONFIG_DRM_SP7350
+	sp7350_tcon_store();
 	sp7350_mipitx_store();
 #endif
 	sp7350_osd_store();
@@ -986,8 +997,8 @@ static int sp7350_display_resume(struct platform_device *pdev)
 	 */
 	sp7350_dmix_layer_cfg_restore();
 	sp7350_tgen_restore();
-	sp7350_tcon_restore();
 #ifndef CONFIG_DRM_SP7350
+	sp7350_tcon_restore();
 	sp7350_mipitx_restore();
 #endif
 	sp7350_osd_restore();
