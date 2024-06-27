@@ -235,9 +235,6 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	//sp7350_drm_crtc->regset.regs = crtc_regs;
 	//sp7350_drm_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
 
-	/* FIXME: Do once at fisrt. */
-	//dmix must first init
-	sp7350_dmix_init();
 	sp7350_osd_init();
 	sp7350_osd_header_init();
 
@@ -283,6 +280,10 @@ static const struct component_ops sp7350_crtc_ops = {
 
 static int sp7350_crtc_dev_probe(struct platform_device *pdev)
 {
+	/* FIXME: Do once at fisrt. */
+	//dmix must first init
+	sp7350_dmix_init();
+
 	return component_add(&pdev->dev, &sp7350_crtc_ops);
 }
 
