@@ -48,6 +48,13 @@ struct sp7350_drm_crtc {
 	struct platform_device *pdev;
 	void __iomem *regs;
 
+#if 0
+	/* clock */
+	struct clk		*disp_clk[16];
+	/* reset */
+	struct reset_control	*disp_rstc[16];
+#endif
+
 	//struct drm_crtc_state base;
 	struct sp7350_drm_plane primary_plane;
 	struct sp7350_drm_plane media_plane;

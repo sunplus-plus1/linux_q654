@@ -7,6 +7,8 @@
 
 #include <linux/component.h>
 #include <linux/of_device.h>
+#include <linux/clk.h>
+#include <linux/reset.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -18,6 +20,7 @@
 
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_drv.h"
+#include "sp7350_drm_regs.h"
 
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
@@ -35,7 +38,8 @@ static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
 	/* TODO reference to vkms_crtc_atomic_check */
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	pr_info("  [CRT]%s TODO", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[TODO]\n");
 	return 0;
 }
 
@@ -44,7 +48,8 @@ static void sp7350_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_on(crtc);
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	pr_info("  [CRT]%s TODO", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -52,14 +57,16 @@ static void sp7350_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	/* FIXME, NO vblank ??? */
 	//drm_crtc_vblank_off(crtc);
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	pr_info("  [CRT]%s TODO", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static void sp7350_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
 	/* TODO reference to vkms_crtc_atomic_begin */
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	pr_info("  [CRT]%s TODO", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[TODO]\n");
 }
 
 static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -69,7 +76,8 @@ static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	//struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
-	DRM_DEBUG_DRIVER("Start\n");
+	pr_info("  [CRT]%s start", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("Start\n");
 
 	if (event) {
 		crtc->state->event = NULL;
@@ -98,6 +106,7 @@ static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
 	const enum sp7350_drm_encoder_type *encoder_types = sp7350_crtc->encoder_types;
 	struct drm_encoder *encoder;
 
+	pr_info("  [CRT]%s", __func__); //hammer test
 	drm_for_each_encoder(encoder, drm) {
 		struct sp7350_drm_encoder *sp7350_encoder;
 		int i;
@@ -122,6 +131,7 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc)
 	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
 	int ret;
 
+	pr_info("  [CRT]%s", __func__); //hammer test
 	/* set crtc port so that
 	 * drm_of_find_possible_crtcs call works
 	 */
@@ -139,12 +149,14 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc)
 	 * requirement of the plane configuration, and reject ones
 	 * that will take too much.
 	 */
+	pr_info("  [CRT]%s - sp7350_plane_create_primary_plane", __func__); //hammer test
 	ret = sp7350_plane_create_primary_plane(drm, &sp7350_crtc->primary_plane);
 	if (ret) {
 		DRM_DEV_ERROR(drm->dev, "failed to construct primary plane\n");
 		return ret;
 	}
 
+	pr_info("  [CRT]%s - drm_crtc_init_with_planes", __func__); //hammer test
 	ret = drm_crtc_init_with_planes(drm, crtc, &sp7350_crtc->primary_plane.base, NULL,
 					&sp7350_drm_crtc_funcs, NULL);
 	if (ret) {
@@ -154,17 +166,20 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc)
 	drm_crtc_helper_add(crtc, &sp7350_drm_crtc_helper_funcs);
 
 #if !DRM_PRIMARY_PLANE_ONLY
+	pr_info("  [CRT]%s - sp7350_plane_create_media_plane", __func__); //hammer test
 	ret = sp7350_plane_create_media_plane(drm, &sp7350_crtc->media_plane);
 	if (ret) {
 		DRM_DEV_ERROR(drm->dev, "failed to construct media(overlay) plane\n");
 		return ret;
 	}
 
+	pr_info("  [CRT]%s - sp7350_plane_create_overlay_plane", __func__); //hammer test
 	ret = sp7350_plane_create_overlay_plane(drm, &sp7350_crtc->overlay_planes[0], 0);
 	if (ret) {
 		DRM_DEV_ERROR(drm->dev, "failed to construct overlay plane\n");
 		return ret;
 	}
+	pr_info("  [CRT]%s - sp7350_plane_create_overlay_plane", __func__); //hammer test
 	ret = sp7350_plane_create_overlay_plane(drm, &sp7350_crtc->overlay_planes[1], 1);
 	if (ret) {
 		DRM_DEV_ERROR(drm->dev, "failed to construct overlay plane\n");
@@ -187,26 +202,44 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc)
 	return ret;
 }
 
+static const char * const sp7350_disp_clkc[] = {
+	"clkc_dispsys", "clkc_dmix",  "clkc_tgen", "clkc_tcon", "clkc_mipitx",
+	"clkc_gpost0", "clkc_gpost1", "clkc_gpost2", "clkc_gpost3",
+	"clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
+	"clkc_imgread0", "clkc_vscl0", "clkc_vpost0"
+};
+
+static const char * const sp7350_disp_rtsc[] = {
+	"rstc_dispsys", "rstc_dmix", "rstc_tgen", "rstc_tcon", "rstc_mipitx",
+	"rstc_gpost0", "rstc_gpost1", "rstc_gpost2", "rstc_gpost3",
+	"rstc_osd0", "rstc_osd1", "rstc_osd2", "rstc_osd3",
+	"rstc_imgread0", "rstc_vscl0", "rstc_vpost0"
+};
+
 static int sp7350_crtc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct sp7350_drm_crtc *sp7350_drm_crtc;
 	struct drm_crtc *crtc;
+	struct resource *res;
 	int ret;
+
+	pr_info("  [CRT]%s start", __func__); //hammer test
 
 	sp7350_drm_crtc = devm_kzalloc(dev, sizeof(*sp7350_drm_crtc), GFP_KERNEL);
 	if (!sp7350_drm_crtc)
 		return -ENOMEM;
+
 	crtc = &sp7350_drm_crtc->crtc;
 
 	sp7350_drm_crtc->pdev = pdev;
 
-	/* setting for C3V DISPLAY REGISTER */
+	/* setting for C3V DISPLAY REGISTER - PART1 */
 	/*
-	 * get reg base resource
+	 * get reg base resource G185 - G203
 	 */
-	sp7350_drm_crtc->regs = sp7350_display_ioremap_regs(0);
+	sp7350_drm_crtc->regs = devm_platform_get_and_ioremap_resource(sp7350_drm_crtc->pdev, 0, &res);
 	if (IS_ERR(sp7350_drm_crtc->regs))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sp7350_drm_crtc->regs), "reg base not found\n");
 
@@ -214,6 +247,9 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	/* TODO: setting debugfs_regset32 for C3V DISPLAY REGISTER */
 	//sp7350_drm_crtc->regset.regs = crtc_regs;
 	//sp7350_drm_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
+
+	pr_info("  G185.00 0x%08x G185.01 0x%08x\n",
+		readl(sp7350_drm_crtc->regs + IMGREAD_VERSION), readl(sp7350_drm_crtc->regs + IMGREAD_GLOBAL_CONTROL));
 
 	ret = sp7350_drm_crtc_init(drm, crtc);
 	if (ret)
@@ -227,6 +263,8 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	//sp7350_debugfs_add_regset32(drm, pv_data->debugfs_name,
 	//			 &sp7350_drm_crtc->regset);
 
+	pr_info("  [CRT]%s done", __func__); //hammer test
+
 	return 0;
 }
 
@@ -237,16 +275,25 @@ static void sp7350_crtc_unbind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sp7350_drm_crtc *sp7350_crtc = dev_get_drvdata(dev);
 
+	pr_info("  [CRT]%s", __func__); //hammer test
+
+	pr_info("  [CRT]%s - drm_crtc_cleanup", __func__); //hammer test
 	drm_crtc_cleanup(&sp7350_crtc->crtc);
 
 	/* TODO Set S3V SOC DISPLAY REG, disable crtc things... */
 
+	pr_info("  [CRT]%s - sp7350_plane_release_plane - primary_plane", __func__); //hammer test
 	sp7350_plane_release_plane(drm, &sp7350_crtc->primary_plane);
+	pr_info("  [CRT]%s - sp7350_plane_release_plane - media_plane", __func__); //hammer test
 	sp7350_plane_release_plane(drm, &sp7350_crtc->media_plane);
+	pr_info("  [CRT]%s - sp7350_plane_release_plane - overlay_planes_0", __func__); //hammer test
 	sp7350_plane_release_plane(drm, &sp7350_crtc->overlay_planes[0]);
+	pr_info("  [CRT]%s - sp7350_plane_release_plane - overlay_planes_1", __func__); //hammer test
 	sp7350_plane_release_plane(drm, &sp7350_crtc->overlay_planes[1]);
+	pr_info("  [CRT]%s - sp7350_plane_release_plane - cursor_plane", __func__); //hammer test
 	sp7350_plane_release_plane(drm, &sp7350_crtc->cursor_plane);
 
+	pr_info("  [CRT]%s - platform_set_drvdata to NULL", __func__); //hammer test
 	platform_set_drvdata(pdev, NULL);
 }
 
@@ -257,12 +304,14 @@ static const struct component_ops sp7350_crtc_ops = {
 
 static int sp7350_crtc_dev_probe(struct platform_device *pdev)
 {
+	pr_info("  [CRT]%s - do component_add only", __func__); //hammer test
 	return component_add(&pdev->dev, &sp7350_crtc_ops);
 }
 
 static int sp7350_crtc_dev_remove(struct platform_device *pdev)
 {
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "crtc driver remove.\n");
+	pr_info("  [CRT]%s", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "crtc driver remove.\n");
 
 	component_del(&pdev->dev, &sp7350_crtc_ops);
 	return 0;
@@ -270,14 +319,16 @@ static int sp7350_crtc_dev_remove(struct platform_device *pdev)
 
 static int sp7350_crtc_dev_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver suspend.\n");
+	pr_info("  [CRT]%s TODO", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver suspend.\n");
 
 	return 0;
 }
 
 static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 {
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver resume.\n");
+	pr_info("  [CRT]%s TODO", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver resume.\n");
 
 	return 0;
 }

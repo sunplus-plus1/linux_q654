@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/completion.h>
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
@@ -30,7 +31,7 @@
 
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_dsi.h"
-#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_mipitx.h"
+#include "sp7350_drm_regs.h"
 
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
@@ -56,6 +57,11 @@ struct sp7350_drm_dsi {
 
 	void __iomem *regs;
 	void __iomem *ao_moon3;
+
+	/* clock */
+	struct clk		*disp_clk[16];
+	/* reset */
+	struct reset_control	*disp_rstc[16];
 
 	struct dma_chan *reg_dma_chan;
 	dma_addr_t reg_dma_paddr;
@@ -178,7 +184,7 @@ static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 					const struct drm_display_mode *mode)
 {
 	/* TODO reference to dsi_encoder_phy_mode_valid */
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	DRM_DEBUG_DRIVER("  [TODO]\n");
 
 	return MODE_OK;
 }
@@ -192,7 +198,8 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 	struct drm_display_mode adj_mode;
 	enum drm_mode_status ret;
 
-	DRM_DEBUG_DRIVER("[Start]\n");
+	pr_info("  [DSI]%s start", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[Start]\n");
 
 	/*
 	 * The crtc might adjust the mode, so go through the
@@ -228,6 +235,7 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 
 	/* TODO reference to dsi_encoder_mode_set */
 	//DRM_DEBUG_DRIVER("[TODO]\n");
+	pr_info("  [DSI]%s", __func__); //hammer test
 	DRM_DEBUG_DRIVER("SET mode[%dx%x], adj_mode[%dx%d]\n",
 			 mode->hdisplay, mode->vdisplay,
 		adj_mode->hdisplay, adj_mode->vdisplay);
@@ -243,7 +251,8 @@ static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	/* do nothing */
-	DRM_DEBUG_DRIVER("[do nothing]\n");
+	pr_info("  [DSI]%s: do nothing", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[do nothing]\n");
 	return 0;
 }
 
@@ -253,7 +262,8 @@ static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
 
-	DRM_DEBUG_DRIVER("%s\n", encoder->name);
+	pr_info("  [DSI]%s: %s", __func__, encoder->name); //hammer test
+	//DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
 	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
 		if (iter->funcs->disable)
@@ -275,7 +285,8 @@ static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
 
-	DRM_DEBUG_DRIVER("%s\n", encoder->name);
+	pr_info("  [DSI]%s: %s", __func__, encoder->name); //hammer test
+	//DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
 	sp7350_mipitx_dsi_cmd_mode_start(dsi);
 	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
@@ -367,7 +378,8 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 {
 	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
 
-	DRM_DEBUG_DRIVER("[Start]\n");
+	pr_info("  [DSI]%s start", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[Start]\n");
 	if (!dsi->regs || !dsi->ao_moon3) {
 		DRM_DEV_ERROR(&dsi->pdev->dev, "dsi host probe fail!.\n");
 		return -1;
@@ -416,7 +428,8 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 static int sp7350_dsi_host_detach(struct mipi_dsi_host *host,
 				  struct mipi_dsi_device *device)
 {
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	pr_info("  [DSI]%s TODO", __func__); //hammer test
+	//DRM_DEBUG_DRIVER("[TODO]\n");
 	return 0;
 }
 
@@ -447,16 +460,21 @@ static int sp7350_drm_encoder_init(struct device *dev,
 	int ret;
 	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 
+	pr_info("  [DSI]%s", __func__); //hammer test
+
 	if (!crtc_mask) {
-		DRM_DEV_ERROR(dev, "failed to find crtc mask\n");
+		pr_info("  [DSI]%s - failed to find crtc mask\n", __func__); //hammer test
+		//DRM_DEV_ERROR(dev, "failed to find crtc mask\n");
 		return -EINVAL;
 	}
 
 	encoder->possible_crtcs = crtc_mask;
-	DRM_DEV_DEBUG_DRIVER(dev, "crtc_mask:0x%X\n", crtc_mask);
+	pr_info("  [DSI]%s - crtc_mask:0x%X\n", __func__, crtc_mask); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(dev, "crtc_mask:0x%X\n", crtc_mask);
 	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
-		DRM_DEV_ERROR(dev, "failed to init dsi encoder\n");
+		pr_info("  [DSI]%s - failed to init dsi encoder\n", __func__); //hammer test
+		//DRM_DEV_ERROR(dev, "failed to init dsi encoder\n");
 		return ret;
 	}
 
@@ -476,7 +494,9 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	//dma_cap_mask_t dma_mask;
 	int ret;
 
-	DRM_DEV_DEBUG_DRIVER(dev, "start.\n");
+	pr_info("  [DSI]%s start", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(dev, "start.\n");
+
 	//match = of_match_device(sp7350_dsi_dt_match, dev);
 	//if (!match)
 	//	return -ENODEV;
@@ -499,9 +519,11 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	 * Get the endpoint node. In our case, dsi has one output port1
 	 * to which the external HDMI bridge is connected.
 	 */
+	
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
 	if (ret) {
-		DRM_DEV_ERROR(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
+		pr_info("  [DSI]%s - drm_of_find_panel_or_bridge failed -%d\n", __func__, -ret); //hammer test
+		//DRM_DEV_ERROR(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
 		/* If the bridge or panel pointed by dev->of_node is not
 		 * enabled, just return 0 here so that we don't prevent the DRM
 		 * dev from being registered. Of course that means the DSI
@@ -512,8 +534,11 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 			return 0;
 
 		return ret;
+	} else {
+		pr_info("  [DSI]%s - drm_of_find_panel_or_bridge ok", __func__); //hammer test
 	}
 
+	pr_info("  [DSI]%s - devm_drm_panel_bridge_add_typed", __func__); //hammer test
 	if (panel) {
 		dsi->bridge = devm_drm_panel_bridge_add_typed(dev, panel,
 							      DRM_MODE_CONNECTOR_DSI);
@@ -521,14 +546,18 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 			return PTR_ERR(dsi->bridge);
 	}
 
+	pr_info("  [DSI]%s - sp7350_drm_encoder_init", __func__); //hammer test
 	ret = sp7350_drm_encoder_init(dev, drm, dsi->encoder);
 	if (ret)
 		return ret;
 
 	ret = drm_bridge_attach(dsi->encoder, dsi->bridge, NULL, 0);
 	if (ret) {
-		DRM_DEV_ERROR(dev, "bridge attach failed: %d\n", ret);
+		pr_info("  [DSI]%s - drm_bridge_attach failed: %d\n", __func__, ret); //hammer test
+		//DRM_DEV_ERROR(dev, "bridge attach failed: %d\n", ret);
 		return ret;
+	} else {
+		pr_info("  [DSI]%s - drm_bridge_attach ok", __func__); //hammer test
 	}
 
 	/* FIXME, use firmware EDID for lt8912b */
@@ -550,7 +579,9 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 
 	pm_runtime_enable(dev);
 
-	DRM_DEV_DEBUG_DRIVER(dev, "finish.\n");
+	pr_info("  [DSI]%s done", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(dev, "finish.\n");
+
 	return 0;
 }
 
@@ -558,6 +589,8 @@ static void sp7350_dsi_unbind(struct device *dev, struct device *master,
 			      void *data)
 {
 	struct sp7350_drm_dsi *dsi = dev_get_drvdata(dev);
+
+	pr_info("  [DSI]%s", __func__); //hammer test
 
 	if (dsi->bridge)
 		pm_runtime_disable(dev);
@@ -575,11 +608,27 @@ static const struct component_ops sp7350_dsi_ops = {
 	.unbind = sp7350_dsi_unbind,
 };
 
+static const char * const sp7350_disp_clkc[] = {
+	"clkc_dispsys", "clkc_dmix",  "clkc_tgen", "clkc_tcon", "clkc_mipitx",
+	"clkc_gpost0", "clkc_gpost1", "clkc_gpost2", "clkc_gpost3",
+	"clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
+	"clkc_imgread0", "clkc_vscl0", "clkc_vpost0"
+};
+
+static const char * const sp7350_disp_rtsc[] = {
+	"rstc_dispsys", "rstc_dmix", "rstc_tgen", "rstc_tcon", "rstc_mipitx",
+	"rstc_gpost0", "rstc_gpost1", "rstc_gpost2", "rstc_gpost3",
+	"rstc_osd0", "rstc_osd1", "rstc_osd2", "rstc_osd3",
+	"rstc_imgread0", "rstc_vscl0", "rstc_vpost0"
+};
+
 static int sp7350_dsi_dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sp7350_drm_dsi *dsi;
-	int ret;
+	int ret, i;
+
+	pr_info("  [DSI]%s", __func__); //hammer test
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -589,17 +638,56 @@ static int sp7350_dsi_dev_probe(struct platform_device *pdev)
 	dsi->pdev = pdev;
 
 	/*
-	 * get reg base resource
+	 * init clk & reset
 	 */
+	pr_info("  [DSI]%s - init clken & reset", __func__); //hammer test
+	for (i = 0; i < 16; i++) {
+		dsi->disp_clk[i] = devm_clk_get(dev, sp7350_disp_clkc[i]);
+		//pr_info("default clk[%d] %ld\n", i, clk_get_rate(dsi->disp_clk[i]));
+		if (IS_ERR(dsi->disp_clk[i]))
+			return PTR_ERR(dsi->disp_clk[i]);
+
+		dsi->disp_rstc[i] = devm_reset_control_get_exclusive(dev, sp7350_disp_rtsc[i]);
+		if (IS_ERR(dsi->disp_rstc[i]))
+			return dev_err_probe(dev, PTR_ERR(dsi->disp_rstc[i]), "err get reset\n");
+
+		ret = reset_control_deassert(dsi->disp_rstc[i]);
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to deassert reset\n");
+
+		ret = clk_prepare_enable(dsi->disp_clk[i]);
+		if (ret)
+			return ret;
+	}
+
+	/* setting for C3V DISPLAY REGISTER - PART2 */
+	/*
+	 * get reg base resource G204 - G205
+	 */
+	pr_info("  [DSI]%s - init mipitx regs", __func__); //hammer test
 	dsi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dsi->regs))
 		return dev_err_probe(&pdev->dev, PTR_ERR(dsi->regs), "dsi reg not found\n");
-	//dsi->regs = sp7350_display_ioremap_regs(0);
-	//if (IS_ERR(dsi->regs))
-	//	return PTR_ERR(dsi->regs);
+	/*
+	 * get reg base resource G03_AO
+	 */
+	pr_info("  [DSI]%s - init pllh regs", __func__); //hammer test
 	dsi->ao_moon3 = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dsi->ao_moon3))
 		return dev_err_probe(&pdev->dev, PTR_ERR(dsi->ao_moon3), "dsi reg ao_moon3 not found\n");
+
+#if 1 //need repair by hammer
+	pr_info("  G204.04 0x%08x G204.05 0x%08x\n",
+		readl(dsi->regs + MIPITX_LP_CK), readl(dsi->regs + MIPITX_LANE_TIME_CTRL));
+
+	pr_info("  G205.04 0x%08x G205.05 0x%08x\n",
+		readl(dsi->regs + MIPITX_ANALOG_CTRL1), readl(dsi->regs + MIPITX_DEBUG_CTRL));
+	
+	pr_info("  G03_AO.14/15/16 0x%08x 0x%08x 0x%08x\n",
+		readl(dsi->ao_moon3 + MIPITX_AO_MOON3_14),
+		readl(dsi->ao_moon3 + MIPITX_AO_MOON3_15),
+		readl(dsi->ao_moon3 + MIPITX_AO_MOON3_16));
+#endif
 
 	//sp7350_mipitx_phy_init();
 	//sp7350_mipitx_pllclk_init();
@@ -617,13 +705,18 @@ static int sp7350_dsi_dev_probe(struct platform_device *pdev)
 	dsi->dsi_host.dev = dev;
 	mipi_dsi_host_register(&dsi->dsi_host);
 
+	pr_info("  [DSI]%s done then do component_add", __func__); //hammer test
+
 	ret = component_add(&pdev->dev, &sp7350_dsi_ops);
 	if (ret) {
+		pr_info("  [DSI]%s component_add failed", __func__); //hammer test
 		mipi_dsi_host_unregister(&dsi->dsi_host);
 		return ret;
 	}
 
-	return 0;
+	pr_info("  [DSI]%s done (ret %d)", __func__, ret); //hammer test
+
+	return ret;
 }
 
 static int sp7350_dsi_dev_remove(struct platform_device *pdev)
@@ -631,7 +724,9 @@ static int sp7350_dsi_dev_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sp7350_drm_dsi *dsi = dev_get_drvdata(dev);
 
-	DRM_DEV_DEBUG_DRIVER(dev, "dsi driver remove.\n");
+	pr_info("  [DSI]%s", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(dev, "dsi driver remove.\n");
+
 	if (dsi->encoder)
 		sp7350_dsi_encoder_disable(dsi->encoder);
 
@@ -645,7 +740,9 @@ static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t sta
 {
 	struct sp7350_drm_dsi *dsi = dev_get_drvdata(&pdev->dev);
 
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver suspend.\n");
+	pr_info("  [DSI]%s", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver suspend.\n");
+
 	if (dsi->bridge)
 		pm_runtime_put(&pdev->dev);
 
@@ -668,7 +765,9 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 {
 	struct sp7350_drm_dsi *dsi = dev_get_drvdata(&pdev->dev);
 
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver resume.\n");
+	pr_info("  [DSI]%s", __func__); //hammer test
+	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver resume.\n");
+
 	if (dsi->bridge)
 		pm_runtime_get(&pdev->dev);
 

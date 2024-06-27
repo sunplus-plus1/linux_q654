@@ -3,6 +3,7 @@
  * Sunplus SP7350 SoC DRM Planes
  *
  * Author: dx.jiang<dx.jiang@sunmedia.com.cn>
+ *         hammer.hsieh<hammer.hsieh@sunplus.com>
  */
 
 #include <drm/drm_atomic.h>
@@ -15,11 +16,6 @@
 
 #include "sp7350_drm_drv.h"
 #include "sp7350_drm_plane.h"
-
-//#include "sp7350_display.h"
-#include <media/sunplus/disp/sp7350/sp7350_disp_osd.h>
-#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_vpp.h"
-#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_dmix.h"
 
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
@@ -312,7 +308,7 @@ static const struct drm_plane_funcs sp7350_drm_plane_funcs = {
 	.atomic_get_property = sp7350_plane_atomic_get_property,
 };
 
-#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
+#if 0//SP7350_DRM_VPP_SCL_AUTO_ADJUST
 static void sp7350_scl_coordinate_adjust(int32_t src_w, int32_t src_h,
 	int32_t *dst_x, int32_t *dst_y, int32_t *dst_w, int32_t *dst_h)
 {
@@ -354,7 +350,8 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	/* reference to ade_plane_atomic_update */
 	if (!state->fb || !state->crtc) {
 		/* do nothing */
-		sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
+		//need repair by hammer
+		//sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
 
@@ -371,35 +368,39 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	DRM_DEBUG_ATOMIC("plane info[%d, %d] zpos:%d\n",
 			 plane->index, sp7350_plane->index, sp7350_plane->zpos);
 
-	sp7350_vpp_imgread_set((u32)obj->paddr,
-			       state->src_x >> 16, state->src_y >> 16,
-			       state->src_w >> 16, state->src_h >> 16,
-			       state->fb->width, state->fb->height,
-			       sp7350_get_format(state->fb->format->format, 1));
+	//need repair by hammer
+	//sp7350_vpp_imgread_set((u32)obj->paddr,
+	//		       state->src_x >> 16, state->src_y >> 16,
+	//		       state->src_w >> 16, state->src_h >> 16,
+	//		       state->fb->width, state->fb->height,
+	//		       sp7350_get_format(state->fb->format->format, 1));
 
 	#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
 	dst_x = state->crtc_x;
 	dst_y = state->crtc_y;
 	dst_w = state->crtc_w;
 	dst_h = state->crtc_h;
-	sp7350_scl_coordinate_adjust(state->src_w >> 16, state->src_h >> 16, &dst_x, &dst_y, &dst_w, &dst_h);
+	//need repair by hammer
+	//sp7350_scl_coordinate_adjust(state->src_w >> 16, state->src_h >> 16, &dst_x, &dst_y, &dst_w, &dst_h);
 	DRM_DEBUG_ATOMIC("vscl adjust dst[%d, %d]\n", dst_w, dst_h);
 	#endif
-	sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
-			    state->src_w >> 16, state->src_h >> 16,
-			    #if SP7350_DRM_VPP_SCL_AUTO_ADJUST
-			    dst_x, dst_y,
-			    dst_w, dst_h,
-			    #else
-			    state->crtc_x, state->crtc_y,
-			    state->crtc_w, state->crtc_h,
-			    #endif
-			    state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
+	//need repair by hammer
+	//sp7350_vpp_vscl_set(state->src_x >> 16, state->src_y >> 16,
+	//		    state->src_w >> 16, state->src_h >> 16,
+	//		    #if SP7350_DRM_VPP_SCL_AUTO_ADJUST
+	//		    dst_x, dst_y,
+	//		    dst_w, dst_h,
+	//		    #else
+	//		    state->crtc_x, state->crtc_y,
+	//		    state->crtc_w, state->crtc_h,
+	//		    #endif
+	//		    state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 
 	/* default setting for VPP OPIF(MASK function) */
-	sp7350_vpp_vpost_opif_set(state->crtc_x, state->crtc_y,
-				  state->crtc_w, state->crtc_h,
-				  state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
+	//need repair by hammer
+	//sp7350_vpp_vpost_opif_set(state->crtc_x, state->crtc_y,
+	//			  state->crtc_w, state->crtc_h,
+	//			  state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 	/*
 	 * for support letterbox boundary smoothly cropping,
 	 * should update opif setting with another plane window size.
@@ -414,7 +415,8 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
 				 plane->index, state->alpha >> 10, state->alpha);
 		/* NOTES: vpp layer(SP7350_DMIX_L3) used for media plane fixed. */
-		sp7350_dmix_plane_alpha_config(SP7350_DMIX_L3, 1, 0, state->alpha >> 10);
+		//need repair by hammer
+		//sp7350_dmix_plane_alpha_config(SP7350_DMIX_L3, 1, 0, state->alpha >> 10);
 	}
 
 	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
@@ -427,10 +429,12 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		 * vpp plane region alpha setting by vpp opif mask function.
 		 * So only one region for media plane, the parameter "regionid" is invalid.
 		 */
-		sp7350_vpp_vpost_opif_alpha_set(sp7350_plane->state.region_alpha.alpha, 0);
+		//need repair by hammer
+		//sp7350_vpp_vpost_opif_alpha_set(sp7350_plane->state.region_alpha.alpha, 0);
 	}
 
-	sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
+	//need repair by hammer
+	//sp7350_dmix_layer_set(SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 }
 
 static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
@@ -479,7 +483,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	if (!state->fb || !state->crtc) {
 		/* disable this plane */
-		sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_TRANSPARENT);
+		//need repair by hammer
+		//sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
 
@@ -548,7 +553,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		info.alpha_info.color_key = sp7350_plane->state.color_keying;
 	}
 
-	sp7350_osd_layer_set_by_region(&info, osd_layer_sel);
+	//need repair by hammer
+	//sp7350_osd_layer_set_by_region(&info, osd_layer_sel);
 
 	if (sp7350_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND) {
 		/*
@@ -558,7 +564,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
 				 plane->index, state->alpha >> 10, state->alpha);
-		sp7350_dmix_plane_alpha_config(layer, 1, 0, state->alpha >> 10);
+		//need repair by hammer
+		//sp7350_dmix_plane_alpha_config(layer, 1, 0, state->alpha >> 10);
 	}
 
 	DRM_DEBUG_ATOMIC("\n set osd region x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
@@ -570,7 +577,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	DRM_DEBUG_ATOMIC("Pixel format %s, modifier 0x%llx, C3V format:0x%X\n",
 			 drm_get_format_name(state->fb->format->format, &format_name),
 			 state->fb->modifier, info.color_mode);
-	sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
+	//need repair by hammer
+	//sp7350_dmix_layer_set(SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
 }
 
 static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
@@ -759,7 +767,8 @@ int sp7350_plane_create_primary_plane(struct drm_device *drm, struct sp7350_drm_
 	plane->capabilities = 0;
 
 #if DRM_PRIMARY_PLANE_WITH_OSD
-	sp7350_dmix_layer_cfg_set(4);
+	//need repair by hammer
+	//sp7350_dmix_layer_cfg_set(4);
 	//sp7350_dmix_layer_init(SP7350_DMIX_L6, SP7350_DMIX_OSD0, SP7350_DMIX_TRANSPARENT);
 	//sp7350_dmix_layer_init(SP7350_DMIX_L5, SP7350_DMIX_OSD1, SP7350_DMIX_TRANSPARENT);
 	//sp7350_dmix_layer_init(SP7350_DMIX_L4, SP7350_DMIX_OSD2, SP7350_DMIX_TRANSPARENT);
@@ -832,7 +841,8 @@ int sp7350_plane_create_additional_planes(struct drm_device *drm)
 	unsigned int overlay_num = 3;
 
 #if DRM_PRIMARY_PLANE_WITH_OSD
-	sp7350_dmix_layer_cfg_set(4);
+	//need repair by hammer
+	//sp7350_dmix_layer_cfg_set(4);
 	//sp7350_dmix_layer_init(SP7350_DMIX_L6, SP7350_DMIX_OSD0, SP7350_DMIX_TRANSPARENT);
 	//sp7350_dmix_layer_init(SP7350_DMIX_L5, SP7350_DMIX_OSD1, SP7350_DMIX_TRANSPARENT);
 	//sp7350_dmix_layer_init(SP7350_DMIX_L4, SP7350_DMIX_OSD2, SP7350_DMIX_TRANSPARENT);
