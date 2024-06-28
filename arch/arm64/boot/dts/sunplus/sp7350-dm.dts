@@ -387,7 +387,6 @@
 		compatible = "hdmi-connector";
 		label = "hdmi";
 		type = "a";
-		//ddc-i2c-bus = <&i2c5>;
 
 		port {
 			hdmi_con_out: endpoint {
@@ -1099,7 +1098,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo3_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2c4 {
@@ -1209,11 +1208,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo5_pins>;
-#if defined(LT8912B_HDMI_ENABLE)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
 };
 
 &i2c6 {
