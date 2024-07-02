@@ -32,11 +32,15 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 
+#include "vcl_pwr_ctrl.h"
+
 #define VCODEC_DEV_NAME  "hantro_codec"
+
+static struct clk *clk=NULL;
+static struct reset_control *rstc;
 
 static int codec_reset_release(struct platform_device *dev, const char *id) 
 {  
-    struct reset_control *rstc;
     int ret = 0;
 
 	rstc = devm_reset_control_get(&dev->dev, id);
@@ -57,7 +61,7 @@ static int codec_reset_release(struct platform_device *dev, const char *id)
 
 static int codec_clock_enable(struct platform_device *dev, const char *id) 
 {  
-    struct clk *clk;
+
     int ret = 0;
 
     clk = devm_clk_get(&dev->dev, id);
@@ -79,6 +83,10 @@ static int codec_chrdev_probe(struct platform_device *dev)
 {  
     if (codec_clock_enable(dev, "clk_vcodec")) goto PROBE_ERR;
     if (codec_reset_release(dev, "rstc_vcodec")) goto PROBE_ERR;
+
+	vcl_power_ctrl_init(dev, rstc, clk); /* init rstc and clk */
+	vcl_regulator_control(dev, 0); /* regulator control */
+	vcl_power_off(); /* power down the VCL after dec, enc probe */
    
     return 0;  
       
@@ -90,6 +98,9 @@ PROBE_ERR:
 static int codec_chrdev_remove (struct platform_device *dev) 
 {  
     dev_info(&dev->dev, " chrdev remove!\n");  
+
+	vcl_power_ctrl_terminate();
+
     return 0;  
 }
 
