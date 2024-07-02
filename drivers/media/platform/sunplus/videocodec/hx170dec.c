@@ -54,6 +54,8 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
+#include "vcl_pwr_ctrl.h"
+
 #define HXDEC_MAX_CORES 4
 
 #define HANTRO_DEC_ORG_REGS 60
@@ -977,6 +979,8 @@ static struct cdev dec_chrdev_cdev;
 
 static int hx170dec_open(struct inode *inode, struct file *filp)
 {
+	vcl_power_on(); /* power on */
+
     return 0;
 }
 
@@ -1009,6 +1013,8 @@ static int hx170dec_release(struct inode *inode, struct file *filp)
             ReleasePostProcessor(dec, n);
         }
     }
+
+	vcl_power_off(); /* power off */
 
     return 0;
 }
@@ -1139,7 +1145,6 @@ irqreturn_t hx170dec_isr(int irq, void *dev_id)
 
 static int dec_reset_release(struct platform_device *dev, const char *id)
 {
-    struct reset_control *dec_rstc;
     int ret = 0;
 
     dec_rstc = devm_reset_control_get(&dev->dev, id);
@@ -1265,6 +1270,8 @@ static int dec_chrdev_probe(struct platform_device *dev)
 
     if (dec_reset_release(dev, "rstc_vc8000d"))
         goto PROBE_ERR;
+
+    vcl_power_ctrl_init_dec(dev, dec_rstc, dec_clk);  /* init rstc and clk */
 
     hwid = ((readl(hx170dec_data.hwregs[0])) >> 16) & 0xFFFF; /* product version only */
 

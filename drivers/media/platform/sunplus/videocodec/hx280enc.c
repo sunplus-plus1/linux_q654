@@ -69,6 +69,8 @@
 /* our own stuff */
 #include "hx280enc.h"
 
+#include "vcl_pwr_ctrl.h"
+
 // #define ZEBU_TEST
 
 #ifdef ZEBU_TEST
@@ -302,6 +304,9 @@ static long hx280enc_ioctl(struct file *filp,
 static int hx280enc_open(struct inode *inode, struct file *filp)
 {
     int result = 0;
+
+	vcl_power_on(); /* power on */
+
     filp->private_data = (void *) &hx280enc_data;
 
     return result;
@@ -326,6 +331,9 @@ static int hx280enc_release(struct inode *inode, struct file *filp)
     }
     spin_unlock_irqrestore(&enc_lock, flags);
     wake_up_interruptible_all(&enc_hw_queue);
+
+	vcl_power_off(); /* power off */
+
     return 0;
 }
 
@@ -460,6 +468,8 @@ static int enc_chrdev_probe(struct platform_device *dev)
 
     ResetAsic(&hx280enc_data);  /* reset hardware */
 
+	vcl_power_ctrl_init_enc(dev, enc_rstc, enc_clk); /* init rstc and clk */
+
     /* get the IRQ line */
     if(irq != -1)
     {
@@ -486,6 +496,7 @@ static int enc_chrdev_probe(struct platform_device *dev)
     {
         dev_err(&dev->dev, "IRQ not in use!\n");
     }
+
     return 0;  
 
 PROBE_ERR:

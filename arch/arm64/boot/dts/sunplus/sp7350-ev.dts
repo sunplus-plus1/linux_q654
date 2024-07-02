@@ -445,7 +445,7 @@
 	pinctrl-0 = <&video_codec_pwr_en_pins>;
 	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
-	status = "disabled";
+	regulator-boot-on;
 };
 
 &uart0 {
@@ -2746,6 +2746,10 @@
 	};
 };
 
+&video_codec {
+	video_codec-supply = <&video_codec_core_0v8>;
+};
+
 &vcodec_emem {
 	memory-region = <&video_codec_encode>;
 	video_codec-supply = <&video_codec_core_0v8>;
@@ -2935,6 +2939,7 @@
 	video_codec_pwr_en_pins: pinmux_video_codec_pwr_en-pins {
 		function = "GPIO";
 		pins = "GPIO66";
+		sunplus,output-invert-disable;
 	};
 
 	uart0_pins: pinmux_uart0-pins {
