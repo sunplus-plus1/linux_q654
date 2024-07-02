@@ -71,7 +71,7 @@ static struct clk *_vcl_enc_clk = NULL;
 static struct reset_control *_vcl_enc_rstc;
 
 static void _vcl_iso_control(int enable){
-	
+
 	unsigned int reg_read_value;
 
 	if (IS_ERR(_vcl_iso_reg_base)) {
@@ -230,9 +230,9 @@ void vcl_regulator_control(struct platform_device *dev, int ctrl){
 		_vcl_regl = devm_regulator_get(&dev->dev, "video_codec");
 
 		if(IS_ERR(_vcl_regl)) {
-			dev_info(&dev->dev, "failed to get regulator\n");	
+			dev_info(&dev->dev, "failed to get regulator\n");
 			return;
-		}	
+		}
 
 		/* To avoid regulator late cleanup */
 		if(regulator_is_enabled(_vcl_regl)){
@@ -246,7 +246,7 @@ void vcl_regulator_control(struct platform_device *dev, int ctrl){
 	}
 
 	if(ctrl > -1){
-		_vcl_pwr_control(ctrl);		
+		_vcl_pwr_control(ctrl);
 	}
 #endif	
 }
@@ -316,11 +316,11 @@ void vcl_power_off(void){
 		/* VCL Power off */
 		_vcl_pwr_control(0);
 		
-		_PRINTK(KERN_INFO "VCL power off\n");		
+		_PRINTK(KERN_INFO "VCL power off\n");
 	}
-		
+
 	mutex_unlock(&_vcl_mtx);
-#endif		
+#endif
 }
 
 int vcl_power_ctrl_init(struct platform_device *dev, struct reset_control *rstc, struct clk *clk){
@@ -355,7 +355,7 @@ int vcl_power_ctrl_init(struct platform_device *dev, struct reset_control *rstc,
 }
 
 int vcl_power_ctrl_init_dec(struct platform_device *dev, struct reset_control *rstc, struct clk *clk){
-	
+
 	_vcl_dec_clk = clk;
 	if (IS_ERR(_vcl_dec_clk)) {
 		dev_err(&dev->dev, "can't find clock source\n");
@@ -366,7 +366,7 @@ int vcl_power_ctrl_init_dec(struct platform_device *dev, struct reset_control *r
 	if (IS_ERR(_vcl_dec_rstc)) {
 		dev_err(&dev->dev, "can't find reset control\n");
 		return PTR_ERR(_vcl_dec_rstc);
-	}	
+	}
 
 	return 0;
 }
