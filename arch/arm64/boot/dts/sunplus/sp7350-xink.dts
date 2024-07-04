@@ -2797,20 +2797,6 @@
 &dsi0 {
 	status = "disabled";
 };
-#else
-&fb_disp_device {
-	memory-region = <&disp_reserve>;
-	status = "okay";
-};
-&drm_display_engine {
-	status = "disabled";
-};
-&crtc0 {
-	status = "disabled";
-};
-&dsi0 {
-	status = "disabled";
-};
 
 #ifdef RASPBERRYPI_DSI_PANEL
 &raspberrypi_lcd {
