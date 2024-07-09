@@ -69,7 +69,7 @@
 /* our own stuff */
 #include "hx280enc.h"
 
-#include "vcl_pwr_ctrl.h"
+#include "vc_pwr_ctrl.h"
 
 // #define ZEBU_TEST
 
@@ -305,7 +305,7 @@ static int hx280enc_open(struct inode *inode, struct file *filp)
 {
     int result = 0;
 
-	vcl_power_on(); /* power on */
+    vc_power_on(); /* power on */
 
     filp->private_data = (void *) &hx280enc_data;
 
@@ -332,7 +332,7 @@ static int hx280enc_release(struct inode *inode, struct file *filp)
     spin_unlock_irqrestore(&enc_lock, flags);
     wake_up_interruptible_all(&enc_hw_queue);
 
-	vcl_power_off(); /* power off */
+    vc_power_off(); /* power off */
 
     return 0;
 }
@@ -468,7 +468,7 @@ static int enc_chrdev_probe(struct platform_device *dev)
 
     ResetAsic(&hx280enc_data);  /* reset hardware */
 
-	vcl_power_ctrl_init_enc(dev, enc_rstc, enc_clk); /* init rstc and clk */
+    vc_power_ctrl_init_enc(dev, enc_rstc, enc_clk); /* init rstc and clk */
 
     /* get the IRQ line */
     if(irq != -1)
@@ -540,6 +540,9 @@ static int enc_chrdev_remove (struct platform_device *dev)
 #ifdef CONFIG_PM
 static int enc_chrdev_suspend(struct platform_device *pdev, pm_message_t state)
 {
+    if(!vc_power_is_on())
+        return 0;
+
     clk_disable(enc_clk);
     pr_info ("%s: clk_disable\n", __func__);
 	return 0;
@@ -548,6 +551,10 @@ static int enc_chrdev_suspend(struct platform_device *pdev, pm_message_t state)
 static int enc_chrdev_resume(struct platform_device *pdev)
 {
     int ret;
+
+    if(!vc_power_is_on())
+        return 0;
+
     ret = clk_prepare_enable(enc_clk);
     if (ret) {
         dev_err(&pdev->dev, "enabled clock failed\n");

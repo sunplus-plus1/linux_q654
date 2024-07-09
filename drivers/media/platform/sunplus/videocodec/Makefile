@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-obj-y += vcl_pwr_ctrl.o
+obj-y += vc_pwr_ctrl.o
 
 obj-$(CONFIG_VIDEO_HANTRO_DECODER) += hx170dec.o
 obj-$(CONFIG_VIDEO_HANTRO_ENCODER) += hx280enc.o
