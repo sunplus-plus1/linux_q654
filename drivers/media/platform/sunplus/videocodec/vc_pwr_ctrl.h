@@ -23,19 +23,20 @@
  *****************************************************************************
  */
 
-#ifndef __VCL_PWR_CTRL__
-#define __VCL_PWR_CTRL__
+#ifndef __VC_PWR_CTRL__
+#define __VC_PWR_CTRL__
 
 #include <linux/platform_device.h>
 
-void vcl_power_on(void);
-void vcl_power_off(void);
-void vcl_regulator_control(struct platform_device *dev, int ctrl);
-int vcl_power_ctrl_init(struct platform_device *dev, struct reset_control *rstc, struct clk *clk);
-int vcl_power_ctrl_init_enc(struct platform_device *dev, struct reset_control *rstc, struct clk *clk);
-int vcl_power_ctrl_init_dec(struct platform_device *dev, struct reset_control *rstc, struct clk *clk);
-int vcl_power_ctrl_terminate(void);
+void vc_power_on(void);
+void vc_power_off(void);
+bool vc_power_is_on(void);
+void vc_regulator_control(struct platform_device *dev, int ctrl);
+int  vc_power_ctrl_init(struct platform_device *dev, struct reset_control *rstc, struct clk *clk);
+int  vc_power_ctrl_init_enc(struct platform_device *dev, struct reset_control *rstc, struct clk *clk);
+int  vc_power_ctrl_init_dec(struct platform_device *dev, struct reset_control *rstc, struct clk *clk);
+int  vc_power_ctrl_terminate(void);
 
 
-#endif /* !__VCL_PWR_CTRL__ */
+#endif /* !__VC_PWR_CTRL__ */
 
