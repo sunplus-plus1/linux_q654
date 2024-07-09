@@ -71,6 +71,13 @@ static struct sp7350_cpu_dvfs_info *sp7350_cpu_dvfs_info_lookup(int cpu)
 	return NULL;
 }
 
+void sp7350_dvfs_unlock(void)
+{
+	struct sp7350_cpu_dvfs_info *info = sp7350_cpu_dvfs_info_lookup(0);
+	hwspin_unlock_raw(info->hwlock);
+}
+EXPORT_SYMBOL_GPL(sp7350_dvfs_unlock);
+
 static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 				  unsigned int index)
 {

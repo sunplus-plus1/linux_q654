@@ -83,11 +83,8 @@ static struct work_struct workqueue;
 
 static void mbox_rx_callback(struct mbox_client *cl, void *data)
 {
-	u32 *msg = (u32 *)data;
-	int i;
-
-	for (i = 0; i < MBOX_DATA_SIZE; i++)
-		dev_info(cl->dev, "RX[%02d] %08x\n", i, msg[i]);
+	// for (int i = 0; i < MBOX_DATA_SIZE; i++)
+	// 	dev_info(cl->dev, "RX[%02d] %08x\n", i, ((u32 *)data)[i]);
 }
 
 static void mbox_tx_test(u32 arg)
@@ -99,7 +96,7 @@ static void mbox_tx_test(u32 arg)
 
 	for (i = 0; i < MBOX_DATA_SIZE; i++) {
 		msg[i] = arg + i;
-		dev_info(cl->dev, "TX[%02d] %08x\n", i, msg[i]);
+		//dev_info(cl->dev, "TX[%02d] %08x\n", i, msg[i]);
 	}
 	ret = mbox_send_message(local->chan, &msg);
 	if (ret < 0)
@@ -307,6 +304,10 @@ static int sp_rproc_stop(struct rproc *rproc)
 	mbox_tx_test(0xdeadc0de);
 #endif
 	reset_control_assert(local->rstc);
+	{ // FIXME: force unlock hwspin locked by CM4
+		extern void sp7350_dvfs_unlock(void);
+		sp7350_dvfs_unlock();
+	}
 
 	return 0;
 }
