@@ -304,10 +304,12 @@ static int sp_rproc_stop(struct rproc *rproc)
 	mbox_tx_test(0xdeadc0de);
 #endif
 	reset_control_assert(local->rstc);
+#ifdef CONFIG_ARM_SP7350_CPUFREQ
 	{ // FIXME: force unlock hwspin locked by CM4
 		extern void sp7350_dvfs_unlock(void);
 		sp7350_dvfs_unlock();
 	}
+#endif
 
 	return 0;
 }
