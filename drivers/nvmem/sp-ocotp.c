@@ -86,6 +86,48 @@ int sp_otp_read_real(struct sp_otp_data_t *_otp, int addr, char *value)
 	return ret;
 }
 
+/* The data read from OTP is in little-endian byte order, but for certain
+ * data, it needs to be returned in big-endian byte order, such as MAC address.
+ * if the data needs to be returned in big-endian byte order, simply add the
+ * 'byte-swap' property to the nvmem cell node in the device tree.
+ *
+ * For example:
+ * A MAC address read from OTP as 0f:cd:f1:1e:50:1c is invalid, after
+ * converting to big endian byte order, it becomes 1c:50:1e:f1:cd:0f,
+ * which is valid.
+ * The nvmem cell node is as follows:
+ *	mac-address@16 {
+ *		reg = <0x16 0x6>;
+ *		byte-swap;
+ *	};
+ */
+static void sp_ocotp_byte_swap_check(struct sp_otp_data_t *otp,
+			unsigned int offset, size_t bytes, char *val)
+{
+	struct device_node *parent, *child;
+	const __be32 *addr;
+	int i;
+
+	parent = otp->dev->of_node;
+
+	for_each_child_of_node(parent, child) {
+		if (!of_find_property(child, "byte-swap", NULL))
+			continue;
+		addr = of_get_property(child, "reg", NULL);
+		if (!addr)
+			continue;
+		if ((offset != be32_to_cpup(addr++)) ||
+		    (bytes != be32_to_cpup(addr)))
+			continue;
+		for (i = 0; i < (bytes >> 1); i++) {
+			val[i] ^= val[bytes - 1 - i];
+			val[bytes - 1 - i] ^= val[i];
+			val[i] ^= val[bytes - 1 - i];
+		}
+		break;
+	}
+}
+
 static int sp_ocotp_read(void *_c, unsigned int _off, void *_v, size_t _l)
 {
 	struct sp_otp_data_t *otp = _c;
@@ -113,6 +155,8 @@ static int sp_ocotp_read(void *_c, unsigned int _off, void *_v, size_t _l)
 
 		*buf++ = *value;
 	}
+
+	sp_ocotp_byte_swap_check(otp, _off, _l, _v);
 
 disable_clk:
 	clk_disable(otp->clk);
