@@ -1056,7 +1056,7 @@
 		};
 		mac_addr: mac-address@16 {
 			reg = <0x16 0x6>;
-			byte-swap;
+			sunplus,byte-swap;
 		};
 		disc_vol: disc_vol@2d {
 			reg = <0x2d 0x1>;
