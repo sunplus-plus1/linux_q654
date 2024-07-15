@@ -36,6 +36,9 @@
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
 
+/* For TCON test pattern only */
+#define TCON_TPG_ENABLE  0
+
 # define DSI_PFORMAT_RGB565          0
 # define DSI_PFORMAT_RGB666_PACKED   1
 # define DSI_PFORMAT_RGB666          2
@@ -124,20 +127,23 @@ struct sp7350_dsi_encoder {
 static const u32 sp_tcon_para_dsi[11][12] = {
 	/* (w   h)    DE_H       Vsync_H     Hsync       DE_V        VTOP_V     */
 	{ 720,  480,    0,  719,  850,  854,  850,  854,    0,    0,  524,    0}, /* 480P */
-	{ 720,  576,    0,  719,  856,  856,  856,  860,    0,    0,  624,    0}, /* 576P */
+	{ 720,  576,    0,  719,  856,  860,  856,  860,    0,    0,  624,    0}, /* 576P */
 	{1280,  720,    0, 1279, 1642, 1646, 1642, 1646,    0,    0,  749,    0}, /* 720P */
 	{1920, 1080,    0, 1919, 2192, 2196, 2192, 2196,    0,    0, 1124,    0}, /* 1080P */
 	//{  64,   64,    0,   63,  353,  353,  353,  356,    0,    0,   99,    0}, /* 64x64 */
 	{ 480, 1280,    0,  479,  612,  616,  612,  616,    0,    0, 1313,    0}, /* 480x1280 */
+	//{ 480, 1280,    0,  479,  670,  674,  670,  674,    0,    0, 1311,    0}, /* 480x1280, from specification adjustment */
 	{ 128,  128,    0,  127,  352,  352,  352,  356,    0,    0,  149,    0}, /* 128x128 */
 	//{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  363,    0}, /* 240x320 */
 	{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  353,    0}, /* 240x320 */
 	{3840,   64,    0, 3839, 4600, 4600, 4600, 4604,    0,    0,   99,    0}, /* 3840x64 */
 	{3840, 2880,    0, 3839, 4600, 4600, 4600, 4604,    0,    0, 3199,    0}, /* 3840x2880 */
-	{ 800,  480,    0,  799,  865,  869,  865,  869,    0,    0,  509,    0}, /* 800x480 */
+	//{ 800,  480,    0,  799,  865,  869,  865,  869,    0,    0,  509,    0}, /* 800x480 */
+	{ 800,  480,    0,  799,  909,  913,  909,  913,    0,    0,  509,    0}, /* 800x480, from sp_mipitx_input_timing_dsi */
 	{1024,  600,    0, 1023, 1336, 1336, 1336, 1340,    0,    0,  634,    0}  /* 1024x600 */
 };
 
+#if TCON_TPG_ENABLE
 /*
  * sp_tcon_tpg_para_dsi[x][y]
  * y = 0-1, TCON width & height
@@ -158,6 +164,7 @@ static const u32 sp_tcon_tpg_para_dsi[11][10] = {
 	{ 800,  480,    4,    4,  872,  509,  799,  479,  22, 0x01}, /* 800x480 */
 	{1024,  600,    4,    4, 1343,  634, 1023,  599,  17, 0x01}  /* 1024x600 */
 };
+#endif
 
 /*
  * TODO: reference to sp7350_disp_mipitx.c,
@@ -165,7 +172,6 @@ static const u32 sp_tcon_tpg_para_dsi[11][10] = {
  * sp_mipitx_phy_pllclk_dsi[x][y]
  * y = 0-1, MIPITX width & height
  * y = 2-7, MIPITX PRESCALE & FBKDIV & PREDIV & POSTDIV & EN_DIV5 & BNKSEL(TXPLL)
- * y = 8-10, MIPITX PSTDIV & MIPITX_SEL & BNKSEL (PLLH)
  *
  * XTAL--[PREDIV]--------------------------->[EN_DIV5]--[POSTDIV]-->Fckout
  *                 |                       |
@@ -174,20 +180,36 @@ static const u32 sp_tcon_tpg_para_dsi[11][10] = {
  *                25 * PRESCALE * FBKDIV
  *    Fckout = -----------------------------
  *              PREDIV * POSTDIV * 5^EN_DIV5
+ *
+ * y = 8-11, MIPITX FBKDIV_H & POSTDIV_H & MIPITX_SEL & BNKSEL_H (PLLH)
+ *
+ * XTAL--[PREDIV]--------------------------->[POSTDIV]--[MIPITX_SEL]-->Fckout
+ *                 |                       |
+ *                 |<--FBKDIV<--PRESCALE<--|
+ *
+ *                25M * PRESCALE * FBKDIV
+ *    Fckout = -----------------------------
+ *              PREDIV * POSTDIV * MIPITX_SEL
+ *
  */
-static const u32 sp_mipitx_phy_pllclk_dsi[11][11] = {
-	/* (w   h)   P1   P2    P3   P4   P5   P6   Q1   Q2   Q3 */
-	{ 720,  480, 0x0, 0x1A, 0x0, 0x2, 0x0, 0x1, 0x4, 0xf, 0x0}, /* 480P */
-	{ 720,  576, 0x0, 0x20, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 576P */
-	{1280,  720, 0x0, 0x24, 0x0, 0x1, 0x0, 0x1, 0x8, 0x3, 0x0}, /* 720P */
-	{1920, 1080, 0x0, 0x24, 0x0, 0x0, 0x0, 0x1, 0x8, 0x1, 0x1}, /* 1080P */
-	{ 480, 1280, 0x0, 0x0c, 0x0, 0x0, 0x0, 0x0, 0x5, 0x7, 0x0}, /* 480x1280 */
-	{ 128,  128, 0x1, 0x1f, 0x1, 0x4, 0x1, 0x1, 0x0, 0x0, 0x0}, /* 128x128 */
-	{  240, 320, 0x0, 0x0e, 0x0, 0x0, 0x0, 0x0, 0xa, 0xf, 0x2}, /* 240x320 */
-	{3840,   64, 0x0, 0x1f, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 3840x64 */
-	{3840, 2880, 0x0, 0x3c, 0x0, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0}, /* 3840x2880 */
-	{ 800,  480, 0x1, 0x0d, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 */
-	{1024,  600, 0x1, 0x3d, 0x1, 0x1, 0x1, 0x3, 0x0, 0x0, 0x0}  /* 1024x600 */
+static const u32 sp_mipitx_phy_pllclk_dsi[11][12] = {
+	/* (w   h)   P1   P2    P3   P4   P5   P6   Q1   Q2   Q3  Q4*/
+	{ 720,  480,  0,  26,    0,   2,   0,   1,  14,  10,   7,  1}, /* 480P 27027KHz => 162.16MHz */
+	{ 720,  576,  0,  26,    0,   2,   0,   1,  44,  15,   7,  3}, /* 576P 27000KHz => 162MHz*/
+	{1280,  720,  0,  18,    0,   0,   0,   0,  43,  10,   3,  3}, /* 720P 74250KHz => 445.5MHz*/
+	{1920, 1080,  0,  36,    0,   0,   0,   1,  43,  10,   1,  3}, /* 1080P 148500KHz => 891MHz */
+	//{ 480, 1280,  0,  37,    0,   2,   0,   1,  13,  15,   3,  1}, /* 480x1280 38500KHz => 231MHz */
+	{ 480, 1280,  0,  47,    0,   2,   0,   2,  34,  15,   3,  2}, /* 480x1280 48880KHz => 293.28MHz, from sp_mipitx_input_timing_dsi */
+	//{ 480, 1280,  1,  32,    0,   0,   1,   3,  13,  10,   3,  1}, /* 480x1280 53380KHz => 320.28MHz, from specification typical values */
+	//{ 128,  128, 0x1, 0x1f, 0x1, 0x4, 0x1, 0x1, 0x0, 0x0, 0x0}, /* 128x128 */
+	//{  240, 320,  0x0, 0x0e, 0x0, 0x0, 0x0, 0x0,  20, 10, 15, 2}, /* 240x320 14580KHz => 349.92Mhz */
+	{  240, 320,    0,  56,    0,   2,   0,   3,  20,  10,  15,  2}, /* 240x320 14507KHz => 348.17Mhz, from sp_mipitx_input_timing_dsi */
+	//{3840,   64, 0x0, 0x1f, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 3840x64 */
+	//{3840, 2880, 0x0, 0x3c, 0x0, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0}, /* 3840x2880 */
+	//{ 800,  480,  0,  26,    0,   0,    0,   1,  42,  15,   7,  3}, /* 800x480 26563Kh => 637.51MHz */
+	//{ 800,  480,  0,  25,    0,   0,    0,   1,  40,  15,   7,  3}, /* 800x480 25979KHz => 623.51MHz, from Raspberry Pi firmware */
+	{ 800,  480,  0,  27,    0,   0,    0,   1,  48,  15,   7,  3}, /* 800x480 28060KHz => 673.45MHz, from sp_mipitx_input_timing_dsi */
+	//{1024,  600, 0x1, 0x3d, 0x1, 0x1, 0x1, 0x3, 0x0, 0x0, 0x0}  /* 1024x600 */
 };
 
 /*
@@ -277,14 +299,20 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adj_mode)
 {
+	struct drm_bridge *iter;
 	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
 
 	/* TODO reference to dsi_encoder_mode_set */
 	//DRM_DEBUG_DRIVER("[TODO]\n");
-	DRM_DEBUG_DRIVER("SET mode[%dx%x], adj_mode[%dx%d]\n",
+	DRM_DEBUG_DRIVER("SET mode[%dx%d], adj_mode[%dx%d]\n",
 			 mode->hdisplay, mode->vdisplay,
 		adj_mode->hdisplay, adj_mode->vdisplay);
+
+	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
+		if (iter->funcs->mode_set)
+			iter->funcs->mode_set(iter, mode, adj_mode);
+	}
 
 	sp7350_dsi_tcon_timing_setting(dsi, adj_mode);
 	sp7350_mipitx_dsi_pllclk_set(dsi, adj_mode);
@@ -792,7 +820,7 @@ static void sp7350_dsi_tcon_timing_setting(struct sp7350_drm_dsi *dsi, struct dr
 {
 	u32 width, height;
 	int i, time_cnt = 0;
-	u32 value = 0;
+	//u32 value = 0;
 
 	width = mode->hdisplay;
 	height = mode->vdisplay;
@@ -819,12 +847,13 @@ static void sp7350_dsi_tcon_timing_setting(struct sp7350_drm_dsi *dsi, struct dr
 	writel(sp_tcon_para_dsi[time_cnt][6], dsi->regs + TCON_HSYNC_START); //HSYNC_START
 	writel(sp_tcon_para_dsi[time_cnt][7], dsi->regs + TCON_HSYNC_END); //HSYNC_END
 
-	writel(sp_tcon_para_dsi[time_cnt][8], dsi->regs + TCON_DE_VSTART); //DE_VSTART
-	writel(sp_tcon_para_dsi[time_cnt][9], dsi->regs + TCON_DE_VEND); //DE_VEND
+	//writel(sp_tcon_para_dsi[time_cnt][8], dsi->regs + TCON_DE_VSTART); //DE_VSTART
+	//writel(sp_tcon_para_dsi[time_cnt][9], dsi->regs + TCON_DE_VEND); //DE_VEND
 
 	writel(sp_tcon_para_dsi[time_cnt][10], dsi->regs + TCON_STVU_START); //VTOP_VSTART
 	writel(sp_tcon_para_dsi[time_cnt][11], dsi->regs + TCON_STVU_END); //VTOP_VEND
 
+#if TCON_TPG_ENABLE
 	/*
 	 * TPG(Test Pattern Gen) parameter
 	 */
@@ -839,6 +868,7 @@ static void sp7350_dsi_tcon_timing_setting(struct sp7350_drm_dsi *dsi, struct dr
 	writel(sp_tcon_tpg_para_dsi[time_cnt][8], dsi->regs + TCON_TPG_ALINE_START);
 
 	//writel(sp_tcon_tpg_para_dsi[time_cnt][9], disp_dev->base + TCON_DITHER_TVOUT);
+#endif
 }
 
 static int sp7350_dsi_mode_check(const struct drm_display_mode *mode)
@@ -981,9 +1011,9 @@ static void sp7350_mipitx_dsi_pllclk_init(struct sp7350_drm_dsi *dsi)
 	 *                     PST_DIV * MIPITX_SEL
 	 */
 	value = 0xffff0b50; //PLLH PST_DIV = div9 (default)
-	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //G205.14
+	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
 	value = 0x07800180; //PLLH MIPITX_SEL = div4
-	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //G205.25
+	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
 
 	//init TXPLL setting
 	value = 0x00000003; //TXPLL enable and reset
@@ -1026,6 +1056,7 @@ static void sp7350_mipitx_dsi_pllclk_set(struct sp7350_drm_dsi *dsi, struct drm_
 		}
 	}
 
+#if 0
 	if ((mode->hdisplay == 240) && (mode->vdisplay == 320)) {
 		value = 0;
 		value |= 0x80000000;
@@ -1076,6 +1107,33 @@ static void sp7350_mipitx_dsi_pllclk_set(struct sp7350_drm_dsi *dsi, struct drm_
 		value |= (0x07800000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][9] << 7));
 		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
 	}
+#else
+	/* default set at sp7350_mipitx_dsi_pllclk_init:
+	 * PRESCALER_H[15]=0, PREDIV_H[2:1]=0.
+	 * AND:
+	 * FBK_DIV_H[14:7]    = sp_mipitx_phy_pllclk_dsi[time_cnt][8]
+	 * PSTDIV_H[6:3]      = sp_mipitx_phy_pllclk_dsi[time_cnt][9]
+	 * MIPITX_SEL_H[11:7] = sp_mipitx_phy_pllclk_dsi[time_cnt][10]
+	 * BNKSEL_H[1:0]      = sp_mipitx_phy_pllclk_dsi[time_cnt][11]
+	 */
+
+	value = 0;
+	/* Update FBK_DIV_H[12:7] */
+	value |= (0x7f800000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][8] << 7));
+	/* Update PSTDIV_H[6:3] */
+	value |= (0x00780000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][9] << 3));
+	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+	value = 0;
+	/* Update BNKSEL_H[1:0] */
+	value = 0x00030000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][11]);
+	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_15); //AO_G3.15
+
+	value = 0;
+	/* Update MIPITX_SEL_H[11:7] */
+	value |= (0x0f800000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][10] << 7));
+	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+#endif
 
 	value = 0x00000000;
 	value |= (SP7350_MIPITX_MIPI_PHY_EN_DIV5(sp_mipitx_phy_pllclk_dsi[time_cnt][6]) |

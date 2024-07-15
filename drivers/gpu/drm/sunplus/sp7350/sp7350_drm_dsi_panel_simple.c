@@ -200,30 +200,32 @@ static const struct panel_init_cmd xx_tcxd024iblon_n2_init_cmd[] = {
 
 static const struct drm_display_mode lx_hxm0686tft_001_modes[] = {
 	{
-		/* from specification. */
-		.clock = 40000,
+		/* from specification typical values adjustment. */
+		.clock = 53372160 / 1000,
 		.hdisplay    = 480,
-		.hsync_start = 480 + 16,
-		.hsync_end   = 480 + 16 + 4,
-		.htotal      = 480 + 16 + 4 + 12,
+		.hsync_start = 480 + 182,
+		.hsync_end   = 480 + 182 + 4,
+		.htotal      = 480 + 182 + 4 + 12,
 		.vdisplay    = 1280,
 		.vsync_start = 1280 + 16,
 		.vsync_end   = 1280 + 16 + 4,
 		.vtotal      = 1280 + 16 + 4 + 12,
 	},
 	{
-	/* from sp7350 display driver: */
-		/* (w   h)   HSA  HFP HBP HACT VSA  VFP  VBP   VACT */
-	/*  { 480, 1280, 0x4,  0, 0x4,  0, 0x1,0x10, 0x10, 1280},  */
-		.clock = 38500,
+		/* from sp7350 display driver: */
+			/* (w   h)   HSA  HFP HBP HACT VSA  VFP  VBP   VACT */
+		/*  { 480, 1280, 0x4,  0, 0x4,  0, 0x1,0x11, 0x10, 1280},  */
+			/* w   h    usr fps fmt htt  hact  vtt  (vact+vbb+1)  vbb) */
+		/*  { 480, 1280, 1, 0, 0,  620,  480, 1314, 1298, 17}, 480x1280 60Hz */
+		.clock = 48880800 / 1000,
 		.hdisplay    = 480,
-		.hsync_start = 480 + 0,
-		.hsync_end   = 480 + 0 + 4,
-		.htotal      = 480 + 0 + 4 + 4,
+		.hsync_start = 480 + 132,
+		.hsync_end   = 480 + 132 + 4,
+		.htotal      = 480 + 132 + 4 + 4,
 		.vdisplay    = 1280,
-		.vsync_start = 1280 + 16,
-		.vsync_end   = 1280 + 16 + 1,
-		.vtotal      = 1280 + 16 + 1 + 16,
+		.vsync_start = 1280 + 17,
+		.vsync_end   = 1280 + 17 + 1,
+		.vtotal      = 1280 + 17 + 1 + 16,
 	},
 };
 
@@ -245,12 +247,14 @@ static const struct sp7350_dsi_panel_desc lx_hxm0686tft_001_desc = {
 /* from sp7350 display driver. */
 	/* (w   h)   HSA  HFP HBP HACT VSA  VFP  VBP   VACT */
 /*	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x19, 320},  */
+	/* w   h    usr fps fmt htt  hact  vtt  (vact+vbb+1)  vbb) */
+/*  { 240,  320, 1, 0, 0,  683,  240,  354,  347, 26}, 240x320 60Hz */
 static const struct drm_display_mode xx_tcxd024iblon_n2_mode = {
-	.clock = 5300,
+	.clock = 14506920 / 1000,
 	.hdisplay = 240,
-	.hsync_start = 240 + 0,
-	.hsync_end = 240 + 0 + 4,
-	.htotal = 240 + 0 + 4 + 5,
+	.hsync_start = 240 + 434,
+	.hsync_end = 240 + 434 + 4,
+	.htotal = 240 + 434 + 4 + 5,
 	.vdisplay = 320,
 	.vsync_start = 320 + 8,
 	.vsync_end = 320 + 8 + 1,
@@ -298,7 +302,7 @@ static unsigned int sp7350_panel_simple_get_display_modes(struct sp7350_panel_si
 
 		mode->type |= DRM_MODE_TYPE_DRIVER;
 
-		if (i == 1/*panel->desc->num_modes == 1*/)
+		if (i == 0/*panel->desc->num_modes == 1*/)
 			mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 		drm_mode_set_name(mode);

@@ -505,6 +505,7 @@ static int lt8912_soft_power_on(struct lt8912 *lt)
 	return 0;
 }
 
+#if 0
 /*
  * lt8912_input_timing[x][y]
  * y = 0-1, LT8912 width & height
@@ -524,10 +525,12 @@ static const u32 lt8912_input_timing[11][10] = {
 	{ 800,  480, 0x14, 0x28, 0x58,  800, 0x5, 0x5, 0x24,  480}, /* 800x480 */
 	{1024,  600, 0x14, 0x28, 0x58, 1024, 0x5, 0x5, 0x24,  600}  /* 1024x600 */
 };
+#endif
 
 static int lt8912_video_on(struct lt8912 *lt)
 {
 	int ret;
+#if 0
 	u32 i;
 
 	/* set default timing by lt8912_input_timing and mode_sel. */
@@ -543,6 +546,7 @@ static int lt8912_video_on(struct lt8912 *lt)
 	lt->mode.vfront_porch = lt8912_input_timing[i][7];
 	lt->mode.vsync_len = lt8912_input_timing[i][6];
 	lt->mode.vback_porch = lt8912_input_timing[i][8];
+#endif
 
 	ret = lt8912_video_setup(lt);
 	if (ret < 0)
