@@ -461,6 +461,7 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 	local->cl.dev = dev;
 	local->cl.rx_callback = mbox_rx_callback;
 	local->cl.tx_block = true;
+	local->cl.tx_tout = 5000; // timeout 5000 ms
 
 	local->chan = mbox_request_channel(&local->cl, 0);
 	if (IS_ERR(local->chan)) {
