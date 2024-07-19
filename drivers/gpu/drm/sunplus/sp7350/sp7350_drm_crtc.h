@@ -43,32 +43,6 @@ struct sp7350_drm_encoder {
 	void (*post_crtc_powerdown)(struct drm_encoder *encoder);
 };
 
-struct sp7350_drm_crtc {
-	struct drm_crtc crtc;
-	struct platform_device *pdev;
-	void __iomem *regs;
-
-	//struct drm_crtc_state base;
-	struct sp7350_drm_plane primary_plane;
-	struct sp7350_drm_plane media_plane;
-	struct sp7350_drm_plane overlay_planes[2];
-	struct sp7350_drm_plane cursor_plane;
-
-	struct drm_pending_vblank_event *event;
-
-	enum sp7350_drm_encoder_type encoder_types[2];
-
-	/* TODO: setting with C3V dipslay tcon feature. */
-	u8 lut_r[256];
-	u8 lut_g[256];
-	u8 lut_b[256];
-
-	struct debugfs_regset32 regset;
-};
-
-#define to_sp7350_drm_crtc(target)\
-	container_of(target, struct sp7350_drm_crtc, crtc)
-
 #define to_sp7350_drm_encoder(target)\
 	container_of(target, struct sp7350_drm_encoder, base)
 

@@ -26,10 +26,55 @@
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_vpp.h"
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_dmix.h"
 #include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_tgen.h"
-extern int sp7350_resolution_set(unsigned int width, unsigned int height);
+//extern int sp7350_resolution_set(unsigned int width, unsigned int height);
 
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
+
+/* display TGEN Timing Parameters Setting.
+ * Formula:
+ *   total_pixel = htotal
+ *   line_start_cd_point = hdisplay
+ *   total_line = vtotal
+ *   field_end_line = vdisplay+vtotal-vsync_start+1
+ *   active_start_line = vtotal-vsync_start
+ *
+ * Notes: htotal,hdisplay,vtotal,vdisplay,vsync_start are derived from drm_display_mode.
+ */
+struct sp7350_crtc_tgen_timing_param {
+	u32 total_pixel;
+	u32 line_start_cd_point;
+	u32 total_line;
+	u32 field_end_line;
+	u32 active_start_line;
+};
+
+struct sp7350_drm_crtc {
+	struct drm_crtc crtc;
+	struct platform_device *pdev;
+	void __iomem *regs;
+
+	struct sp7350_crtc_tgen_timing_param tgen_timing;
+	//struct drm_crtc_state base;
+	struct sp7350_drm_plane primary_plane;
+	struct sp7350_drm_plane media_plane;
+	struct sp7350_drm_plane overlay_planes[2];
+	struct sp7350_drm_plane cursor_plane;
+
+	struct drm_pending_vblank_event *event;
+
+	enum sp7350_drm_encoder_type encoder_types[2];
+
+	/* TODO: setting with C3V dipslay tcon feature. */
+	u8 lut_r[256];
+	u8 lut_g[256];
+	u8 lut_b[256];
+
+	struct debugfs_regset32 regset;
+};
+
+#define to_sp7350_drm_crtc(target)\
+	container_of(target, struct sp7350_drm_crtc, crtc)
 
 static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 	.destroy	= drm_crtc_cleanup,
@@ -40,18 +85,63 @@ static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
 };
 
+static int sp7350_drm_crtc_mode_valid(struct drm_crtc *crtc,
+					   const struct drm_display_mode *mode)
+{
+	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
+	struct sp7350_crtc_tgen_timing_param *tgen_timing = &sp7350_crtc->tgen_timing;
+
+	DRM_DEBUG_DRIVER("[Start]\n");
+	/* Any display HW(TGEN/DMIX/OSD/VPP...) Limit??? */
+	if (mode->hdisplay > 1920)
+		return MODE_BAD_HVALUE;
+
+	if (mode->vdisplay > 1080)
+		return MODE_BAD_VVALUE;
+
+	/* Generate tgen timing setting from drm_display_mode */
+	tgen_timing->total_pixel = mode->htotal;
+	tgen_timing->total_line  = mode->vtotal;
+	tgen_timing->line_start_cd_point = mode->hdisplay;
+	tgen_timing->active_start_line   = mode->vtotal - mode->vsync_start;
+	tgen_timing->field_end_line      = tgen_timing->active_start_line + mode->vdisplay + 1;
+	DRM_DEBUG_DRIVER("\nTGEN Timing Setting(%s):\n"
+		 "   total_pixel=%d, total_line=%d, line_start_cd_point=%d\n"
+		 "   active_start_line=%d, field_end_line=%d\n",
+		 mode->name,
+		 tgen_timing->total_pixel, tgen_timing->total_line, tgen_timing->line_start_cd_point,
+		 tgen_timing->active_start_line, tgen_timing->field_end_line);
+
+	return 0;
+}
+
+static void sp7350_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
+{
+	/* TODO */
+	struct sp7350_drm_tgen_timing_param tgen_timing;
+	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
+
+	DRM_DEBUG_DRIVER("Update TGEN Timing...\n");
+	tgen_timing.total_pixel = sp7350_crtc->tgen_timing.total_pixel;
+	tgen_timing.total_line  = sp7350_crtc->tgen_timing.total_line;
+	tgen_timing.line_start_cd_point = sp7350_crtc->tgen_timing.line_start_cd_point;
+	tgen_timing.active_start_line   = sp7350_crtc->tgen_timing.active_start_line;
+	tgen_timing.field_end_line      = sp7350_crtc->tgen_timing.field_end_line;
+	sp7350_drm_tgen_timing_setting(&tgen_timing);
+}
+
 static int sp7350_drm_crtc_atomic_check(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
 	/* TODO reference to vkms_crtc_atomic_check */
 	DRM_DEBUG_DRIVER("[TODO]\n");
+	#if 0
 	if (state->mode_changed) {
 		struct drm_display_mode *adj_mode = &state->adjusted_mode;
 		DRM_DEBUG_DRIVER("Update TGEN Timing...\n");
 		sp7350_resolution_set(adj_mode->hdisplay, adj_mode->vdisplay);
-		/* TODO: Check mode valid first. refer to sp7350_dsi_mode_check */
-		//sp7350_tgen_init();
 	}
+	#endif
 	return 0;
 }
 
@@ -87,9 +177,11 @@ static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 
 	DRM_DEBUG_DRIVER("Start\n");
 
+	#if 0
 	if (crtc->state->mode_changed) {
 		sp7350_tgen_init();
 	}
+	#endif
 	if (event) {
 		crtc->state->event = NULL;
 
@@ -103,11 +195,13 @@ static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs sp7350_drm_crtc_helper_funcs = {
-	.atomic_check	= sp7350_drm_crtc_atomic_check,
-	.atomic_begin	= sp7350_drm_crtc_atomic_begin,
-	.atomic_flush	= sp7350_drm_crtc_atomic_flush,
-	.atomic_enable	= sp7350_drm_crtc_atomic_enable,
-	.atomic_disable	= sp7350_drm_crtc_atomic_disable,
+	.mode_valid     = sp7350_drm_crtc_mode_valid,
+	.mode_set_nofb	= sp7350_drm_crtc_mode_set_nofb,
+	.atomic_check   = sp7350_drm_crtc_atomic_check,
+	.atomic_begin   = sp7350_drm_crtc_atomic_begin,
+	.atomic_flush   = sp7350_drm_crtc_atomic_flush,
+	.atomic_enable  = sp7350_drm_crtc_atomic_enable,
+	.atomic_disable = sp7350_drm_crtc_atomic_disable,
 };
 
 static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
@@ -202,6 +296,8 @@ int sp7350_drm_crtc_init(struct drm_device *drm, struct drm_crtc *crtc)
 	 */
 	drm_crtc_enable_color_mgmt(crtc, 0, true, crtc->gamma_size);
 	#endif
+
+	sp7350_drm_tgen_init();
 
 	return ret;
 }

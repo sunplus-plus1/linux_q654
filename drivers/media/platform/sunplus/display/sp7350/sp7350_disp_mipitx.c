@@ -515,7 +515,8 @@ static const u32 sp_mipitx_phy_pllclk_dsi[11][11] = {
 	{  240, 320, 0x0, 0x0e, 0x0, 0x0, 0x0, 0x0, 0xa, 0xf, 0x2}, /* 240x320 */
 	{3840,   64, 0x0, 0x1f, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 3840x64 */
 	{3840, 2880, 0x0, 0x3c, 0x0, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0}, /* 3840x2880 */
-	{ 800,  480, 0x1, 0x0d, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 */
+	//{ 800,  480, 0x1, 0x0d, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 */
+	{ 800,  480, 0x0, 0x1b, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 28060KHz => 673.45MHz, from sp_mipitx_input_timing_dsi */
 	{1024,  600, 0x1, 0x3d, 0x1, 0x1, 0x1, 0x3, 0x0, 0x0, 0x0}  /* 1024x600 */
 };
 
@@ -564,12 +565,29 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
 		} else if ((disp_dev->out_res.width == 800) && (disp_dev->out_res.height == 480)) {
 			value = 0;
+			/* Update FBK_DIV_H[12:7] */
+			value |= (0x7f800000 | (0x30 << 7));
+			/* Update PSTDIV_H[6:3] */
+			value |= (0x00780000 | (0xf << 3));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+			value = 0;
+			/* Update BNKSEL_H[1:0] */
+			value = 0x00030000 | 0x3;
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_15); //AO_G3.15
+
+			value = 0;
+			/* Update MIPITX_SEL_H[11:7] */
+			value |= (0x0f800000 | (0x7 << 7));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#if 0
 			value |= 0x00780058;
 			value |= (0x7f800000 | (0x15 << 7));
 			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
 
 			value = 0x07800380; //PLLH MIPITX CLK = 26.563MHz
 			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#endif
 		} else if ((disp_dev->out_res.width == 720) && (disp_dev->out_res.height == 480)) {
 			value = 0;
 			value |= 0x00780050;
