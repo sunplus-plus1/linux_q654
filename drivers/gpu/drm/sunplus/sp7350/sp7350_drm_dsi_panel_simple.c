@@ -267,8 +267,8 @@ static const struct sp7350_dsi_panel_desc xx_tcxd024iblon_n2_desc = {
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
-		.width_mm = 30,
-		.height_mm = 40,
+		.width_mm = 36,
+		.height_mm = 48,
 	},
 	.lanes = 1,
 	.format = MIPI_DSI_FMT_RGB888,

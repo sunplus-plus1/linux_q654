@@ -70,6 +70,19 @@ struct sp7350_tgen_timing {
 	u16 vbp;
 };
 
+#ifdef CONFIG_DRM_SP7350
+/* Refer to struct sp7350_crtc_tgen_timing_param. */
+struct sp7350_drm_tgen_timing_param {
+	u32 total_pixel;
+	u32 line_start_cd_point;
+	u32 total_line;
+	u32 field_end_line;
+	u32 active_start_line;
+};
+void sp7350_drm_tgen_init(void);
+void sp7350_drm_tgen_timing_setting( struct sp7350_drm_tgen_timing_param *tgen_timing);
+#endif
+
 /*
  * Init SP7350 TGEN Setting
  */
