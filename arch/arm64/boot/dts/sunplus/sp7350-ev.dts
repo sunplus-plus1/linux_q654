@@ -1245,7 +1245,9 @@
 		port {
 			tp2815_5: endpoint {
 				remote-endpoint = <&csi2_5>;
-	#ifdef TP2815_IN5_2LANES
+	#ifdef TP2815_IN5_1LANE
+				data-lanes = <1>;
+	#elif defined(TP2815_IN5_2LANES)
 				data-lanes = <1 2>;
 	#else
 				data-lanes = <1 2 3 4>;
@@ -2302,7 +2304,7 @@
 
 &vin11 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN5) && defined(TP2815_IN5_2VC)
+#if defined(TP2815_IN5) && (defined(TP2815_IN5_2VC) || defined(TP2815_IN5_4VC))
 	status = "okay";
 #else
 	status = "disabled";
@@ -2329,7 +2331,11 @@
 
 &vin12 {
 	memory-region = <&mipicsirx_reserve>;
+#if defined(TP2815_IN5) && defined(TP2815_IN5_4VC)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
 
 	ports {
 		#address-cells = <1>;
@@ -2352,7 +2358,11 @@
 
 &vin13 {
 	memory-region = <&mipicsirx_reserve>;
+#if defined(TP2815_IN5) && defined(TP2815_IN5_4VC)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
 
 	ports {
 		#address-cells = <1>;
