@@ -36,7 +36,7 @@
 #define AP6256_WIFI
 #define AP6256_BT
 
-//#define CONFIG_DISP_DRM_SUPPORT
+#define CONFIG_DISP_DRM_SUPPORT
 
 //#define DISP_MIPITX_CSI
 //#define DISP_MIPITX_CSI_480P
@@ -1044,10 +1044,9 @@
 	pinctrl-0 = <&i2c_combo6_pins>;
 	status = "okay";
 
-#ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
-
+#ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
 	raspberrypi_lcd: lcd@45 {
 		compatible = "raspberrypi,7inch-touchscreen-panel";
 		//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
@@ -1069,9 +1068,6 @@
 	};
 #endif
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c6 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
 	lontium_lt8912b: hdmi@48 {
 		compatible = "lontium,lt8912b";
 		//compatible = "lontium,lt8912b-builtin";
