@@ -196,7 +196,7 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 		else
 			ptr = rproc_da_to_va(rproc, local->bootaddr + (da & 0xFFFFF), memsz);
 		if (!ptr) {
-			dev_err(dev, "bad phdr da 0x%llx mem 0x%x\n", local->bootaddr,memsz);
+			dev_err(dev, "bad phdr da 0x%llx mem 0x%x\n", local->bootaddr, memsz);
 			ret = -EINVAL;
 			break;
 		}
@@ -316,6 +316,7 @@ static int sp_rproc_stop(struct rproc *rproc)
 
 static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
+	static void __iomem *va[5]; //max num_mems
 	int num_mems, i, ret;
 	struct device *dev = rproc->dev.parent;
 	struct device_node *np = dev->of_node;
@@ -335,65 +336,38 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 			dev_err(dev, "unable to acquire memory-region\n");
 			return -EINVAL;
 		}
-		if (strstr(node->name, "vdev") &&
-			strstr(node->name, "buffer")) {
-			/* Register DMA region */
-			mem = rproc_mem_entry_init(dev, NULL,
-						   (dma_addr_t)rmem->base,
-						   rmem->size, rmem->base,
-						   NULL, NULL,
-						   node->name);
-			if (!mem) {
-				dev_err(dev, "unable to initialize memory-region %s\n", node->name);
-				return -ENOMEM;
-			}
-			rproc_add_carveout(rproc, mem);
-		} else if (strstr(node->name, "vdev") &&
-			   strstr(node->name, "vring")) {
-			/* Register vring */
-			mem = rproc_mem_entry_init(dev, NULL,
-						   (dma_addr_t)rmem->base,
-						   rmem->size, rmem->base,
-						   NULL, NULL,
-						   node->name);
-			mem->va = devm_ioremap_wc(dev, rmem->base, rmem->size);
-			if (!mem->va)
-				return -ENOMEM;
-			if (!mem) {
-				dev_err(dev, "unable to initialize memory-region %s\n",	node->name);
-				return -ENOMEM;
-			}
-			rproc_add_carveout(rproc, mem);
-		} else if (strstr(node->name, "cm4runaddr") ) {
-			struct sp_rproc_pdata *local = rproc->priv;
-			mem = rproc_of_resm_mem_entry_init(dev, i,
-							rmem->size,
-							rmem->base,
-							node->name);
-			if (!mem) {
-				dev_err(dev, "unable to initialize memory-region %s\n", node->name);
-				return -ENOMEM;
-			}
-			mem->va = devm_ioremap(dev, rmem->base, rmem->size);
-			local->bootaddr = rmem->base;
-			if (!mem->va)
-				return -ENOMEM;
-			rproc_add_carveout(rproc, mem);
-		} else {
-			mem = rproc_of_resm_mem_entry_init(dev, i,
-							rmem->size,
-							rmem->base,
-							node->name);
-			if (!mem) {
-				dev_err(dev, "unable to initialize memory-region %s\n", node->name);
-				return -ENOMEM;
-			}
-			mem->va = devm_ioremap_wc(dev, rmem->base, rmem->size);
-			if (!mem->va)
-				return -ENOMEM;
 
-			rproc_add_carveout(rproc, mem);
+		if (strstr(node->name, "vdev"))
+			mem = rproc_mem_entry_init(dev, NULL,
+					(dma_addr_t)rmem->base,
+					rmem->size, rmem->base,
+					NULL, NULL,
+					node->name);
+		else
+			mem = rproc_of_resm_mem_entry_init(dev, i,
+					rmem->size,
+					rmem->base,
+					node->name);
+		if (!mem) {
+			dev_err(dev, "unable to initialize memory-region %s\n", node->name);
+			return -ENOMEM;
 		}
+
+		if (!strstr(node->name, "buffer")) {
+			if (va[i])
+				devm_iounmap(dev, va[i]);
+			if (strstr(node->name, "cm4runaddr")) {
+				((struct sp_rproc_pdata *)rproc->priv)->bootaddr = rmem->base;
+				va[i] = mem->va = devm_ioremap(dev, rmem->base, rmem->size);
+			} else {
+				va[i] = mem->va = devm_ioremap_wc(dev, rmem->base, rmem->size);
+			}
+			if (!mem->va)
+				return -ENOMEM;
+			//printk("!!![%s] %08x:%08x -> %px\n", node->name, rmem->base, rmem->size, mem->va);
+		}
+
+		rproc_add_carveout(rproc, mem);
 	}
 
 	ret = rproc_elf_load_rsc_table(rproc, fw);
