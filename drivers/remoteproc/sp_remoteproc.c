@@ -66,6 +66,7 @@ struct sp_rproc_pdata {
 	u32 __iomem *mbox2to0; // read to clear intr
 	struct reset_control *rstc; // FIXME: RST_A926 not worked
 	struct work_struct suspend_work;
+	void __iomem *va[5]; //max num_mems
 #ifdef CONFIG_SUNPLUS_MBOX_TEST
 	struct mbox_client cl;
 	struct mbox_chan *chan;
@@ -316,7 +317,8 @@ static int sp_rproc_stop(struct rproc *rproc)
 
 static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 {
-	static void __iomem *va[5]; //max num_mems
+	struct sp_rproc_pdata *local = rproc->priv;
+	void __iomem **va = local->va;
 	int num_mems, i, ret;
 	struct device *dev = rproc->dev.parent;
 	struct device_node *np = dev->of_node;
@@ -357,7 +359,7 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 			if (va[i])
 				devm_iounmap(dev, va[i]);
 			if (strstr(node->name, "cm4runaddr")) {
-				((struct sp_rproc_pdata *)rproc->priv)->bootaddr = rmem->base;
+				local->bootaddr = rmem->base;
 				va[i] = mem->va = devm_ioremap(dev, rmem->base, rmem->size);
 			} else {
 				va[i] = mem->va = devm_ioremap_wc(dev, rmem->base, rmem->size);
