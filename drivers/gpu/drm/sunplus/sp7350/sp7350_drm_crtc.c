@@ -88,31 +88,51 @@ static const struct drm_crtc_funcs sp7350_drm_crtc_funcs = {
 static int sp7350_drm_crtc_mode_valid(struct drm_crtc *crtc,
 					   const struct drm_display_mode *mode)
 {
-	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
-	struct sp7350_crtc_tgen_timing_param *tgen_timing = &sp7350_crtc->tgen_timing;
 
 	DRM_DEBUG_DRIVER("[Start]\n");
 	/* Any display HW(TGEN/DMIX/OSD/VPP...) Limit??? */
 	if (mode->hdisplay > 1920)
 		return MODE_BAD_HVALUE;
 
-	if (mode->vdisplay > 1080)
+	if (mode->vdisplay > 1920)
 		return MODE_BAD_VVALUE;
 
-	/* Generate tgen timing setting from drm_display_mode */
-	tgen_timing->total_pixel = mode->htotal;
-	tgen_timing->total_line  = mode->vtotal;
-	tgen_timing->line_start_cd_point = mode->hdisplay;
-	tgen_timing->active_start_line   = mode->vtotal - mode->vsync_start;
-	tgen_timing->field_end_line      = tgen_timing->active_start_line + mode->vdisplay + 1;
-	DRM_DEBUG_DRIVER("\nTGEN Timing Setting(%s):\n"
-		 "   total_pixel=%d, total_line=%d, line_start_cd_point=%d\n"
-		 "   active_start_line=%d, field_end_line=%d\n",
-		 mode->name,
-		 tgen_timing->total_pixel, tgen_timing->total_line, tgen_timing->line_start_cd_point,
-		 tgen_timing->active_start_line, tgen_timing->field_end_line);
+	if (mode->vdisplay >= mode->vtotal || mode->hdisplay >= mode->htotal)
+		return MODE_BAD_VVALUE;
 
 	return 0;
+}
+
+static bool sp7350_drm_crtc_mode_fixup(struct drm_crtc *crtc,
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode)
+{
+	struct sp7350_drm_crtc *sp7350_crtc = to_sp7350_drm_crtc(crtc);
+	struct sp7350_crtc_tgen_timing_param *tgen_timing = &sp7350_crtc->tgen_timing;
+
+	DRM_DEBUG_DRIVER("[Start]\n");
+
+	/* fixup for hdmi ddc modes. */
+	if (adjusted_mode->vsync_start - adjusted_mode->vdisplay ==1) {
+		adjusted_mode->vsync_start += 1;
+		adjusted_mode->vsync_end   += 1;
+	}
+
+	/* Generate tgen timing setting from drm_display_mode */
+	tgen_timing->total_pixel = adjusted_mode->htotal;
+	tgen_timing->total_line  = adjusted_mode->vtotal;
+	tgen_timing->line_start_cd_point = adjusted_mode->hdisplay;
+	tgen_timing->active_start_line   = adjusted_mode->vtotal - adjusted_mode->vsync_start;
+	tgen_timing->field_end_line      = tgen_timing->active_start_line + adjusted_mode->vdisplay + 1;
+
+	//DRM_DEBUG_DRIVER("\nTGEN Timing Setting(%s):\n"
+	//	 "   total_pixel=%d, total_line=%d, line_start_cd_point=%d\n"
+	//	 "   active_start_line=%d, field_end_line=%d\n",
+	//	 mode->name,
+	//	 tgen_timing->total_pixel, tgen_timing->total_line, tgen_timing->line_start_cd_point,
+	//	 tgen_timing->active_start_line, tgen_timing->field_end_line);
+
+	return true;
 }
 
 static void sp7350_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
@@ -127,6 +147,11 @@ static void sp7350_drm_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	tgen_timing.line_start_cd_point = sp7350_crtc->tgen_timing.line_start_cd_point;
 	tgen_timing.active_start_line   = sp7350_crtc->tgen_timing.active_start_line;
 	tgen_timing.field_end_line      = sp7350_crtc->tgen_timing.field_end_line;
+	DRM_DEBUG_DRIVER("\nTGEN Timing Setting:\n"
+		 "   TGEN_DTG_TOTAL_PIXEL=%d, TGEN_DTG_DS_LINE_START_CD_POINT=%d\n"
+		 "   TGEN_DTG_TOTAL_LINE=%d, TGEN_DTG_FIELD_END_LINE=%d, TGEN_DTG_START_LINE=%d\n",
+		 tgen_timing.total_pixel, tgen_timing.line_start_cd_point,
+		 tgen_timing.total_line, tgen_timing.field_end_line, tgen_timing.active_start_line);
 	sp7350_drm_tgen_timing_setting(&tgen_timing);
 }
 
@@ -196,6 +221,7 @@ static void sp7350_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs sp7350_drm_crtc_helper_funcs = {
 	.mode_valid     = sp7350_drm_crtc_mode_valid,
+	.mode_fixup     = sp7350_drm_crtc_mode_fixup,
 	.mode_set_nofb	= sp7350_drm_crtc_mode_set_nofb,
 	.atomic_check   = sp7350_drm_crtc_atomic_check,
 	.atomic_begin   = sp7350_drm_crtc_atomic_begin,
@@ -393,14 +419,28 @@ static int sp7350_crtc_dev_remove(struct platform_device *pdev)
 
 static int sp7350_crtc_dev_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver suspend.\n");
-
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "crtc driver suspend.\n");
+	sp7350_dmix_layer_cfg_store();
+	sp7350_tgen_store();
+	sp7350_osd_store();
+	sp7350_osd_header_save();
+	sp7350_vpp0_store();
 	return 0;
 }
 
 static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 {
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver resume.\n");
+	int i;
+
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "crtc driver resume.\n");
+
+	sp7350_dmix_layer_cfg_restore();
+	sp7350_tgen_restore();
+	sp7350_osd_restore();
+	for (i = 0; i < /*SP_DISP_MAX_OSD_LAYER*/4; i++)
+		sp7350_osd_header_restore(i);
+	sp7350_vpp0_restore();
+	//sp7350_drm_tgen_init();
 
 	return 0;
 }

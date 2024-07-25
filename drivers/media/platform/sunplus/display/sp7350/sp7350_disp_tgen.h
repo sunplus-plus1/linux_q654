@@ -59,6 +59,7 @@
 #define SP7350_TGEN_DTG_ADJ_PTG		0x7
 #define SP7350_TGEN_DTG_ADJ_ALL		0x8
 
+#ifndef CONFIG_DRM_SP7350
 struct sp7350_tgen_timing {
 	int usr;
 	int fps;
@@ -69,19 +70,6 @@ struct sp7350_tgen_timing {
 	u16 vact;
 	u16 vbp;
 };
-
-#ifdef CONFIG_DRM_SP7350
-/* Refer to struct sp7350_crtc_tgen_timing_param. */
-struct sp7350_drm_tgen_timing_param {
-	u32 total_pixel;
-	u32 line_start_cd_point;
-	u32 total_line;
-	u32 field_end_line;
-	u32 active_start_line;
-};
-void sp7350_drm_tgen_init(void);
-void sp7350_drm_tgen_timing_setting( struct sp7350_drm_tgen_timing_param *tgen_timing);
-#endif
 
 /*
  * Init SP7350 TGEN Setting
@@ -106,6 +94,18 @@ u32 sp7350_tgen_get_current_line_count(void);
 void sp7350_tgen_timing_set_dsi(void);
 void sp7350_tgen_timing_set_csi(void);
 void sp7350_tgen_timing_get(void);
+#else
+/* Refer to struct sp7350_crtc_tgen_timing_param. */
+struct sp7350_drm_tgen_timing_param {
+	u32 total_pixel;
+	u32 line_start_cd_point;
+	u32 total_line;
+	u32 field_end_line;
+	u32 active_start_line;
+};
+void sp7350_drm_tgen_init(void);
+void sp7350_drm_tgen_timing_setting( struct sp7350_drm_tgen_timing_param *tgen_timing);
+#endif
 
 /*
  * SP7350 TGEN Timing Adjust Settings
