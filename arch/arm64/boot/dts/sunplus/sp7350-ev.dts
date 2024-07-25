@@ -766,7 +766,7 @@
 				remote-endpoint = <&csi2_2>;
 				data-lanes = <1 2 3 4>;
 				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <445500000>;
+				link-frequencies = /bits/ 64 <891000000>;
 			};
 		};
 	};
@@ -1216,7 +1216,7 @@
 				remote-endpoint = <&csi2_5>;
 				data-lanes = <1 2 3 4>;
 				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <445500000>;
+				link-frequencies = /bits/ 64 <891000000>;
 			};
 		};
 	};

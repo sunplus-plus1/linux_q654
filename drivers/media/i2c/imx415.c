@@ -21,6 +21,12 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
+#define DST_WIDTH_3840 3840
+#define DST_HEIGHT_2160 2160
+#define DST_WIDTH_1920 1920
+#define DST_HEIGHT_1080 1080
+
 #define IMX415_PIXEL_ARRAY_TOP	  0
 #define IMX415_PIXEL_ARRAY_LEFT	  0
 #define IMX415_PIXEL_ARRAY_WIDTH  3864
@@ -52,9 +58,14 @@
 #define IMX415_DRV		  CCI_REG8(0x30c1)
 #define IMX415_VMAX		  CCI_REG24_LE(0x3024)
 #define IMX415_HMAX		  CCI_REG16_LE(0x3028)
+#define IMX415_PIX_HST	CCI_REG16_LE(0x3040)
+#define IMX415_PIX_HWIDTH	CCI_REG16_LE(0x3042)
+#define IMX415_PIX_VST	CCI_REG16_LE(0x3044)
+#define IMX415_PIX_VWIDTH	CCI_REG16_LE(0x3046)
 #define IMX415_SHR0		  CCI_REG24_LE(0x3050)
 #define IMX415_GAIN_PCG_0	  CCI_REG16_LE(0x3090)
 #define IMX415_AGAIN_MIN	  0
+#define IMX415_AGAIN_DEFAULT  70
 #define IMX415_AGAIN_MAX	  100
 #define IMX415_AGAIN_STEP	  1
 #define IMX415_BLKLEVEL		  CCI_REG16_LE(0x30e2)
@@ -102,7 +113,7 @@ static const char *const imx415_supply_names[] = {
  */
 static const s64 link_freq_menu_items[] = {
 	594000000 / 2,	720000000 / 2,	891000000 / 2,
-	1440000000 / 2, 1485000000 / 2,
+	1440000000 / 2, 1485000000 / 2, 1782000000 / 2,
 };
 
 struct imx415_clk_params {
@@ -445,6 +456,22 @@ static const struct imx415_clk_params imx415_clk_params[] = {
 	},
 };
 
+static const struct imx415_clk_params imx415_clk_37125000_1782000000 = {
+	.lane_rate = 1782000000UL,
+	.inck = 37125000,
+	.regs[0] = { IMX415_BCWAIT_TIME, 0x07F },
+	.regs[1] = { IMX415_CPWAIT_TIME, 0x05B },
+	.regs[2] = { IMX415_SYS_MODE, 0x4 },
+	.regs[3] = { IMX415_INCKSEL1, 0x00 },
+	.regs[4] = { IMX415_INCKSEL2, 0x24 },
+	.regs[5] = { IMX415_INCKSEL3, 0x0C0 },
+	.regs[6] = { IMX415_INCKSEL4, 0x0E0 },
+	.regs[7] = { IMX415_INCKSEL5, 0x24 },
+	.regs[8] = { IMX415_INCKSEL6, 0x1 },
+	.regs[9] = { IMX415_INCKSEL7, 0x0 },
+	.regs[10] = { IMX415_TXCLKESC_FREQ, 0x0948 },
+};
+
 /* all-pixel 2-lane 720 Mbps 15.74 Hz mode */
 static const struct cci_reg_sequence imx415_mode_2_720[] = {
 	{ IMX415_VMAX, 0x08CA },
@@ -493,6 +520,145 @@ static const struct cci_reg_sequence imx415_mode_4_891[] = {
 	{ IMX415_TLPX, 0x002F },
 };
 
+/* 1932x1096 4-lane 12bit 1782 Mbps 60 Hz mode */
+static const struct cci_reg_sequence imx415_mode_4_1782_22binning_12bit[] = {
+	/* use binning readout mode, no flip */
+	{ IMX415_WINMODE, 0x00 },
+	{ IMX415_ADDMODE, 0x01 },
+	/* use RAW 12-bit mode */
+	{ IMX415_ADBIT, 0x00 },
+	{ IMX415_MDBIT, 0x01 },
+	/* output VSYNC on XVS and low on XHS */
+	{ IMX415_OUTSEL, 0x22 },
+	{ IMX415_DRV, 0x00 },
+	{ IMX415_VMAX, 0x08CA }, //2250
+	{ IMX415_HMAX, 0x0226 }, //550
+	{ IMX415_LANEMODE, IMX415_LANEMODE_4 },
+	{ IMX415_TCLKPOST, 0x00B7 },
+	{ IMX415_TCLKPREPARE, 0x0067 },
+	{ IMX415_TCLKTRAIL, 0x006F },
+	{ IMX415_TCLKZERO, 0x01DF },
+	{ IMX415_THSPREPARE, 0x006F },
+	{ IMX415_THSZERO, 0x00CF },
+	{ IMX415_THSTRAIL, 0x006F },
+	{ IMX415_THSEXIT, 0x00B7 },
+	{ IMX415_TLPX, 0x005F },
+};
+
+/* all-pixel 4-lane 12bit 1782 Mbps 60 Hz mode */
+static const struct cci_reg_sequence imx415_mode_4_1782_12bit[] = {
+	/* use all-pixel readout mode, no flip */
+	{ IMX415_WINMODE, 0x00 },
+	{ IMX415_ADDMODE, 0x00 },
+	/* use RAW 12-bit mode */
+	{ IMX415_ADBIT, 0x01 },
+	{ IMX415_MDBIT, 0x0001 },
+	{ IMX415_VMAX, 0x08CA },
+	{ IMX415_HMAX, 0x0226 },
+	{ IMX415_LANEMODE, IMX415_LANEMODE_4 },
+	{ IMX415_TCLKPOST, 0x00B7 },
+	{ IMX415_TCLKPREPARE, 0x0067 },
+	{ IMX415_TCLKTRAIL, 0x006F },
+	{ IMX415_TCLKZERO, 0x00DF },
+	{ IMX415_THSPREPARE, 0x006F },
+	{ IMX415_THSZERO, 0x00CF },
+	{ IMX415_THSTRAIL, 0x006F },
+	{ IMX415_THSEXIT, 0x00B7 },
+	{ IMX415_TLPX, 0x005F },
+};
+
+/* all-pixel 4-lane 12bit 1782 Mbps 60 Hz mode cropto 5M */
+static const struct cci_reg_sequence imx415_mode_4_1782_crop_5m_12bit[] = {
+	/* use all-pixel/Winmode mode, no flip */
+	{ IMX415_WINMODE, 0x04 },
+	{ IMX415_ADDMODE, 0x00 },
+	/* use RAW 12-bit mode */
+	{ IMX415_ADBIT, 0x01 },
+	{ IMX415_MDBIT, 0x0001 },
+	{ IMX415_VMAX, 0x08CA },
+	{ IMX415_HMAX, 0x0226 },
+	{ IMX415_LANEMODE, IMX415_LANEMODE_4 },
+	{ IMX415_TCLKPOST, 0x00B7 },
+	{ IMX415_TCLKPREPARE, 0x0067 },
+	{ IMX415_TCLKTRAIL, 0x006F },
+	{ IMX415_TCLKZERO, 0x00DF },
+	{ IMX415_THSPREPARE, 0x006F },
+	{ IMX415_THSZERO, 0x00CF },
+	{ IMX415_THSTRAIL, 0x006F },
+	{ IMX415_THSEXIT, 0x00B7 },
+	{ IMX415_TLPX, 0x005F },
+	//crop 3864*2192 -> 2688*1944
+	{ IMX415_PIX_HST, 0x024C }, //IMX415_PIX_HST=(3864 - 2688)/2 =588=0x024C
+	{ IMX415_PIX_HWIDTH, 0x0A80 },//2688
+	{ IMX415_PIX_VST, 0x00F8 }, // IMX415_PIX_VST/2=(2191-1944)/2=123.5
+	{ IMX415_PIX_VWIDTH, 0x0F30},//IMX415_PIX_VWIDTH/2=1944
+};
+
+/* 1932x1096 4-lane 10bit 1782 Mbps 60 Hz mode */
+static const struct cci_reg_sequence imx415_mode_4_1782_22binning_10bit[] = {
+	/* use binning readout mode, no flip */
+	{ IMX415_WINMODE, 0x00 },
+	{ IMX415_ADDMODE, 0x01 },
+	/* use RAW 12-bit mode */
+	{ IMX415_ADBIT, 0x00 },
+	{ IMX415_MDBIT, 0x00 },
+	/* output VSYNC on XVS and low on XHS */
+	{ IMX415_OUTSEL, 0x22 },
+	{ IMX415_DRV, 0x00 },
+	{ IMX415_VMAX, 0x08CA },
+	{ IMX415_HMAX, 0x0226 },
+	{ IMX415_LANEMODE, IMX415_LANEMODE_4 },
+	{ IMX415_TCLKPOST, 0x00B7 },
+	{ IMX415_TCLKPREPARE, 0x0067 },
+	{ IMX415_TCLKTRAIL, 0x006F },
+	{ IMX415_TCLKZERO, 0x01DF },
+	{ IMX415_THSPREPARE, 0x006F },
+	{ IMX415_THSZERO, 0x00CF },
+	{ IMX415_THSTRAIL, 0x006F },
+	{ IMX415_THSEXIT, 0x00B7 },
+	{ IMX415_TLPX, 0x005F },
+};
+
+/* all-pixel 4-lane 10bit 1782 Mbps 60 Hz mode */
+static const struct cci_reg_sequence imx415_mode_4_1782[] = {
+	{ IMX415_VMAX, 0x08CA },
+	{ IMX415_HMAX, 0x0226 },
+	{ IMX415_LANEMODE, IMX415_LANEMODE_4 },
+	{ IMX415_TCLKPOST, 0x00B7 },
+	{ IMX415_TCLKPREPARE, 0x0067 },
+	{ IMX415_TCLKTRAIL, 0x006F },
+	{ IMX415_TCLKZERO, 0x00DF },
+	{ IMX415_THSPREPARE, 0x006F },
+	{ IMX415_THSZERO, 0x00CF },
+	{ IMX415_THSTRAIL, 0x006F },
+	{ IMX415_THSEXIT, 0x00B7 },
+	{ IMX415_TLPX, 0x005F },
+};
+
+/* all-pixel 4-lane 10bit 1782 Mbps 60 Hz mode cropto 5M */
+static const struct cci_reg_sequence imx415_mode_4_1782_crop_5m[] = {
+	/* use all-pixel/Winmode mode, no flip */
+	{ IMX415_WINMODE, 0x04 },
+	{ IMX415_ADDMODE, 0x00 },
+	{ IMX415_VMAX, 0x08CA },
+	{ IMX415_HMAX, 0x0226 },
+	{ IMX415_LANEMODE, IMX415_LANEMODE_4 },
+	{ IMX415_TCLKPOST, 0x00B7 },
+	{ IMX415_TCLKPREPARE, 0x0067 },
+	{ IMX415_TCLKTRAIL, 0x006F },
+	{ IMX415_TCLKZERO, 0x00DF },
+	{ IMX415_THSPREPARE, 0x006F },
+	{ IMX415_THSZERO, 0x00CF },
+	{ IMX415_THSTRAIL, 0x006F },
+	{ IMX415_THSEXIT, 0x00B7 },
+	{ IMX415_TLPX, 0x005F },
+	//crop 3864*2192 -> 2688*1944
+	{ IMX415_PIX_HST, 0x024C }, //IMX415_PIX_HST=(3864 - 2688)/2 =588=0x024C
+	{ IMX415_PIX_HWIDTH, 0x0A80 },//2688
+	{ IMX415_PIX_VST, 0x00F8 }, // IMX415_PIX_VST/2=(2191-1944)/2=123.5
+	{ IMX415_PIX_VWIDTH, 0x0F30},//IMX415_PIX_VWIDTH/2=1944
+};
+
 struct imx415_mode_reg_list {
 	u32 num_of_regs;
 	const struct cci_reg_sequence *regs;
@@ -527,44 +693,114 @@ struct imx415_mode_reg_list {
  *    2376      4     90.164     4392      891000000
  */
 struct imx415_mode {
+	u32 bus_fmt;
+	u32 width;
+	u32 height;
+	u32 bpp;
+	u32 vts_def;
+	u32 hts_def;
 	u64 lane_rate;
 	u32 lanes;
 	u32 hmax_pix;
 	u64 pixel_rate;
 	struct imx415_mode_reg_list reg_list;
+	struct imx415_clk_params clk_params;
 };
 
 /* mode configs */
 static const struct imx415_mode supported_modes[] = {
-	{
-		.lane_rate = 720000000,
-		.lanes = 2,
-		.hmax_pix = 4064,
-		.pixel_rate = 144000000,
+	{ // 60FPS inck 37125000Hz lane_rate 1782000000 pixel_rate 594000000 12bit 2*2 binning
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.width = 1944,
+		.height = 1096,
+		.bpp = 12,
+		.lane_rate = 1782000000,
+		.lanes = 4,
+		.hmax_pix = 2346,
+		.vts_def = 3165,//2346
+		.pixel_rate = 594000000,
 		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(imx415_mode_2_720),
-			.regs = imx415_mode_2_720,
+			.num_of_regs = ARRAY_SIZE(imx415_mode_4_1782_22binning_12bit),
+			.regs = imx415_mode_4_1782_22binning_12bit,
 		},
+		.clk_params = imx415_clk_37125000_1782000000,
 	},
-	{
-		.lane_rate = 1440000000,
-		.lanes = 2,
-		.hmax_pix = 4510,
-		.pixel_rate = 304615385,
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(imx415_mode_2_1440),
-			.regs = imx415_mode_2_1440,
-		},
-	},
-	{
-		.lane_rate = 891000000,
+	{ // 60FPS inck 37125000Hz lane_rate 1782000000 pixel_rate 594000000 12bit
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.width = 3864,
+		.height = 2192,
+		.bpp = 12,
+		.lane_rate = 1782000000,
 		.lanes = 4,
 		.hmax_pix = 4400,
-		.pixel_rate = 297000000,
+		.vts_def = 0x08ca, // 2250
+		.pixel_rate = 594000000,
 		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(imx415_mode_4_891),
-			.regs = imx415_mode_4_891,
+			.num_of_regs = ARRAY_SIZE(imx415_mode_4_1782_12bit),
+			.regs = imx415_mode_4_1782_12bit,
 		},
+		.clk_params = imx415_clk_37125000_1782000000,
+	},
+	{ // 60FPS inck 37125000Hz lane_rate 1782000000  pixel_rate 594000000 10bit
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.width = 2688,
+		.height = 1944,
+		.bpp = 12,
+		.lane_rate = 1782000000,
+		.lanes = 4,
+		.hmax_pix = 4400,
+		.vts_def = 0x08ca, // 2250
+		.pixel_rate = 594000000,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(imx415_mode_4_1782_crop_5m_12bit),
+			.regs = imx415_mode_4_1782_crop_5m_12bit,
+		},
+		.clk_params = imx415_clk_37125000_1782000000,
+	},
+	{ // 60FPS inck 37125000Hz lane_rate 1782000000 pixel_rate 594000000 10bit 2*2 binning
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 1944,
+		.height = 1096,
+		.bpp = 10,
+		.lane_rate = 1782000000,
+		.lanes = 4,
+		.hmax_pix = 2346,
+		.pixel_rate = 594000000,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(imx415_mode_4_1782_22binning_10bit),
+			.regs = imx415_mode_4_1782_22binning_10bit,
+		},
+		.clk_params = imx415_clk_37125000_1782000000,
+	},
+	{ // 60FPS inck 37125000Hz lane_rate 1782000000  pixel_rate 594000000 10bit
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 3864,
+		.height = 2192,
+		.bpp = 10,
+		.lane_rate = 1782000000,
+		.lanes = 4,
+		.hmax_pix = 4400,
+		.pixel_rate = 594000000,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(imx415_mode_4_1782),
+			.regs = imx415_mode_4_1782,
+		},
+		.clk_params = imx415_clk_37125000_1782000000,
+	},
+	{ // 60FPS inck 37125000Hz lane_rate 1782000000  pixel_rate 594000000 10bit
+		.bus_fmt = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.width = 2688,
+		.height = 1944,
+		.bpp = 10,
+		.lane_rate = 1782000000,
+		.lanes = 4,
+		.hmax_pix = 4400,
+		.pixel_rate = 594000000,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(imx415_mode_4_1782_crop_5m),
+			.regs = imx415_mode_4_1782_crop_5m,
+		},
+		.clk_params = imx415_clk_37125000_1782000000,
 	},
 };
 
@@ -600,10 +836,10 @@ struct imx415 {
 	struct v4l2_ctrl *vblank;
 	struct v4l2_ctrl *hflip;
 	struct v4l2_ctrl *vflip;
-
+	const struct imx415_mode *supported_modes;
 	unsigned int cur_mode;
 	unsigned int num_data_lanes;
-
+	unsigned int cfg_num;
 	/*
 	 * Mutex for serialized access:
 	 * Protect sensor module set pad format and start/stop streaming safely.
@@ -826,10 +1062,10 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 	v4l2_ctrl_new_std(&sensor->ctrls, &imx415_ctrl_ops,
 			  V4L2_CID_ANALOGUE_GAIN, IMX415_AGAIN_MIN,
 			  IMX415_AGAIN_MAX, IMX415_AGAIN_STEP,
-			  IMX415_AGAIN_MIN);
+			  IMX415_AGAIN_DEFAULT);
 
 	hblank = supported_modes[sensor->cur_mode].hmax_pix -
-		 IMX415_PIXEL_ARRAY_WIDTH;
+		 supported_modes[sensor->cur_mode].width;
 	ctrl = v4l2_ctrl_new_std(&sensor->ctrls, &imx415_ctrl_ops,
 				 V4L2_CID_HBLANK, hblank, hblank, 1, hblank);
 	if (ctrl)
@@ -889,9 +1125,8 @@ static int imx415_set_mode(struct imx415 *sensor, int mode)
 			    supported_modes[mode].reg_list.regs,
 			    supported_modes[mode].reg_list.num_of_regs,
 			    &ret);
-
 	cci_multi_reg_write(sensor->regmap,
-			    sensor->clk_params->regs,
+			    supported_modes[mode].clk_params.regs,
 			    IMX415_NUM_CLK_PARAM_REGS,
 			    &ret);
 
@@ -1003,11 +1238,12 @@ static int imx415_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
-	if (code->index != 0)
+	struct imx415 *sensor = to_imx415(sd);
+
+	if (code->index >= sensor->cfg_num)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_SGBRG10_1X10;
-
+	code->code = sensor->supported_modes[code->index].bus_fmt;
 	return 0;
 }
 
@@ -1015,14 +1251,27 @@ static int imx415_enum_frame_size(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
-	if (fse->index > 0 || fse->code != MEDIA_BUS_FMT_SGBRG10_1X10)
+	struct imx415 *sensor = to_imx415(sd);
+	int skip_index = fse->index + 1;
+	int find_count = 0;
+	int i = 0;
+
+	if (fse->index >= sensor->cfg_num)
 		return -EINVAL;
 
-	fse->min_width = IMX415_PIXEL_ARRAY_WIDTH;
-	fse->max_width = fse->min_width;
-	fse->min_height = IMX415_PIXEL_ARRAY_HEIGHT;
-	fse->max_height = fse->min_height;
-	return 0;
+	for (i = 0; i < sensor->cfg_num; i++) {
+		if (fse->code == sensor->supported_modes[i].bus_fmt) {
+			find_count++;
+			if (find_count == skip_index) {
+				fse->min_width = sensor->supported_modes[fse->index].width;
+				fse->max_width = sensor->supported_modes[fse->index].width;
+				fse->max_height = sensor->supported_modes[fse->index].height;
+				fse->min_height = sensor->supported_modes[fse->index].height;
+				return 0;
+			}
+		}
+	}
+	return -EINVAL;
 }
 
 static int imx415_get_format(struct v4l2_subdev *sd,
@@ -1030,39 +1279,88 @@ static int imx415_get_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct imx415 *imx415 = to_imx415(sd);
-	struct v4l2_mbus_framefmt *format = &fmt->format;
+	const struct imx415_mode *mode = &imx415->supported_modes[imx415->cur_mode];
 
 	mutex_lock(&imx415->mutex);
-	format->width = IMX415_PIXEL_ARRAY_WIDTH;
-	format->height = IMX415_PIXEL_ARRAY_HEIGHT;
-	format->code = MEDIA_BUS_FMT_SGBRG10_1X10;
-	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_RAW;
-	format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-	format->quantization = V4L2_QUANTIZATION_DEFAULT;
-	format->xfer_func = V4L2_XFER_FUNC_NONE;
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+#else
+		mutex_unlock(&imx415->mutex);
+		return -ENOTTY;
+#endif
+	} else {
+		fmt->format.width = mode->width;
+		fmt->format.height = mode->height;
+		fmt->format.code = mode->bus_fmt;
+		fmt->format.field = V4L2_FIELD_NONE;
+		// need find this params in doc
+		fmt->format.colorspace = V4L2_COLORSPACE_RAW;
+		fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+		fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
+		fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	}
 	mutex_unlock(&imx415->mutex);
 
 	return 0;
 }
 
+static int imx415_get_reso_dist(const struct imx415_mode *mode,
+				struct v4l2_mbus_framefmt *framefmt)
+{
+	return abs(mode->width - framefmt->width) +
+	       abs(mode->height - framefmt->height);
+}
+
+static const struct imx415_mode *
+imx415_find_best_fit(struct imx415 *imx415, struct v4l2_subdev_format *fmt)
+{
+	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
+	int dist;
+	int cur_best_fit = 0;
+	int cur_best_fit_dist = -1;
+	unsigned int i;
+
+	for (i = 0; i < imx415->cfg_num; i++) {
+		dist = imx415_get_reso_dist(&imx415->supported_modes[i], framefmt);
+		if ((cur_best_fit_dist == -1 || dist < cur_best_fit_dist) &&
+		    imx415->supported_modes[i].bus_fmt == framefmt->code) {
+			cur_best_fit_dist = dist;
+			cur_best_fit = i;
+		}
+	}
+	imx415->cur_mode = cur_best_fit;
+	return &imx415->supported_modes[cur_best_fit];
+}
 
 static int imx415_set_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct imx415 *imx415 = to_imx415(sd);
-	struct v4l2_mbus_framefmt *format = &fmt->format;
+	const struct imx415_mode *mode;
 
+	mode = imx415_find_best_fit(imx415, fmt);
 	mutex_lock(&imx415->mutex);
-	format->width = IMX415_PIXEL_ARRAY_WIDTH;
-	format->height = IMX415_PIXEL_ARRAY_HEIGHT;
-	format->code = MEDIA_BUS_FMT_SGBRG10_1X10;
-	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_RAW;
-	format->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-	format->quantization = V4L2_QUANTIZATION_DEFAULT;
-	format->xfer_func = V4L2_XFER_FUNC_NONE;
+	fmt->format.code = mode->bus_fmt;
+	fmt->format.width = mode->width;
+	fmt->format.height = mode->height;
+	fmt->format.field = V4L2_FIELD_NONE;
+	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
+	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
+	fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
+	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		// dev_info(imx415->dev, "%s:%d", __func__, __LINE__);
+		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
+#else
+		mutex_unlock(&imx415->mutex);
+		return -ENOTTY;
+#endif
+	} else {
+		// dev_info(imx415->dev, "%s:%d", __func__, __LINE__);
+	}
 	mutex_unlock(&imx415->mutex);
 
 	return 0;
@@ -1073,16 +1371,29 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_selection *sel)
 {
 	struct imx415 *imx415 = to_imx415(sd);
+	const struct imx415_mode *mode = &imx415->supported_modes[imx415->cur_mode];
 
 	mutex_lock(&imx415->mutex);
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-		sel->r.top = IMX415_PIXEL_ARRAY_TOP;
-		sel->r.left = IMX415_PIXEL_ARRAY_LEFT;
-		sel->r.width = IMX415_PIXEL_ARRAY_WIDTH;
-		sel->r.height = IMX415_PIXEL_ARRAY_HEIGHT;
+		if (mode->width == 3864) {
+			sel->r.left = CROP_START(mode->width, DST_WIDTH_3840);
+			sel->r.width = DST_WIDTH_3840;
+			sel->r.top = CROP_START(mode->height, DST_HEIGHT_2160);
+			sel->r.height = DST_HEIGHT_2160;
+		} else if (mode->width == 1944) {
+			sel->r.left = CROP_START(mode->width, DST_WIDTH_1920);
+			sel->r.width = DST_WIDTH_1920;
+			sel->r.top = CROP_START(mode->height, DST_HEIGHT_1080);
+			sel->r.height = DST_HEIGHT_1080;
+		} else {
+			sel->r.left = CROP_START(mode->width, mode->width);
+			sel->r.width = mode->width;
+			sel->r.top = CROP_START(mode->height, mode->height);
+			sel->r.height = mode->height;
+		}
 
 		return 0;
 	}
@@ -1092,7 +1403,7 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 }
 
 static int imx415_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg)
+			   struct v4l2_subdev_pad_config *cfg)
 {
 	struct v4l2_subdev_format format = {
 		.format = {
@@ -1233,31 +1544,13 @@ done:
 	return ret;
 }
 
-static int imx415_check_inck(unsigned long inck, u64 link_frequency)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(imx415_clk_params); ++i) {
-		if ((imx415_clk_params[i].lane_rate == link_frequency * 2) &&
-		    imx415_clk_params[i].inck == inck)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(imx415_clk_params))
-		return -EINVAL;
-	else
-		return 0;
-}
-
 static int imx415_parse_hw_config(struct imx415 *sensor)
 {
 	struct v4l2_fwnode_endpoint bus_cfg = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY,
 	};
 	struct fwnode_handle *ep;
-	u64 lane_rate;
-	unsigned long inck;
-	unsigned int i, j;
+	unsigned int i;
 	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(sensor->supplies); ++i)
@@ -1293,6 +1586,8 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 	case 2:
 	case 4:
 		sensor->num_data_lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
+		sensor->supported_modes = supported_modes;
+		sensor->cfg_num = ARRAY_SIZE(supported_modes);
 		break;
 	default:
 		ret = dev_err_probe(sensor->dev, -EINVAL,
@@ -1307,56 +1602,8 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 		goto done_endpoint_free;
 	}
 
-	/*
-	 * Check if there exists a sensor mode defined for current INCK,
-	 * number of lanes and given lane rates.
-	 */
-	inck = clk_get_rate(sensor->clk);
-	for (i = 0; i < bus_cfg.nr_of_link_frequencies; ++i) {
-		if (imx415_check_inck(inck, bus_cfg.link_frequencies[i])) {
-			dev_dbg(sensor->dev,
-				"INCK %lu Hz not supported for this link freq",
-				inck);
-			continue;
-		}
-
-		for (j = 0; j < ARRAY_SIZE(supported_modes); ++j) {
-			if (sensor->num_data_lanes != supported_modes[j].lanes)
-				continue;
-			if (bus_cfg.link_frequencies[i] * 2 !=
-			    supported_modes[j].lane_rate)
-				continue;
-			sensor->cur_mode = j;
-			break;
-		}
-		if (j < ARRAY_SIZE(supported_modes))
-			break;
-	}
-	if (i == bus_cfg.nr_of_link_frequencies) {
-		ret = dev_err_probe(sensor->dev, -EINVAL,
-				    "no valid sensor mode defined\n");
-		goto done_endpoint_free;
-	}
-
-	lane_rate = supported_modes[sensor->cur_mode].lane_rate;
-	for (i = 0; i < ARRAY_SIZE(imx415_clk_params); ++i) {
-		if (lane_rate == imx415_clk_params[i].lane_rate &&
-		    inck == imx415_clk_params[i].inck) {
-			sensor->clk_params = &imx415_clk_params[i];
-			break;
-		}
-	}
-	if (i == ARRAY_SIZE(imx415_clk_params)) {
-		ret = dev_err_probe(sensor->dev, -EINVAL,
-				    "Mode %d not supported\n",
-				    sensor->cur_mode);
-		goto done_endpoint_free;
-	}
-
-	ret = 0;
-	dev_dbg(sensor->dev, "clock: %lu Hz, lane_rate: %llu bps, lanes: %d\n",
-		inck, lane_rate, sensor->num_data_lanes);
-
+	 sensor->cur_mode = 0;
+	 ret = 0;
 done_endpoint_free:
 	v4l2_fwnode_endpoint_free(&bus_cfg);
 
