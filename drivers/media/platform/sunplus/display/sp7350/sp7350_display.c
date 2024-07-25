@@ -943,6 +943,7 @@ static int sp7350_display_suspend(struct platform_device *pdev, pm_message_t sta
 
 	pr_info("%s\n", __func__);
 
+#ifndef CONFIG_DRM_SP7350
 #if defined(CONFIG_VIDEO_SP7350_DISP_PI_PANEL)
 	if (disp_dev->mipitx_dev_id == 0x00001002) {
 		//pr_info("MIPITX DSI Panel : RASPBERRYPI_DSI_PANEL(800x480)\n");
@@ -957,13 +958,12 @@ static int sp7350_display_suspend(struct platform_device *pdev, pm_message_t sta
 	 */
 	sp7350_dmix_layer_cfg_store();
 	sp7350_tgen_store();
-#ifndef CONFIG_DRM_SP7350
 	sp7350_tcon_store();
 	sp7350_mipitx_store();
-#endif
 	sp7350_osd_store();
 	sp7350_osd_header_save();
 	sp7350_vpp0_store();
+#endif
 
 	/*
 	 * disable clk & enable reset
@@ -992,27 +992,24 @@ static int sp7350_display_resume(struct platform_device *pdev)
 		clk_prepare_enable(disp_dev->disp_clk[i]);
 	}
 
+#ifndef CONFIG_DRM_SP7350
 	/*
 	 * restore display settings
 	 */
 	sp7350_dmix_layer_cfg_restore();
 	sp7350_tgen_restore();
-#ifndef CONFIG_DRM_SP7350
 	sp7350_tcon_restore();
 	sp7350_mipitx_restore();
-#endif
 	sp7350_osd_restore();
 	for (i = 0; i < SP_DISP_MAX_OSD_LAYER; i++)
 		sp7350_osd_header_restore(i);
 
 	sp7350_vpp0_restore();
 
-#ifndef CONFIG_DRM_SP7350
 	if (disp_dev->out_res.mipitx_mode == SP7350_MIPITX_DSI)
 		sp7350_mipitx_phy_init_dsi();
 	else
 		sp7350_mipitx_phy_init_csi();
-#endif
 
 #if defined(CONFIG_VIDEO_SP7350_DISP_PI_PANEL)
 	if (disp_dev->mipitx_dev_id == 0x00001002) {
@@ -1043,6 +1040,7 @@ static int sp7350_display_resume(struct platform_device *pdev)
 #if defined(CONFIG_VIDEO_SP7350_DISP_LT8912B)
 	lt8912_soft_power_on(g_lt);
 	lt8912_video_on(g_lt);
+#endif
 #endif
 
 	return 0;

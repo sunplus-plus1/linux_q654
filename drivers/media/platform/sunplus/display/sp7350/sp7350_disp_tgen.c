@@ -7,6 +7,7 @@
 #include "sp7350_display.h"
 #include "sp7350_disp_regs.h"
 
+#ifndef CONFIG_DRM_SP7350
 static const char * const sp7350_tgen_usr[] = {"Internal", "User Mode"};
 static const char * const sp7350_tgen_fmt[] = {
 	"480P", "576P", "720P", "1080P", "rsv", "rsv",
@@ -294,69 +295,6 @@ void sp7350_tgen_timing_set_dsi(void)
 
 }
 
-#ifdef CONFIG_DRM_SP7350
-/* display tgen init. */
-void sp7350_drm_tgen_init(void)
-{
-	struct sp_disp_device *disp_dev = gdisp_dev;
-	//u32 value, dtg_fmt;
-
-	writel(0x00000000, disp_dev->base + TGEN_CONFIG);
-	writel(0x0000000a, disp_dev->base + TGEN_USER_INT1_CONFIG);
-	writel(0x0000000a, disp_dev->base + TGEN_USER_INT2_CONFIG);
-#if 0
-	value = readl(disp_dev->base + TGEN_DTG_CONFIG);
-	dtg_fmt = FIELD_GET(GENMASK(10,8), value);
-	set_width = disp_dev->out_res.width;
-	set_height = disp_dev->out_res.height;
-	if (((dtg_fmt == 0x00) && (width == 720) && (height == 480)) ||
-		((dtg_fmt == 0x01) && (width == 720) && (height == 576)) ||
-		((dtg_fmt == 0x02) && (width == 1280) && (height == 720)) ||
-		((dtg_fmt == 0x03) && (width == 1920) && (height == 1080))) {
-		value = readl(disp_dev->base + MIPITX_INFO_STATUS); //G204.28
-		if ((FIELD_GET(GENMASK(24,24), value) == 1) && (FIELD_GET(GENMASK(0,0), value) == 0)) {
-			//pr_info("  MIPITX working, skip tgen setting\n");
-			return;
-		}
-	}
-#endif
-
-	/* Write 1 to reset DTG timing bit
-	 */
-	sp7350_tgen_reset();
-}
-
-/* display tgen timing setting */
-void sp7350_drm_tgen_timing_setting(struct sp7350_drm_tgen_timing_param *tgen_timing)
-{
-	struct sp_disp_device *disp_dev = gdisp_dev;
-	u32 value;
-
-	/* Fixed user mode. */
-	value = readl(disp_dev->base + TGEN_DTG_CONFIG);
-	value &= ~(SP7350_TGEN_FORMAT | SP7350_TGEN_FPS | SP7350_TGEN_USER_MODE);
-	value |= SP7350_TGEN_USER_MODE;
-	writel(value, disp_dev->base + TGEN_DTG_CONFIG);
-
-	writel(tgen_timing->total_pixel, disp_dev->base + TGEN_DTG_TOTAL_PIXEL);
-	writel(tgen_timing->line_start_cd_point, disp_dev->base + TGEN_DTG_DS_LINE_START_CD_POINT);
-	writel(tgen_timing->total_line, disp_dev->base + TGEN_DTG_TOTAL_LINE);
-	writel(tgen_timing->field_end_line, disp_dev->base + TGEN_DTG_FIELD_END_LINE);
-	writel(tgen_timing->active_start_line, disp_dev->base + TGEN_DTG_START_LINE);
-
-	writel(0x0000100d, disp_dev->base + TGEN_DTG_ADJUST1);
-	writel(0x00000000, disp_dev->base + TGEN_SOURCE_SEL);
-
-	/* Write 1 to reset DTG timing bit
-	 */
-	sp7350_tgen_reset();
-
-	/* FIXME out_res setting for osd layer. */
-	disp_dev->out_res.width = tgen_timing->line_start_cd_point;
-	disp_dev->out_res.height = tgen_timing->field_end_line - tgen_timing->active_start_line - 1;
-}
-#endif
-
 /*
  * sp_tgen_para_csi[x][y]
  * y = 0-1, TGEN width & height
@@ -461,6 +399,78 @@ void sp7350_tgen_timing_get(void)
 #endif
 
 }
+#else
+static void sp7350_tgen_reset(void)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value;
+
+	value = readl(disp_dev->base + TGEN_RESET);
+	value |= SP7350_TGEN_RESET;
+	writel(value, disp_dev->base + TGEN_RESET);
+}
+
+/* display tgen init. */
+void sp7350_drm_tgen_init(void)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	//u32 value, dtg_fmt;
+
+	writel(0x00000000, disp_dev->base + TGEN_CONFIG);
+	writel(0x0000000a, disp_dev->base + TGEN_USER_INT1_CONFIG);
+	writel(0x0000000a, disp_dev->base + TGEN_USER_INT2_CONFIG);
+#if 0
+	value = readl(disp_dev->base + TGEN_DTG_CONFIG);
+	dtg_fmt = FIELD_GET(GENMASK(10,8), value);
+	set_width = disp_dev->out_res.width;
+	set_height = disp_dev->out_res.height;
+	if (((dtg_fmt == 0x00) && (width == 720) && (height == 480)) ||
+		((dtg_fmt == 0x01) && (width == 720) && (height == 576)) ||
+		((dtg_fmt == 0x02) && (width == 1280) && (height == 720)) ||
+		((dtg_fmt == 0x03) && (width == 1920) && (height == 1080))) {
+		value = readl(disp_dev->base + MIPITX_INFO_STATUS); //G204.28
+		if ((FIELD_GET(GENMASK(24,24), value) == 1) && (FIELD_GET(GENMASK(0,0), value) == 0)) {
+			//pr_info("  MIPITX working, skip tgen setting\n");
+			return;
+		}
+	}
+#endif
+
+	/* Write 1 to reset DTG timing bit
+	 */
+	sp7350_tgen_reset();
+}
+
+/* display tgen timing setting */
+void sp7350_drm_tgen_timing_setting(struct sp7350_drm_tgen_timing_param *tgen_timing)
+{
+	struct sp_disp_device *disp_dev = gdisp_dev;
+	u32 value;
+
+	/* Fixed user mode. */
+	value = readl(disp_dev->base + TGEN_DTG_CONFIG);
+	value &= ~(SP7350_TGEN_FORMAT | SP7350_TGEN_FPS | SP7350_TGEN_USER_MODE);
+	value |= SP7350_TGEN_USER_MODE;
+	writel(value, disp_dev->base + TGEN_DTG_CONFIG);
+
+	writel(tgen_timing->total_pixel, disp_dev->base + TGEN_DTG_TOTAL_PIXEL);
+	writel(tgen_timing->line_start_cd_point, disp_dev->base + TGEN_DTG_DS_LINE_START_CD_POINT);
+	writel(tgen_timing->total_line, disp_dev->base + TGEN_DTG_TOTAL_LINE);
+	writel(tgen_timing->field_end_line, disp_dev->base + TGEN_DTG_FIELD_END_LINE);
+	writel(tgen_timing->active_start_line, disp_dev->base + TGEN_DTG_START_LINE);
+
+	writel(0x0000100d, disp_dev->base + TGEN_DTG_ADJUST1);
+	writel(0x00000000, disp_dev->base + TGEN_SOURCE_SEL);
+
+	/* Write 1 to reset DTG timing bit
+	 */
+	sp7350_tgen_reset();
+
+	/* FIXME out_res setting for osd layer. */
+	disp_dev->out_res.width = tgen_timing->line_start_cd_point;
+	disp_dev->out_res.height = tgen_timing->field_end_line - tgen_timing->active_start_line - 1;
+}
+#endif
 
 void sp7350_tgen_input_adjust(int tgen_input_adj, u32 adj_value)
 {

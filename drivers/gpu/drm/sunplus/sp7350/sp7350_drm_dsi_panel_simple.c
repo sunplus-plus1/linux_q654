@@ -140,7 +140,7 @@ static const struct panel_init_cmd lx_hxm0686tft_001_init_cmd[] = {
 	{},
 };
 
-static const struct panel_init_cmd xx_tcxd024iblon_n2_init_cmd[] = {
+static const struct panel_init_cmd fitipower_tcxd024iblon_n2_init_cmd[] = {
 	_INIT_DCS_CMD(0xDF, 0x98, 0x51, 0xE9),
 
 	/* Page 00 setting */
@@ -249,7 +249,7 @@ static const struct sp7350_dsi_panel_desc lx_hxm0686tft_001_desc = {
 /*	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x19, 320},  */
 	/* w   h    usr fps fmt htt  hact  vtt  (vact+vbb+1)  vbb) */
 /*  { 240,  320, 1, 0, 0,  683,  240,  354,  347, 26}, 240x320 60Hz */
-static const struct drm_display_mode xx_tcxd024iblon_n2_mode = {
+static const struct drm_display_mode fitipower_tcxd024iblon_n2_mode = {
 	.clock = 14506920 / 1000,
 	.hdisplay = 240,
 	.hsync_start = 240 + 434,
@@ -262,8 +262,8 @@ static const struct drm_display_mode xx_tcxd024iblon_n2_mode = {
 };
 
 /* FIXME: size mm not truth!!! */
-static const struct sp7350_dsi_panel_desc xx_tcxd024iblon_n2_desc = {
-	.modes = &xx_tcxd024iblon_n2_mode,
+static const struct sp7350_dsi_panel_desc fitipower_tcxd024iblon_n2_desc = {
+	.modes = &fitipower_tcxd024iblon_n2_mode,
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
@@ -274,7 +274,7 @@ static const struct sp7350_dsi_panel_desc xx_tcxd024iblon_n2_desc = {
 	.format = MIPI_DSI_FMT_RGB888,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 		      MIPI_DSI_MODE_LPM,
-	.init_cmds = xx_tcxd024iblon_n2_init_cmd,
+	.init_cmds = fitipower_tcxd024iblon_n2_init_cmd,
 };
 
 static inline struct sp7350_panel_simple_dsi *to_simple_panel(struct drm_panel *panel)
@@ -610,7 +610,7 @@ static const struct of_device_id panel_simple_dsi_of_match[] = {
 	{
 		.compatible = "lx,hxm0686tft-001", .data = &lx_hxm0686tft_001_desc
 	}, {
-		.compatible = "fitipower,tcxd024iblon-2", .data = &xx_tcxd024iblon_n2_desc
+		.compatible = "fitipower,tcxd024iblon-2", .data = &fitipower_tcxd024iblon_n2_desc
 	}, {
 		/* sentinel */
 	}

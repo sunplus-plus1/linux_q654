@@ -284,7 +284,7 @@ struct sp7350_drm_dsi {
 
 	struct debugfs_regset32 regset;
 	struct debugfs_regset32 ao_moon3_regset;
-	struct drm_display_mode adj_mode_store;
+	//struct drm_display_mode adj_mode_store;
 	struct sp7350_drm_tcon_timing_param tcon_timing;
 	struct sp7350_drm_mpitx_sync_timing_param mipitx_sync_timing;
 };
@@ -347,7 +347,7 @@ static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 	if (mode->hdisplay > 1920)
 		return MODE_BAD_HVALUE;
 
-	if (mode->vdisplay > 1080)
+	if (mode->vdisplay > 1920)
 		return MODE_BAD_VVALUE;
 
 	return MODE_OK;
@@ -407,13 +407,13 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 			iter->funcs->mode_set(iter, mode, adj_mode);
 	}
 
-	sp7350_dsi_tcon_timing_setting(dsi, adj_mode);
 	sp7350_mipitx_dsi_pixel_clock_setting(dsi, adj_mode);
 	sp7350_mipitx_dsi_lane_clock_setting(dsi, adj_mode);
 	sp7350_mipitx_dsi_video_mode_setting(dsi, adj_mode);
+	sp7350_dsi_tcon_timing_setting(dsi, adj_mode);
 
 	/* store */
-	drm_mode_copy(&dsi->adj_mode_store, adj_mode);
+	//drm_mode_copy(&dsi->adj_mode_store, adj_mode);
 }
 
 static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
@@ -905,10 +905,10 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 	sp7350_mipitx_dsi_phy_init(dsi);
 	sp7350_mipitx_dsi_pllclk_init(dsi);
 	sp7350_mipitx_dsi_lane_control_set(dsi);
-	sp7350_dsi_tcon_timing_setting(dsi, NULL);
-	sp7350_mipitx_dsi_pixel_clock_setting(dsi, &dsi->adj_mode_store);
+	sp7350_mipitx_dsi_pixel_clock_setting(dsi, NULL);
 	sp7350_mipitx_dsi_lane_clock_setting(dsi, NULL);
 	sp7350_mipitx_dsi_video_mode_setting(dsi, NULL);
+	sp7350_dsi_tcon_timing_setting(dsi, NULL);
 
 	if (dsi->encoder)
 		sp7350_dsi_encoder_enable(dsi->encoder);
@@ -945,6 +945,12 @@ static void sp7350_dsi_tcon_timing_setting(struct sp7350_drm_dsi *dsi, struct dr
 		tcon_timing->stvu_start   = mode->vtotal - tcon_vsa;
 		tcon_timing->stvu_end     = 0;
 	}
+
+	DRM_DEBUG_DRIVER("\nTCON Timing Setting:\n"
+		"   TCON_DE_HSTART=%u, TCON_DE_HEND=%u, TCON_OEV_START=%u, TCON_OEV_END=%u\n"
+		"   TCON_HSYNC_START=%u, TCON_HSYNC_END=%u, TCON_STVU_START=%u, TCON_STVU_END=%u\n",
+		tcon_timing->de_hstart, tcon_timing->de_hend, tcon_timing->de_oev_start, tcon_timing->de_oev_end,
+		tcon_timing->hsync_start, tcon_timing->hsync_end, tcon_timing->stvu_start, tcon_timing->stvu_end);
 
 	/*
 	 * TCON H&V timing parameter
@@ -1359,12 +1365,12 @@ static void sp7350_mipitx_dsi_pixel_clock_setting(struct sp7350_drm_dsi *dsi, st
 		DRM_DEBUG_DRIVER("\nMIPITX Pixel Clock Info:\n"
 							"   %dKHz(pixel:%dKHz), Fvco=%dKHz \n"
 							"   prescal=%d, prediv=%d\n"
-							"   postdiv_10x=%d, seldiv=%d\n"
-							"   fbkdiv=%d, bnksel=%d\n",
+							"   postdiv_10x=%d, fbkdiv=%d\n"
+							"   bnksel=%d, seldiv=%d\n",
 			pixel_clock->clock, mode->clock, fvco,
 			pixel_clock->prescal, pixel_clock->prediv,
-			pixel_clock->postdiv_10x, pixel_clock->seldiv,
-			pixel_clock->fbkdiv, pixel_clock->bnksel);
+			pixel_clock->postdiv_10x, pixel_clock->fbkdiv,
+			pixel_clock->bnksel, pixel_clock->seldiv);
 	}
 
 	/* Register Setting Formula:
@@ -1409,12 +1415,12 @@ static void sp7350_mipitx_dsi_pixel_clock_setting(struct sp7350_drm_dsi *dsi, st
 	DRM_DEBUG_DRIVER("\nAO MOON3 PLLH Setting:\n"
 						"   %dKHz\n"
 						"   PRESCAL[15]=%d, PREDIV[2:1]=%d\n"
-						"   POSTDIV[6:3]=%d, MIPITX_SELDIV_H[11:7]=%d\n"
-						"   FBK_DIV[14:7]=%d, BNKSEL[1:0]=%d\n",
+						"   POSTDIV[6:3]=%d, FBK_DIV[14:7]=%d\n"
+						"   BNKSEL[1:0]=%d, MIPITX_SELDIV_H[11:7]=%d\n",
 		pixel_clock->clock,
 		pixel_clock->prescal - 1, pixel_clock->prediv - 1,
-		reg_postdiv, pixel_clock->seldiv - 1,
-		pixel_clock->fbkdiv-64, pixel_clock->bnksel);
+		reg_postdiv, pixel_clock->fbkdiv-64,
+		pixel_clock->bnksel, pixel_clock->seldiv - 1);
 
 	value = 0;
 	/* Update PRESCAL_H[15] */
@@ -1442,10 +1448,19 @@ static void sp7350_mipitx_dsi_pixel_clock_setting(struct sp7350_drm_dsi *dsi, st
 static void sp7350_mipitx_dsi_video_mode_setting(struct sp7350_drm_dsi *dsi, struct drm_display_mode *mode)
 {
 	u32 value;
-	u32 data_bit;
+	u32 word_cnt;
 	struct sp7350_drm_mpitx_sync_timing_param *sync_timing = &dsi->mipitx_sync_timing;
 
 	if (mode) {
+		/* display MIPITX Sync-Timing Formula:
+		 *   hsa = hsync_end-hsync_start
+		 *   hbp = htotal-hsync_end
+		 *   hact= hdisplay
+		 *   vsa = vsync_end-vsync_start
+		 *   vfp = vsync_start-vdisplay
+		 *   vbp = vtotal-vsync_end
+		 *   vact= vdisplay
+		 */
 		sync_timing->hsa  = mode->hsync_end - mode->hsync_start;
 		sync_timing->hbp  = mode->htotal - mode->hsync_end;
 		sync_timing->hact = mode->hdisplay;
@@ -1454,7 +1469,35 @@ static void sp7350_mipitx_dsi_video_mode_setting(struct sp7350_drm_dsi *dsi, str
 		sync_timing->vbp  = mode->vtotal - mode->vsync_end;
 		sync_timing->vact = mode->vdisplay;
 	}
-	data_bit = dsi->divider * dsi->lanes;
+	/* Register Setting Formula:
+	 *   hsa = HSA[31:24]
+	 *   hbp = HBP[11:0]
+	 *   hact= HACT[31:16] = WORD_CNT[31:16]
+	 *   vsa = VSA[23:16]
+	 *   vfp = VFP[15:8]
+	 *   vbp = VBP[7:0]
+	 *   vact= VACT[15:0]
+	 *   word_cnt = hact * pixel_bits / 8
+	 *            = hact * lane_divider * data_lanes / 8
+	 *            = WORD_CNT[15:0]
+	 *==>
+	 *   HSA[31:24]  = hsa
+	 *   HBP[11:0]   = hbp
+	 *   HACT[31:16] = hact
+	 *   VSA[23:16]  = vsa
+	 *   VFP[15:8]   = vfp
+	 *   VBP[7:0]    = vbp
+	 *   VACT[15:0]  = vact
+	 *   WORD_CNT[15:0] = word_cnt
+	 */
+	word_cnt = sync_timing->hact * dsi->divider * dsi->lanes / 8;
+	DRM_DEBUG_DRIVER("\nMIPITX Timing Setting:\n"
+					"   HSA[31:24]=%d, HBP[11:0]=%d, HACT[31:16]=%d\n"
+					"   VSA[23:16]=%d, VFP[15:8]=%d, VBP[7:0]=%d, VACT[15:0]=%d\n"
+					"   WORD_CNT[15:0]=%d\n",
+		sync_timing->hsa, sync_timing->hbp, sync_timing->hact,
+		sync_timing->vsa, sync_timing->vfp, sync_timing->vbp, sync_timing->vact,
+		word_cnt);
 
 	value = 0;
 	value |= SP7350_MIPITX_HSA_SET(sync_timing->hsa) |
@@ -1473,7 +1516,7 @@ static void sp7350_mipitx_dsi_video_mode_setting(struct sp7350_drm_dsi *dsi, str
 
 	//MIPITX  Video Mode WordCount Setting
 	value = 0;
-	value |= ((sync_timing->hact << 16) | ((sync_timing->hact * data_bit) / 8));
+	value |= ((sync_timing->hact << 16) | word_cnt);
 	writel(value, dsi->regs + MIPITX_WORD_CNT); //G204.19
 }
 
