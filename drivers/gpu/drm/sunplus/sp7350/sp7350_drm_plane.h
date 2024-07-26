@@ -10,7 +10,26 @@
 #define __SUNPLUS_SP7350_DRM_PLANE_H__
 #include <drm/drm.h>
 
-/* for layer_mode (default, can be redefine) */
+#include "sp7350_drm_crtc.h"
+
+#define SP7350_MAX_PLANE  5
+
+#define SP7350_LAYER_OSD0				0x0
+#define SP7350_LAYER_OSD1				0x1
+#define SP7350_LAYER_OSD2				0x2
+#define SP7350_LAYER_OSD3				0x3
+
+/* for fg_sel */
+#define SP7350_DMIX_VPP0	0x0
+#define SP7350_DMIX_VPP1	0x1 //unsupported
+#define SP7350_DMIX_VPP2	0x2 //unsupported
+#define SP7350_DMIX_OSD0	0x3
+#define SP7350_DMIX_OSD1	0x4
+#define SP7350_DMIX_OSD2	0x5
+#define SP7350_DMIX_OSD3	0x6
+#define SP7350_DMIX_PTG		0x7
+
+/* for layer_mode */
 #define SP7350_DMIX_BG	0x0 //BG
 #define SP7350_DMIX_L1	0x1 //VPP0
 #define SP7350_DMIX_L2	0x2 //VPP1 (unsupported)
@@ -20,11 +39,45 @@
 #define SP7350_DMIX_L6	0x6 //OSD0
 #define SP7350_DMIX_MAX_LAYER	7
 
-#define SP7350_VPP_IMGREAD_DATA_FMT_UYVY	0x1
-#define SP7350_VPP_IMGREAD_DATA_FMT_YUY2	0x2
-#define SP7350_VPP_IMGREAD_DATA_FMT_NV16	0x3
-#define SP7350_VPP_IMGREAD_DATA_FMT_NV24	0x6
-#define SP7350_VPP_IMGREAD_DATA_FMT_NV12	0x7
+/* for pattern_sel */
+#define SP7350_DMIX_BIST_BGC		0x0
+#define SP7350_DMIX_BIST_COLORBAR_ROT0	0x1
+#define SP7350_DMIX_BIST_COLORBAR_ROT90	0x2
+#define SP7350_DMIX_BIST_BORDER_NONE	0x3
+#define SP7350_DMIX_BIST_BORDER_ONE	0x4
+#define SP7350_DMIX_BIST_BORDER		0x5
+#define SP7350_DMIX_BIST_SNOW		0x6
+#define SP7350_DMIX_BIST_SNOW_MAX	0x7
+#define SP7350_DMIX_BIST_SNOW_HALF	0x8
+#define SP7350_DMIX_BIST_REGION		0x9
+
+/*
+ * OSD Header config[0]
+ */
+#define SP7350_OSD_HDR_CULT				BIT(31) /* En Color Look Up Table */
+#define SP7350_OSD_HDR_BS				BIT(12) /* BYTE SWAP */
+/*
+ *   BL =1 define HDR_ALPHA as fix value
+ *   BL2=1 define HDR_ALPHA as factor value
+ */
+#define SP7350_OSD_HDR_BL2				BIT(10)
+#define SP7350_OSD_HDR_BL				BIT(8)
+#define SP7350_OSD_HDR_ALPHA			GENMASK(7, 0)
+#define SP7350_OSD_HDR_KEY				BIT(11)
+
+/*
+ * OSD Header config[5]
+ */
+#define SP7350_OSD_HDR_CSM				GENMASK(19, 16) /* Color Space Mode */
+#define SP7350_OSD_HDR_CSM_SET(sel)		FIELD_PREP(GENMASK(19, 16), sel)
+#define SP7350_OSD_CSM_RGB_BT601		0x1 /* RGB to BT601 */
+#define SP7350_OSD_CSM_BYPASS			0x4 /* Bypass */
+
+/*
+ * OSD region dirty flag for SW latch
+ */
+#define REGION_ADDR_DIRTY				BIT(0) //(1 << 0)
+#define REGION_GSCL_DIRTY				BIT(1) //(1 << 1)
 
 /* for sp7350_osd_header*/
 #define SP7350_OSD_COLOR_MODE_8BPP			0x2
@@ -36,8 +89,19 @@
 #define SP7350_OSD_COLOR_MODE_RGBA8888		0xd
 #define SP7350_OSD_COLOR_MODE_ARGB8888		0xe
 
-#define SP7350_MAX_PLANE  5
+#define ALIGNED(x, n)		((x) & (~(n - 1)))
+#define EXTENDED_ALIGNED(x, n)	(((x) + ((n) - 1)) & (~(n - 1)))
 
+#define SWAP32(x)	((((unsigned int)(x)) & 0x000000ff) << 24 \
+			| (((unsigned int)(x)) & 0x0000ff00) << 8 \
+			| (((unsigned int)(x)) & 0x00ff0000) >> 8 \
+			| (((unsigned int)(x)) & 0xff000000) >> 24)
+#define SWAP16(x)	(((x) & 0x00ff) << 8 | ((x) >> 8))
+
+/*
+ * DRM PLANE Setting
+ *
+ */
 #define SP7350_DRM_PLANE_CAP_SCALE      (1 << 0)
 #define SP7350_DRM_PLANE_CAP_ZPOS       (1 << 1)
 #define SP7350_DRM_PLANE_CAP_ROTATION   (1 << 2)
@@ -76,7 +140,6 @@ struct sp7350_osd_region_info {
 	u32 act_y;
 };
 
-
 struct sp7350_osd_alpha_info {
 	u32 region_alpha_en;
 	u32 region_alpha;
@@ -112,7 +175,8 @@ struct sp7350_osd_region {
 	u32	reserved[4];
 };
 
-struct sp7350_drm_plane_state {
+struct sp7350_plane_state {
+	struct drm_plane_state base;
 	struct sp7350_plane_region_alpha_info region_alpha;
 	struct sp7350_plane_region_color_keying_info region_color_keying;
 	unsigned int color_keying;
@@ -120,10 +184,10 @@ struct sp7350_drm_plane_state {
 	struct drm_property_blob *region_color_keying_blob;
 };
 
-struct sp7350_drm_plane {
+struct sp7350_plane {
 	struct drm_plane base;
 	enum drm_plane_type type;
-	const uint32_t *pixel_formats;
+	u32 *pixel_formats;
 	unsigned int num_pixel_formats;
 	const struct drm_plane_helper_funcs *funcs;
 	unsigned int capabilities;
@@ -134,21 +198,14 @@ struct sp7350_drm_plane {
 	struct drm_property *region_color_keying_property;
 	struct drm_property *color_keying_property;
 
-	struct sp7350_drm_plane_state state;
+	struct sp7350_plane_state state;
 };
 
-#define to_sp7350_drm_plane(target)\
-	container_of(target, struct sp7350_drm_plane, base)
+#define to_sp7350_plane(plane) \
+	container_of(plane, struct sp7350_plane, base)
 
-int sp7350_plane_create_primary_plane(struct drm_device *drm,
-	struct sp7350_drm_plane *plane);
-int sp7350_plane_create_media_plane(struct drm_device *drm,
-	struct sp7350_drm_plane *plane);
-int sp7350_plane_create_overlay_plane(struct drm_device *drm,
-	struct sp7350_drm_plane *plane, int index);
-int sp7350_plane_release_plane(struct drm_device *drm,
-	struct sp7350_drm_plane *plane);
-
-//int sp7350_plane_create_additional_planes(struct drm_device *drm);
+struct drm_plane *sp7350_plane_init(struct drm_device *drm,
+	enum drm_plane_type type, int sptype);
+int sp7350_plane_release(struct drm_device *drm, struct sp7350_plane *plane);
 
 #endif /* __SUNPLUS_SP7350_DRM_PLANE_H__ */

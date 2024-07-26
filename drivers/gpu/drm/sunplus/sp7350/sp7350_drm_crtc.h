@@ -3,6 +3,7 @@
  * Sunplus SP7350 SoC DRM CRTCs
  *
  * Author: dx.jiang<dx.jiang@sunmedia.com.cn>
+ *         hammer.hsieh<hammer.hsieh@sunplus.com>
  */
 
 #ifndef __SUNPLUS_SP7350_DRM_CRTC_H__
@@ -15,9 +16,27 @@
 
 #include "sp7350_drm_plane.h"
 
+/*TGEN_DTG_CONFIG*/
+#define SP7350_TGEN_FORMAT		GENMASK(10, 8)
+#define SP7350_TGEN_FORMAT_SET(fmt)	FIELD_PREP(GENMASK(10, 8), fmt)
+#define SP7350_TGEN_FORMAT_480P			0x0
+#define SP7350_TGEN_FORMAT_576P			0x1
+#define SP7350_TGEN_FORMAT_720P			0x2
+#define SP7350_TGEN_FORMAT_1080P		0x3
+#define SP7350_TGEN_FORMAT_64X64_360X100	0x6
+#define SP7350_TGEN_FORMAT_64X64_144X100	0x7
+#define SP7350_TGEN_FPS			GENMASK(5, 4)
+#define SP7350_TGEN_FPS_SET(fps)	FIELD_PREP(GENMASK(5, 4), fps)
+#define SP7350_TGEN_FPS_59P94HZ		0x0
+#define SP7350_TGEN_FPS_50HZ		0x1
+#define SP7350_TGEN_FPS_24HZ		0x2
+#define SP7350_TGEN_USER_MODE		BIT(0)
+#define SP7350_TGEN_INTERNAL		0x0
+#define SP7350_TGEN_USER_DEF		0x1
+
 struct drm_pending_vblank_event;
 
-enum sp7350_drm_encoder_type {
+enum sp7350_encoder_type {
 	SP7350_DRM_ENCODER_TYPE_NONE,
 	/* Notes: C3V soc display controller only support one MIPI DSI interface!!!
 	 *     but connected to two socket, can not be used simultaneously.
@@ -30,9 +49,9 @@ enum sp7350_drm_encoder_type {
 	SP7350_DRM_ENCODER_TYPE_MAX
 };
 
-struct sp7350_drm_encoder {
+struct sp7350_encoder {
 	struct drm_encoder base;
-	enum sp7350_drm_encoder_type type;
+	enum sp7350_encoder_type type;
 	u32 clock_select;
 
 	void (*pre_crtc_configure)(struct drm_encoder *encoder);
@@ -43,44 +62,86 @@ struct sp7350_drm_encoder {
 	void (*post_crtc_powerdown)(struct drm_encoder *encoder);
 };
 
-struct sp7350_drm_crtc {
-	struct drm_crtc crtc;
+struct sp7350_crtc_tgen_timing_param {
+	u32 total_pixel;
+	u32 line_start_cd_point;
+	u32 total_line;
+	u32 field_end_line;
+	u32 active_start_line;
+};
+
+struct sp7350_crtc {
+	struct drm_crtc base;
 	struct platform_device *pdev;
 	void __iomem *regs;
 
-#if 0
-	/* clock */
-	struct clk		*disp_clk[16];
-	/* reset */
-	struct reset_control	*disp_rstc[16];
-#endif
-
-	//struct drm_crtc_state base;
-	struct sp7350_drm_plane primary_plane;
-	struct sp7350_drm_plane media_plane;
-	struct sp7350_drm_plane overlay_planes[2];
-	struct sp7350_drm_plane cursor_plane;
-
+	struct sp7350_crtc_tgen_timing_param tgen_timing;
 	struct drm_pending_vblank_event *event;
 
-	enum sp7350_drm_encoder_type encoder_types[2];
+	enum sp7350_encoder_type encoder_types[2];
 
 	/* TODO: setting with C3V dipslay tcon feature. */
 	u8 lut_r[256];
 	u8 lut_g[256];
 	u8 lut_b[256];
 
-	struct debugfs_regset32 regset;
+	struct debugfs_regset32 regset_g185;
+	struct debugfs_regset32 regset_g186;
+	struct debugfs_regset32 regset_g187;
+	struct debugfs_regset32 regset_g188;
+
+	struct debugfs_regset32 regset_g189;
+	struct debugfs_regset32 regset_g190;
+	struct debugfs_regset32 regset_g191;
+	struct debugfs_regset32 regset_g192;
+	struct debugfs_regset32 regset_g193;
+	struct debugfs_regset32 regset_g194;
+	struct debugfs_regset32 regset_g195;
+	struct debugfs_regset32 regset_g196;
+
+	struct debugfs_regset32 regset_g197;
+	struct debugfs_regset32 regset_g198;
+
+	struct debugfs_regset32 regset_g199;
+	struct debugfs_regset32 regset_g200;
+	struct debugfs_regset32 regset_g201;
+	struct debugfs_regset32 regset_g202;
+	struct debugfs_regset32 regset_g203;
+
 };
 
-#define to_sp7350_drm_crtc(target)\
-	container_of(target, struct sp7350_drm_crtc, crtc)
+struct sp7350_crtc_state {
+	struct drm_crtc_state base;
+	/* Dlist area for this CRTC configuration. */
+	struct drm_mm_node mm;
+	bool feed_txp;
+	bool txp_armed;
+	unsigned int assigned_channel;
 
-#define to_sp7350_drm_encoder(target)\
-	container_of(target, struct sp7350_drm_encoder, base)
+	struct {
+		unsigned int left;
+		unsigned int right;
+		unsigned int top;
+		unsigned int bottom;
+	} margins;
 
-//void sp7350_drm_crtc_finish_page_flip(struct sp7350_drm_crtc *scrtc);
+	/* Transitional state below, only valid during atomic commits */
+	bool update_muxing;
+};
 
-void __iomem *sp7350_display_ioremap_regs(int index);
+//static inline struct sp7350_crtc_state *
+//to_sp7350_crtc_state(struct drm_crtc_state *crtc_state)
+//{
+//	return container_of(crtc_state, struct sp7350_crtc_state, base);
+//}
+
+#define to_sp7350_crtc_state(crtc_state) \
+	container_of(crtc_state, struct sp7350_crtc_state, base)
+
+#define to_sp7350_crtc(crtc) \
+	container_of(crtc, struct sp7350_crtc, base)
+
+#define to_sp7350_encoder(encoder) \
+	container_of(encoder, struct sp7350_encoder, base)
 
 #endif /* __SUNPLUS_SP7350_DRM_CRTC_H__ */
