@@ -3,6 +3,7 @@
  * Sunplus SP7350 SoC DRM CRTCs and Encoder/Connecter
  *
  * Author: dx.jiang<dx.jiang@sunmedia.com.cn>
+ *         hammer.hsieh<hammer.hsieh@sunplus.com>
  */
 
 #include <linux/delay.h>
@@ -29,28 +30,136 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include "sp7350_drm_drv.h"
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_dsi.h"
 #include "sp7350_drm_regs.h"
 
-/* always keep 0 */
-#define SP7350_DRM_TODO    0
+#define DSI_PFORMAT_RGB565          0
+#define DSI_PFORMAT_RGB666_PACKED   1
+#define DSI_PFORMAT_RGB666          2
+#define DSI_PFORMAT_RGB888          3
 
-# define DSI_PFORMAT_RGB565          0
-# define DSI_PFORMAT_RGB666_PACKED   1
-# define DSI_PFORMAT_RGB666          2
-# define DSI_PFORMAT_RGB888          3
+static const char * const sp7350_dsi_fmt[] = {
+	"DSI_PFORMAT_RGB565", "DSI_PFORMAT_RGB666_PACKED",
+	"DSI_PFORMAT_RGB666", "DSI_PFORMAT_RGB888",
+};
 
 #define MIPITX_CMD_FIFO_FULL   0x00000001
 #define MIPITX_CMD_FIFO_EMPTY  0x00000010
 #define MIPITX_DATA_FIFO_FULL  0x00000100
 #define MIPITX_DATA_FIFO_EMPTY 0x00001000
 
-/* General DSI hardware state. */
-struct sp7350_drm_dsi {
-	struct platform_device *pdev;
+static const struct debugfs_reg32 sp_dsi_host_g0_regs[] = {
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_00),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_01),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_02),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_03),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_04),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_05),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_06),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_07),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_08),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_09),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_10),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_11),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_12),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_13),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_14),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_15),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_16),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_17),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_18),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_19),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_20),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_21),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_22),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_23),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_24),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_25),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_26),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_27),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_28),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_29),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_30),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G0_G204_31),
+};
 
+static const struct debugfs_reg32 sp_dsi_host_g1_regs[] = {
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_00),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_01),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_02),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_03),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_04),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_05),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_06),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_07),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_08),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_09),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_10),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_11),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_12),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_13),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_14),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_15),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_16),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_17),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_18),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_19),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_20),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_21),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_22),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_23),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_24),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_25),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_26),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_27),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_28),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_29),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_30),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_G1_G205_31),
+};
+
+static const struct debugfs_reg32 sp_dsi_ao_moon3_regs[] = {
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_00),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_01),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_02),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_03),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_04),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_05),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_06),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_07),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_08),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_09),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_10),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_11),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_12),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_13),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_14),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_15),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_16),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_17),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_18),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_19),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_20),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_21),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_22),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_23),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_24),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_25),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_26),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_27),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_28),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_29),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_30),
+	SP7350_DRM_REG32(SP7350_DISP_MIPITX_AO_MOON3_31),
+};
+
+/* General DSI hardware state. */
+struct sp7350_dsi_host {
 	struct mipi_dsi_host dsi_host;
+
+	struct platform_device *pdev;
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
 	struct list_head bridge_chain;
@@ -101,21 +210,34 @@ struct sp7350_drm_dsi {
 	struct completion xfer_completion;
 	int xfer_result;
 
-	struct debugfs_regset32 regset;
-	struct debugfs_regset32 ao_moon3_regset;
 	struct drm_display_mode adj_mode_store;
+
+	/* define for debugfs */
+	struct debugfs_regset32 regset_g204;
+	struct debugfs_regset32 regset_g205;
+	struct debugfs_regset32 regset_ao_moon3;
 };
 
-#define host_to_dsi(host) container_of(host, struct sp7350_drm_dsi, dsi_host)
+#define SP7350_DSI_HOST_READ(offset) readl(sp_dsi_host->regs + (offset))
+#define SP7350_DSI_HOST_WRITE(offset, val) writel(val, sp_dsi_host->regs + (offset))
+
+#define SP7350_DSI_TXPLL_READ(offset) readl(sp_dsi_host->regs + (offset))
+#define SP7350_DSI_TXPLL_WRITE(offset, val) writel(val, sp_dsi_host->regs + (offset))
+
+#define SP7350_DSI_PLLH_READ(offset) readl(sp_dsi_host->ao_moon3 + (offset))
+#define SP7350_DSI_PLLH_WRITE(offset, val) writel(val, sp_dsi_host->ao_moon3 + (offset))
+
+#define sp7350_host_to_dsi(host) \
+	container_of(host, struct sp7350_dsi_host, dsi_host)
 
 /* DSI encoder KMS struct */
 struct sp7350_dsi_encoder {
-	struct sp7350_drm_encoder base;
-	struct sp7350_drm_dsi *dsi;
+	struct sp7350_encoder base;
+	struct sp7350_dsi_host *sp_dsi_host;
 };
 
-#define to_sp7350_dsi_encoder(target)\
-	container_of(target, struct sp7350_dsi_encoder, base.base)
+#define to_sp7350_dsi_encoder(encoder) \
+	container_of(encoder, struct sp7350_dsi_encoder, base.base)
 
 /*
  * TODO: reference to sp7350_disp_mipitx.c,
@@ -148,15 +270,7 @@ static const u32 sp_mipitx_phy_pllclk_dsi[11][11] = {
 	{1024,  600, 0x1, 0x3d, 0x1, 0x1, 0x1, 0x3, 0x0, 0x0, 0x0}  /* 1024x600 */
 };
 
-/*
- * sp_mipitx_output_timing[x]
- * x = 0-10, MIPITX phy
- *   T_HS-EXIT / T_LPX
- *   T_CLK-PREPARE / T_CLK-ZERO
- *   T_CLK-TRAIL / T_CLK-PRE / T_CLK-POST
- *   T_HS-TRAIL / T_HS-PREPARE / T_HS-ZERO
- */
-static const u32 sp_mipitx_output_timing[10] = {
+static const u32 sp7350_mipitx_phy_timing[10] = {
 	0x10,  /* T_HS-EXIT */
 	0x08,  /* T_LPX */
 	0x10,  /* T_CLK-PREPARE */
@@ -169,22 +283,446 @@ static const u32 sp_mipitx_output_timing[10] = {
 	0x10,  /* T_HS-ZERO */
 };
 
-static void sp7350_mipitx_dsi_phy_init(struct sp7350_drm_dsi *dsi);
-static void sp7350_mipitx_dsi_pllclk_init(struct sp7350_drm_dsi *dsi);
-static void sp7350_mipitx_dsi_lane_control_set(struct sp7350_drm_dsi *dsi);
-static void sp7350_mipitx_dsi_pllclk_set(struct sp7350_drm_dsi *dsi, struct drm_display_mode *mode);
-static void sp7350_mipitx_dsi_video_mode_setting(struct sp7350_drm_dsi *dsi, struct drm_display_mode *mode);
-static void sp7350_mipitx_dsi_cmd_mode_start(struct sp7350_drm_dsi *dsi);
-static void sp7350_mipitx_dsi_video_mode_on(struct sp7350_drm_dsi *dsi);
-static void check_dsi_cmd_fifo_full(struct sp7350_drm_dsi *dsi);
-static void check_dsi_data_fifo_full(struct sp7350_drm_dsi *dsi);
+static void sp7350_mipitx_phy_init(struct sp7350_dsi_host *sp_dsi_host)
+{
+	u32 value;
+
+	DRM_DEBUG_DRIVER("lanes=%d flags=0x%08x format=%s\n",
+		sp_dsi_host->lanes,
+		sp_dsi_host->mode_flags,
+		sp7350_dsi_fmt[sp_dsi_host->format]); 
+
+	//PHY Reset(under reset)
+	value = SP7350_DSI_HOST_READ(MIPITX_ANALOG_CTRL2);
+	value &= ~SP7350_MIPITX_NORMAL;
+	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL2, value);
+
+	/*
+	 * Setting T_HS-EXIT & T_LPX for Clock/Data Lane
+	 */
+	value |= (SP7350_MIPITX_T_HS_EXIT_SET(sp7350_mipitx_phy_timing[0]) |
+			SP7350_MIPITX_T_LPX_SET(sp7350_mipitx_phy_timing[1]));
+	SP7350_DSI_HOST_WRITE(MIPITX_LANE_TIME_CTRL, value);
+
+	/*
+	 * Setting T_CLK-PREPARE & T_CLK-ZERO for Clock Lane
+	 */
+	value = 0;
+	value |= (SP7350_MIPITX_T_CLK_PREPARE_SET(sp7350_mipitx_phy_timing[2]) |
+			SP7350_MIPITX_T_CLK_ZERO_SET(sp7350_mipitx_phy_timing[3]));
+	SP7350_DSI_HOST_WRITE(MIPITX_CLK_TIME_CTRL0, value);
+
+	/*
+	 * Setting T_CLK-TRAIL & T_CLK-PRE & T_CLK-POST for Clock Lane
+	 */
+	value = 0;
+	value |= (SP7350_MIPITX_T_CLK_TRAIL_SET(sp7350_mipitx_phy_timing[4]) |
+			SP7350_MIPITX_T_CLK_PRE_SET(sp7350_mipitx_phy_timing[5]) |
+			SP7350_MIPITX_T_CLK_POST_SET(sp7350_mipitx_phy_timing[6]));
+	SP7350_DSI_HOST_WRITE(MIPITX_CLK_TIME_CTRL1, value);
+
+	/*
+	 * Enable HSA & HBP for Blanking Mode
+	 */
+	value = 0;
+	value |= (SP7350_MIPITX_T_HS_TRAIL_SET(sp7350_mipitx_phy_timing[7]) |
+			SP7350_MIPITX_T_HS_PREPARE_SET(sp7350_mipitx_phy_timing[8]) |
+			SP7350_MIPITX_T_HS_ZERO_SET(sp7350_mipitx_phy_timing[9]));
+	SP7350_DSI_HOST_WRITE(MIPITX_DATA_TIME_CTRL0, value);
+
+	/*
+	 * Enable HSA & HBP for Blanking Mode
+	 */
+	value = 0;
+	value |= (SP7350_MIPITX_BLANK_POWER_HSA | SP7350_MIPITX_BLANK_POWER_HBP);
+	SP7350_DSI_HOST_WRITE(MIPITX_BLANK_POWER_CTRL, value);
+
+	value = 0;
+	value |= (SP7350_MIPITX_CORE_CTRL_INPUT_EN |
+			SP7350_MIPITX_CORE_CTRL_ANALOG_EN |
+			SP7350_MIPITX_CORE_CTRL_DSI_EN);
+	if ((sp_dsi_host->lanes == 1) || (sp_dsi_host->lanes == 2) ||
+		(sp_dsi_host->lanes == 4)) {
+		value |= SP7350_MIPITX_CORE_CTRL_LANE_NUM_SET(sp_dsi_host->lanes - 1);
+		SP7350_DSI_HOST_WRITE(MIPITX_CORE_CTRL, value);
+	} else
+		pr_err("unsupported %d lanes\n", sp_dsi_host->lanes);
+
+	value = 0x00000000;
+	if (!(sp_dsi_host->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE))
+		value |= SP7350_MIPITX_FORMAT_VTF_SET(SP7350_MIPITX_VTF_SYNC_EVENT);
+
+	if (sp_dsi_host->format == DSI_PFORMAT_RGB565)
+		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB565);
+	else if (sp_dsi_host->format == DSI_PFORMAT_RGB666)
+		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB666_18BITS);
+	else if (sp_dsi_host->format == DSI_PFORMAT_RGB666_PACKED)
+		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB666_24BITS);
+	else if (sp_dsi_host->format == DSI_PFORMAT_RGB888)
+		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB888);
+	else
+		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB888);
+	SP7350_DSI_HOST_WRITE(MIPITX_FORMAT_CTRL, value);
+
+	//PHY Reset(back to normal mode)
+	value = SP7350_DSI_HOST_READ(MIPITX_ANALOG_CTRL2);
+	value |= SP7350_MIPITX_NORMAL;
+	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL2, value);
+
+}
+
+static const u32 sp7350_pllh_pstdiv_int[] = {
+	25, 30, 35, 40, 50, 55, 60, 70, 75, 80, 90, 100, 105, 110, 120, 125
+};
+
+static const u32 sp7350_pllh_mipitx_sel_int[] = {
+	1,2,0,4,0,0,0,8,0,0,0,0,0,0,0,16,
+	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+static void sp7350_mipitx_pllclk_get(struct sp7350_dsi_host *sp_dsi_host)
+{
+	u32 tmp_value1, tmp_value2, tmp_value3;
+	u32 value1, value2;
+
+	value1 = SP7350_DSI_PLLH_READ(MIPITX_AO_MOON3_14);
+	value2 = SP7350_DSI_PLLH_READ(MIPITX_AO_MOON3_25);
+
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) *
+		(FIELD_GET(GENMASK(14,7), value1) + 64)) /
+		(FIELD_GET(GENMASK(2,1), value1)?2:1);
+	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
+	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
+
+	pr_info("     PLLH FVCO %04d MHz , pix_clk %03d.%02d MHz\n",
+		tmp_value1, tmp_value2, (tmp_value3 - tmp_value2*100));
+
+}
+
+static const char * const sp7350_txpll_prediv[] = {
+	"DIV1", "DIV2", "DIV5", "DIV8",
+};
+static const u32 sp7350_txpll_prediv_int[] = {
+	1,2,5,8
+};
+
+static const char * const sp7350_txpll_pstdiv[] = {
+	"DIV1", "DIV2", "DIV4", "DIV8", "DIV16"
+};
+static const u32 sp7350_txpll_pstdiv_int[] = {
+	1, 2, 4, 8, 16
+};
+
+static const char * const sp7350_txpll_endiv5[] = {
+	"DIV1", "DIV5"
+};
+static const u32 sp7350_txpll_endiv5_int[] = {
+	1, 5
+};
+
+static void sp7350_mipitx_txpll_get(struct sp7350_dsi_host *sp_dsi_host)
+{
+	u32 tmp_value1, tmp_value2, tmp_value3;
+	u32 value1, value2;
+
+	value1 = SP7350_DSI_TXPLL_READ(MIPITX_ANALOG_CTRL6);
+
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(4,4), value1)?2:1) *
+		(FIELD_GET(GENMASK(13,8), value1))) /
+		(sp7350_txpll_prediv_int[FIELD_GET(GENMASK(1,0), value1)]);
+
+	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
+	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
+	pr_info("    TXPLL FVCO %04d MHz , bit_clk %03d.%02d MHz\n",
+		tmp_value1, tmp_value2, (tmp_value3 - (tmp_value2*100)));
+
+	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
+	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
+	pr_info("    TXPLL ---- ---- --- , byteclk %03d.%02d MHz\n",
+		tmp_value2, (tmp_value3 - (tmp_value2*100)));
+
+	value2 = SP7350_DSI_TXPLL_READ(MIPITX_LP_CK);
+	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
+	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
+	pr_info("    TXPLL ---- ---- --- , LPCDclk %03d.%02d MHz\n",
+		tmp_value2, (tmp_value3 - (tmp_value2*100)));
+
+}
+
+static void sp7350_mipitx_clock_init(struct sp7350_dsi_host *sp_dsi_host)
+{
+	DRM_DEBUG_DRIVER("sp7350_mipitx_clock_init\n");
+
+	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL9, 0x80000000); //init clock
+
+	/*
+	 * PLLH Fvco = 2150MHz (fixed)
+	 *                             2150
+	 * MIPITX pixel CLK = ----------------------- = 59.72MHz
+	 *                     PST_DIV * MIPITX_SEL
+	 */
+	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_15, 0xffff40be);
+	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_16, 0xffff0009);
+	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, 0xffff0b50); //PST_DIV = div9
+	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, 0x07800180); //MIPITX_SEL = div4
+
+	/*
+	 * TXPLL
+	 * PRESCAL = 1, FBKDIV = 48, PRE_DIV = 1, EN_DIV5 = 0, PRE_DIV = 2, POST_DIV = 1
+	 *                    25 * PRESCAL * FBKDIV            25 * 48
+	 * MIPITX bit CLK = ------------------------------ = ----------- = 600MHz
+	 *                   PRE_DIV * POST_DIV * 5^EN_DIV5       2
+	 */
+	SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL5, 0x00000003); //enable and reset
+	SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL6, 0x00003001); //MIPITX CLK = 600MHz
+	SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL7, 0x00000140); //BNKSEL = 0x0 (320~640MHz)
+
+	/*
+	 *                      600
+	 * MIPITX LP CLK = ------------ = 8.3MHz
+	 *                   8 * div9
+	 */
+	SP7350_DSI_TXPLL_WRITE(MIPITX_LP_CK, 0x00000008); //(600/8/div9)=8.3MHz
+
+	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL9, 0x00000000); //init clock done
+
+	/*
+	 * check pll clock setting (debug only)
+	 */
+	sp7350_mipitx_pllclk_get(sp_dsi_host);
+	sp7350_mipitx_txpll_get(sp_dsi_host);
+
+}
+
+static void sp7350_mipitx_clock_set(struct sp7350_dsi_host *sp_dsi_host,
+	struct drm_display_mode *mode)
+{
+	int i, time_cnt = 0;
+	u32 value;
+
+	DRM_DEBUG_DRIVER("hdisplay %d vdisplay %d\n",
+		mode->hdisplay, mode->vdisplay);
+
+	for (i = 0; i < 11; i++) {
+		if ((sp_mipitx_phy_pllclk_dsi[i][0] == mode->hdisplay) &&
+		    (sp_mipitx_phy_pllclk_dsi[i][1] == mode->vdisplay)) {
+			time_cnt = i;
+			break;
+		}
+	}
+
+	if ((mode->hdisplay == 240) && (mode->vdisplay == 320)) {
+		value = 0;
+		value |= 0x80000000;
+		value |= 0x00780050;
+		value |= (0x7f800000 | (0x14 << 7));
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, value);
+
+		value = 0x07800780; //PLLH MIPITX CLK = 14.583MHz
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, value);
+	} else if ((mode->hdisplay == 800) && (mode->vdisplay == 480)) {
+		value = 0;
+		value |= 0x00780058;
+		value |= (0x7f800000 | (0x15 << 7));
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, value);
+
+		value = 0x07800380; //PLLH MIPITX CLK = 26.563MHz
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, value);
+	} else if ((mode->hdisplay == 720) && (mode->vdisplay == 480)) {
+		value = 0;
+		value |= 0x00780050;
+		value |= (0x7f800000 | (0xe << 7));
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, value);
+
+		value = 0x07800380; //PLLH MIPITX CLK = 27.08MHz
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, value);
+	} else if ((mode->hdisplay == 1280) && (mode->vdisplay == 720)) {
+		value = 0;
+		value |= 0x00780038;
+		value |= (0x7f800000 | (0x13 << 7));
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, value);
+
+		value = 0x07800180; //PLLH MIPITX CLK = 74MHz
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, value);
+	} else if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080)) {
+		value = 0;
+		value |= 0x00780038;
+		value |= (0x7f800000 | (0x13 << 7));
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, value);
+
+		value = 0x07800080; //PLLH MIPITX CLK = 148MHz
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, value);
+	} else {
+		value = 0;
+		value |= (0x00780000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][8] << 3));
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, value);
+
+		value = 0;
+		value |= (0x07800000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][9] << 7));
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, value);
+	}
+
+	value = 0x00000000;
+	value |= (SP7350_MIPITX_MIPI_PHY_EN_DIV5(sp_mipitx_phy_pllclk_dsi[time_cnt][6]) |
+			SP7350_MIPITX_MIPI_PHY_POSTDIV(sp_mipitx_phy_pllclk_dsi[time_cnt][5]) |
+			SP7350_MIPITX_MIPI_PHY_FBKDIV(sp_mipitx_phy_pllclk_dsi[time_cnt][3]) |
+			SP7350_MIPITX_MIPI_PHY_PRESCALE(sp_mipitx_phy_pllclk_dsi[time_cnt][2]) |
+			SP7350_MIPITX_MIPI_PHY_PREDIV(sp_mipitx_phy_pllclk_dsi[time_cnt][4]));
+	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL6, value);
+
+	value = SP7350_DSI_HOST_READ(MIPITX_ANALOG_CTRL7);
+	value &= ~(SP7350_MIPITX_MIPI_PHY_BNKSEL_MASK);
+	value |= SP7350_MIPITX_MIPI_PHY_BNKSEL(sp_mipitx_phy_pllclk_dsi[time_cnt][7]);
+	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL7, value);
+
+	/*
+	 * check pll clock setting (debug only)
+	 */
+	sp7350_mipitx_pllclk_get(sp_dsi_host);
+	sp7350_mipitx_txpll_get(sp_dsi_host);
+}
+
+static void sp7350_mipitx_video_set(struct sp7350_dsi_host *sp_dsi_host,
+	struct drm_display_mode *mode)
+{
+	u32 width, height, data_bit;
+	u32 value;
+
+	width = mode->hdisplay;
+	height = mode->vdisplay;
+	data_bit = sp_dsi_host->divider * sp_dsi_host->lanes;
+
+	DRM_DEBUG_DRIVER("hdisplay %d vdisplay %d\n",
+		mode->hdisplay, mode->vdisplay);
+
+	value = 0;
+	value |= SP7350_MIPITX_HSA_SET(mode->hsync_end - mode->hsync_start) |
+		SP7350_MIPITX_HFP_SET(mode->hsync_start - mode->hdisplay) |
+		SP7350_MIPITX_HBP_SET(mode->htotal - mode->hsync_end);
+	SP7350_DSI_HOST_WRITE(MIPITX_VM_HT_CTRL, value);
+
+	value = 0;
+	value |= SP7350_MIPITX_VSA_SET(mode->vsync_end - mode->vsync_start) |
+		SP7350_MIPITX_VFP_SET(mode->vsync_start - mode->vdisplay) |
+		SP7350_MIPITX_VBP_SET(mode->vtotal - mode->vsync_end);
+	SP7350_DSI_HOST_WRITE(MIPITX_VM_VT0_CTRL, value);
+
+	value = 0;
+	value |= SP7350_MIPITX_VACT_SET(mode->vdisplay);
+	SP7350_DSI_HOST_WRITE(MIPITX_VM_VT1_CTRL, value);
+
+	value = 0;
+	value |= ((width << 16) | ((width * data_bit) / 8));
+	SP7350_DSI_HOST_WRITE(MIPITX_WORD_CNT, value);
+}
+
+static void sp7350_mipitx_dsi_cmd_mode_start(struct sp7350_dsi_host *sp_dsi_host)
+{
+	u32 value;
+
+	DRM_DEBUG_DRIVER("%s\n", __func__);
+
+	value = 0;
+	value |= SP7350_MIPITX_OP_CTRL_TXLDPT;
+	SP7350_DSI_HOST_WRITE(MIPITX_OP_CTRL, value);
+
+	value = 0;
+	value |= (SP7350_MIPITX_CORE_CTRL_INPUT_EN |
+			SP7350_MIPITX_CORE_CTRL_ANALOG_EN |
+			SP7350_MIPITX_CORE_CTRL_CMD_TRANS_TIME |
+			SP7350_MIPITX_CORE_CTRL_DSI_EN);
+	if ((sp_dsi_host->lanes == 1) || (sp_dsi_host->lanes == 2) ||
+		(sp_dsi_host->lanes == 4)) {
+		value |= SP7350_MIPITX_CORE_CTRL_LANE_NUM_SET(sp_dsi_host->lanes - 1);
+		SP7350_DSI_HOST_WRITE(MIPITX_CORE_CTRL, value);
+	} else
+		pr_err("unsupported %d lanes\n", sp_dsi_host->lanes);
+
+	SP7350_DSI_HOST_WRITE(MIPITX_BTA_CTRL, 0x00520004);
+	SP7350_DSI_HOST_WRITE(MIPITX_ULPS_DELAY, 0x00000aff);
+}
+
+static void sp7350_mipitx_lane_timing_init(struct sp7350_dsi_host *sp_dsi_host)
+{
+	u32 value = 0;
+
+	DRM_DEBUG_DRIVER("%s\n", __func__);
+	/*
+	 * Enable clock lane at High Speed Mode
+	 */
+	value = 0;
+	value |= SP7350_MIPITX_CLK_CTRL_CKHS_EN;
+	SP7350_DSI_HOST_WRITE(MIPITX_CLK_CTRL, value);
+}
+
+static void sp7350_mipitx_dsi_video_mode_on(struct sp7350_dsi_host *sp_dsi_host)
+{
+	u32 value;
+
+	DRM_DEBUG_DRIVER("%s\n", __func__);
+
+	value = 0;
+	value |= (SP7350_MIPITX_CORE_CTRL_INPUT_EN |
+			SP7350_MIPITX_CORE_CTRL_ANALOG_EN |
+			SP7350_MIPITX_CORE_CTRL_DSI_EN);
+
+	if ((sp_dsi_host->lanes == 1) || (sp_dsi_host->lanes == 2) ||
+		(sp_dsi_host->lanes == 4)) {
+		value |= SP7350_MIPITX_CORE_CTRL_LANE_NUM_SET(sp_dsi_host->lanes - 1);
+		SP7350_DSI_HOST_WRITE(MIPITX_CORE_CTRL, value);
+	} else
+		pr_err("unsupported %d lanes\n", sp_dsi_host->lanes);
+
+}
+
+static void check_dsi_cmd_fifo_full(struct sp7350_dsi_host *sp_dsi_host)
+{
+	int mipitx_fifo_timeout = 0;
+	u32 value = 0;
+
+	value = SP7350_DSI_HOST_READ(MIPITX_CMD_FIFO);
+	while ((value & MIPITX_CMD_FIFO_FULL) == MIPITX_CMD_FIFO_FULL) {
+		if (mipitx_fifo_timeout > 10000) { //over 1 second
+			pr_info("cmd fifo full timeout\n");
+			break;
+		}
+		value = SP7350_DSI_HOST_READ(MIPITX_CMD_FIFO);
+		++mipitx_fifo_timeout;
+		udelay(100);
+	}
+}
+
+static void check_dsi_data_fifo_full(struct sp7350_dsi_host *sp_dsi_host)
+{
+	int mipitx_fifo_timeout = 0;
+	u32 value = 0;
+
+	value = SP7350_DSI_HOST_READ(MIPITX_CMD_FIFO);
+	while ((value & MIPITX_DATA_FIFO_FULL) == MIPITX_DATA_FIFO_FULL) {
+		if (mipitx_fifo_timeout > 10000) { //over 1 second
+			pr_info("data fifo full timeout\n");
+			break;
+		}
+		value = SP7350_DSI_HOST_READ(MIPITX_CMD_FIFO);
+		++mipitx_fifo_timeout;
+		udelay(100);
+	}
+}
+
 
 static enum drm_mode_status _sp7350_dsi_encoder_phy_mode_valid(
 					struct drm_encoder *encoder,
 					const struct drm_display_mode *mode)
 {
 	/* TODO reference to dsi_encoder_phy_mode_valid */
-	DRM_DEBUG_DRIVER("  [TODO]\n");
+	DRM_DEBUG_DRIVER("%s [TODO]\n", __func__);
 
 	return MODE_OK;
 }
@@ -198,8 +736,7 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 	struct drm_display_mode adj_mode;
 	enum drm_mode_status ret;
 
-	pr_info("  [DSI]%s start", __func__); //hammer test
-	//DRM_DEBUG_DRIVER("[Start]\n");
+	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	/*
 	 * The crtc might adjust the mode, so go through the
@@ -223,6 +760,7 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 		if (ret != MODE_OK)
 			return ret;
 	}
+
 	return MODE_OK;
 }
 
@@ -230,20 +768,19 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adj_mode)
 {
-	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
-	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
+	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
+	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 
 	/* TODO reference to dsi_encoder_mode_set */
-	//DRM_DEBUG_DRIVER("[TODO]\n");
-	pr_info("  [DSI]%s", __func__); //hammer test
+	DRM_DEBUG_DRIVER("[TODO]\n");
 	DRM_DEBUG_DRIVER("SET mode[%dx%x], adj_mode[%dx%d]\n",
 			 mode->hdisplay, mode->vdisplay,
 		adj_mode->hdisplay, adj_mode->vdisplay);
 
-	sp7350_mipitx_dsi_pllclk_set(dsi, adj_mode);
-	sp7350_mipitx_dsi_video_mode_setting(dsi, adj_mode);
+	sp7350_mipitx_clock_set(sp_dsi_host, adj_mode);
+	sp7350_mipitx_video_set(sp_dsi_host, adj_mode);
 	/* store */
-	drm_mode_copy(&dsi->adj_mode_store, adj_mode);
+	drm_mode_copy(&sp_dsi_host->adj_mode_store, adj_mode);
 }
 
 static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
@@ -251,29 +788,27 @@ static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 				    struct drm_connector_state *conn_state)
 {
 	/* do nothing */
-	pr_info("  [DSI]%s: do nothing", __func__); //hammer test
-	//DRM_DEBUG_DRIVER("[do nothing]\n");
+	DRM_DEBUG_DRIVER("[do nothing]\n");
 	return 0;
 }
 
 static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 {
+	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
+	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_bridge *iter;
-	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
-	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
 
-	pr_info("  [DSI]%s: %s", __func__, encoder->name); //hammer test
-	//DRM_DEBUG_DRIVER("%s\n", encoder->name);
+	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
-	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
+	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->disable)
 			iter->funcs->disable(iter);
 
-		if (iter == dsi->bridge)
+		if (iter == sp_dsi_host->bridge)
 			break;
 	}
 
-	list_for_each_entry_from(iter, &dsi->bridge_chain, chain_node) {
+	list_for_each_entry_from(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->post_disable)
 			iter->funcs->post_disable(iter);
 	}
@@ -281,21 +816,22 @@ static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 
 static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 {
+	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
+	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_bridge *iter;
-	struct sp7350_dsi_encoder *sp7350_encoder = to_sp7350_dsi_encoder(encoder);
-	struct sp7350_drm_dsi *dsi = sp7350_encoder->dsi;
 
-	pr_info("  [DSI]%s: %s", __func__, encoder->name); //hammer test
-	//DRM_DEBUG_DRIVER("%s\n", encoder->name);
+	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
-	sp7350_mipitx_dsi_cmd_mode_start(dsi);
-	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
+	sp7350_mipitx_dsi_cmd_mode_start(sp_dsi_host);
+
+	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->pre_enable)
 			iter->funcs->pre_enable(iter);
 	}
-	sp7350_mipitx_dsi_video_mode_on(dsi);
 
-	list_for_each_entry_reverse(iter, &dsi->bridge_chain, chain_node) {
+	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+
+	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->enable)
 			iter->funcs->enable(iter);
 	}
@@ -314,38 +850,32 @@ static enum drm_connector_status sp7350_dsi_encoder_detect(struct drm_encoder *e
 static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 					const struct mipi_dsi_msg *msg)
 {
-	/* reference to vc4_dsi_host_transfer */
-	/* simple for send packet only! */
-	//sp7350_dcs_write_buf(msg->tx_buf, msg->tx_len);
-
-	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
-	int i;
-	u8 *data1;
+	struct sp7350_dsi_host *sp_dsi_host = sp7350_host_to_dsi(host);
 	u32 value, data_cnt;
+	u8 *data1;
+	int i;
 
-	//DRM_DEBUG_DRIVER("len %ld\n", msg->tx_len);
-	//print_hex_dump(KERN_INFO, "", DUMP_PREFIX_OFFSET, 16, 1,
-	//	       msg->tx_buf, msg->tx_len, false);
+	DRM_DEBUG_DRIVER("len %ld\n", msg->tx_len);
 
 	data1 = (u8 *)msg->tx_buf;
 
 	udelay(100);
 	if (msg->tx_len == 0) {
-		check_dsi_cmd_fifo_full(dsi);
+		check_dsi_cmd_fifo_full(sp_dsi_host);
 		value = 0x00000003;
-		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
+		SP7350_DSI_HOST_WRITE(MIPITX_SPKT_HEAD, value);
 	} else if (msg->tx_len == 1) {
-		check_dsi_cmd_fifo_full(dsi);
+		check_dsi_cmd_fifo_full(sp_dsi_host);
 		value = 0x00000013 | (data1[0] << 8);
-		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
+		SP7350_DSI_HOST_WRITE(MIPITX_SPKT_HEAD, value);
 	} else if (msg->tx_len == 2) {
-		check_dsi_cmd_fifo_full(dsi);
+		check_dsi_cmd_fifo_full(sp_dsi_host);
 		value = 0x00000023 | (data1[0] << 8) | (data1[1] << 16);
-		writel(value, dsi->regs + MIPITX_SPKT_HEAD); //G204.09
+		SP7350_DSI_HOST_WRITE(MIPITX_SPKT_HEAD, value);
 	} else if ((msg->tx_len >= 3) && (msg->tx_len <= 64)) {
-		check_dsi_cmd_fifo_full(dsi);
+		check_dsi_cmd_fifo_full(sp_dsi_host);
 		value = 0x00000029 | ((u32)msg->tx_len << 8);
-		writel(value, dsi->regs + MIPITX_LPKT_HEAD); //G204.10
+		SP7350_DSI_HOST_WRITE(MIPITX_LPKT_HEAD, value);
 
 		if (msg->tx_len % 4)
 			data_cnt = ((u32)msg->tx_len / 4) + 1;
@@ -353,7 +883,7 @@ static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 			data_cnt = ((u32)msg->tx_len / 4);
 
 		for (i = 0; i < data_cnt; i++) {
-			check_dsi_data_fifo_full(dsi);
+			check_dsi_data_fifo_full(sp_dsi_host);
 			value = 0x00000000;
 			if (i * 4 + 0 < msg->tx_len)
 				value |= (data1[i * 4 + 0] << 0);
@@ -363,10 +893,10 @@ static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 				value |= (data1[i * 4 + 2] << 16);
 			if (i * 4 + 3 < msg->tx_len)
 				value |= (data1[i * 4 + 3] << 24);
-			writel(value, dsi->regs + MIPITX_LPKT_PAYLOAD); //G204.11
+			SP7350_DSI_HOST_WRITE(MIPITX_LPKT_PAYLOAD, value);
 		}
 	} else {
-		DRM_DEV_ERROR(&dsi->pdev->dev, "data length over %ld\n", msg->tx_len);
+		DRM_DEV_ERROR(&sp_dsi_host->pdev->dev, "data length over %ld\n", msg->tx_len);
 		return -1;
 	}
 
@@ -376,51 +906,56 @@ static ssize_t sp7350_dsi_host_transfer(struct mipi_dsi_host *host,
 static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 				  struct mipi_dsi_device *device)
 {
-	struct sp7350_drm_dsi *dsi = host_to_dsi(host);
+	struct sp7350_dsi_host *sp_dsi_host = sp7350_host_to_dsi(host);
 
-	pr_info("  [DSI]%s start", __func__); //hammer test
-	//DRM_DEBUG_DRIVER("[Start]\n");
-	if (!dsi->regs || !dsi->ao_moon3) {
-		DRM_DEV_ERROR(&dsi->pdev->dev, "dsi host probe fail!.\n");
+	DRM_DEBUG_DRIVER("%s\n", __func__);
+	if (!sp_dsi_host->regs || !sp_dsi_host->ao_moon3) {
+		DRM_DEV_ERROR(&sp_dsi_host->pdev->dev, "dsi host probe fail!.\n");
 		return -1;
 	}
 
-	dsi->lanes = device->lanes;
-	dsi->channel = device->channel;
-	dsi->mode_flags = device->mode_flags;
+	DRM_DEBUG_DRIVER("channel %d lanes=%d flags=0x%08lx format=%s\n",
+		device->channel,
+		device->lanes,
+		device->mode_flags,
+		sp7350_dsi_fmt[device->format]);
+
+	sp_dsi_host->lanes = device->lanes;
+	sp_dsi_host->channel = device->channel;
+	sp_dsi_host->mode_flags = device->mode_flags;
 
 	switch (device->format) {
 	case MIPI_DSI_FMT_RGB888:
-		dsi->format = DSI_PFORMAT_RGB888;
-		dsi->divider = 24 / dsi->lanes;
+		sp_dsi_host->format = DSI_PFORMAT_RGB888;
+		sp_dsi_host->divider = 24 / sp_dsi_host->lanes;
 		break;
 	case MIPI_DSI_FMT_RGB666:
-		dsi->format = DSI_PFORMAT_RGB666;
-		dsi->divider = 24 / dsi->lanes;
+		sp_dsi_host->format = DSI_PFORMAT_RGB666;
+		sp_dsi_host->divider = 24 / sp_dsi_host->lanes;
 		break;
 	case MIPI_DSI_FMT_RGB666_PACKED:
-		dsi->format = DSI_PFORMAT_RGB666_PACKED;
-		dsi->divider = 18 / dsi->lanes;
+		sp_dsi_host->format = DSI_PFORMAT_RGB666_PACKED;
+		sp_dsi_host->divider = 18 / sp_dsi_host->lanes;
 		break;
 	case MIPI_DSI_FMT_RGB565:
-		dsi->format = DSI_PFORMAT_RGB565;
-		dsi->divider = 16 / dsi->lanes;
+		sp_dsi_host->format = DSI_PFORMAT_RGB565;
+		sp_dsi_host->divider = 16 / sp_dsi_host->lanes;
 		break;
 	default:
-		DRM_DEV_ERROR(&dsi->pdev->dev, "Unknown DSI format: %d.\n",
-			      dsi->format);
+		DRM_DEV_ERROR(&sp_dsi_host->pdev->dev, "Unknown DSI format: %d.\n",
+			      sp_dsi_host->format);
 		return -1;
 	}
 
-	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO)) {
-		DRM_DEV_ERROR(&dsi->pdev->dev,
+	if (!(sp_dsi_host->mode_flags & MIPI_DSI_MODE_VIDEO)) {
+		DRM_DEV_ERROR(&sp_dsi_host->pdev->dev,
 			      "Only VIDEO mode panels supported currently.\n");
 		return -1;
 	}
 
-	sp7350_mipitx_dsi_phy_init(dsi);
-	sp7350_mipitx_dsi_pllclk_init(dsi);
-	sp7350_mipitx_dsi_lane_control_set(dsi);
+	sp7350_mipitx_phy_init(sp_dsi_host);
+	sp7350_mipitx_clock_init(sp_dsi_host);
+	sp7350_mipitx_lane_timing_init(sp_dsi_host);
 
 	return 0;
 }
@@ -428,8 +963,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 static int sp7350_dsi_host_detach(struct mipi_dsi_host *host,
 				  struct mipi_dsi_device *device)
 {
-	pr_info("  [DSI]%s TODO", __func__); //hammer test
-	//DRM_DEBUG_DRIVER("[TODO]\n");
+	DRM_DEBUG_DRIVER("[TODO]\n");
 	return 0;
 }
 
@@ -453,28 +987,25 @@ static const struct of_device_id sp7350_dsi_dt_match[] = {
 	{}
 };
 
-static int sp7350_drm_encoder_init(struct device *dev,
+static int sp7350_encoder_init(struct device *dev,
 				   struct drm_device *drm_dev,
 				   struct drm_encoder *encoder)
 {
-	int ret;
 	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
+	int ret;
 
-	pr_info("  [DSI]%s", __func__); //hammer test
+	DRM_DEV_DEBUG_DRIVER(dev, "%s\n", __func__);
 
 	if (!crtc_mask) {
-		pr_info("  [DSI]%s - failed to find crtc mask\n", __func__); //hammer test
-		//DRM_DEV_ERROR(dev, "failed to find crtc mask\n");
+		DRM_DEV_ERROR(dev, "failed to find crtc mask\n");
 		return -EINVAL;
 	}
 
 	encoder->possible_crtcs = crtc_mask;
-	pr_info("  [DSI]%s - crtc_mask:0x%X\n", __func__, crtc_mask); //hammer test
-	//DRM_DEV_DEBUG_DRIVER(dev, "crtc_mask:0x%X\n", crtc_mask);
+	DRM_DEV_DEBUG_DRIVER(dev, "crtc_mask:0x%X\n", crtc_mask);
 	ret = drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_DSI);
 	if (ret) {
-		pr_info("  [DSI]%s - failed to init dsi encoder\n", __func__); //hammer test
-		//DRM_DEV_ERROR(dev, "failed to init dsi encoder\n");
+		DRM_DEV_ERROR(dev, "failed to init dsi encoder\n");
 		return ret;
 	}
 
@@ -487,43 +1018,79 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 {
 	//struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
-	struct sp7350_drm_dsi *dsi = dev_get_drvdata(dev);
-	struct sp7350_dsi_encoder *sp7350_dsi_encoder;
+	struct sp7350_dsi_host *sp_dsi_host = dev_get_drvdata(dev);
+	struct sp7350_dsi_encoder *sp_dsi_encoder;
 	struct drm_panel *panel;
 	//const struct of_device_id *match;
 	//dma_cap_mask_t dma_mask;
 	int ret;
+	int child_count = 0;
+	u32 endpoint_id = 0;
+	struct device_node  *port, *endpoint;
 
-	pr_info("  [DSI]%s start", __func__); //hammer test
-	//DRM_DEV_DEBUG_DRIVER(dev, "start.\n");
+	DRM_DEV_DEBUG_DRIVER(dev, "start.\n");
 
 	//match = of_match_device(sp7350_dsi_dt_match, dev);
 	//if (!match)
 	//	return -ENODEV;
 
-	dsi->port = 0;
+	sp_dsi_host->port = 0;
 
-	sp7350_dsi_encoder = devm_kzalloc(dev, sizeof(*sp7350_dsi_encoder),
+	sp_dsi_encoder = devm_kzalloc(dev, sizeof(*sp_dsi_encoder),
 					  GFP_KERNEL);
-	if (!sp7350_dsi_encoder)
+	if (!sp_dsi_encoder)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&dsi->bridge_chain);
-	sp7350_dsi_encoder->base.type = SP7350_DRM_ENCODER_TYPE_DSI0;
-	sp7350_dsi_encoder->dsi = dsi;
-	dsi->encoder = &sp7350_dsi_encoder->base.base;
+	INIT_LIST_HEAD(&sp_dsi_host->bridge_chain);
+	sp_dsi_encoder->base.type = SP7350_DRM_ENCODER_TYPE_DSI0;
+	sp_dsi_encoder->sp_dsi_host = sp_dsi_host;
+	sp_dsi_host->encoder = &sp_dsi_encoder->base.base;
 
-	init_completion(&dsi->xfer_completion);
+	sp_dsi_host->regset_g204.base = sp_dsi_host->regs + (SP7350_REG_OFFSET_MIPITX_G204 << 7);
+	sp_dsi_host->regset_g204.regs = sp_dsi_host_g0_regs;
+	sp_dsi_host->regset_g204.nregs = ARRAY_SIZE(sp_dsi_host_g0_regs);
+
+	sp_dsi_host->regset_g205.base = sp_dsi_host->regs + (SP7350_REG_OFFSET_MIPITX_G205 << 7);;
+	sp_dsi_host->regset_g205.regs = sp_dsi_host_g1_regs;
+	sp_dsi_host->regset_g205.nregs = ARRAY_SIZE(sp_dsi_host_g1_regs);
+
+	sp_dsi_host->regset_ao_moon3.base = sp_dsi_host->ao_moon3;
+	sp_dsi_host->regset_ao_moon3.regs = sp_dsi_ao_moon3_regs;
+	sp_dsi_host->regset_ao_moon3.nregs = ARRAY_SIZE(sp_dsi_ao_moon3_regs);
+
+	init_completion(&sp_dsi_host->xfer_completion);
 
 	/*
 	 * Get the endpoint node. In our case, dsi has one output port1
-	 * to which the external HDMI bridge is connected.
+	 * to which the internal panel or external HDMI bridge connected.
+	 * Cannot support both at the same time, internal panel first.
 	 */
-	
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
+	//ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &dsi->bridge);
+	port = of_graph_get_port_by_id(dev->of_node, 1);
+	if (!port) {
+		DRM_DEV_ERROR(dev,
+			      "can't found port point, please init lvds panel port!\n");
+		return -EINVAL;
+	}
+	for_each_child_of_node(port, endpoint) {
+		child_count++;
+		of_property_read_u32(endpoint, "reg", &endpoint_id);
+		DRM_DEV_DEBUG(dev, "endpoint_id:%d\n", endpoint_id);
+		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, endpoint_id,
+						  &panel, &sp_dsi_host->bridge);
+		of_node_put(endpoint);
+		if (!ret) {
+			break;
+		}
+	}
+	of_node_put(port);
+	if (!child_count) {
+		DRM_DEV_ERROR(dev, "dsi0 port does not have any children\n");
+		ret = -EINVAL;
+		return ret;
+	}
 	if (ret) {
-		pr_info("  [DSI]%s - drm_of_find_panel_or_bridge failed -%d\n", __func__, -ret); //hammer test
-		//DRM_DEV_ERROR(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
+		DRM_DEV_ERROR(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
 		/* If the bridge or panel pointed by dev->of_node is not
 		 * enabled, just return 0 here so that we don't prevent the DRM
 		 * dev from being registered. Of course that means the DSI
@@ -534,30 +1101,25 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 			return 0;
 
 		return ret;
-	} else {
-		pr_info("  [DSI]%s - drm_of_find_panel_or_bridge ok", __func__); //hammer test
 	}
 
-	pr_info("  [DSI]%s - devm_drm_panel_bridge_add_typed", __func__); //hammer test
+	DRM_DEV_DEBUG_DRIVER(dev, "devm_drm_panel_bridge_add_typed\n");
 	if (panel) {
-		dsi->bridge = devm_drm_panel_bridge_add_typed(dev, panel,
+		sp_dsi_host->bridge = devm_drm_panel_bridge_add_typed(dev, panel,
 							      DRM_MODE_CONNECTOR_DSI);
-		if (IS_ERR(dsi->bridge))
-			return PTR_ERR(dsi->bridge);
+		if (IS_ERR(sp_dsi_host->bridge))
+			return PTR_ERR(sp_dsi_host->bridge);
 	}
 
-	pr_info("  [DSI]%s - sp7350_drm_encoder_init", __func__); //hammer test
-	ret = sp7350_drm_encoder_init(dev, drm, dsi->encoder);
+	DRM_DEV_DEBUG_DRIVER(dev, "sp7350_encoder_init\n");
+	ret = sp7350_encoder_init(dev, drm, sp_dsi_host->encoder);
 	if (ret)
 		return ret;
 
-	ret = drm_bridge_attach(dsi->encoder, dsi->bridge, NULL, 0);
+	ret = drm_bridge_attach(sp_dsi_host->encoder, sp_dsi_host->bridge, NULL, 0);
 	if (ret) {
-		pr_info("  [DSI]%s - drm_bridge_attach failed: %d\n", __func__, ret); //hammer test
-		//DRM_DEV_ERROR(dev, "bridge attach failed: %d\n", ret);
+		DRM_DEV_ERROR(dev, "bridge attach failed: %d\n", ret);
 		return ret;
-	} else {
-		pr_info("  [DSI]%s - drm_bridge_attach ok", __func__); //hammer test
 	}
 
 	/* FIXME, use firmware EDID for lt8912b */
@@ -573,14 +1135,16 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	 * from our driver, since we need to sequence them within the
 	 * encoder's enable/disable paths.
 	 */
-	list_splice_init(&dsi->encoder->bridge_chain, &dsi->bridge_chain);
+	list_splice_init(&sp_dsi_host->encoder->bridge_chain, &sp_dsi_host->bridge_chain);
 
 	//sp7350_debugfs_add_regset32(drm, dsi->variant->debugfs_name, &dsi->regset);
+	sp7350_debugfs_add_regset32(drm, "regs_g204", &sp_dsi_host->regset_g204);
+	sp7350_debugfs_add_regset32(drm, "regs_g205", &sp_dsi_host->regset_g205);
+	sp7350_debugfs_add_regset32(drm, "regs_ao_moon3", &sp_dsi_host->regset_ao_moon3);
 
 	pm_runtime_enable(dev);
 
-	pr_info("  [DSI]%s done", __func__); //hammer test
-	//DRM_DEV_DEBUG_DRIVER(dev, "finish.\n");
+	DRM_DEV_DEBUG_DRIVER(dev, "finish.\n");
 
 	return 0;
 }
@@ -588,19 +1152,19 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 static void sp7350_dsi_unbind(struct device *dev, struct device *master,
 			      void *data)
 {
-	struct sp7350_drm_dsi *dsi = dev_get_drvdata(dev);
+	struct sp7350_dsi_host *sp_dsi_host = dev_get_drvdata(dev);
 
-	pr_info("  [DSI]%s", __func__); //hammer test
+	DRM_DEV_DEBUG_DRIVER(dev, "%s\n", __func__);
 
-	if (dsi->bridge)
+	if (sp_dsi_host->bridge)
 		pm_runtime_disable(dev);
 
 	/*
 	 * Restore the bridge_chain so the bridge detach procedure can happen
 	 * normally.
 	 */
-	list_splice_init(&dsi->bridge_chain, &dsi->encoder->bridge_chain);
-	drm_encoder_cleanup(dsi->encoder);
+	list_splice_init(&sp_dsi_host->bridge_chain, &sp_dsi_host->encoder->bridge_chain);
+	drm_encoder_cleanup(sp_dsi_host->encoder);
 }
 
 static const struct component_ops sp7350_dsi_ops = {
@@ -625,72 +1189,54 @@ static const char * const sp7350_disp_rtsc[] = {
 static int sp7350_dsi_dev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct sp7350_drm_dsi *dsi;
+	struct sp7350_dsi_host *sp_dsi_host;
 	int ret, i;
 
-	pr_info("  [DSI]%s", __func__); //hammer test
+	DRM_DEV_DEBUG_DRIVER(dev, "start\n");
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
-	if (!dsi)
+	sp_dsi_host = devm_kzalloc(dev, sizeof(*sp_dsi_host), GFP_KERNEL);
+	if (!sp_dsi_host)
 		return -ENOMEM;
-	dev_set_drvdata(dev, dsi);
+	dev_set_drvdata(dev, sp_dsi_host);
 
-	dsi->pdev = pdev;
+	sp_dsi_host->pdev = pdev;
 
 	/*
 	 * init clk & reset
 	 */
-	pr_info("  [DSI]%s - init clken & reset", __func__); //hammer test
+	DRM_DEV_DEBUG_DRIVER(dev, "init clken & reset\n");
 	for (i = 0; i < 16; i++) {
-		dsi->disp_clk[i] = devm_clk_get(dev, sp7350_disp_clkc[i]);
-		//pr_info("default clk[%d] %ld\n", i, clk_get_rate(dsi->disp_clk[i]));
-		if (IS_ERR(dsi->disp_clk[i]))
-			return PTR_ERR(dsi->disp_clk[i]);
+		sp_dsi_host->disp_clk[i] = devm_clk_get(dev, sp7350_disp_clkc[i]);
+		if (IS_ERR(sp_dsi_host->disp_clk[i]))
+			return PTR_ERR(sp_dsi_host->disp_clk[i]);
 
-		dsi->disp_rstc[i] = devm_reset_control_get_exclusive(dev, sp7350_disp_rtsc[i]);
-		if (IS_ERR(dsi->disp_rstc[i]))
-			return dev_err_probe(dev, PTR_ERR(dsi->disp_rstc[i]), "err get reset\n");
+		sp_dsi_host->disp_rstc[i] = devm_reset_control_get_exclusive(dev, sp7350_disp_rtsc[i]);
+		if (IS_ERR(sp_dsi_host->disp_rstc[i]))
+			return dev_err_probe(dev, PTR_ERR(sp_dsi_host->disp_rstc[i]), "err get reset\n");
 
-		ret = reset_control_deassert(dsi->disp_rstc[i]);
+		ret = reset_control_deassert(sp_dsi_host->disp_rstc[i]);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed to deassert reset\n");
 
-		ret = clk_prepare_enable(dsi->disp_clk[i]);
+		ret = clk_prepare_enable(sp_dsi_host->disp_clk[i]);
 		if (ret)
 			return ret;
 	}
 
-	/* setting for C3V DISPLAY REGISTER - PART2 */
 	/*
-	 * get reg base resource G204 - G205
+	 * get disp reg base (G204 - G205)
 	 */
-	pr_info("  [DSI]%s - init mipitx regs", __func__); //hammer test
-	dsi->regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(dsi->regs))
-		return dev_err_probe(&pdev->dev, PTR_ERR(dsi->regs), "dsi reg not found\n");
+	DRM_DEV_DEBUG_DRIVER(dev, "init mipitx regs\n");
+	sp_dsi_host->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(sp_dsi_host->regs))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sp_dsi_host->regs), "dsi reg not found\n");
 	/*
-	 * get reg base resource G03_AO
+	 * get pllh reg base (G03_AO)
 	 */
-	pr_info("  [DSI]%s - init pllh regs", __func__); //hammer test
-	dsi->ao_moon3 = devm_platform_ioremap_resource(pdev, 1);
-	if (IS_ERR(dsi->ao_moon3))
-		return dev_err_probe(&pdev->dev, PTR_ERR(dsi->ao_moon3), "dsi reg ao_moon3 not found\n");
-
-#if 1 //need repair by hammer
-	pr_info("  G204.04 0x%08x G204.05 0x%08x\n",
-		readl(dsi->regs + MIPITX_LP_CK), readl(dsi->regs + MIPITX_LANE_TIME_CTRL));
-
-	pr_info("  G205.04 0x%08x G205.05 0x%08x\n",
-		readl(dsi->regs + MIPITX_ANALOG_CTRL1), readl(dsi->regs + MIPITX_DEBUG_CTRL));
-	
-	pr_info("  G03_AO.14/15/16 0x%08x 0x%08x 0x%08x\n",
-		readl(dsi->ao_moon3 + MIPITX_AO_MOON3_14),
-		readl(dsi->ao_moon3 + MIPITX_AO_MOON3_15),
-		readl(dsi->ao_moon3 + MIPITX_AO_MOON3_16));
-#endif
-
-	//sp7350_mipitx_phy_init();
-	//sp7350_mipitx_pllclk_init();
+	DRM_DEV_DEBUG_DRIVER(dev, "init pllh regs\n");
+	sp_dsi_host->ao_moon3 = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(sp_dsi_host->ao_moon3))
+		return dev_err_probe(&pdev->dev, PTR_ERR(sp_dsi_host->ao_moon3), "dsi reg ao_moon3 not found\n");
 
 	/* Note, the initialization sequence for DSI and panels is
 	 * tricky.  The component bind above won't get past its
@@ -701,20 +1247,17 @@ static int sp7350_dsi_dev_probe(struct platform_device *pdev)
 	 * -EPROBE_DEFER its component bind process until the panel
 	 * successfully attaches.
 	 */
-	dsi->dsi_host.ops = &sp7350_dsi_host_ops;
-	dsi->dsi_host.dev = dev;
-	mipi_dsi_host_register(&dsi->dsi_host);
-
-	pr_info("  [DSI]%s done then do component_add", __func__); //hammer test
+	sp_dsi_host->dsi_host.ops = &sp7350_dsi_host_ops;
+	sp_dsi_host->dsi_host.dev = dev;
+	mipi_dsi_host_register(&sp_dsi_host->dsi_host);
 
 	ret = component_add(&pdev->dev, &sp7350_dsi_ops);
 	if (ret) {
-		pr_info("  [DSI]%s component_add failed", __func__); //hammer test
-		mipi_dsi_host_unregister(&dsi->dsi_host);
+		mipi_dsi_host_unregister(&sp_dsi_host->dsi_host);
 		return ret;
 	}
 
-	pr_info("  [DSI]%s done (ret %d)", __func__, ret); //hammer test
+	DRM_DEV_DEBUG_DRIVER(dev, "finish\n");
 
 	return ret;
 }
@@ -722,28 +1265,26 @@ static int sp7350_dsi_dev_probe(struct platform_device *pdev)
 static int sp7350_dsi_dev_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct sp7350_drm_dsi *dsi = dev_get_drvdata(dev);
+	struct sp7350_dsi_host *sp_dsi_host = dev_get_drvdata(dev);
 
-	pr_info("  [DSI]%s", __func__); //hammer test
-	//DRM_DEV_DEBUG_DRIVER(dev, "dsi driver remove.\n");
+	DRM_DEV_DEBUG_DRIVER(dev, "dsi driver remove.\n");
 
-	if (dsi->encoder)
-		sp7350_dsi_encoder_disable(dsi->encoder);
+	if (sp_dsi_host->encoder)
+		sp7350_dsi_encoder_disable(sp_dsi_host->encoder);
 
 	component_del(&pdev->dev, &sp7350_dsi_ops);
-	mipi_dsi_host_unregister(&dsi->dsi_host);
+	mipi_dsi_host_unregister(&sp_dsi_host->dsi_host);
 
 	return 0;
 }
 
 static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct sp7350_drm_dsi *dsi = dev_get_drvdata(&pdev->dev);
+	struct sp7350_dsi_host *sp_dsi_host = dev_get_drvdata(&pdev->dev);
 
-	pr_info("  [DSI]%s", __func__); //hammer test
-	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver suspend.\n");
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver suspend.\n");
 
-	if (dsi->bridge)
+	if (sp_dsi_host->bridge)
 		pm_runtime_put(&pdev->dev);
 
 	/*
@@ -755,20 +1296,19 @@ static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t sta
 	 * phy power off, disable clock, disable irq...
 	 */
 
-	if (dsi->encoder)
-		sp7350_dsi_encoder_disable(dsi->encoder);
+	if (sp_dsi_host->encoder)
+		sp7350_dsi_encoder_disable(sp_dsi_host->encoder);
 
 	return 0;
 }
 
 static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 {
-	struct sp7350_drm_dsi *dsi = dev_get_drvdata(&pdev->dev);
+	struct sp7350_dsi_host *sp_dsi_host = dev_get_drvdata(&pdev->dev);
 
-	pr_info("  [DSI]%s", __func__); //hammer test
-	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver resume.\n");
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "dsi driver resume.\n");
 
-	if (dsi->bridge)
+	if (sp_dsi_host->bridge)
 		pm_runtime_get(&pdev->dev);
 
 	/*
@@ -779,14 +1319,14 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 	/*
 	 * phy mipitx restore...
 	 */
-	sp7350_mipitx_dsi_phy_init(dsi);
-	sp7350_mipitx_dsi_pllclk_init(dsi);
-	sp7350_mipitx_dsi_lane_control_set(dsi);
-	sp7350_mipitx_dsi_pllclk_set(dsi, &dsi->adj_mode_store);
-	sp7350_mipitx_dsi_video_mode_setting(dsi, &dsi->adj_mode_store);
+	sp7350_mipitx_phy_init(sp_dsi_host);
+	sp7350_mipitx_clock_init(sp_dsi_host);
+	sp7350_mipitx_lane_timing_init(sp_dsi_host);
+	sp7350_mipitx_clock_set(sp_dsi_host, &sp_dsi_host->adj_mode_store);
+	sp7350_mipitx_video_set(sp_dsi_host, &sp_dsi_host->adj_mode_store);
 
-	if (dsi->encoder)
-		sp7350_dsi_encoder_enable(dsi->encoder);
+	if (sp_dsi_host->encoder)
+		sp7350_dsi_encoder_enable(sp_dsi_host->encoder);
 
 	return 0;
 }
@@ -797,355 +1337,7 @@ struct platform_driver sp7350_dsi_driver = {
 	.suspend = sp7350_dsi_dev_suspend,
 	.resume  = sp7350_dsi_dev_resume,
 	.driver  = {
-		.name = "sp7350_dsi",
+		.name = "sp7350_dsi_host",
 		.of_match_table = sp7350_dsi_dt_match,
 	},
 };
-
-/* SP7350 MIPITX HW config reference to sp7350_disp_mipitx.c */
-static void sp7350_mipitx_dsi_phy_init(struct sp7350_drm_dsi *dsi)
-{
-	u32 value;
-
-	value = 0x00101330; //PHY Reset(under reset)
-	//if (disp_dev->mipitx_clk_edge)
-	//	value |= SP7350_MIPITX_MIPI_PHY_CLK_EDGE_SEL(SP7350_MIPITX_FALLING);
-	writel(value, dsi->regs + MIPITX_ANALOG_CTRL2); //G205.06
-
-	if (dsi->lanes == 1)
-		value = 0x11000001; //lane num = 1 and DSI_EN and ANALOG_EN
-	else if (dsi->lanes == 2)
-		value = 0x11000011; //lane num = 2 and DSI_EN and ANALOG_EN
-	else if (dsi->lanes == 4)
-		value = 0x11000031; //lane num = 4 and DSI_EN and ANALOG_EN
-	writel(value, dsi->regs + MIPITX_CORE_CTRL); //G204.15
-
-	value = 0x00000000;
-	if (!(dsi->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE))
-		value |= SP7350_MIPITX_FORMAT_VTF_SET(SP7350_MIPITX_VTF_SYNC_EVENT);
-
-	if (dsi->format == DSI_PFORMAT_RGB565)
-		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB565);
-	else if (dsi->format == DSI_PFORMAT_RGB666)
-		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB666_18BITS);
-	else if (dsi->format == DSI_PFORMAT_RGB666_PACKED)
-		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB666_24BITS);
-	else if (dsi->format == DSI_PFORMAT_RGB888)
-		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB888);
-	else
-		value |= SP7350_MIPITX_FORMAT_VPF_SET(SP7350_MIPITX_VPF_DSI_RGB888);
-	writel(value, dsi->regs + MIPITX_FORMAT_CTRL); //G204.12
-
-	value = readl(dsi->regs + MIPITX_ANALOG_CTRL2);
-	value |= SP7350_MIPITX_NORMAL; //PHY Reset(under normal mode)
-	writel(value, dsi->regs + MIPITX_ANALOG_CTRL2); //G205.06
-}
-
-static void sp7350_mipitx_dsi_pllclk_init(struct sp7350_drm_dsi *dsi)
-{
-	u32 value, value1, value2;
-
-	value = 0x80000000; //init clock
-	writel(value, dsi->regs + MIPITX_ANALOG_CTRL9); //G205.14
-
-	//init PLLH setting
-	value = 0xffff40be; //PLLH BNKSEL = 0x2 (2000~2500MHz)
-	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_15); //AO_G3.15
-	value = 0xffff0009; //PLLH
-	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_16); //AO_G3.16
-	/*
-	 * PLLH Fvco = 2150MHz (fixed)
-	 *                             2150
-	 * MIPITX pixel CLK = ----------------------- = 59.72MHz
-	 *                     PST_DIV * MIPITX_SEL
-	 */
-	value = 0xffff0b50; //PLLH PST_DIV = div9 (default)
-	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //G205.14
-	value = 0x07800180; //PLLH MIPITX_SEL = div4
-	writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //G205.25
-
-	//init TXPLL setting
-	value = 0x00000003; //TXPLL enable and reset
-	writel(value, dsi->regs + MIPITX_ANALOG_CTRL5); //G205.10
-	/*
-	 * PRESCAL = 1, FBKDIV = 48, PRE_DIV = 1, EN_DIV5 = 0, PRE_DIV = 2, POST_DIV = 1
-	 *                    25 * PRESCAL * FBKDIV            25 * 48
-	 * MIPITX bit CLK = ------------------------------ = ----------- = 600MHz
-	 *                   PRE_DIV * POST_DIV * 5^EN_DIV5       2
-	 */
-	value1 = 0x00003001; //TXPLL MIPITX CLK = 600MHz
-	value2 = 0x00000140; //TXPLL BNKSEL = 0x0 (320~640MHz)
-	writel(value1, dsi->regs + MIPITX_ANALOG_CTRL6); //G205.11
-	writel(value2, dsi->regs + MIPITX_ANALOG_CTRL7); //G205.12
-	/*
-	 *                      600
-	 * MIPITX LP CLK = ------------ = 8.3MHz
-	 *                   8 * div9
-	 */
-	value = 0x00000008; //(600/8/div9)=8.3MHz
-	writel(value, dsi->regs + MIPITX_LP_CK); //G204.04
-
-	value = 0x00000000; //init clock done
-	writel(value, dsi->regs + MIPITX_ANALOG_CTRL9); //G205.14
-
-	//sp7350_mipitx_pllclk_get();
-	//sp7350_mipitx_txpll_get();
-}
-
-static void sp7350_mipitx_dsi_pllclk_set(struct sp7350_drm_dsi *dsi, struct drm_display_mode *mode)
-{
-	int i, time_cnt = 0;
-	u32 value;
-
-	for (i = 0; i < 11; i++) {
-		if ((sp_mipitx_phy_pllclk_dsi[i][0] == mode->hdisplay) &&
-		    (sp_mipitx_phy_pllclk_dsi[i][1] == mode->vdisplay)) {
-			time_cnt = i;
-			break;
-		}
-	}
-
-	if ((mode->hdisplay == 240) && (mode->vdisplay == 320)) {
-		value = 0;
-		value |= 0x80000000;
-		value |= 0x00780050;
-		value |= (0x7f800000 | (0x14 << 7));
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
-
-		value = 0x07800780; //PLLH MIPITX CLK = 14.583MHz
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
-	} else if ((mode->hdisplay == 800) && (mode->vdisplay == 480)) {
-		value = 0;
-		value |= 0x00780058;
-		value |= (0x7f800000 | (0x15 << 7));
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
-
-		value = 0x07800380; //PLLH MIPITX CLK = 26.563MHz
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
-	} else if ((mode->hdisplay == 720) && (mode->vdisplay == 480)) {
-		value = 0;
-		value |= 0x00780050;
-		value |= (0x7f800000 | (0xe << 7));
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
-
-		value = 0x07800380; //PLLH MIPITX CLK = 27.08MHz
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
-	} else if ((mode->hdisplay == 1280) && (mode->vdisplay == 720)) {
-		value = 0;
-		value |= 0x00780038;
-		value |= (0x7f800000 | (0x13 << 7));
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
-
-		value = 0x07800180; //PLLH MIPITX CLK = 74MHz
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
-	} else if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080)) {
-		value = 0;
-		value |= 0x00780038;
-		value |= (0x7f800000 | (0x13 << 7));
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
-
-		value = 0x07800080; //PLLH MIPITX CLK = 148MHz
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
-	} else {
-		value = 0;
-		value |= (0x00780000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][8] << 3));
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
-
-		value = 0;
-		value |= (0x07800000 | (sp_mipitx_phy_pllclk_dsi[time_cnt][9] << 7));
-		writel(value, dsi->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
-	}
-
-	value = 0x00000000;
-	value |= (SP7350_MIPITX_MIPI_PHY_EN_DIV5(sp_mipitx_phy_pllclk_dsi[time_cnt][6]) |
-			SP7350_MIPITX_MIPI_PHY_POSTDIV(sp_mipitx_phy_pllclk_dsi[time_cnt][5]) |
-			SP7350_MIPITX_MIPI_PHY_FBKDIV(sp_mipitx_phy_pllclk_dsi[time_cnt][3]) |
-			SP7350_MIPITX_MIPI_PHY_PRESCALE(sp_mipitx_phy_pllclk_dsi[time_cnt][2]) |
-			SP7350_MIPITX_MIPI_PHY_PREDIV(sp_mipitx_phy_pllclk_dsi[time_cnt][4]));
-	writel(value, dsi->regs + MIPITX_ANALOG_CTRL6); //G205.11
-
-	value = readl(dsi->regs + MIPITX_ANALOG_CTRL7); //G205.12
-	value &= ~(SP7350_MIPITX_MIPI_PHY_BNKSEL_MASK);
-	value |= SP7350_MIPITX_MIPI_PHY_BNKSEL(sp_mipitx_phy_pllclk_dsi[time_cnt][7]);
-	writel(value, dsi->regs + MIPITX_ANALOG_CTRL7); //G205.12
-}
-
-/* sp_mipitx_input_timing_dsi */
-static void sp7350_mipitx_dsi_video_mode_setting(struct sp7350_drm_dsi *dsi, struct drm_display_mode *mode)
-{
-	u32 width, height, data_bit;
-	u32 value;
-
-	width = mode->hdisplay;
-	height = mode->vdisplay;
-	data_bit = dsi->divider * dsi->lanes;
-
-	value = 0;
-	value |= SP7350_MIPITX_HSA_SET(mode->hsync_end - mode->hsync_start) |
-		SP7350_MIPITX_HFP_SET(mode->hsync_start - mode->hdisplay) |
-		SP7350_MIPITX_HBP_SET(mode->htotal - mode->hsync_end);
-	writel(value, dsi->regs + MIPITX_VM_HT_CTRL);
-
-	value = 0;
-	value |= SP7350_MIPITX_VSA_SET(mode->vsync_end - mode->vsync_start) |
-		SP7350_MIPITX_VFP_SET(mode->vsync_start - mode->vdisplay) |
-		SP7350_MIPITX_VBP_SET(mode->vtotal - mode->vsync_end);
-	writel(value, dsi->regs + MIPITX_VM_VT0_CTRL);
-
-	value = 0;
-	value |= SP7350_MIPITX_VACT_SET(mode->vdisplay);
-	writel(value, dsi->regs + MIPITX_VM_VT1_CTRL);
-
-	//MIPITX  Video Mode WordCount Setting
-	value = 0;
-	value |= ((width << 16) | ((width * data_bit) / 8));
-	writel(value, dsi->regs + MIPITX_WORD_CNT); //G204.19
-}
-
-static void sp7350_mipitx_dsi_cmd_mode_start(struct sp7350_drm_dsi *dsi)
-{
-	u32 value;
-
-	value = 0x00100000; //enable command transfer at LP mode
-	writel(value, dsi->regs + MIPITX_OP_CTRL); //G204.14
-
-	if (dsi->lanes == 1)
-		value = 0x11000003; //lane num = 1 and command mode start
-	else if (dsi->lanes == 2)
-		value = 0x11000013; //lane num = 2 and command mode start
-	else if (dsi->lanes == 4)
-		value = 0x11000033; //lane num = 4 and command mode start
-	writel(value, dsi->regs + MIPITX_CORE_CTRL); //G204.15
-
-	value = 0x00520004; //TA GET/SURE/GO
-	writel(value, dsi->regs + MIPITX_BTA_CTRL); //G204.17
-
-	//value = 0x0000c350; //fix
-	//value = 0x000000af; //fix
-	//value = 0x00000aff; //default
-	//writel(value, dsi->regs + MIPITX_ULPS_DELAY); //G204.29
-}
-
-static void sp7350_mipitx_dsi_lane_control_set(struct sp7350_drm_dsi *dsi)
-{
-	u32 value = 0;
-
-	value |= ((sp_mipitx_output_timing[0] << 16) |
-			(sp_mipitx_output_timing[1] << 0));
-	writel(value, dsi->regs + MIPITX_LANE_TIME_CTRL); //G204.05
-
-	value = 0;
-	value |= ((sp_mipitx_output_timing[2] << 16) |
-			(sp_mipitx_output_timing[3] << 0));
-	writel(value, dsi->regs + MIPITX_CLK_TIME_CTRL0); //G204.06
-
-	value = 0;
-	value |= ((sp_mipitx_output_timing[4] << 25) |
-			(sp_mipitx_output_timing[5] << 16) |
-			(sp_mipitx_output_timing[6] << 0));
-	writel(value, dsi->regs + MIPITX_CLK_TIME_CTRL1); //G204.07
-
-	value = 0;
-	value |= ((sp_mipitx_output_timing[7] << 25) |
-			(sp_mipitx_output_timing[8] << 16) |
-			(sp_mipitx_output_timing[9] << 0));
-	writel(value, dsi->regs + MIPITX_DATA_TIME_CTRL0); //G204.08
-
-	value = 0x00001100; //MIPITX Blanking Mode
-	writel(value, dsi->regs + MIPITX_BLANK_POWER_CTRL); //G204.13
-
-	value = 0x00000001; //MIPITX CLOCK CONTROL (CK_HSEN)
-	writel(value, dsi->regs + MIPITX_CLK_CTRL); //G204.30
-}
-
-static void sp7350_mipitx_dsi_video_mode_on(struct sp7350_drm_dsi *dsi)
-{
-	u32 value;
-
-	value = 0x11000000; //DSI_EN and ANALOG_EN
-	//MIPITX SWITCH to Video Mode
-	if (dsi->lanes == 1)
-		value = 0x11000001; //lane num = 1 and DSI_EN and ANALOG_EN
-	else if (dsi->lanes == 2)
-		value = 0x11000011; //lane num = 2 and DSI_EN and ANALOG_EN
-	else if (dsi->lanes == 4)
-		value = 0x11000031; //lane num = 4 and DSI_EN and ANALOG_EN
-	writel(value, dsi->regs + MIPITX_CORE_CTRL); //G204.15
-}
-
-static void check_dsi_cmd_fifo_full(struct sp7350_drm_dsi *dsi)
-{
-	int mipitx_fifo_timeout = 0;
-	u32 value = 0;
-
-	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-	//pr_info("fifo_status 0x%08x\n", value);
-	while ((value & MIPITX_CMD_FIFO_FULL) == MIPITX_CMD_FIFO_FULL) {
-		if (mipitx_fifo_timeout > 10000) { //over 1 second
-			pr_info("cmd fifo full timeout\n");
-			break;
-		}
-		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-		++mipitx_fifo_timeout;
-		udelay(100);
-	}
-}
-
-#if SP7350_DRM_TODO
-static void check_dsi_cmd_fifo_empty(struct sp7350_drm_dsi *dsi)
-{
-	int mipitx_fifo_timeout = 0;
-	u32 value = 0;
-
-	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-	//pr_info("fifo_status 0x%08x\n", value);
-	while ((value & MIPITX_CMD_FIFO_EMPTY) != MIPITX_CMD_FIFO_EMPTY) {
-		if (mipitx_fifo_timeout > 10000) { //over 1 second
-			pr_info("cmd fifo empty timeout\n");
-			break;
-		}
-		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-		++mipitx_fifo_timeout;
-		udelay(100);
-	}
-}
-#endif
-
-static void check_dsi_data_fifo_full(struct sp7350_drm_dsi *dsi)
-{
-	int mipitx_fifo_timeout = 0;
-	u32 value = 0;
-
-	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-	//pr_info("fifo_status 0x%08x\n", value);
-	while ((value & MIPITX_DATA_FIFO_FULL) == MIPITX_DATA_FIFO_FULL) {
-		if (mipitx_fifo_timeout > 10000) { //over 1 second
-			pr_info("data fifo full timeout\n");
-			break;
-		}
-		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-		++mipitx_fifo_timeout;
-		udelay(100);
-	}
-}
-
-#if SP7350_DRM_TODO
-static void check_dsi_data_fifo_empty(struct sp7350_drm_dsi *dsi)
-{
-	int mipitx_fifo_timeout = 0;
-	u32 value = 0;
-
-	value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-	//pr_info("fifo_status 0x%08x\n", value);
-	while ((value & MIPITX_DATA_FIFO_EMPTY) != MIPITX_DATA_FIFO_EMPTY) {
-		if (mipitx_fifo_timeout > 10000) { //over 1 second
-			pr_info("data fifo empty timeout\n");
-			break;
-		}
-		value = readl(dsi->regs + MIPITX_CMD_FIFO); //G204.16
-		++mipitx_fifo_timeout;
-		udelay(100);
-	}
-}
-#endif
-
