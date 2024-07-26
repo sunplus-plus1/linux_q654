@@ -1821,6 +1821,14 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 		 */
 		ret = i2c_transfer(adapter, &msgs[3 - xfers], xfers);
 
+		#if !defined(CONFIG_DRM_SP7350)
+		if (ret == -ETIMEDOUT) {
+			DRM_DEBUG_KMS("drm: skipping abnormal adapter %s\n",
+					adapter->name);
+			break;
+		}
+		#endif
+
 		if (ret == -ENXIO) {
 			DRM_DEBUG_KMS("drm: skipping non-existent adapter %s\n",
 					adapter->name);
@@ -1942,11 +1950,13 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 {
 	int i, j = 0, valid_extensions = 0;
 	u8 *edid, *new;
+	#if !defined(CONFIG_DRM_SP7350)
 	struct edid *override;
 
 	override = drm_get_override_edid(connector);
 	if (override)
 		return override;
+	#endif
 
 	if ((edid = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
 		return NULL;
