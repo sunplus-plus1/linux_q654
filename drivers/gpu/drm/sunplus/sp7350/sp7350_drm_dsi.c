@@ -290,7 +290,7 @@ static void sp7350_mipitx_phy_init(struct sp7350_dsi_host *sp_dsi_host)
 	DRM_DEBUG_DRIVER("lanes=%d flags=0x%08x format=%s\n",
 		sp_dsi_host->lanes,
 		sp_dsi_host->mode_flags,
-		sp7350_dsi_fmt[sp_dsi_host->format]); 
+		sp7350_dsi_fmt[sp_dsi_host->format]);
 
 	//PHY Reset(under reset)
 	value = SP7350_DSI_HOST_READ(MIPITX_ANALOG_CTRL2);
@@ -395,7 +395,7 @@ static void sp7350_mipitx_pllclk_get(struct sp7350_dsi_host *sp_dsi_host)
 	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
 
-	pr_info("     PLLH FVCO %04d MHz , pix_clk %03d.%02d MHz\n",
+	DRM_DEBUG_DRIVER("     PLLH FVCO %04d MHz , pix_clk %03d.%02d MHz\n",
 		tmp_value1, tmp_value2, (tmp_value3 - tmp_value2*100));
 
 }
@@ -436,14 +436,14 @@ static void sp7350_mipitx_txpll_get(struct sp7350_dsi_host *sp_dsi_host)
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
 	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
-	pr_info("    TXPLL FVCO %04d MHz , bit_clk %03d.%02d MHz\n",
+	DRM_DEBUG_DRIVER("    TXPLL FVCO %04d MHz , bit_clk %03d.%02d MHz\n",
 		tmp_value1, tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
 	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
 	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
-	pr_info("    TXPLL ---- ---- --- , byteclk %03d.%02d MHz\n",
+	DRM_DEBUG_DRIVER("    TXPLL ---- ---- --- , byteclk %03d.%02d MHz\n",
 		tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
 	value2 = SP7350_DSI_TXPLL_READ(MIPITX_LP_CK);
@@ -451,7 +451,7 @@ static void sp7350_mipitx_txpll_get(struct sp7350_dsi_host *sp_dsi_host)
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
 	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
 		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
-	pr_info("    TXPLL ---- ---- --- , LPCDclk %03d.%02d MHz\n",
+	DRM_DEBUG_DRIVER("    TXPLL ---- ---- --- , LPCDclk %03d.%02d MHz\n",
 		tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
 }

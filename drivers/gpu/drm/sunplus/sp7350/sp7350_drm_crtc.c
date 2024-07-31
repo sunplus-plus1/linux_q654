@@ -1046,16 +1046,15 @@ static void sp7350_crtc_tcon_tpg_setting(struct drm_crtc *crtc, struct drm_displ
 	int i, time_cnt = 0;
 	u32 value = 0;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 	for (i = 0; i < 11; i++) {
-		if ((sp_tcon_tpg_para_dsi[i][0] == mode->crtc_hdisplay) &&
-			(sp_tcon_tpg_para_dsi[i][1] == mode->crtc_vdisplay)) {
+		if ((sp_tcon_tpg_para_dsi[i][0] == mode->hdisplay) &&
+			(sp_tcon_tpg_para_dsi[i][1] == mode->vdisplay)) {
 				time_cnt = i;
 				break;
 		}
 	}
 
-	pr_info("%s (w h)(%d %d)\n", __func__,
+	DRM_DEBUG_DRIVER("(w h)(%d %d)\n",
 		sp_tcon_tpg_para_dsi[time_cnt][0], sp_tcon_tpg_para_dsi[time_cnt][1]);
 
 	/*
@@ -1134,7 +1133,6 @@ static bool sp7350_crtc_mode_fixup(struct drm_crtc *crtc,
 		tcon_timing->de_oev_end   = tcon_timing->hsync_end;
 		tcon_timing->stvu_start   = mode->vtotal - tcon_vsa;
 		tcon_timing->stvu_end     = 0;
-		sp7350_crtc_tcon_tpg_setting(crtc, adjusted_mode);
 	}
 
 	return true;
@@ -1146,6 +1144,7 @@ static void sp7350_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	sp7350_crtc_tgen_timing_setting(crtc, &sp_crtc->tgen_timing);
 	sp7350_crtc_tcon_timing_setting(crtc, &sp_crtc->tcon_timing);
+	sp7350_crtc_tcon_tpg_setting(crtc, &crtc->mode);
 }
 
 static int sp7350_crtc_atomic_check(struct drm_crtc *crtc,

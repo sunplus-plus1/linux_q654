@@ -74,8 +74,7 @@ static int sp7350_drm_pm_suspend(struct device *dev)
 {
 	struct sp7350_dev *sp_dev = dev_get_drvdata(dev);
 
-	pr_info("[DRV]%s", __func__); //hammer test
-	//DRM_DEV_DEBUG_DRIVER(dev, "[FIXME]drm dev driver suspend.\n");
+	DRM_DEV_DEBUG_DRIVER(dev, "[FIXME]drm dev driver suspend.\n");
 
 	/*
 	 * FIXME!!!
@@ -215,7 +214,7 @@ static void sp7350_drm_unbind(struct device *dev)
 	struct drm_device *drm = dev_get_drvdata(dev);
 
 	DRM_DEV_DEBUG_DRIVER(dev, "%s\n", __func__);
-	
+
 	drm_dev_unregister(drm);
 
 	drm_kms_helper_poll_fini(drm);

@@ -19,6 +19,24 @@
 #include "sp7350_drm_plane.h"
 #include "sp7350_drm_regs.h"
 
+/*
+ *  For IMGREAD Q654, Max Resolution 3840x2880
+ *  For VSCL Q654, Max Resolution 2688x2880 or 2688x1944???.
+ *  For OSD Q654, Max Resolution 1920x1080???.
+ */
+/* from spec */
+#define XRES_VSCL_MAX       2688
+#define YRES_VSCL_MAX       2880
+#define XRES_VIMGREAD_MAX   3840
+#define YRES_VIMGREAD_MAX   2880
+#define XRES_OSD_MAX        1920
+#define YRES_OSD_MAX        1280
+/* from test */
+//#define XRES_VSCL_MAX  2880
+//#define YRES_VSCL_MAX  4096
+
+#define SP7350_DRM_VPP_SCL_AUTO_ADJUST    1
+
 /* TODO, should add property for it. */
 #define SP7350_DRM_VPP_SCL_AUTO_ADJUST    1
 
@@ -497,7 +515,7 @@ void sp7350_osd_layer_set_by_region(struct drm_plane *plane, struct sp7350_osd_r
 	/* Fill disp_v_size & disp_h_size */
 	tmp_width = info->region_info.act_width;
 	tmp_height = info->region_info.act_height;
-	pr_info("%s wxh %dx%d\n", __func__, tmp_width, tmp_height);
+	DRM_DEBUG_DRIVER("wxh %dx%d\n", tmp_width, tmp_height);
 	osd_header[1] = SWAP32(tmp_height << 16 | tmp_width << 0);
 
 	/* Fill disp_start_row & disp_start_column */
@@ -554,7 +572,7 @@ void sp7350_osd_layer_set_by_region(struct drm_plane *plane, struct sp7350_osd_r
 	SP7350_PLANE_WRITE((OSD_HVLD_WIDTH + (osd_layer_sel << 7)),
 		info->region_info.act_width + info->region_info.act_x);
 	SP7350_PLANE_WRITE((OSD_VVLD_HEIGHT + (osd_layer_sel << 7)),
-		info->region_info.act_height + info->region_info.act_x);
+		info->region_info.act_height + info->region_info.act_y);
 
 	SP7350_PLANE_WRITE((OSD_BIST_CTRL + (osd_layer_sel << 7)), 0);
 	SP7350_PLANE_WRITE((OSD_3D_H_OFFSET + (osd_layer_sel << 7)), 0);
@@ -1077,12 +1095,29 @@ static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
+	if (((state->src_w >> 16) + (state->src_x >> 16)) > XRES_VIMGREAD_MAX
+		|| ((state->src_h >> 16) + (state->src_y >> 16)) > YRES_VIMGREAD_MAX) {
+		DRM_DEBUG_ATOMIC("Check fail[src(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
+				state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
+				XRES_VIMGREAD_MAX, YRES_VIMGREAD_MAX);
+		return -EINVAL;
+	}
+	if ((state->src_w >> 16) > XRES_VSCL_MAX || (state->src_h >> 16) > YRES_VSCL_MAX) {
+		DRM_DEBUG_ATOMIC("Check fail[src(%d,%d)], outof limit[MAX %dx%d]!\n",
+				state->src_x >> 16, state->src_w >> 16, XRES_VSCL_MAX, YRES_VSCL_MAX);
+		return -EINVAL;
+	}
+	if ((state->crtc_w + state->crtc_x) > XRES_VSCL_MAX || (state->crtc_h + state->crtc_y) > YRES_VSCL_MAX) {
+		DRM_DEBUG_ATOMIC("Check fail[crtc(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
+				state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h, XRES_VSCL_MAX, YRES_VSCL_MAX);
+		return -EINVAL;
+	}
+
 	if (state->crtc_w % 16 /*|| state->crtc_h % 16*/) {
 		DRM_DEBUG_ATOMIC("Check fail[crtc(%d,%d)], must be align to 16 byets.\n",
 				state->crtc_w, state->crtc_h);
 		return -EINVAL;
 	}
-
 	DRM_DEBUG_ATOMIC("plane atomic check end\n");
 
 	return 0;
@@ -1102,6 +1137,19 @@ static int sp7350_kms_plane_osd_atomic_check(struct drm_plane *plane,
 	if (IS_ERR(crtc_state)) {
 		DRM_DEBUG_ATOMIC("drm_atomic_get_crtc_state is err\n");
 		return PTR_ERR(crtc_state);
+	}
+
+	if (((state->src_w >> 16) + (state->src_x >> 16)) > XRES_OSD_MAX
+		|| ((state->src_h >> 16) + (state->src_y >> 16)) > YRES_OSD_MAX) {
+		DRM_DEBUG_ATOMIC("Check fail[src(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
+				state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
+				XRES_OSD_MAX, YRES_OSD_MAX);
+		return -EINVAL;
+	}
+	if ((state->crtc_w + state->crtc_x) > XRES_OSD_MAX || (state->crtc_h + state->crtc_y) > YRES_OSD_MAX) {
+		DRM_DEBUG_ATOMIC("Check fail[crtc(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
+				state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h, XRES_OSD_MAX, YRES_OSD_MAX);
+		return -EINVAL;
 	}
 
 	if (state->crtc_w != state->src_w >> 16 || state->crtc_h != state->src_h >> 16) {

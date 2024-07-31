@@ -192,7 +192,6 @@ struct sp7350_plane {
 	const struct drm_plane_helper_funcs *funcs;
 	unsigned int capabilities;
 	unsigned int zpos;
-	unsigned int index;
 	bool is_media_plane;
 	struct drm_property *region_alpha_property;
 	struct drm_property *region_color_keying_property;
