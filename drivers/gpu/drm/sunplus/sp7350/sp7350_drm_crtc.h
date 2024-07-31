@@ -62,54 +62,6 @@ struct sp7350_encoder {
 	void (*post_crtc_powerdown)(struct drm_encoder *encoder);
 };
 
-struct sp7350_crtc_tgen_timing_param {
-	u32 total_pixel;
-	u32 line_start_cd_point;
-	u32 total_line;
-	u32 field_end_line;
-	u32 active_start_line;
-};
-
-struct sp7350_crtc {
-	struct drm_crtc base;
-	struct platform_device *pdev;
-	void __iomem *regs;
-
-	struct sp7350_crtc_tgen_timing_param tgen_timing;
-	struct drm_pending_vblank_event *event;
-
-	enum sp7350_encoder_type encoder_types[2];
-
-	/* TODO: setting with C3V dipslay tcon feature. */
-	u8 lut_r[256];
-	u8 lut_g[256];
-	u8 lut_b[256];
-
-	struct debugfs_regset32 regset_g185;
-	struct debugfs_regset32 regset_g186;
-	struct debugfs_regset32 regset_g187;
-	struct debugfs_regset32 regset_g188;
-
-	struct debugfs_regset32 regset_g189;
-	struct debugfs_regset32 regset_g190;
-	struct debugfs_regset32 regset_g191;
-	struct debugfs_regset32 regset_g192;
-	struct debugfs_regset32 regset_g193;
-	struct debugfs_regset32 regset_g194;
-	struct debugfs_regset32 regset_g195;
-	struct debugfs_regset32 regset_g196;
-
-	struct debugfs_regset32 regset_g197;
-	struct debugfs_regset32 regset_g198;
-
-	struct debugfs_regset32 regset_g199;
-	struct debugfs_regset32 regset_g200;
-	struct debugfs_regset32 regset_g201;
-	struct debugfs_regset32 regset_g202;
-	struct debugfs_regset32 regset_g203;
-
-};
-
 struct sp7350_crtc_state {
 	struct drm_crtc_state base;
 	/* Dlist area for this CRTC configuration. */

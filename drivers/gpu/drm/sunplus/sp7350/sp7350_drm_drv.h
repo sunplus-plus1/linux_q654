@@ -24,21 +24,6 @@
 //#include <drm/drm_mm.h>
 //#include <drm/drm_modeset_lock.h>
 
-/* NOTES: Enable this!
- * This may not be a good solution, but it is indeed an effective one.
- * Becease:(VPP not support rgb pixel format)
- * 1. legacy fbdev compatible /dev/fb0 with osd0.
- * 2. work well with xorg-server for rgb format.
- ****************
- * VPP Layer map to overlay plane-1 for media plane usage.
- * Maps list:
- * DRM-Layer | primary   | overlay-1  |  overlay-2  |  overlay-3  |   cursor???
- * planeId   | plane-0   |  plane-1   |   plane-2   |  plane-3    |  plane-4???
- * HW-Later  |  OSD3     |   VPP0     |   OSD2      |   OSD1      |   OSD0???
- * usage     |  desktop  |   media    |   menu-1    |    menu-2   |    cursor
- *  z-order???
- */
-
 #define	SP7350_DRM_LAYER_TYPE_OSD3 0x0 /* SP7350_DMIX_L0 set to OSD3 (zpos = 0) */
 #define	SP7350_DRM_LAYER_TYPE_VPP0 0x1 /* SP7350_DMIX_L1 set to VPP0 (zpos = 1) */
 #define	SP7350_DRM_LAYER_TYPE_OSD2 0x2 /* SP7350_DMIX_L2 set to OSD2 (zpos = 2) */
@@ -71,7 +56,7 @@ struct sp7350_dev {
 
 	/*
 	 * Set to true when the debug test is active.
-	 * (reserved for future use) 
+	 * (reserved for future use)
 	 */
 	bool debug_test_enabled;
 

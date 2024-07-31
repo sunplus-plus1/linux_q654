@@ -27,6 +27,97 @@
 #define SP7350_CRTC_READ(offset) readl(sp_crtc->regs + (offset))
 #define SP7350_CRTC_WRITE(offset, val) writel(val, sp_crtc->regs + (offset))
 
+/* display TGEN Timing Parameters Setting.
+ * Formula:
+ *   total_pixel = htotal
+ *   line_start_cd_point = hdisplay
+ *   total_line = vtotal
+ *   field_end_line = vdisplay+vtotal-vsync_start+1
+ *   active_start_line = vtotal-vsync_start
+ *
+ * Notes: htotal,hdisplay,vtotal,vdisplay,vsync_start are derived from drm_display_mode.
+ */
+struct sp7350_crtc_tgen_timing_param {
+	u32 total_pixel;
+	u32 line_start_cd_point;
+	u32 total_line;
+	u32 field_end_line;
+	u32 active_start_line;
+};
+
+/* display TCON Timing Parameters Setting.
+ * HW Specification definition:
+ *   TCON_HSA=4
+ *   TCON_HBP=4
+ *   TCON_VSA=1
+ * Formula:
+ *   de_hstart    = 0 (Horizontal reference starting point)
+ *   de_hend      = de_hstart+hdisplay-1 = hdisplay-1
+ *   hsync_start  = htotal-TCON_HSA-TCON_HBP = htotal-4-4
+ *   hsync_end    = hsync_start + TCON_HSA = htotal-4
+ *   de_oev_start = hsync_start
+ *   de_oev_end   = hsync_end
+ *   stvu_start   = vtotal-TCON_VSA = vtotal-1
+ *   stvu_end     = 0 (Vertical reference starting point)
+ *
+ * Notes: hdisplay,htotal,vtotal are derived from drm_display_mode.
+ */
+struct sp7350_drm_tcon_timing_param {
+	u32 de_hstart;
+	u32 de_hend;
+	u32 de_oev_start;
+	u32 de_oev_end;
+	u32 hsync_start;
+	u32 hsync_end;
+	u32 stvu_start;
+	u32 stvu_end;
+};
+
+struct sp7350_crtc {
+	struct drm_crtc base;
+	struct platform_device *pdev;
+	void __iomem *regs;
+
+	struct sp7350_crtc_tgen_timing_param tgen_timing;
+	struct sp7350_drm_tcon_timing_param tcon_timing;
+	struct drm_plane *primary_plane;
+	struct drm_plane *media_plane;
+	struct drm_plane *overlay_planes[2];
+	struct drm_plane *cursor_plane;
+
+	struct drm_pending_vblank_event *event;
+
+	enum sp7350_encoder_type encoder_types[2];
+
+	/* TODO: setting with C3V dipslay tcon feature. */
+	u8 lut_r[256];
+	u8 lut_g[256];
+	u8 lut_b[256];
+
+	struct debugfs_regset32 regset_g185;
+	struct debugfs_regset32 regset_g186;
+	struct debugfs_regset32 regset_g187;
+	struct debugfs_regset32 regset_g188;
+
+	struct debugfs_regset32 regset_g189;
+	struct debugfs_regset32 regset_g190;
+	struct debugfs_regset32 regset_g191;
+	struct debugfs_regset32 regset_g192;
+	struct debugfs_regset32 regset_g193;
+	struct debugfs_regset32 regset_g194;
+	struct debugfs_regset32 regset_g195;
+	struct debugfs_regset32 regset_g196;
+
+	struct debugfs_regset32 regset_g197;
+	struct debugfs_regset32 regset_g198;
+
+	struct debugfs_regset32 regset_g199;
+	struct debugfs_regset32 regset_g200;
+	struct debugfs_regset32 regset_g201;
+	struct debugfs_regset32 regset_g202;
+	struct debugfs_regset32 regset_g203;
+};
+
 /*
  * SP7350 DISPLAY IMGREAD: Video Imgage Read
  */
@@ -777,30 +868,30 @@ static irqreturn_t sp7350_crtc_irq_handler(int irq, void *data)
 /*
  * drm_crtc_helper_funcs
  */
-static void sp7350_crtc_dmix_init(struct drm_crtc *crtc, struct drm_crtc_state *state)
+static void sp7350_crtc_dmix_init(struct drm_crtc *crtc)
 {
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 	u32 value;
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
-	/* DMIX setting FG_SEL
+	/* DMIX Setting for DRM Driver:
 	 * L6   L5   L4   L3   L2   L1   BG
-	 * OSD0 OSD1 OSD2 OSD3 ---- VPP0 PTG
+	 * OSD0 OSD1 OSD2 VPP0 ---- OSD3 PTG
 	 */
 	value = 0;
 	value |= SP7350_DMIX_L6_FG_SEL(SP7350_DMIX_OSD0_SEL) |
 		SP7350_DMIX_L5_FG_SEL(SP7350_DMIX_OSD1_SEL) |
 		SP7350_DMIX_L4_FG_SEL(SP7350_DMIX_OSD2_SEL) |
-		SP7350_DMIX_L3_FG_SEL(SP7350_DMIX_OSD3_SEL) |
+		SP7350_DMIX_L3_FG_SEL(SP7350_DMIX_VPP0_SEL) |
 		SP7350_DMIX_L2_FG_SEL(SP7350_DMIX_VPP1_SEL) |
-		SP7350_DMIX_L1_FG_SEL(SP7350_DMIX_VPP0_SEL) |
+		SP7350_DMIX_L1_FG_SEL(SP7350_DMIX_OSD3_SEL) |
 		SP7350_DMIX_BG_FG_SEL(SP7350_DMIX_PTG_SEL);
-	SP7350_CRTC_WRITE(DMIX_LAYER_CONFIG_0, value); //(default setting)
+	SP7350_CRTC_WRITE(DMIX_LAYER_CONFIG_0, value); //(drm setting)
 
 	/* DMIX setting MODE_SEL
 	 * L6   L5   L4   L3   L2   L1   BG
-	 * OSD0 OSD1 OSD2 OSD3 ---- VPP0 PTG
+	 * OSD0 OSD1 OSD2 VPP0 ---- OSD3 PTG
 	 * (AlphaBlend / Transparent / Opacity setting)
 	 */
 	value = 0;
@@ -830,40 +921,11 @@ static void sp7350_crtc_dmix_init(struct drm_crtc *crtc, struct drm_crtc_state *
 	value =0;
 	value |= SP7350_DMIX_SOURCE_SEL(SP7350_DMIX_TCON0_DMIX);
 	SP7350_CRTC_WRITE(DMIX_SOURCE_SEL, value); //PIXEL_EN_SEL=TCON0(don't change)
-
 }
 
-/*
- * sp_tgen_para_dsi[x][y]
- * y = 0-1, TGEN width & height
- * y = 2-4, TGEN usr_mode & dtg_fps & dtg_fmt
- * y = 5-9, TGEN htt & hact & vtt & (vact+vbp+1) & vbp
- */
-static const u32 sp_tgen_para_dsi[11][10] = {
-	/* (w   h) (usr fps fmt) */
-	{ 720,  480, 1, 0, 0,  858,  720,  525,  517, 36}, /* 480P 60Hz */
-	{ 720,  576, 0, 1, 1,  864,  720,  625,  621, 44}, /* 576P 50Hz */
-	//{1280,  720, 0, 0, 2, 1650, 1280,  750,  746, 25}, /* 720P 60Hz */
-	{1280,  720, 1, 0, 0, 1650, 1280,  750,  746, 25}, /* 720P 60Hz */
-	//{1920, 1080, 0, 0, 3, 2200, 1920, 1125, 1122, 41}, /* 1080P 60Hz */
-	{1920, 1080, 1, 0, 0, 2200, 1920, 1125, 1122, 41}, /* 1080P 60Hz */
-	//{  64,   64, 0, 0, 6,  360,   64,  100,   92, 29}, /* 64x64 60Hz */
-	{ 480, 1280, 1, 0, 0,  620,  480, 1314, 1298, 17}, /* 480x1280 60Hz */
-	/* (w   h) (usr - -)  htt   hact   vtt   vact+vbp+1 vbp*/
-	{ 128,  128, 1, 0, 0,  360,  128,  150,  148, 19}, /* 128x128 60Hz */
-	//{ 240,  320, 1, 0, 0,  683,  240,  364,  357, 36}, /* 240x320 60Hz */
-	{ 240,  320, 1, 0, 0,  683,  240,  354,  347, 26}, /* 240x320 60Hz */
-	{3840,   64, 1, 0, 0, 4608, 3840,  100,   92, 29}, /* 3840x64 60Hz */
-	{3840, 2880, 1, 0, 0, 4608, 3840, 3200, 2920, 39}, /* 3840x2880 60Hz */
-	{ 800,  480, 1, 0, 0,  873,  800,  510,  504, 23}, /* 800x480 60Hz */
-	{1024,  600, 1, 0, 0, 1344, 1024,  635,  625, 24}  /* 1024x600 60Hz */
-};
-
-static void sp7350_crtc_tgen_init(struct drm_crtc *crtc, struct drm_crtc_state *state)
+static void sp7350_crtc_tgen_init(struct drm_crtc *crtc)
 {
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
-	int i, time_cnt = 0;
-	u32 value;
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
@@ -871,31 +933,38 @@ static void sp7350_crtc_tgen_init(struct drm_crtc *crtc, struct drm_crtc_state *
 	SP7350_CRTC_WRITE(TGEN_USER_INT1_CONFIG, 0x0000000a);
 	SP7350_CRTC_WRITE(TGEN_USER_INT2_CONFIG, 0x0000000a);
 
-	for (i = 0; i < 11; i++) {
-		if ((sp_tgen_para_dsi[i][0] == state->adjusted_mode.crtc_hdisplay) &&
-			(sp_tgen_para_dsi[i][1] == state->adjusted_mode.crtc_vdisplay)) {
-				time_cnt = i;
-				break;
-		}
-	}
+	/* Write 1 to reset DTG timing bit
+	 */
+	SP7350_CRTC_WRITE(TGEN_RESET, 0x00000001);
+}
 
-	DRM_DEBUG_DRIVER("%s (w h)(%d %d)\n", __func__,
-		sp_tgen_para_dsi[time_cnt][0], sp_tgen_para_dsi[time_cnt][1]);
+static void sp7350_crtc_tgen_timing_setting(struct drm_crtc *crtc,
+	  struct sp7350_crtc_tgen_timing_param *tgen_timing)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+	u32 value;
+
+	DRM_DEBUG_DRIVER("%s\n", __func__);
+
+	DRM_DEBUG_DRIVER("\nTGEN Timing Setting:\n"
+		 "   TGEN_DTG_TOTAL_PIXEL=%d, TGEN_DTG_DS_LINE_START_CD_POINT=%d\n"
+		 "   TGEN_DTG_TOTAL_LINE=%d, TGEN_DTG_FIELD_END_LINE=%d, TGEN_DTG_START_LINE=%d\n",
+		 tgen_timing->total_pixel, tgen_timing->line_start_cd_point,
+		 tgen_timing->total_line, tgen_timing->field_end_line, tgen_timing->active_start_line);
 
 	/* TGEN timing init
 	 */
+	/* Fixed user mode. */
 	value = SP7350_CRTC_READ(TGEN_DTG_CONFIG);
 	value &= ~(SP7350_TGEN_FORMAT | SP7350_TGEN_FPS | SP7350_TGEN_USER_MODE);
-	value |= SP7350_TGEN_FORMAT_SET(sp_tgen_para_dsi[time_cnt][4]) |
-			SP7350_TGEN_FPS_SET(sp_tgen_para_dsi[time_cnt][3]) |
-			sp_tgen_para_dsi[time_cnt][2];
+	value |= SP7350_TGEN_USER_MODE;
 	SP7350_CRTC_WRITE(TGEN_DTG_CONFIG, value);
 
-	SP7350_CRTC_WRITE(TGEN_DTG_TOTAL_PIXEL, sp_tgen_para_dsi[time_cnt][5]);
-	SP7350_CRTC_WRITE(TGEN_DTG_DS_LINE_START_CD_POINT, sp_tgen_para_dsi[time_cnt][6]);
-	SP7350_CRTC_WRITE(TGEN_DTG_TOTAL_LINE, sp_tgen_para_dsi[time_cnt][7]);
-	SP7350_CRTC_WRITE(TGEN_DTG_FIELD_END_LINE, sp_tgen_para_dsi[time_cnt][8]);
-	SP7350_CRTC_WRITE(TGEN_DTG_START_LINE, sp_tgen_para_dsi[time_cnt][9]);
+	SP7350_CRTC_WRITE(TGEN_DTG_TOTAL_PIXEL, tgen_timing->total_pixel);
+	SP7350_CRTC_WRITE(TGEN_DTG_DS_LINE_START_CD_POINT, tgen_timing->line_start_cd_point);
+	SP7350_CRTC_WRITE(TGEN_DTG_TOTAL_LINE, tgen_timing->total_line);
+	SP7350_CRTC_WRITE(TGEN_DTG_FIELD_END_LINE, tgen_timing->field_end_line);
+	SP7350_CRTC_WRITE(TGEN_DTG_START_LINE, tgen_timing->active_start_line);
 
 	SP7350_CRTC_WRITE(TGEN_DTG_ADJUST1, 0x0000100d);
 	SP7350_CRTC_WRITE(TGEN_SOURCE_SEL, 0x00000000);
@@ -903,30 +972,7 @@ static void sp7350_crtc_tgen_init(struct drm_crtc *crtc, struct drm_crtc_state *
 	/* Write 1 to reset DTG timing bit
 	 */
 	SP7350_CRTC_WRITE(TGEN_RESET, 0x00000001);
-
 }
-
-/*
- * sp_tcon_para_dsi[x][y]
- * y = 0-1, TCON width & height
- * y = 2-11, TCON DE_H & Vsync_H & Hsync & DE_V & VTOP_V
- */
-static const u32 sp_tcon_para_dsi[11][12] = {
-	/* (w   h)    DE_H       Vsync_H     Hsync       DE_V        VTOP_V     */
-	{ 720,  480,    0,  719,  850,  854,  850,  854,    0,    0,  524,    0}, /* 480P */
-	{ 720,  576,    0,  719,  856,  856,  856,  860,    0,    0,  624,    0}, /* 576P */
-	{1280,  720,    0, 1279, 1642, 1646, 1642, 1646,    0,    0,  749,    0}, /* 720P */
-	{1920, 1080,    0, 1919, 2192, 2196, 2192, 2196,    0,    0, 1124,    0}, /* 1080P */
-	//{  64,   64,    0,   63,  353,  353,  353,  356,    0,    0,   99,    0}, /* 64x64 */
-	{ 480, 1280,    0,  479,  612,  616,  612,  616,    0,    0, 1313,    0}, /* 480x1280 */
-	{ 128,  128,    0,  127,  352,  352,  352,  356,    0,    0,  149,    0}, /* 128x128 */
-	//{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  363,    0}, /* 240x320 */
-	{ 240,  320,    0,  239,  675,  679,  675,  679,    0,    0,  353,    0}, /* 240x320 */
-	{3840,   64,    0, 3839, 4600, 4600, 4600, 4604,    0,    0,   99,    0}, /* 3840x64 */
-	{3840, 2880,    0, 3839, 4600, 4600, 4600, 4604,    0,    0, 3199,    0}, /* 3840x2880 */
-	{ 800,  480,    0,  799,  865,  869,  865,  869,    0,    0,  509,    0}, /* 800x480 */
-	{1024,  600,    0, 1023, 1336, 1336, 1336, 1340,    0,    0,  634,    0}  /* 1024x600 */
-};
 
 /*
  * sp_tcon_tpg_para_dsi[x][y]
@@ -949,11 +995,9 @@ static const u32 sp_tcon_tpg_para_dsi[11][10] = {
 	{1024,  600,    4,    4, 1343,  634, 1023,  599,  17, 0x01}  /* 1024x600 */
 };
 
-static void sp7350_crtc_tcon_init(struct drm_crtc *crtc, struct drm_crtc_state *state)
+static void sp7350_crtc_tcon_init(struct drm_crtc *crtc)
 {
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
-	int i, time_cnt = 0;
-	u32 value = 0;
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
@@ -963,34 +1007,56 @@ static void sp7350_crtc_tcon_init(struct drm_crtc *crtc, struct drm_crtc_state *
 	SP7350_CRTC_WRITE(TCON_TCON3, 0x00002002); //don't care
 	SP7350_CRTC_WRITE(TCON_TCON4, 0x00000000); //fixed , don't change it
 	SP7350_CRTC_WRITE(TCON_TCON5, 0x00000004); //don't care
+}
 
+static void sp7350_crtc_tcon_timing_setting(struct drm_crtc *crtc, struct sp7350_drm_tcon_timing_param *tcon_timing)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+
+	DRM_DEBUG_DRIVER("%s\n", __func__);
+
+	DRM_DEBUG_DRIVER("\nTCON Timing Setting:\n"
+		"   TCON_DE_HSTART=%u, TCON_DE_HEND=%u, TCON_OEV_START=%u, TCON_OEV_END=%u\n"
+		"   TCON_HSYNC_START=%u, TCON_HSYNC_END=%u, TCON_STVU_START=%u, TCON_STVU_END=%u\n",
+		tcon_timing->de_hstart, tcon_timing->de_hend, tcon_timing->de_oev_start, tcon_timing->de_oev_end,
+		tcon_timing->hsync_start, tcon_timing->hsync_end, tcon_timing->stvu_start, tcon_timing->stvu_end);
+
+	/*
+	 * TCON H&V timing parameter
+	 */
+	SP7350_CRTC_WRITE(TCON_DE_HSTART, tcon_timing->de_hstart); //DE_HSTART
+	SP7350_CRTC_WRITE(TCON_DE_HEND, tcon_timing->de_hend); //DE_HEND
+
+	SP7350_CRTC_WRITE(TCON_OEV_START, tcon_timing->de_oev_start); //TC_VSYNC_HSTART
+	SP7350_CRTC_WRITE(TCON_OEV_END, tcon_timing->de_oev_end); //TC_VSYNC_HEND
+
+	SP7350_CRTC_WRITE(TCON_HSYNC_START, tcon_timing->hsync_start); //HSYNC_START
+	SP7350_CRTC_WRITE(TCON_HSYNC_END, tcon_timing->hsync_end); //HSYNC_END
+
+	//SP7350_CRTC_WRITE(TCON_DE_VSTART, 0); //DE_VSTART
+	//SP7350_CRTC_WRITE(TCON_DE_VEND, 0); //DE_VEND
+
+	SP7350_CRTC_WRITE(TCON_STVU_START, tcon_timing->stvu_start); //VTOP_VSTART
+	SP7350_CRTC_WRITE(TCON_STVU_END, tcon_timing->stvu_end); //VTOP_VEND
+}
+
+static void sp7350_crtc_tcon_tpg_setting(struct drm_crtc *crtc, struct drm_display_mode *mode)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+	int i, time_cnt = 0;
+	u32 value = 0;
+
+	DRM_DEBUG_DRIVER("%s\n", __func__);
 	for (i = 0; i < 11; i++) {
-		if ((sp_tcon_para_dsi[i][0] == state->adjusted_mode.crtc_hdisplay) &&
-			(sp_tcon_para_dsi[i][1] == state->adjusted_mode.crtc_vdisplay)) {
+		if ((sp_tcon_tpg_para_dsi[i][0] == mode->crtc_hdisplay) &&
+			(sp_tcon_tpg_para_dsi[i][1] == mode->crtc_vdisplay)) {
 				time_cnt = i;
 				break;
 		}
 	}
 
-	DRM_DEBUG_DRIVER("%s (w h)(%d %d)\n", __func__,
-		sp_tcon_para_dsi[time_cnt][0], sp_tcon_para_dsi[time_cnt][1]);
-	/*
-	 * TCON H&V timing parameter
-	 */
-	SP7350_CRTC_WRITE(TCON_DE_HSTART, sp_tcon_para_dsi[time_cnt][2]); //DE_HSTART
-	SP7350_CRTC_WRITE(TCON_DE_HEND, sp_tcon_para_dsi[time_cnt][3]); //DE_HEND
-
-	SP7350_CRTC_WRITE(TCON_OEV_START, sp_tcon_para_dsi[time_cnt][4]); //TC_VSYNC_HSTART
-	SP7350_CRTC_WRITE(TCON_OEV_END, sp_tcon_para_dsi[time_cnt][5]); //TC_VSYNC_HEND
-
-	SP7350_CRTC_WRITE(TCON_HSYNC_START, sp_tcon_para_dsi[time_cnt][6]); //HSYNC_START
-	SP7350_CRTC_WRITE(TCON_HSYNC_END, sp_tcon_para_dsi[time_cnt][7]); //HSYNC_END
-
-	SP7350_CRTC_WRITE(TCON_DE_VSTART, sp_tcon_para_dsi[time_cnt][8]); //DE_VSTART
-	SP7350_CRTC_WRITE(TCON_DE_VEND, sp_tcon_para_dsi[time_cnt][9]); //DE_VEND
-
-	SP7350_CRTC_WRITE(TCON_STVU_START, sp_tcon_para_dsi[time_cnt][10]); //VTOP_VSTART
-	SP7350_CRTC_WRITE(TCON_STVU_END, sp_tcon_para_dsi[time_cnt][11]); //VTOP_VEND
+	pr_info("%s (w h)(%d %d)\n", __func__,
+		sp_tcon_tpg_para_dsi[time_cnt][0], sp_tcon_tpg_para_dsi[time_cnt][1]);
 
 	/*
 	 * TPG(Test Pattern Gen) parameter
@@ -1005,42 +1071,89 @@ static void sp7350_crtc_tcon_init(struct drm_crtc *crtc, struct drm_crtc_state *
 	SP7350_CRTC_WRITE(TCON_TPG_VACT_COUNT, value);
 	SP7350_CRTC_WRITE(TCON_TPG_ALINE_START, sp_tcon_tpg_para_dsi[time_cnt][8]);
 	//SP7350_CRTC_WRITE(TCON_DITHER_TVOUT, sp_tcon_tpg_para_dsi[time_cnt][9]);
-
 }
 
 static enum drm_mode_status sp7350_crtc_mode_valid(struct drm_crtc *crtc,
 						const struct drm_display_mode *mode)
 {
-	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
-	struct sp7350_crtc_tgen_timing_param *tgen_timing = &sp_crtc->tgen_timing;
-
-	DRM_DEBUG_DRIVER("%s [TODO]\n", __func__);
-
+	DRM_DEBUG_DRIVER("[Start]\n");
+	/* Any display HW(TGEN/DMIX/OSD/VPP...) Limit??? */
 	if (mode->hdisplay > 1920)
 		return MODE_BAD_HVALUE;
 
-	if (mode->vdisplay > 1080)
+	if (mode->vdisplay > 1920)
 		return MODE_BAD_VVALUE;
 
-	/* Generate tgen timing setting from drm_display_mode */
-	tgen_timing->total_pixel = mode->htotal;
-	tgen_timing->total_line  = mode->vtotal;
-	tgen_timing->line_start_cd_point = mode->hdisplay;
-	tgen_timing->active_start_line   = mode->vtotal - mode->vsync_start;
-	tgen_timing->field_end_line      = tgen_timing->active_start_line + mode->vdisplay + 1;
-	DRM_DEBUG_DRIVER("\nTGEN Timing Setting(%s):\n"
-		 "   total_pixel=%d, total_line=%d, line_start_cd_point=%d\n"
-		 "   active_start_line=%d, field_end_line=%d\n",
-		 mode->name,
-		 tgen_timing->total_pixel, tgen_timing->total_line, tgen_timing->line_start_cd_point,
-		 tgen_timing->active_start_line, tgen_timing->field_end_line);
+	if (mode->vdisplay >= mode->vtotal || mode->hdisplay >= mode->htotal)
+		return MODE_BAD_VVALUE;
 
 	return MODE_OK;
+}
+
+static bool sp7350_crtc_mode_fixup(struct drm_crtc *crtc,
+			   const struct drm_display_mode *mode,
+			   struct drm_display_mode *adjusted_mode)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+	struct sp7350_crtc_tgen_timing_param *tgen_timing = &sp_crtc->tgen_timing;
+
+	DRM_DEBUG_DRIVER("[Start]\n");
+
+	/* fixup for hdmi ddc modes. */
+	if (adjusted_mode->vsync_start - adjusted_mode->vdisplay ==1) {
+		adjusted_mode->vsync_start += 1;
+		adjusted_mode->vsync_end   += 1;
+	}
+
+	/* Generate tgen timing setting from drm_display_mode */
+	tgen_timing->total_pixel = adjusted_mode->htotal;
+	tgen_timing->total_line  = adjusted_mode->vtotal;
+	tgen_timing->line_start_cd_point = adjusted_mode->hdisplay;
+	tgen_timing->active_start_line   = adjusted_mode->vtotal - adjusted_mode->vsync_start;
+	tgen_timing->field_end_line      = tgen_timing->active_start_line + adjusted_mode->vdisplay + 1;
+
+	//DRM_DEBUG_DRIVER("\nTGEN Timing Setting(%s):\n"
+	//	 "   total_pixel=%d, total_line=%d, line_start_cd_point=%d\n"
+	//	 "   active_start_line=%d, field_end_line=%d\n",
+	//	 mode->name,
+	//	 tgen_timing->total_pixel, tgen_timing->total_line, tgen_timing->line_start_cd_point,
+	//	 tgen_timing->active_start_line, tgen_timing->field_end_line);
+
+	/* TODO, FIXME */
+	{
+		struct sp7350_drm_tcon_timing_param *tcon_timing = &sp_crtc->tcon_timing;
+		u16 tcon_hsa = 4;
+		u16 tcon_hbp = 4;
+		u16 tcon_vsa = 1;
+
+		tcon_timing->de_hstart    = 0;
+		tcon_timing->de_hend      = tcon_timing->de_hstart + mode->hdisplay - 1;
+		tcon_timing->hsync_start  = mode->htotal - tcon_hsa - tcon_hbp;
+		tcon_timing->hsync_end    = tcon_timing->hsync_start + tcon_hsa;
+		tcon_timing->de_oev_start = tcon_timing->hsync_start;
+		tcon_timing->de_oev_end   = tcon_timing->hsync_end;
+		tcon_timing->stvu_start   = mode->vtotal - tcon_vsa;
+		tcon_timing->stvu_end     = 0;
+		sp7350_crtc_tcon_tpg_setting(crtc, adjusted_mode);
+	}
+
+	return true;
+}
+
+static void sp7350_crtc_mode_set_nofb(struct drm_crtc *crtc)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+
+	sp7350_crtc_tgen_timing_setting(crtc, &sp_crtc->tgen_timing);
+	sp7350_crtc_tcon_timing_setting(crtc, &sp_crtc->tcon_timing);
 }
 
 static int sp7350_crtc_atomic_check(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
+	/* TODO reference to vkms_crtc_atomic_check */
+	DRM_DEBUG_DRIVER("[TODO]\n");
+#if 0  /* not defined .atomic_duplicate_state, can not use to_sp7350_crtc_state!!! */
 	struct sp7350_crtc_state *sp_state = to_sp7350_crtc_state(state);
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
@@ -1059,6 +1172,7 @@ static int sp7350_crtc_atomic_check(struct drm_crtc *crtc,
 		sp_state->margins.bottom = conn_state->tv.margins.bottom;
 		break;
 	}
+#endif
 
 	return 0;
 }
@@ -1086,10 +1200,6 @@ static void sp7350_crtc_atomic_begin(struct drm_crtc *crtc,
 {
 	/* TODO reference to vkms_crtc_atomic_begin */
 	DRM_DEBUG_DRIVER("%s\n", __func__);
-
-	sp7350_crtc_dmix_init(crtc, old_crtc_state);
-	sp7350_crtc_tgen_init(crtc, old_crtc_state);
-	sp7350_crtc_tcon_init(crtc, old_crtc_state);
 
 }
 
@@ -1125,6 +1235,8 @@ static const struct drm_crtc_funcs sp7350_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs sp7350_crtc_helper_funcs = {
 	.mode_valid 	= sp7350_crtc_mode_valid,
+	.mode_fixup     = sp7350_crtc_mode_fixup,
+	.mode_set_nofb	= sp7350_crtc_mode_set_nofb,
 	.atomic_check	= sp7350_crtc_atomic_check,
 	.atomic_begin	= sp7350_crtc_atomic_begin,
 	.atomic_flush	= sp7350_crtc_atomic_flush,
@@ -1157,69 +1269,87 @@ static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
 	}
 }
 
-int sp7350_crtc_init(struct drm_device *drm, struct sp7350_crtc *sp7350_crtc,
+int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 		  const struct drm_crtc_funcs *crtc_funcs,
 		  const struct drm_crtc_helper_funcs *crtc_helper_funcs)
 {
 	struct device_node *port;
 	//struct sp7350_dev *sp_dev = to_sp7350_dev(drm);
-	//struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
-	struct drm_crtc *crtc = &sp7350_crtc->base;
-	struct drm_plane *primary_plane;
-	struct drm_plane *media_plane;
-	struct drm_plane *overlay_plane1;
-	struct drm_plane *overlay_plane2;
-	struct drm_plane *cursor_plane;
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+	//struct drm_crtc *crtc = &sp7350_crtc->base;
 	int ret;
 
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "of_get_child_by_name\n");
-	port = of_get_child_by_name(sp7350_crtc->pdev->dev.of_node, "port");
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "of_get_child_by_name\n");
+	port = of_get_child_by_name(sp_crtc->pdev->dev.of_node, "port");
 	if (!port) {
-		DRM_DEV_ERROR(drm->dev, "no port node found in %p\n", sp7350_crtc->pdev->dev.of_node);
+		DRM_DEV_ERROR(drm->dev, "no port node found in %p\n", sp_crtc->pdev->dev.of_node);
 		return -EINVAL;
 	}
 	of_node_put(port);
 	crtc->port = port;
 
 	/* init plane for primary_plane */
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "sp7350_plane_init (primary_plane)\n");
-	primary_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_PRIMARY, SP7350_DRM_LAYER_TYPE_OSD3);
-	if (IS_ERR(primary_plane)) {
-		return PTR_ERR(primary_plane);
-	}
-
-	/* init plane for cursor_plane */
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "sp7350_plane_init (cursor_plane)\n");
-	cursor_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_CURSOR, SP7350_DRM_LAYER_TYPE_OSD0);
-	if (IS_ERR(cursor_plane)) {
-		return PTR_ERR(cursor_plane);
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (primary_plane)\n");
+	sp_crtc->primary_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_PRIMARY, SP7350_DRM_LAYER_TYPE_OSD3);
+	if (IS_ERR(sp_crtc->primary_plane)) {
+		return PTR_ERR(sp_crtc->primary_plane);
 	}
 
 	/* init plane for media_plane */
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "sp7350_plane_init (media_plane)\n");
-	media_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_OVERLAY, SP7350_DRM_LAYER_TYPE_VPP0);
-	if (IS_ERR(media_plane)) {
-		return PTR_ERR(media_plane);
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (media_plane)\n");
+	sp_crtc->media_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_OVERLAY, SP7350_DRM_LAYER_TYPE_VPP0);
+	if (IS_ERR(sp_crtc->media_plane)) {
+		return PTR_ERR(sp_crtc->media_plane);
 	}
 	/* init plane for overlay_plane1 */
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "sp7350_plane_init (overlay_plane1)\n");
-	overlay_plane1 = sp7350_plane_init(drm, DRM_PLANE_TYPE_OVERLAY, SP7350_DRM_LAYER_TYPE_OSD2);
-	if (IS_ERR(overlay_plane1)) {
-		return PTR_ERR(overlay_plane1);
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (overlay_plane1)\n");
+	sp_crtc->overlay_planes[0] = sp7350_plane_init(drm, DRM_PLANE_TYPE_OVERLAY, SP7350_DRM_LAYER_TYPE_OSD2);
+	if (IS_ERR(sp_crtc->overlay_planes[0])) {
+		return PTR_ERR(sp_crtc->overlay_planes[0]);
 	}
 	/* init plane for overlay_plane2 */
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "sp7350_plane_init (overlay_plane2)\n");
-	overlay_plane2 = sp7350_plane_init(drm, DRM_PLANE_TYPE_OVERLAY, SP7350_DRM_LAYER_TYPE_OSD1);
-	if (IS_ERR(overlay_plane2)) {
-		return PTR_ERR(overlay_plane2);
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (overlay_plane2)\n");
+	sp_crtc->overlay_planes[1] = sp7350_plane_init(drm, DRM_PLANE_TYPE_OVERLAY, SP7350_DRM_LAYER_TYPE_OSD1);
+	if (IS_ERR(sp_crtc->overlay_planes[1])) {
+		return PTR_ERR(sp_crtc->overlay_planes[1]);
 	}
 
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "drm_crtc_init_with_planes\n");
-	ret = drm_crtc_init_with_planes(drm, crtc, primary_plane, cursor_plane,
+	/* init plane for cursor_plane */
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (cursor_plane)\n");
+	sp_crtc->cursor_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_CURSOR, SP7350_DRM_LAYER_TYPE_OSD0);
+	if (IS_ERR(sp_crtc->cursor_plane)) {
+		return PTR_ERR(sp_crtc->cursor_plane);
+	}
+
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_init_with_planes\n");
+	ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->primary_plane, sp_crtc->cursor_plane,
 					crtc_funcs, NULL);
 
-	DRM_DEV_DEBUG_DRIVER(&sp7350_crtc->pdev->dev, "drm_crtc_helper_add\n");
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_helper_add\n");
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);
+
+	sp_crtc->media_plane->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
+	sp_crtc->overlay_planes[0]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
+	sp_crtc->overlay_planes[1]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
+
+	/* NOTES: KEEP this!
+	 * This may not be a good solution, but it is indeed an effective one.
+	 * Becease:(VPP not support rgb pixel format)
+	 * 1. legacy fbdev compatible /dev/fb0 with osd3.
+	 * 2. work well with xorg-server for rgb format.
+	 ****************
+	 * VPP Layer map to overlay plane-1 for media plane usage.
+	 * Maps list:
+	 * DRM-Layer | primary   | overlay-1  |  overlay-2  |  overlay-3  |   cursor
+	 * planeId   | plane-0   |  plane-1   |   plane-2   |  plane-3    |  plane-4
+	 * HW-Layer  |  OSD3     |   VPP0     |   OSD2      |   OSD1      |   OSD0
+	 * DMIX-Layer|   L1      |    L3      |    L4       |    L5       |    L6
+	 *  z-order  |    0      |     1      |     2       |     3       |     4
+	 * usage     |  desktop  |   media    |   menu-1    |    menu-2   |    cursor
+	 */
+	sp7350_crtc_dmix_init(crtc);
+	sp7350_crtc_tgen_init(crtc);
+	sp7350_crtc_tcon_init(crtc);
 
 	return ret;
 }
@@ -1346,7 +1476,7 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	sp_crtc->regset_g203.nregs = ARRAY_SIZE(crtc_regs_g203);
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "sp7350_crtc_init\n");
-	ret = sp7350_crtc_init(drm, sp_crtc,
+	ret = sp7350_crtc_init(drm, crtc,
 		&sp7350_crtc_funcs, &sp7350_crtc_helper_funcs);
 	if (ret)
 		return ret;
@@ -1364,7 +1494,7 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "platform_set_drvdata\n");
 	platform_set_drvdata(pdev, sp_crtc);
-	
+
 	sp7350_debugfs_add_regset32(drm, "regs_g185", &sp_crtc->regset_g185);
 	sp7350_debugfs_add_regset32(drm, "regs_g186", &sp_crtc->regset_g186);
 	sp7350_debugfs_add_regset32(drm, "regs_g187", &sp_crtc->regset_g187);
@@ -1404,11 +1534,19 @@ static void sp7350_crtc_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	//struct drm_device *drm = dev_get_drvdata(master);
+	struct drm_device *drm = dev_get_drvdata(master);
 	struct sp7350_crtc *sp_crtc = dev_get_drvdata(dev);
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "drm_crtc_cleanup\n");
 	drm_crtc_cleanup(&sp_crtc->base);
+
+	/* TODO Set S3V SOC DISPLAY REG, disable crtc things... */
+
+	sp7350_plane_release(drm, sp_crtc->primary_plane);
+	sp7350_plane_release(drm, sp_crtc->media_plane);
+	sp7350_plane_release(drm, sp_crtc->overlay_planes[0]);
+	sp7350_plane_release(drm, sp_crtc->overlay_planes[1]);
+	sp7350_plane_release(drm, sp_crtc->cursor_plane);
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "platform_set_drvdata\n");
 	platform_set_drvdata(pdev, NULL);

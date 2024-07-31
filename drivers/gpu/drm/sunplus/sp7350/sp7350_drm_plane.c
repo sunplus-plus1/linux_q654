@@ -109,7 +109,6 @@ void sp7350_dmix_layer_set(struct drm_plane *plane, int fg_sel, int layer_mode)
 		value1 |= (layer_mode << ((layer - 1) << 1));
 	}
 	SP7350_PLANE_WRITE(DMIX_LAYER_CONFIG_1, value1);
-
 }
 
 int sp7350_vpp_vpost_opif_alpha_set(struct drm_plane *plane, int alpha, int mask_alpha)
@@ -141,12 +140,8 @@ int sp7350_vpp_imgread_set(struct drm_plane *plane, u32 data_addr1, int x, int y
 	u32 value;
 
 	value = SP7350_PLANE_READ(IMGREAD_GLOBAL_CONTROL);
-	value |= SP7350_VPP_VPOST_WIN_ALPHA_EN;
+	value |= SP7350_VPP_IMGREAD_FETCH_EN;
 	SP7350_PLANE_WRITE(IMGREAD_GLOBAL_CONTROL, value);
-
-	//value = SP7350_PLANE_READ(IMGREAD_GLOBAL_CONTROL);
-	//value |= SP7350_VPP_IMGREAD_FETCH_EN;
-	//SP7350_PLANE_WRITE(IMGREAD_GLOBAL_CONTROL, value);
 
 	value = SP7350_PLANE_READ(IMGREAD_CONFIG);
 	value &= ~(SP7350_VPP_IMGREAD_DATA_FMT |
@@ -389,12 +384,12 @@ int sp7350_vpp_vpost_opif_set(struct drm_plane *plane, int act_x, int act_y, int
 	value &= ~SP7350_VPP_VPOST_OPIF_BOT_MASK;
 	value |= SP7350_VPP_VPOST_OPIF_BOT_SET(output_h -act_h - act_y);
 	SP7350_PLANE_WRITE(VPOST_OPIF_MSKBOT, value);
-	
+
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKLEFT);
 	value &= ~SP7350_VPP_VPOST_OPIF_LEFT_MASK;
 	value |= SP7350_VPP_VPOST_OPIF_LEFT_SET(act_x);
 	SP7350_PLANE_WRITE(VPOST_OPIF_MSKLEFT, value);
-	
+
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKRIGHT);
 	value &= ~SP7350_VPP_VPOST_OPIF_RIGHT_MASK;
 	value |= SP7350_VPP_VPOST_OPIF_RIGHT_SET(output_w - act_w - act_x);
@@ -557,9 +552,9 @@ void sp7350_osd_layer_set_by_region(struct drm_plane *plane, struct sp7350_osd_r
 	SP7350_PLANE_WRITE((OSD_VVLD_OFFSET + (osd_layer_sel << 7)), 0);
 
 	SP7350_PLANE_WRITE((OSD_HVLD_WIDTH + (osd_layer_sel << 7)),
-		info->region_info.act_width);
+		info->region_info.act_width + info->region_info.act_x);
 	SP7350_PLANE_WRITE((OSD_VVLD_HEIGHT + (osd_layer_sel << 7)),
-		info->region_info.act_height);
+		info->region_info.act_height + info->region_info.act_x);
 
 	SP7350_PLANE_WRITE((OSD_BIST_CTRL + (osd_layer_sel << 7)), 0);
 	SP7350_PLANE_WRITE((OSD_3D_H_OFFSET + (osd_layer_sel << 7)), 0);
@@ -657,10 +652,8 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 			 * WARNING:
 			 * vpp plane region alpha setting by vpp opif mask function.
 			 * So only one region for media plane, the parameter "regionid" is invalid.
-			 */ 
+			 */
 			DRM_DEBUG_ATOMIC("update vpp opif alpha value by the property!\n");
-
-			sp7350_vpp_vpost_opif_alpha_set(plane, info->alpha, 0);
 		} else {
 			/*
 			 * TODO:
@@ -863,8 +856,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 			 state->src_x >> 16, state->src_y >> 16, state->src_w >> 16, state->src_h >> 16,
 			 state->crtc_x, state->crtc_y, state->crtc_w, state->crtc_h);
 
-	DRM_DEBUG_ATOMIC("plane info[%d, %d] zpos:%d\n",
-			 plane->index, sp_plane->index, sp_plane->zpos);
+	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
 
 	sp7350_vpp_imgread_set(plane, (u32)obj->paddr,
 			       state->src_x >> 16, state->src_y >> 16,
@@ -925,7 +917,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	}
 
 	sp7350_dmix_layer_set(plane, SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
-
 }
 
 static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
@@ -998,12 +989,11 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	info.region_info.act_width = state->crtc_w;
 	info.region_info.act_height = state->crtc_h;
 
-	DRM_DEBUG_ATOMIC("plane info[%d, %d] zpos:%d\n",
-			 plane->index, sp_plane->index, sp_plane->zpos);
+	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
 
 	if (sp_plane->state.region_alpha_blob &&
 		 (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)) {
-		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
+		DRM_DEBUG_ATOMIC("Set plane-%d region alpha: regionid:%d, alpha:%d\n",
 				 plane->index, sp_plane->state.region_alpha.regionid,
 				 sp_plane->state.region_alpha.alpha);
 		/*
@@ -1064,7 +1054,6 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 			 state->fb->modifier, info.color_mode);
 
 	sp7350_dmix_layer_set(plane, SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
-
 }
 
 static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
@@ -1190,6 +1179,33 @@ static void sp7350_plane_create_propertys(struct sp7350_plane *plane)
 	}
 }
 
+static void sp7350_plane_destroy_propertys(struct sp7350_plane *plane)
+{
+	if (plane->region_alpha_property) {
+		drm_property_destroy(plane->base.dev, plane->region_alpha_property);
+		plane->region_alpha_property = NULL;
+	}
+
+	if (plane->region_color_keying_property) {
+		drm_property_destroy(plane->base.dev, plane->region_color_keying_property);
+		plane->region_color_keying_property = NULL;
+	}
+
+	if (plane->color_keying_property) {
+		drm_property_destroy(plane->base.dev, plane->color_keying_property);
+		plane->color_keying_property = NULL;
+	}
+
+	if (plane->state.region_alpha_blob) {
+		drm_property_blob_put(plane->state.region_alpha_blob);
+		plane->state.region_alpha_blob = NULL;
+	}
+	if (plane->state.region_color_keying_blob) {
+		drm_property_blob_put(plane->state.region_color_keying_blob);
+		plane->state.region_color_keying_blob = NULL;
+	}
+}
+
 static const char * const sp_drm_plane_name[] = {
 	"OVERLAY_PLANE", "PRIMARY_PLANE", "CURSOR_PLANE"};
 
@@ -1227,11 +1243,11 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 		sp_plane->num_pixel_formats = ARRAY_SIZE(sp7350_kms_osd_formats);
 		sp_plane->funcs = &sp7350_kms_osd_helper_funcs;
 		sp_plane->zpos = sptype;
-		/* 
+		/*
 		 * it could be
 		 * DRM_PLANE_TYPE_PRIMARY or
 		 * DRM_PLANE_TYPE_OVERLAY or
-		 * DRM_PLANE_TYPE_CURSOR 
+		 * DRM_PLANE_TYPE_CURSOR
 		 */
 		sp_plane->type = type;
 		sp_plane->is_media_plane = false;
@@ -1255,12 +1271,14 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 
 	drm_plane_helper_add(plane, sp_plane->funcs);
 
+#if 0
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
 					   DRM_MODE_ROTATE_0 |
 					   DRM_MODE_ROTATE_180 |
 					   DRM_MODE_REFLECT_X |
 					   DRM_MODE_REFLECT_Y);
+#endif
 
 	//sp_plane->index = plane->base->index;
 	sp_plane->base.index = plane->index;
@@ -1270,10 +1288,13 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 	return plane;
 }
 
-int sp7350_plane_release(struct drm_device *drm, struct sp7350_plane *plane)
+int sp7350_plane_release(struct drm_device *drm, struct drm_plane *plane)
 {
 	//struct sp7350_dev *sp_dev = to_sp7350_dev(drm);
-	//struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+
 	/* DO ANY??? */
+	sp7350_plane_destroy_propertys(sp_plane);
+
 	return 0;
 }
