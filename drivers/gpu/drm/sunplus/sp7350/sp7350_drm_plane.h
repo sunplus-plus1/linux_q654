@@ -206,6 +206,6 @@ struct sp7350_plane {
 
 struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 	enum drm_plane_type type, int sptype);
-int sp7350_plane_release(struct drm_device *drm, struct sp7350_plane *plane);
+int sp7350_plane_release(struct drm_device *drm, struct drm_plane *plane);
 
 #endif /* __SUNPLUS_SP7350_DRM_PLANE_H__ */
