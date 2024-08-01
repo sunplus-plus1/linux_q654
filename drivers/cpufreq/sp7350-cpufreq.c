@@ -71,6 +71,13 @@ static struct sp7350_cpu_dvfs_info *sp7350_cpu_dvfs_info_lookup(int cpu)
 	return NULL;
 }
 
+void sp7350_dvfs_unlock(void)
+{
+	struct sp7350_cpu_dvfs_info *info = sp7350_cpu_dvfs_info_lookup(0);
+	hwspin_unlock_raw(info->hwlock);
+}
+EXPORT_SYMBOL_GPL(sp7350_dvfs_unlock);
+
 static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 				  unsigned int index)
 {
@@ -84,7 +91,7 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	ret = hwspin_lock_timeout_raw(info->hwlock, SP_DVFS_HWLOCK_TIMEOUT);
 	if (ret) {
-		pr_err("[SP_DVFS] timeout to get the hwspinlock\n");
+		pr_err("[SP_DVFS] hwspin_lock err: %d\n", ret);
 		return ret;
 	}
 
@@ -349,10 +356,15 @@ static int sp7350_cpufreq_probe(struct platform_device *pdev)
 	ca55_memctl = sp_clk_reg_base() + (31 + 32 + 14) * 4; /* G4.14 */
 
 	info->hwlock = hwspin_lock_request_specific(SP_DVFS_HWLOCK_ID);
+	if (!info->hwlock) {
+		dev_err(&pdev->dev, "failed to request DVFS hwspin_lock\n");
+		goto release_dvfs_info_list;
+	}
 
 	ret = cpufreq_register_driver(&sp7350_cpufreq_driver);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sp7350 cpufreq driver\n");
+		hwspin_lock_free(info->hwlock);
 		goto release_dvfs_info_list;
 	}
 	

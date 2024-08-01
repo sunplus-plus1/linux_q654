@@ -1060,6 +1060,7 @@
 		};
 		mac_addr: mac-address@16 {
 			reg = <0x16 0x6>;
+			sunplus,byte-swap;
 		};
 		disc_vol: disc_vol@2d {
 			reg = <0x2d 0x1>;
@@ -1282,8 +1283,9 @@
 		dma-names = "rxtx";
 	};
 
-	video_codec {
+	video_codec: video_codec {
 		compatible = "sunplus,sp7350-hantro-codec";
+		reg = <0x0 0xf880125c 0x0 0xff>;
 		clocks = <&clkc VIDEO_CODEC>;
 		clock-names = "clk_vcodec";
 		resets = <&rstc RST_VIDEO_CODEC>;
@@ -1631,14 +1633,15 @@
 		compatible = "sunplus,sp7350-dsi0";
 
 		reg = <0x00 0xf8006600 0x00 0xb8>, <0x00 0xf8800180 0x00 0x80>;
+
 		clocks =
 			<&clkc DISPSYS>, <&clkc DMIX>, <&clkc TGEN>, <&clkc TCON>, <&clkc MIPITX>,
-			<&clkc GPOST0>, <&clkc GPOST1>, <&clkc GPOST2>, <&clkc GPOST3>, 
+			<&clkc GPOST0>, <&clkc GPOST1>, <&clkc GPOST2>, <&clkc GPOST3>,
 			<&clkc OSD0>, <&clkc OSD1>, <&clkc OSD2>, <&clkc OSD3>,
 			<&clkc IMGREAD0>, <&clkc VSCL0>, <&clkc VPOST0>;
 		clock-names =
 			"clkc_dispsys", "clkc_dmix", "clkc_tgen", "clkc_tcon", "clkc_mipitx",
-			"clkc_gpost0", "clkc_gpost1", "clkc_gpost2", "clkc_gpost3", 
+			"clkc_gpost0", "clkc_gpost1", "clkc_gpost2", "clkc_gpost3",
 			"clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
 			"clkc_imgread0", "clkc_vscl0", "clkc_vpost0";
 		resets =

@@ -54,6 +54,8 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
+#include "vc_pwr_ctrl.h"
+
 #define HXDEC_MAX_CORES 4
 
 #define HANTRO_DEC_ORG_REGS 60
@@ -977,6 +979,8 @@ static struct cdev dec_chrdev_cdev;
 
 static int hx170dec_open(struct inode *inode, struct file *filp)
 {
+    vc_power_on(); /* power on */
+
     return 0;
 }
 
@@ -1009,6 +1013,8 @@ static int hx170dec_release(struct inode *inode, struct file *filp)
             ReleasePostProcessor(dec, n);
         }
     }
+
+    vc_power_off(); /* power off */
 
     return 0;
 }
@@ -1139,7 +1145,6 @@ irqreturn_t hx170dec_isr(int irq, void *dev_id)
 
 static int dec_reset_release(struct platform_device *dev, const char *id)
 {
-    struct reset_control *dec_rstc;
     int ret = 0;
 
     dec_rstc = devm_reset_control_get(&dev->dev, id);
@@ -1266,6 +1271,8 @@ static int dec_chrdev_probe(struct platform_device *dev)
     if (dec_reset_release(dev, "rstc_vc8000d"))
         goto PROBE_ERR;
 
+    vc_power_ctrl_init_dec(dev, dec_rstc, dec_clk);  /* init rstc and clk */
+
     hwid = ((readl(hx170dec_data.hwregs[0])) >> 16) & 0xFFFF; /* product version only */
 
     /* check for correct HW */
@@ -1380,6 +1387,9 @@ void ResetAsic(hx170dec_t *dev)
 #ifdef CONFIG_PM
 static int dec_chrdev_suspend(struct platform_device *pdev, pm_message_t state)
 {
+    if(!vc_power_is_on())
+        return 0;
+
     clk_disable(dec_clk);
     pr_info ("%s: clk_disable\n", __func__);
 	return 0;
@@ -1388,6 +1398,10 @@ static int dec_chrdev_suspend(struct platform_device *pdev, pm_message_t state)
 static int dec_chrdev_resume(struct platform_device *pdev)
 {
     int ret;
+
+    if(!vc_power_is_on())
+        return 0;
+
     ret = clk_prepare_enable(dec_clk);
     if (ret) {
         dev_err(&pdev->dev, "enabled clock failed\n");

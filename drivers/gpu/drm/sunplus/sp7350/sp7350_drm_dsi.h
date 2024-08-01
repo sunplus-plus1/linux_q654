@@ -338,4 +338,5 @@
 #define SP7350_MIPITX_INITIAL_DIS               0x0
 #define SP7350_MIPITX_INITIAL_EN                0x1
 
+
 #endif /* __SP7350_DRM_DSI_H__ */

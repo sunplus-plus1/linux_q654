@@ -770,14 +770,17 @@ static void spsdc_set_power_mode(struct spsdc_host *host, struct mmc_ios *ios)
 		/* power off->up->on */
 	case MMC_POWER_ON:
 		spsdc_pr(host->mode, DEBUG, "set SD_POWER_ON\n");
-		spsdc_controller_init(host);
 		pm_runtime_get_sync(host->mmc->parent);
 		break;
 	case MMC_POWER_UP:
+		spsdc_controller_init(host);
 		spsdc_pr(host->mode, DEBUG, "setSD_POWER_UP\n");
 		break;
 	case MMC_POWER_OFF:
 		spsdc_pr(host->mode, DEBUG, "set SD_POWER_OFF\n");
+		reset_control_assert(host->rstc);
+		msleep(1);
+		reset_control_deassert(host->rstc);
 		pm_runtime_put(host->mmc->parent);
 		break;
 	}
@@ -1012,10 +1015,9 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 	spsdc_pr(host->mode, INFO, "signal_vol_sw: host->vol %d ios->vol %d!\n", host->signal_voltage, ios->signal_voltage);
 
 	if (host->signal_voltage == ios->signal_voltage) {
-
-		spsdc_txdummy(host, 400);
+		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
+			spsdc_txdummy(host, 400);
 		return 0;
-
 	}
 
 	/* we do not support switch signal voltage for eMMC at runtime at present */
