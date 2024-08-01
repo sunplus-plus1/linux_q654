@@ -1169,8 +1169,8 @@ static const struct drm_plane_helper_funcs sp7350_kms_vpp_helper_funcs = {
 };
 
 static const struct drm_plane_helper_funcs sp7350_kms_osd_helper_funcs = {
-	.atomic_update		= sp7350_kms_plane_osd_atomic_update,
-	.atomic_check = sp7350_kms_plane_osd_atomic_check,
+	.atomic_update = sp7350_kms_plane_osd_atomic_update,
+	.atomic_check  = sp7350_kms_plane_osd_atomic_check,
 };
 
 static void sp7350_plane_create_propertys(struct sp7350_plane *plane)

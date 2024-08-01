@@ -62,37 +62,6 @@ struct sp7350_encoder {
 	void (*post_crtc_powerdown)(struct drm_encoder *encoder);
 };
 
-struct sp7350_crtc_state {
-	struct drm_crtc_state base;
-	/* Dlist area for this CRTC configuration. */
-	struct drm_mm_node mm;
-	bool feed_txp;
-	bool txp_armed;
-	unsigned int assigned_channel;
-
-	struct {
-		unsigned int left;
-		unsigned int right;
-		unsigned int top;
-		unsigned int bottom;
-	} margins;
-
-	/* Transitional state below, only valid during atomic commits */
-	bool update_muxing;
-};
-
-//static inline struct sp7350_crtc_state *
-//to_sp7350_crtc_state(struct drm_crtc_state *crtc_state)
-//{
-//	return container_of(crtc_state, struct sp7350_crtc_state, base);
-//}
-
-#define to_sp7350_crtc_state(crtc_state) \
-	container_of(crtc_state, struct sp7350_crtc_state, base)
-
-#define to_sp7350_crtc(crtc) \
-	container_of(crtc, struct sp7350_crtc, base)
-
 #define to_sp7350_encoder(encoder) \
 	container_of(encoder, struct sp7350_encoder, base)
 

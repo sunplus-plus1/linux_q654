@@ -505,6 +505,7 @@ static int lt8912_soft_power_on(struct lt8912 *lt)
 	return 0;
 }
 
+#if 0
 /*
  * lt8912_input_timing[x][y]
  * y = 0-1, LT8912 width & height
@@ -524,10 +525,12 @@ static const u32 lt8912_input_timing[11][10] = {
 	{ 800,  480, 0x14, 0x28, 0x58,  800, 0x5, 0x5, 0x24,  480}, /* 800x480 */
 	{1024,  600, 0x14, 0x28, 0x58, 1024, 0x5, 0x5, 0x24,  600}  /* 1024x600 */
 };
+#endif
 
 static int lt8912_video_on(struct lt8912 *lt)
 {
 	int ret;
+#if 0
 	u32 i;
 
 	/* set default timing by lt8912_input_timing and mode_sel. */
@@ -543,6 +546,7 @@ static int lt8912_video_on(struct lt8912 *lt)
 	lt->mode.vfront_porch = lt8912_input_timing[i][7];
 	lt->mode.vsync_len = lt8912_input_timing[i][6];
 	lt->mode.vback_porch = lt8912_input_timing[i][8];
+#endif
 
 	ret = lt8912_video_setup(lt);
 	if (ret < 0)
@@ -592,8 +596,10 @@ lt8912_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct lt8912 *lt = connector_to_lt8912(connector);
 
+	#if !defined(CONFIG_DRM_SP7350)
 	if (lt->hdmi_port->ops & DRM_BRIDGE_OP_DETECT)
 		return drm_bridge_detect(lt->hdmi_port);
+	#endif
 
 	return lt8912_check_cable_status(lt);
 }
@@ -1008,6 +1014,15 @@ static int lt8912_probe(struct i2c_client *client,
 	ret = lt8912_init_i2c(lt, client);
 	if (ret)
 		goto err_i2c;
+
+	#if defined(CONFIG_DRM_SP7350)
+	{ /* Check chip valid */
+		unsigned int reg_val;
+		ret = regmap_read(lt->regmap[I2C_MAIN], 0xC1, &reg_val);
+		if (ret)
+			goto err_i2c;
+	}
+	#endif
 
 	i2c_set_clientdata(client, lt);
 

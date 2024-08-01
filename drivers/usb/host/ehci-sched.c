@@ -1795,7 +1795,11 @@ static void itd_link_urb(
 	enable_periodic(ehci);
 }
 
+#if defined(CONFIG_SOC_SP7350)
+#define	ISO_ERRS (EHCI_ISOC_BUF_ERR | EHCI_ISOC_BABBLE)
+#else
 #define	ISO_ERRS (EHCI_ISOC_BUF_ERR | EHCI_ISOC_BABBLE | EHCI_ISOC_XACTERR)
+#endif
 
 /* Process and recycle a completed ITD.  Return true iff its urb completed,
  * and hence its completion callback probably added things to the hardware
