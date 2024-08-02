@@ -9,32 +9,10 @@
 //#define SPI_LOOPBACK_MTTEST
 
 //#define MIPI_CSI_4VC
-//#define IMX219_IN2
-//#define IMX219_IN3
-//#define IMX219_IN4
 //#define IMX219_IN5
-//#define IMX708_IN2
-//#define IMX708_IN3
-//#define IMX708_IN4
 //#define IMX708_IN5
-//#define OV5640_IN2
-//#define OV5640_IN3
-//#define OV5640_IN4
 //#define OV5640_IN5
-//#define OV5647_IN2
-//#define OV5647_IN3
-//#define OV5647_IN4
 //#define OV5647_IN5
-//#define TP2815_IN2
-//#define TP2815_IN2_1LANE
-//#define TP2815_IN2_2LANES
-//#define TP2815_IN2_2VC
-//#define TP2815_IN3
-//#define TP2815_IN3_1LANE
-//#define TP2815_IN3_2VC
-//#define TP2815_IN4
-//#define TP2815_IN4_1LANE
-//#define TP2815_IN4_2VC
 //#define TP2815_IN5
 //#define TP2815_IN5_1LANE
 //#define TP2815_IN5_2LANES
@@ -653,11 +631,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo0_pins>;
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
 
 #if 0
 	#address-cells = <1>;
@@ -665,133 +639,6 @@
 	slave@50 {
 		compatible = "linux,slave-24c02";
 		reg = <0x40000050>;
-	};
-#endif
-#ifdef IMX219_IN4 /* Add imx219 subnode in i2c0 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_4: imx219@10 {
-		compatible = "sony,imx219";
-		reg = <0x10>;
-		clocks = <&imx219_clk>;
-		VANA-supply = <&imx219_vana_2v8>;
-		VDIG-supply = <&imx219_vdig_1v8>;
-		VDDL-supply = <&imx219_vddl_1v2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_0_pins>;
-		//power-gpios = <&pctl 63 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 19 GPIO_ACTIVE_HIGH>;
-
-		port {
-			imx219_4: endpoint {
-				remote-endpoint = <&csi2_4>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
-#ifdef IMX708_IN4 /* Add imx708 subnode in i2c0 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_4: imx708@1a {
-		compatible = "sony,imx708";
-		reg = <0x1a>;
-		clocks = <&imx708_clk>;
-		clock-names = "inclk";
-		vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-		vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
-		vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
-		vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
-
-		port {
-			imx708_4: endpoint {
-				remote-endpoint = <&csi2_4>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <450000000>;
-			};
-		};
-	};
-#endif
-#ifdef OV5640_IN4 /* Add ov5640 subnode in i2c0 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_4: ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&ov5640_clk>;
-		clock-names = "xclk";
-		AVDD-supply = <&ov5640_avdd_2p8v>;
-		DOVDD-supply = <&ov5640_dovdd_1p8v>;
-		DVDD-supply = <&ov5640_dvdd_1p5v>;
-
-		port {
-			ov5640_4: endpoint {
-				remote-endpoint = <&csi2_4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-	};
-#endif
-#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c0 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_4: ov5647@36 {
-		compatible = "ovti,ov5647";
-		reg = <0x36>;
-		clocks = <&ov5647_clk>;
-		avdd-supply = <&ov5647_avdd_2v8>;
-		dovdd-supply = <&ov5647_dovdd_1v8>;
-		dvdd-supply = <&ov5647_dvdd_1v5>;
-
-		port {
-			ov5647_4: endpoint {
-				remote-endpoint = <&csi2_4>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <297000000>;
-			};
-		};
-	};
-#endif
-#ifdef TP2815_IN4 /* Add tp2815 subnode in i2c0 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_4: tp2815@44 {
-		compatible = "Techpoint,tp2815";
-		reg = <0x44>;
-		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN4_2VC
-		input-channel = <2>;
-	#else
-		input-channel = <1>;
-	#endif
-		input-standard = <0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_0_pins>;
-		//power-gpios = <&pctl 63 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 19 GPIO_ACTIVE_HIGH>;
-
-		port {
-			tp2815_4: endpoint {
-				remote-endpoint = <&csi2_4>;
-	#ifdef TP2815_IN4_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-				clock-continuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
 	};
 #endif
 };
@@ -804,139 +651,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo1_pins>;
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-#ifdef IMX219_IN3 /* Add imx219 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_3: imx219@10 {
-		compatible = "sony,imx219";
-		reg = <0x10>;
-		clocks = <&imx219_clk>;
-		VANA-supply = <&imx219_vana_2v8>;
-		VDIG-supply = <&imx219_vdig_1v8>;
-		VDDL-supply = <&imx219_vddl_1v2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_1_pins>;
-		//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
-
-		port {
-			imx219_3: endpoint {
-				remote-endpoint = <&csi2_3>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
-#ifdef IMX708_IN3 /* Add imx708 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_3: imx708@1a {
-		compatible = "sony,imx708";
-		reg = <0x1a>;
-		clocks = <&imx708_clk>;
-		clock-names = "inclk";
-		vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-		vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
-		vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
-		vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
-
-		port {
-			imx708_3: endpoint {
-				remote-endpoint = <&csi2_3>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <450000000>;
-			};
-		};
-	};
-#endif
-#ifdef OV5640_IN3 /* Add ov5640 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_3: ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&ov5640_clk>;
-		clock-names = "xclk";
-		AVDD-supply = <&ov5640_avdd_2p8v>;
-		DOVDD-supply = <&ov5640_dovdd_1p8v>;
-		DVDD-supply = <&ov5640_dvdd_1p5v>;
-
-		port {
-			ov5640_3: endpoint {
-				remote-endpoint = <&csi2_3>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-	};
-#endif
-#ifdef OV5647_IN3 /* Add ov5647 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_3: ov5647@36 {
-		compatible = "ovti,ov5647";
-		reg = <0x36>;
-		clocks = <&ov5647_clk>;
-		avdd-supply = <&ov5647_avdd_2v8>;
-		dovdd-supply = <&ov5647_dovdd_1v8>;
-		dvdd-supply = <&ov5647_dvdd_1v5>;
-
-		port {
-			ov5647_3: endpoint {
-				remote-endpoint = <&csi2_3>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <297000000>;
-			};
-		};
-	};
-#endif
-#ifdef TP2815_IN3 /* Add tp2815 subnode in i2c1 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_3: tp2815@44 {
-		compatible = "Techpoint,tp2815";
-		reg = <0x44>;
-		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN3_2VC
-		input-channel = <2>;
-	#else
-		input-channel = <1>;
-	#endif
-		input-standard = <0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_1_pins>;
-		//power-gpios = <&pctl 73 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
-
-		port {
-			tp2815_3: endpoint {
-				remote-endpoint = <&csi2_3>;
-	#ifdef TP2815_IN3_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-				clock-continuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
 };
 
 &i2c2 {
@@ -944,17 +659,25 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2)
+	status = "disabled";
+};
+
+&i2c3 {
+	i2c-sda-hold-time-ns = <1000>;
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c_combo3_pins>;
+#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
 #endif
 
-#ifdef IMX219_IN2 /* Add imx219 subnode in i2c2 */
+#ifdef IMX219_IN5 /* Add imx219 subnode in i2c3 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_2: imx219@10 {
+	camera_5: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
 		clocks = <&imx219_clk>;
@@ -962,13 +685,13 @@
 		VDIG-supply = <&imx219_vdig_1v8>;
 		VDDL-supply = <&imx219_vddl_1v2>;
 		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_4_pins>;
-		//power-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 75 GPIO_ACTIVE_HIGH>;
+		//pinctrl-0 = <&camera_5_pins>;
+		//power-gpios = <&pctl 21 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 22 GPIO_ACTIVE_HIGH>;
 
 		port {
-			imx219_2: endpoint {
-				remote-endpoint = <&csi2_2>;
+			imx219_5: endpoint {
+				remote-endpoint = <&csi2_5>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <456000000>;
@@ -976,11 +699,11 @@
 		};
 	};
 #endif
-#ifdef IMX708_IN2 /* Add imx708 subnode in i2c2 */
+#ifdef IMX708_IN5 /* Add imx708 subnode in i2c3 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_2: imx708@1a {
+	camera_5: imx708@1a {
 		compatible = "sony,imx708";
 		reg = <0x1a>;
 		clocks = <&imx708_clk>;
@@ -991,8 +714,8 @@
 		vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
 
 		port {
-			imx708_2: endpoint {
-				remote-endpoint = <&csi2_2>;
+			imx708_5: endpoint {
+				remote-endpoint = <&csi2_5>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <450000000>;
@@ -1000,11 +723,11 @@
 		};
 	};
 #endif
-#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c2 */
+#ifdef OV5640_IN5 /* Add ov5640 subnode in i2c3 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_2: ov5640@3c {
+	camera_5: ov5640@3c {
 		compatible = "ovti,ov5640";
 		reg = <0x3c>;
 		clocks = <&ov5640_clk>;
@@ -1014,29 +737,30 @@
 		DVDD-supply = <&ov5640_dvdd_1p5v>;
 
 		port {
-			ov5640_2: endpoint {
-				remote-endpoint = <&csi2_2>;
+			ov5640_5: endpoint {
+				remote-endpoint = <&csi2_5>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
 			};
 		};
 	};
 #endif
-#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c2 */
+#ifdef OV5647_IN5 /* Add ov5647 subnode in i2c3 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_2: ov5647@36 {
+	camera_5: ov5647@36 {
 		compatible = "ovti,ov5647";
 		reg = <0x36>;
 		clocks = <&ov5647_clk>;
 		avdd-supply = <&ov5647_avdd_2v8>;
 		dovdd-supply = <&ov5647_dovdd_1v8>;
 		dvdd-supply = <&ov5647_dvdd_1v5>;
+		// pwdn-gpios = <&pctl 21 GPIO_ACTIVE_HIGH>;
 
 		port {
-			ov5647_2: endpoint {
-				remote-endpoint = <&csi2_2>;
+			ov5647_5: endpoint {
+				remote-endpoint = <&csi2_5>;
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <297000000>;
@@ -1044,32 +768,34 @@
 		};
 	};
 #endif
-#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c2 */
+#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c3 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	camera_2: tp2815@44 {
+	camera_5: tp2815@44 {
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN2_2VC
+	#ifdef TP2815_IN5_4VC
+		input-channel = <4>;
+	#elif defined(TP2815_IN5_2VC)
 		input-channel = <2>;
 	#else
 		input-channel = <1>;
 	#endif
 		input-standard = <0>;
 		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_4_pins>;
-		//power-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 75 GPIO_ACTIVE_HIGH>;
+		//pinctrl-0 = <&camera_5_pins>;
+		//power-gpios = <&pctl 21 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 22 GPIO_ACTIVE_HIGH>;
 
 		port {
-			tp2815_2: endpoint {
-				remote-endpoint = <&csi2_2>;
-	#ifdef TP2815_IN2_1LANE
-				data-lanes = <1>;
-	#else
+			tp2815_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+	#ifdef TP2815_IN5_2LANES
 				data-lanes = <1 2>;
+	#else
+				data-lanes = <1 2 3 4>;
 	#endif
 				clock-continuous;
 				link-frequencies = /bits/ 64 <456000000>;
@@ -1077,14 +803,6 @@
 		};
 	};
 #endif
-};
-
-&i2c3 {
-	i2c-sda-hold-time-ns = <1000>;
-	clock-frequency = <400000>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c_combo3_pins>;
-	status = "disabled";
 };
 
 &i2c4 {
@@ -1172,21 +890,6 @@
 		};
 	};
 #endif
-	es8316: codec@11 {
-		compatible = "everest,es8316";
-		reg = <0x11>;
-		#sound-dai-cells = <0>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&audcodec_pins>;
-		audcodec-gpios = <&pctl 27 GPIO_ACTIVE_HIGH>;
-#if 0
-		port {
-			es8316_p0_0: endpoint {
-				remote-endpoint = <&i2s0_p0_0>;
-			};
-		};
-#endif
-	};
 };
 
 &i2c5 {
@@ -1206,142 +909,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo6_pins>;
-#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-#ifdef IMX219_IN5 /* Add imx219 subnode in i2c6 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_5: imx219@10 {
-		compatible = "sony,imx219";
-		reg = <0x10>;
-		clocks = <&imx219_clk>;
-		VANA-supply = <&imx219_vana_2v8>;
-		VDIG-supply = <&imx219_vdig_1v8>;
-		VDDL-supply = <&imx219_vddl_1v2>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_5_pins>;
-		//power-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
-
-		port {
-			imx219_5: endpoint {
-				remote-endpoint = <&csi2_5>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
-#ifdef IMX708_IN5 /* Add imx708 subnode in i2c6 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_5: imx708@1a {
-		compatible = "sony,imx708";
-		reg = <0x1a>;
-		clocks = <&imx708_clk>;
-		clock-names = "inclk";
-		vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-		vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
-		vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
-		vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
-
-		port {
-			imx708_5: endpoint {
-				remote-endpoint = <&csi2_5>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <450000000>;
-			};
-		};
-	};
-#endif
-#ifdef OV5640_IN5 /* Add ov5640 subnode in i2c6 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_5: ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&ov5640_clk>;
-		clock-names = "xclk";
-		AVDD-supply = <&ov5640_avdd_2p8v>;
-		DOVDD-supply = <&ov5640_dovdd_1p8v>;
-		DVDD-supply = <&ov5640_dvdd_1p5v>;
-
-		port {
-			ov5640_5: endpoint {
-				remote-endpoint = <&csi2_5>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-	};
-#endif
-#ifdef OV5647_IN5 /* Add ov5647 subnode in i2c6 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_5: ov5647@36 {
-		compatible = "ovti,ov5647";
-		reg = <0x36>;
-		clocks = <&ov5647_clk>;
-		avdd-supply = <&ov5647_avdd_2v8>;
-		dovdd-supply = <&ov5647_dovdd_1v8>;
-		dvdd-supply = <&ov5647_dvdd_1v5>;
-		// pwdn-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
-
-		port {
-			ov5647_5: endpoint {
-				remote-endpoint = <&csi2_5>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <297000000>;
-			};
-		};
-	};
-#endif
-#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c6 */
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	camera_5: tp2815@44 {
-		compatible = "Techpoint,tp2815";
-		reg = <0x44>;
-		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN5_4VC
-		input-channel = <4>;
-	#elif defined(TP2815_IN5_2VC)
-		input-channel = <2>;
-	#else
-		input-channel = <1>;
-	#endif
-		input-standard = <0>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_5_pins>;
-		//power-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
-		//reset-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
-
-		port {
-			tp2815_5: endpoint {
-				remote-endpoint = <&csi2_5>;
-	#ifdef TP2815_IN5_2LANES
-				data-lanes = <1 2>;
-	#else
-				data-lanes = <1 2 3 4>;
-	#endif
-				clock-continuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
 };
 
 &i2c7 {
@@ -1406,551 +974,41 @@
 };
 
 &mipicsirx2 {
-#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	/* Virtual channel related properties */
-	max_channels = <4>;
-#ifdef MIPI_CSI_4VC
-	#ifdef TP2815_IN2
-	num_channels = <1>;
-	#else
-	num_channels = <4>;
-	#endif
-#else
-	#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2)
-	num_channels = <1>;
-	#elif defined(TP2815_IN2)
-		#ifdef TP2815_IN2_2VC
-	num_channels = <2>;
-		#else
-	num_channels = <1>;
-		#endif
-	#else
-	num_channels = <2>;
-	#endif
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN2 /* Add imx219 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_2: endpoint {
-				remote-endpoint = <&imx219_2>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef IMX708_IN2 /* Add imx708 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_2: endpoint {
-				remote-endpoint = <&imx708_2>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_2: endpoint {
-				remote-endpoint = <&ov5640_2>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_2: endpoint {
-				remote-endpoint = <&ov5647_2>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_2: endpoint {
-				remote-endpoint = <&tp2815_2>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-	#ifdef TP2815_IN2_1LANE
-				data-lanes = <1>;
-	#elif defined(TP2815_IN2_2LANES)
-				data-lanes = <1 2>;
-	#else
-				data-lanes = <1 2 3 4>;
-	#endif
-			};
-		};
-#endif
-
-		/* Output port node, multiple endpoints, connected to VIN modules */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			csi2vin4: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&vin4csi2>;
-			};
-
-			csi2vin5: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&vin5csi2>;
-			};
-
-#ifdef MIPI_CSI_4VC
-			csi2vin6: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&vin6csi2>;
-			};
-
-			csi2vin7: endpoint@3 {
-				reg = <3>;
-				remote-endpoint = <&vin7csi2>;
-			};
-#endif
-		};
-	};
 };
 
 &vin4 {
-	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin4csi2: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&csi2vin4>;
-			};
-		};
-	};
 };
 
 &vin5 {
-	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN2) && defined(TP2815_IN2_2VC)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin5csi2: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&csi2vin5>;
-			};
-		};
-	};
 };
 
 #ifndef MIPI_CSI_4VC
 &mipicsirx3 {
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	/* Virtual channel related properties */
-	max_channels = <4>;
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3)
-	num_channels = <1>;
-#elif defined(TP2815_IN3)
-	#ifdef TP2815_IN3_2VC
-	num_channels = <2>;
-	#else
-	num_channels = <1>;
-	#endif
-#else
-	num_channels = <2>;
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN3 /* Add imx219 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&imx219_3>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef IMX708_IN3 /* Add imx708 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&imx708_3>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef OV5640_IN3 /* Add ov5640 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&ov5640_3>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef OV5647_IN3 /* Add ov5647 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&ov5647_3>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef TP2815_IN3 /* Add tp2815 subnode in i2c1 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_3: endpoint {
-				remote-endpoint = <&tp2815_3>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-	#ifdef TP2815_IN3_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-			};
-		};
-#endif
-
-		/* Output port node, multiple endpoints, connected to VIN modules */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			csi3vin6: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&vin6csi3>;
-			};
-
-			csi3vin7: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&vin7csi3>;
-			};
-		};
-	};
 };
 #endif
 
 &vin6 {
-	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-#ifdef MIPI_CSI_4VC
-			vin6csi2: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&csi2vin6>;
-			};
-#else
-			vin6csi3: endpoint@3 {
-				reg = <3>;
-				remote-endpoint = <&csi3vin6>;
-			};
-#endif
-		};
-	};
 };
 
 &vin7 {
-	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN3) && defined(TP2815_IN3_2VC)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-#ifdef MIPI_CSI_4VC
-			vin7csi2: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&csi2vin7>;
-			};
-#else
-			vin7csi3: endpoint@3 {
-				reg = <3>;
-				remote-endpoint = <&csi3vin7>;
-			};
-#endif
-		};
-	};
 };
 
 &mipicsirx4 {
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	/* Virtual channel related properties */
-	max_channels = <4>;
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4)
-	num_channels = <1>;
-#elif defined(TP2815_IN4)
-	#ifdef TP2815_IN4_2VC
-	num_channels = <2>;
-	#else
-	num_channels = <1>;
-	#endif
-#else
-	num_channels = <2>;
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN4 /* Add imx219 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_4: endpoint {
-				remote-endpoint = <&imx219_4>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef IMX708_IN4 /* Add imx708 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_4: endpoint {
-				remote-endpoint = <&imx708_4>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef OV5640_IN4 /* Add ov5640 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_4: endpoint {
-				remote-endpoint = <&ov5640_4>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef OV5647_IN4 /* Add ov5647 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_4: endpoint {
-				remote-endpoint = <&ov5647_4>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-			};
-		};
-#endif
-#ifdef TP2815_IN4 /* Add tp2815 subnode in i2c0 */
-		port@0 {
-			reg = <0>;
-
-			/* MIPI CSI-2 bus endpoint */
-			csi2_4: endpoint {
-				remote-endpoint = <&tp2815_4>;
-				bus-type = <4>;
-				clock-lanes = <0>;
-	#ifdef TP2815_IN4_1LANE
-				data-lanes = <1>;
-	#else
-				data-lanes = <1 2>;
-	#endif
-			};
-		};
-#endif
-
-		/* Output port node, multiple endpoints, connected to VIN modules */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			csi4vin8: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&vin8csi4>;
-			};
-
-			csi4vin9: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&vin9csi4>;
-			};
-		};
-	};
 };
 
 &vin8 {
-	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin8csi4: endpoint@4 {
-				reg = <4>;
-				remote-endpoint = <&csi4vin8>;
-			};
-		};
-	};
 };
 
 &vin9 {
-	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN4) && defined(TP2815_IN4_2VC)
-	status = "okay";
-#else
 	status = "disabled";
-#endif
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		/* Input port node, default mode, connected to CSI-2 receivers */
-		port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			reg = <1>;
-
-			vin9csi4: endpoint@4 {
-				reg = <4>;
-				remote-endpoint = <&csi4vin9>;
-			};
-		};
-	};
 };
 
 &mipicsirx5 {
@@ -1981,7 +1039,7 @@
 		#size-cells = <0>;
 
 		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN5 /* Add imx219 subnode in i2c6 */
+#ifdef IMX219_IN5 /* Add imx219 subnode in i2c3 */
 		port@0 {
 			reg = <0>;
 
@@ -1994,7 +1052,7 @@
 			};
 		};
 #endif
-#ifdef IMX708_IN5 /* Add imx708 subnode in i2c6 */
+#ifdef IMX708_IN5 /* Add imx708 subnode in i2c3 */
 		port@0 {
 			reg = <0>;
 
@@ -2007,7 +1065,7 @@
 			};
 		};
 #endif
-#ifdef OV5640_IN5 /* Add ov5640 subnode in i2c6 */
+#ifdef OV5640_IN5 /* Add ov5640 subnode in i2c3 */
 		port@0 {
 			reg = <0>;
 			/* MIPI CSI-2 bus endpoint */
@@ -2019,7 +1077,7 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN5 /* Add ov5647 subnode in i2c6 */
+#ifdef OV5647_IN5 /* Add ov5647 subnode in i2c3 */
 		port@0 {
 			reg = <0>;
 
@@ -2032,7 +1090,7 @@
 			};
 		};
 #endif
-#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c6 */
+#ifdef TP2815_IN5 /* Add tp2815 subnode in i2c3 */
 		port@0 {
 			reg = <0>;
 
