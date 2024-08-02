@@ -368,13 +368,10 @@ struct sp7350_dsi_host {
 	struct completion xfer_completion;
 	int xfer_result;
 
-	struct drm_display_mode adj_mode_store;
-
 	/* define for debugfs */
 	struct debugfs_regset32 regset_g204;
 	struct debugfs_regset32 regset_g205;
 	struct debugfs_regset32 regset_ao_moon3;
-	//struct drm_display_mode adj_mode_store;
 	struct sp7350_mpitx_sync_timing_param mipitx_sync_timing;
 };
 
@@ -437,6 +434,7 @@ static void sp7350_mipitx_phy_init(struct sp7350_dsi_host *sp_dsi_host)
 	/*
 	 * Setting T_HS-EXIT & T_LPX for Clock/Data Lane
 	 */
+	value = 0;
 	value |= (SP7350_MIPITX_T_HS_EXIT_SET(sp7350_mipitx_phy_timing[0]) |
 			SP7350_MIPITX_T_LPX_SET(sp7350_mipitx_phy_timing[1]));
 	SP7350_DSI_HOST_WRITE(MIPITX_LANE_TIME_CTRL, value);
@@ -1210,9 +1208,12 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 
 	/* TODO reference to dsi_encoder_mode_set */
 	//DRM_DEBUG_DRIVER("[TODO]\n");
-	DRM_DEBUG_DRIVER("SET mode[%dx%d], adj_mode[%dx%d]\n",
-			 mode->hdisplay, mode->vdisplay,
-		adj_mode->hdisplay, adj_mode->vdisplay);
+	DRM_DEBUG_DRIVER("\nSET DSI mode(%s):\n"
+		 "   hdisplay=%d, hsync_start=%d, hsync_end=%d, htotal=%d\n"
+		 "   vdisplay=%d, vsync_start=%d, vsync_end=%d, vtotal=%d\n",
+		 adj_mode->name,
+		 adj_mode->hdisplay, adj_mode->hsync_start, adj_mode->hsync_end, adj_mode->htotal,
+		 adj_mode->vdisplay, adj_mode->vsync_start, adj_mode->vsync_end, adj_mode->vtotal);
 
 	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->mode_set)
@@ -1222,10 +1223,6 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, adj_mode);
 	sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, adj_mode);
 	sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, adj_mode);
-	//sp7350_dsi_tcon_timing_setting(sp_dsi_host, adj_mode);
-
-	/* store */
-	//drm_mode_copy(&sp_dsi_host->adj_mode_store, adj_mode);
 }
 
 static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
