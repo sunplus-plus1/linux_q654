@@ -1331,6 +1331,7 @@
 		//compatible = "lontium,lt8912b-builtin";
 		reg = <0x48>;
 		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
+		#if !defined(CONFIG_DISP_DRM_SUPPORT)
 		#if defined(LT8912B_HDMI_480X272)
 		hdmi-mode = <0x0>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
 		hdmi-timing = <0x0>;
@@ -1352,6 +1353,7 @@
 		 * 0x2: 1280x720
 		 * 0x3: 1920x1080
 		 */
+		#endif
 		status = "okay";
 		ports {
 			#address-cells = <1>;
@@ -2393,6 +2395,7 @@
 };
 
 &display {
+#if !defined(CONFIG_DISP_DRM_SUPPORT)
 #if defined(DISP_MIPITX_CSI)
 	#if defined(DISP_MIPITX_CSI_480P)
 	sp7350,dev_name = "MIPITX-CSI-TEST_480P";
@@ -2577,6 +2580,7 @@
 			remote-endpoint = <&lt8912b_in>;
 		};
 	};
+#endif
 #endif
 };
 
@@ -3437,7 +3441,7 @@
 	};
 };
 #endif
-#if defined(LT8912B_HDMI_ENABLE) || defined(RASPBERRYPI_DSI_PANEL)
+#if defined(LT8912B_HDMI_ENABLE)
 &lontium_lt8912b {
 	status = "okay";
 };
