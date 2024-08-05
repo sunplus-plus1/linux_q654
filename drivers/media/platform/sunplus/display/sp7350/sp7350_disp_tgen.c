@@ -7,7 +7,6 @@
 #include "sp7350_display.h"
 #include "sp7350_disp_regs.h"
 
-#ifndef CONFIG_DRM_SP7350
 static const char * const sp7350_tgen_usr[] = {"Internal", "User Mode"};
 static const char * const sp7350_tgen_fmt[] = {
 	"480P", "576P", "720P", "1080P", "rsv", "rsv",
@@ -93,7 +92,7 @@ void sp7350_tgen_decrypt_info(void)
 	value = readl(disp_dev->base + TGEN_DTG_CONFIG);
 	pr_info("G197.04 TGEN_DTG_CONFIG 0x%08x\n", value);
 	user_mode = FIELD_GET(GENMASK(0,0), value);
-	pr_info("  USER_MODE[%s] %s %s\n",
+	pr_info("  USER_MODE[%s] %s %s\n", 
 		user_mode?"ON ":"OFF",
 		user_mode?"---":sp7350_tgen_fmt[FIELD_GET(GENMASK(10,8), value)],
 		user_mode?"---":sp7350_tgen_fps[FIELD_GET(GENMASK(5,4), value)]);
@@ -114,12 +113,12 @@ void sp7350_tgen_decrypt_info(void)
 	value1 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_14);
 	value2 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_25);
 
-	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) *
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) * 
 		(FIELD_GET(GENMASK(14,7), value1) + 64)) /
 		(FIELD_GET(GENMASK(2,1), value1)?2:1);
-	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
-	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
 	pr_info("     current pixel_clk  %d.%d(MHz)\n", tmp_value2, (tmp_value3 - tmp_value2*100));
 #endif
@@ -148,7 +147,7 @@ void sp7350_tgen_resolution_chk(void)
 	//pr_info("G197.04 TGEN_DTG_CONFIG 0x%08x\n", value);
 	user_mode = FIELD_GET(GENMASK(0,0), value);
 	dtg_fps = FIELD_GET(GENMASK(5, 4), value);
-	pr_info("  USER_MODE[%s] %s %s\n",
+	pr_info("  USER_MODE[%s] %s %s\n", 
 		user_mode?"ON ":"OFF",
 		user_mode?"---":sp7350_tgen_fmt[FIELD_GET(GENMASK(10,8), value)],
 		user_mode?"---":sp7350_tgen_fps[FIELD_GET(GENMASK(5,4), value)]);
@@ -173,12 +172,12 @@ void sp7350_tgen_resolution_chk(void)
 	value1 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_14);
 	value2 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_25);
 
-	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) *
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) * 
 		(FIELD_GET(GENMASK(14,7), value1) + 64)) /
 		(FIELD_GET(GENMASK(2,1), value1)?2:1);
-	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
-	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
 	pr_info("     current pixel_clk  %d.%d(MHz)\n", tmp_value2, (tmp_value3 - tmp_value2*100));
 #endif
@@ -236,21 +235,20 @@ EXPORT_SYMBOL(sp7350_tgen_get_current_line_count);
 static const u32 sp_tgen_para_dsi[11][10] = {
 	/* (w   h) (usr fps fmt) */
 	{ 720,  480, 1, 0, 0,  858,  720,  525,  517, 36}, /* 480P 60Hz */
-	{ 720,  576, 1, 0, 0,  864,  720,  625,  621, 44}, /* 576P 50Hz */
+	{ 720,  576, 0, 1, 1,  864,  720,  625,  621, 44}, /* 576P 50Hz */
 	//{1280,  720, 0, 0, 2, 1650, 1280,  750,  746, 25}, /* 720P 60Hz */
 	{1280,  720, 1, 0, 0, 1650, 1280,  750,  746, 25}, /* 720P 60Hz */
 	//{1920, 1080, 0, 0, 3, 2200, 1920, 1125, 1122, 41}, /* 1080P 60Hz */
 	{1920, 1080, 1, 0, 0, 2200, 1920, 1125, 1122, 41}, /* 1080P 60Hz */
 	//{  64,   64, 0, 0, 6,  360,   64,  100,   92, 29}, /* 64x64 60Hz */
 	{ 480, 1280, 1, 0, 0,  620,  480, 1314, 1298, 17}, /* 480x1280 60Hz */
-	//{ 480, 1280, 1, 0, 0,  678,  480, 1312, 1297, 16}, /* 480x1280 60Hz, from specification adjustment */
 	/* (w   h) (usr - -)  htt   hact   vtt   vact+vbp+1 vbp*/
 	{ 128,  128, 1, 0, 0,  360,  128,  150,  148, 19}, /* 128x128 60Hz */
 	//{ 240,  320, 1, 0, 0,  683,  240,  364,  357, 36}, /* 240x320 60Hz */
 	{ 240,  320, 1, 0, 0,  683,  240,  354,  347, 26}, /* 240x320 60Hz */
 	{3840,   64, 1, 0, 0, 4608, 3840,  100,   92, 29}, /* 3840x64 60Hz */
 	{3840, 2880, 1, 0, 0, 4608, 3840, 3200, 2920, 39}, /* 3840x2880 60Hz */
-	{ 800,  480, 1, 0, 0,  917,  800,  510,  504, 23}, /* 800x480 60Hz */
+	{ 800,  480, 1, 0, 0,  873,  800,  510,  504, 23}, /* 800x480 60Hz */
 	{1024,  600, 1, 0, 0, 1344, 1024,  635,  625, 24}  /* 1024x600 60Hz */
 };
 
@@ -388,89 +386,17 @@ void sp7350_tgen_timing_get(void)
 	value1 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_14);
 	value2 = readl(disp_dev->ao_moon3 + MIPITX_AO_MOON3_25);
 
-	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) *
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) * 
 		(FIELD_GET(GENMASK(14,7), value1) + 64)) /
 		(FIELD_GET(GENMASK(2,1), value1)?2:1);
-	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
-	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
+	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) * 
 		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
 	pr_info("  current pixel_clk  %d.%d(MHz)\n", tmp_value2, (tmp_value3 - tmp_value2*100));
 #endif
 
 }
-#else
-static void sp7350_tgen_reset(void)
-{
-	struct sp_disp_device *disp_dev = gdisp_dev;
-	u32 value;
-
-	value = readl(disp_dev->base + TGEN_RESET);
-	value |= SP7350_TGEN_RESET;
-	writel(value, disp_dev->base + TGEN_RESET);
-}
-
-/* display tgen init. */
-void sp7350_drm_tgen_init(void)
-{
-	struct sp_disp_device *disp_dev = gdisp_dev;
-	//u32 value, dtg_fmt;
-
-	writel(0x00000000, disp_dev->base + TGEN_CONFIG);
-	writel(0x0000000a, disp_dev->base + TGEN_USER_INT1_CONFIG);
-	writel(0x0000000a, disp_dev->base + TGEN_USER_INT2_CONFIG);
-#if 0
-	value = readl(disp_dev->base + TGEN_DTG_CONFIG);
-	dtg_fmt = FIELD_GET(GENMASK(10,8), value);
-	set_width = disp_dev->out_res.width;
-	set_height = disp_dev->out_res.height;
-	if (((dtg_fmt == 0x00) && (width == 720) && (height == 480)) ||
-		((dtg_fmt == 0x01) && (width == 720) && (height == 576)) ||
-		((dtg_fmt == 0x02) && (width == 1280) && (height == 720)) ||
-		((dtg_fmt == 0x03) && (width == 1920) && (height == 1080))) {
-		value = readl(disp_dev->base + MIPITX_INFO_STATUS); //G204.28
-		if ((FIELD_GET(GENMASK(24,24), value) == 1) && (FIELD_GET(GENMASK(0,0), value) == 0)) {
-			//pr_info("  MIPITX working, skip tgen setting\n");
-			return;
-		}
-	}
-#endif
-
-	/* Write 1 to reset DTG timing bit
-	 */
-	sp7350_tgen_reset();
-}
-
-/* display tgen timing setting */
-void sp7350_drm_tgen_timing_setting(struct sp7350_drm_tgen_timing_param *tgen_timing)
-{
-	struct sp_disp_device *disp_dev = gdisp_dev;
-	u32 value;
-
-	/* Fixed user mode. */
-	value = readl(disp_dev->base + TGEN_DTG_CONFIG);
-	value &= ~(SP7350_TGEN_FORMAT | SP7350_TGEN_FPS | SP7350_TGEN_USER_MODE);
-	value |= SP7350_TGEN_USER_MODE;
-	writel(value, disp_dev->base + TGEN_DTG_CONFIG);
-
-	writel(tgen_timing->total_pixel, disp_dev->base + TGEN_DTG_TOTAL_PIXEL);
-	writel(tgen_timing->line_start_cd_point, disp_dev->base + TGEN_DTG_DS_LINE_START_CD_POINT);
-	writel(tgen_timing->total_line, disp_dev->base + TGEN_DTG_TOTAL_LINE);
-	writel(tgen_timing->field_end_line, disp_dev->base + TGEN_DTG_FIELD_END_LINE);
-	writel(tgen_timing->active_start_line, disp_dev->base + TGEN_DTG_START_LINE);
-
-	writel(0x0000100d, disp_dev->base + TGEN_DTG_ADJUST1);
-	writel(0x00000000, disp_dev->base + TGEN_SOURCE_SEL);
-
-	/* Write 1 to reset DTG timing bit
-	 */
-	sp7350_tgen_reset();
-
-	/* FIXME out_res setting for osd layer. */
-	disp_dev->out_res.width = tgen_timing->line_start_cd_point;
-	disp_dev->out_res.height = tgen_timing->field_end_line - tgen_timing->active_start_line - 1;
-}
-#endif
 
 void sp7350_tgen_input_adjust(int tgen_input_adj, u32 adj_value)
 {

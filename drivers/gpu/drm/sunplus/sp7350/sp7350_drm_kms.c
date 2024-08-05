@@ -18,9 +18,6 @@
 
 #include "sp7350_drm_drv.h"
 
-//#include "sp7350_display.h"
-#include "../../../../media/platform/sunplus/display/sp7350/sp7350_disp_dmix.h"
-
 static struct drm_framebuffer *
 sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 			 const struct drm_mode_fb_cmd2 *mode_cmd)

@@ -361,6 +361,7 @@ static int lt8912_video_setup(struct lt8912 *lt)
 	return ret;
 }
 
+#if 0  /* TODO */
 static int lt8912_audio_setup(struct lt8912 *lt)
 {
 	u8 avi_pb0, avi_pb1, avi_pb2, avi_pb4, chksum;
@@ -485,9 +486,9 @@ static int lt8912_audio_setup(struct lt8912 *lt)
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4e, avi_pb11);
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4f, avi_pb12);
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x50, avi_pb13);
-
 	return ret;
 }
+#endif
 
 static int lt8912_soft_power_on(struct lt8912 *lt)
 {
@@ -564,6 +565,7 @@ static int lt8912_video_on(struct lt8912 *lt)
 	if (ret < 0)
 		goto end;
 
+#if 0 /* TODO */
 	if (lt->hdmi_dvi_sel) {
 		ret = lt8912_audio_setup(lt);
 		if (ret < 0)
@@ -571,6 +573,7 @@ static int lt8912_video_on(struct lt8912 *lt)
 	} else {
 		pr_info("lt8912 bridge set DVI Mode\n");
 	}
+#endif
 
 end:
 	return ret;
@@ -903,8 +906,8 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	struct device *dev = lt->dev;
 	int ret;
 	int data_lanes;
-	u32 hdmi_mode;
-	u32 mode;
+	//u32 hdmi_mode;
+	//u32 mode;
 	struct device_node *port_node;
 	struct device_node *endpoint;
 
@@ -917,6 +920,7 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	}
 	lt->gp_reset = gp_reset;
 
+#if 0
 	/* set hdmi_dvi_sel with dts. */
 	ret = of_property_read_u32(dev->of_node, "hdmi-mode", &hdmi_mode);
 	if (ret)
@@ -930,6 +934,7 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 		lt->mode_sel = 0;
 	else
 		lt->mode_sel = mode;
+#endif
 
 	/*
 	 * drm_of_get_data_lanes_count_ep not defined.
