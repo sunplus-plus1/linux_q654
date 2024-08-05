@@ -1032,8 +1032,8 @@ static int sp7350_display_resume(struct platform_device *pdev)
 		/* Turn on the backlight. */
 		rpi_touchscreen_i2c_write(g_ts, REG_PWM, 255);
 
-		//rpi_touchscreen_i2c_write(g_ts, REG_PORTA, BIT(2));
-		rpi_touchscreen_i2c_write(g_ts, REG_PORTA, BIT(3));
+		rpi_touchscreen_i2c_write(g_ts, REG_PORTA, BIT(2));
+		//rpi_touchscreen_i2c_write(g_ts, REG_PORTA, BIT(3));
 	}
 #endif
 
