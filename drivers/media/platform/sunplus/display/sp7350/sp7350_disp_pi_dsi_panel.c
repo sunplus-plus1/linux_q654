@@ -125,8 +125,8 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c,
 	/* Turn on the backlight. */
 	rpi_touchscreen_i2c_write(ts, REG_PWM, 255);
 
-	//rpi_touchscreen_i2c_write(ts, REG_PORTA, BIT(2));
-	rpi_touchscreen_i2c_write(ts, REG_PORTA, BIT(3));
+	rpi_touchscreen_i2c_write(ts, REG_PORTA, BIT(2));
+	//rpi_touchscreen_i2c_write(ts, REG_PORTA, BIT(3));
 
 	return 0;
 }
