@@ -1373,11 +1373,11 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 	struct imx415 *imx415 = to_imx415(sd);
 	const struct imx415_mode *mode = &imx415->supported_modes[imx415->cur_mode];
 
-	mutex_lock(&imx415->mutex);
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 	case V4L2_SEL_TGT_CROP_BOUNDS:
+		mutex_lock(&imx415->mutex);
 		if (mode->width == 3864) {
 			sel->r.left = CROP_START(mode->width, DST_WIDTH_3840);
 			sel->r.width = DST_WIDTH_3840;
@@ -1394,10 +1394,9 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 			sel->r.top = CROP_START(mode->height, mode->height);
 			sel->r.height = mode->height;
 		}
-
+		mutex_unlock(&imx415->mutex);
 		return 0;
 	}
-	mutex_unlock(&imx415->mutex);
 
 	return -EINVAL;
 }
