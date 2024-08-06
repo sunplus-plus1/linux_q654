@@ -236,6 +236,13 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
+	distance-map {
+		compatible = "numa-distance-map-v1";
+		distance-matrix = <0 0 10>,
+				  <0 1 20>,
+				  <1 1 10>;
+	};
+
 	gic: interrupt-controller@fa001000 {
 		compatible = "arm,gic-400";
 		reg = <0x00 0xfa001000 0x00 0x1000>,
