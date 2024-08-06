@@ -64,7 +64,7 @@ static void typec_gpio(struct work_struct *work)
 			u3phy->busy = 1;
 			result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(100));
 			//if (!result)
-			//	dev_dbg(u3phy->dev, "reset failed 3\n");
+			//	dev_dbg(u3phy->dev, "reset failed 4\n");
 				//return -ETIME;
 			u3phy->dir = 1;
 		} else {
@@ -72,7 +72,7 @@ static void typec_gpio(struct work_struct *work)
 			u3phy->busy = 1;
 			result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(100));
 			//if (!result)
-			//	dev_dbg(u3phy->dev, "reset failed 4\n");
+			//	dev_dbg(u3phy->dev, "reset failed 5\n");
 				//return -ETIME;
 			u3phy->dir = 0;
 		}
@@ -120,7 +120,7 @@ static int sp_u3phy_init(struct phy *phy)
 	struct usb3_phy *u3phy = phy_get_drvdata(phy);
 
 	INIT_DELAYED_WORK(&u3phy->typecdir, typec_gpio);
-	schedule_delayed_work(&u3phy->typecdir, msecs_to_jiffies(1000));
+	schedule_delayed_work(&u3phy->typecdir, msecs_to_jiffies(2000));
 	return 0;
 }
 
@@ -129,26 +129,29 @@ static int sp_u3phy_power_on(struct phy *phy)
 	struct usb3_phy *u3phy = phy_get_drvdata(phy);
 	struct u3phy_regs *dwc3phy_reg;
 	struct u3c_regs *dwc3portsc_reg;
-	unsigned int result;
+	unsigned int result, i;
 
 	clk_prepare_enable(u3phy->u3_clk);
 	clk_prepare_enable(u3phy->u3phy_clk);
 
-	reset_control_assert(u3phy->u3phy_rst);
-	mdelay(1);
-	reset_control_deassert(u3phy->u3phy_rst);
-
 	dwc3phy_reg = (struct u3phy_regs *) u3phy->u3phy_base_addr;
 	dwc3portsc_reg = (struct u3c_regs *) u3phy->u3_portsc_addr;
 
-	result = readl(&dwc3phy_reg->cfg[1]);
-	writel(result | 0x3, &dwc3phy_reg->cfg[1]);
-	u3phy->busy = 1;
-	result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(500));
-	//if (!result)
-	//	dev_dbg(dev, "reset failed 1\n");
-		//return -ETIME;
+	for (i = 0; i < 3; i++) {
+		reset_control_assert(u3phy->u3phy_rst);
+		mdelay(1);
+		reset_control_deassert(u3phy->u3phy_rst);
+		mdelay(1);
 
+		result = readl(&dwc3phy_reg->cfg[1]);
+		writel(result | 0x3, &dwc3phy_reg->cfg[1]);
+		u3phy->busy = 1;
+		result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(500));
+		if (!result)
+			dev_err(u3phy->dev, "XXXXXx reset failed 1, count %d\n", i);
+		else
+			break;
+	}
 	result = readl(&dwc3portsc_reg->cfg[0]);
 	writel(result | 0x2, &dwc3portsc_reg->cfg[0]);
 
@@ -158,7 +161,7 @@ static int sp_u3phy_power_on(struct phy *phy)
 		u3phy->busy = 1;
 		result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(100));
 		//if (!result)
-		//	dev_dbg(u3phy->dev, "reset failed 3\n");
+		//	dev_dbg(u3phy->dev, "reset failed 2\n");
 			//return -ETIME;
 		u3phy->dir = 1;
 	} else {
@@ -166,7 +169,7 @@ static int sp_u3phy_power_on(struct phy *phy)
 		u3phy->busy = 1;
 		result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(100));
 		//if (!result)
-		//	dev_dbg(u3phy->dev, "reset failed 4\n");
+		//	dev_dbg(u3phy->dev, "reset failed 3\n");
 			//return -ETIME;
 		u3phy->dir = 0;
 	}
