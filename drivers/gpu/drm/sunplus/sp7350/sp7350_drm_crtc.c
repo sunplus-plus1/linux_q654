@@ -1319,15 +1319,19 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 		return PTR_ERR(sp_crtc->overlay_planes[1]);
 	}
 
+	#if 0 //ubuntu mate issue, temporary off cursor plane
 	/* init plane for cursor_plane */
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (cursor_plane)\n");
 	sp_crtc->cursor_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_CURSOR, SP7350_DRM_LAYER_TYPE_OSD0);
 	if (IS_ERR(sp_crtc->cursor_plane)) {
 		return PTR_ERR(sp_crtc->cursor_plane);
 	}
+	#endif
 
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_init_with_planes\n");
-	ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->primary_plane, sp_crtc->cursor_plane,
+	//ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->primary_plane, sp_crtc->cursor_plane,
+	//ubuntu mate issue, temporary off cursor plane
+	ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->primary_plane, NULL,
 					crtc_funcs, NULL);
 
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_helper_add\n");
@@ -1553,7 +1557,9 @@ static void sp7350_crtc_unbind(struct device *dev, struct device *master,
 	sp7350_plane_release(drm, sp_crtc->media_plane);
 	sp7350_plane_release(drm, sp_crtc->overlay_planes[0]);
 	sp7350_plane_release(drm, sp_crtc->overlay_planes[1]);
+	#if 0 //ubuntu mate issue, temporary off cursor plane
 	sp7350_plane_release(drm, sp_crtc->cursor_plane);
+	#endif
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "platform_set_drvdata\n");
 	platform_set_drvdata(pdev, NULL);
