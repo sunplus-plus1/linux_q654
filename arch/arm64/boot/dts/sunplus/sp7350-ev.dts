@@ -93,8 +93,7 @@
 //#define ETHERNET_WITH_RMII_PHY
 
 //#define DRAM_SIZE_2GB
-#define DRAM_SIZE_3_75GB
-//#define DRAM_SIZE_4GB
+#define DRAM_SIZE_4GB
 //#define DRAM_SIZE_8GB
 
 #include "sp7350-common.dtsi"
@@ -109,19 +108,26 @@
 
 	memory@0 {
 		device_type = "memory";
-		#ifdef DRAM_SIZE_2GB
+#ifdef DRAM_SIZE_2GB
 		reg = <0x0 0x0        0x0 0x80000000>;
-		#elif defined(DRAM_SIZE_3_75GB)
+#else
 		reg = <0x0 0x0        0x0 0xf0000000>;
-		#elif defined(DRAM_SIZE_4GB)
-		reg = <0x0 0x0        0x0 0xf0000000>,
-			<0x1 0x0        0x0 0x10000000>;
-		#elif defined(DRAM_SIZE_8GB)
-		reg = <0x0 0x0        0x0 0xf0000000>,
-			<0x1 0x0        0x1 0x00000000>,
-			<0x3 0x0        0x0 0x10000000>;
-		#endif
+#endif
+		numa-node-id = <0>;
 	};
+
+#if defined(DRAM_SIZE_4GB) || defined(DRAM_SIZE_8GB)
+	memory@100000000 {
+		device_type = "memory";
+#if defined(DRAM_SIZE_4GB)
+		reg = <0x1 0x0        0x0 0x10000000>;
+#elif defined(DRAM_SIZE_8GB)
+		reg = <0x1 0x0        0x1 0x00000000>,
+		      <0x3 0x0        0x0 0x10000000>;
+#endif
+		numa-node-id = <1>;
+	};
+#endif
 
 	reserved-memory {
 		#address-cells = <2>;
