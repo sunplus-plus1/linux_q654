@@ -511,8 +511,8 @@ static const u32 sp7350_pllh_pstdiv_int[] = {
 };
 
 static const u32 sp7350_pllh_mipitx_sel_int[] = {
-	1,2,0,4,0,0,0,8,0,0,0,0,0,0,0,16,
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+	1, 2, 0, 4, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 16,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 static void sp7350_mipitx_pllclk_get(struct sp7350_dsi_host *sp_dsi_host)
 {
@@ -522,13 +522,13 @@ static void sp7350_mipitx_pllclk_get(struct sp7350_dsi_host *sp_dsi_host)
 	value1 = SP7350_DSI_PLLH_READ(MIPITX_AO_MOON3_14);
 	value2 = SP7350_DSI_PLLH_READ(MIPITX_AO_MOON3_25);
 
-	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15,15), value1)?2:1) *
-		(FIELD_GET(GENMASK(14,7), value1) + 64)) /
-		(FIELD_GET(GENMASK(2,1), value1)?2:1);
-	tmp_value2 = (tmp_value1 *10 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
-		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
-	tmp_value3 = (tmp_value1 *1000 )/ ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6,3), value1)]) *
-		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11,7), value2)]));
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(15, 15), value1)?2:1) *
+		(FIELD_GET(GENMASK(14, 7), value1) + 64)) /
+		(FIELD_GET(GENMASK(2, 1), value1)?2:1);
+	tmp_value2 = (tmp_value1 * 10) / ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6, 3), value1)]) *
+		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11, 7), value2)]));
+	tmp_value3 = (tmp_value1 * 1000) / ((sp7350_pllh_pstdiv_int[FIELD_GET(GENMASK(6, 3), value1)]) *
+		(sp7350_pllh_mipitx_sel_int[FIELD_GET(GENMASK(11, 7), value2)]));
 
 	DRM_DEBUG_DRIVER("     PLLH FVCO %04d MHz , pix_clk %03d.%02d MHz\n",
 		tmp_value1, tmp_value2, (tmp_value3 - tmp_value2*100));
@@ -538,7 +538,7 @@ static const char * const sp7350_txpll_prediv[] = {
 	"DIV1", "DIV2", "DIV5", "DIV8",
 };
 static const u32 sp7350_txpll_prediv_int[] = {
-	1,2,5,8
+	1, 2, 5, 8
 };
 
 static const char * const sp7350_txpll_pstdiv[] = {
@@ -562,36 +562,36 @@ static void sp7350_mipitx_txpll_get(struct sp7350_dsi_host *sp_dsi_host)
 
 	value1 = SP7350_DSI_TXPLL_READ(MIPITX_ANALOG_CTRL6);
 
-	tmp_value1 = 25 * ((FIELD_GET(GENMASK(4,4), value1)?2:1) *
-		(FIELD_GET(GENMASK(13,8), value1))) /
-		(sp7350_txpll_prediv_int[FIELD_GET(GENMASK(1,0), value1)]);
+	tmp_value1 = 25 * ((FIELD_GET(GENMASK(4, 4), value1)?2:1) *
+		(FIELD_GET(GENMASK(13, 8), value1))) /
+		(sp7350_txpll_prediv_int[FIELD_GET(GENMASK(1, 0), value1)]);
 
-	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
-		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
-	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
-		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)]));
+	tmp_value2 = (tmp_value1) / ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18, 16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20, 20), value1)]));
+	tmp_value3 = (tmp_value1 * 100) / ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18, 16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20, 20), value1)]));
 	DRM_DEBUG_DRIVER("    TXPLL FVCO %04d MHz , bit_clk %03d.%02d MHz\n",
 		tmp_value1, tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
-	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
-		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
-	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
-		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8);
+	tmp_value2 = (tmp_value1) / ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18, 16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20, 20), value1)])*8);
+	tmp_value3 = (tmp_value1 * 100) / ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18, 16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20, 20), value1)])*8);
 	DRM_DEBUG_DRIVER("    TXPLL ---- ---- --- , byteclk %03d.%02d MHz\n",
 		tmp_value2, (tmp_value3 - (tmp_value2*100)));
 
 	value2 = SP7350_DSI_TXPLL_READ(MIPITX_LP_CK);
-	tmp_value2 = (tmp_value1)/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
-		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
-	tmp_value3 = (tmp_value1 *100 )/ ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18,16), value1)]) *
-		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20,20), value1)])*8*(FIELD_GET(GENMASK(5,0), value2)+1));
+	tmp_value2 = (tmp_value1) / ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18, 16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20, 20), value1)])*8*(FIELD_GET(GENMASK(5, 0), value2)+1));
+	tmp_value3 = (tmp_value1 * 100) / ((sp7350_txpll_pstdiv_int[FIELD_GET(GENMASK(18, 16), value1)]) *
+		(sp7350_txpll_endiv5_int[FIELD_GET(GENMASK(20, 20), value1)])*8*(FIELD_GET(GENMASK(5, 0), value2)+1));
 	DRM_DEBUG_DRIVER("    TXPLL ---- ---- --- , LPCDclk %03d.%02d MHz\n",
 		tmp_value2, (tmp_value3 - (tmp_value2*100)));
 }
 
 static void sp7350_mipitx_clock_init(struct sp7350_dsi_host *sp_dsi_host)
 {
-	DRM_DEBUG_DRIVER("sp7350_mipitx_clock_init\n");
+	DRM_DEBUG_DRIVER("clock init");
 
 	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL9, 0x80000000); //init clock
 
@@ -765,34 +765,29 @@ static void sp7350_mipitx_dsi_lane_clock_setting(struct sp7350_dsi_host *sp_dsi_
 		if (lane_clock->clock < 150000) {
 			lane_clock->txpll_postdiv = 2;
 			lane_clock->txpll_endiv5  = 1;
-		}
-		else if (lane_clock->clock < 375000) {
+		} else if (lane_clock->clock < 375000) {
 			lane_clock->txpll_postdiv = 4;
 			lane_clock->txpll_endiv5  = 0;
-		}
-		else {
+		} else {
 			lane_clock->txpll_postdiv = 1;
 			lane_clock->txpll_endiv5  = 0;
 		}
 		fvco = lane_clock->clock * lane_clock->txpll_postdiv * (lane_clock->txpll_endiv5 ? 5 : 1);
-		if (fvco < 640000) {
+		if (fvco < 640000)
 			lane_clock->txpll_bnksel = 0;
-		}
-		else if (fvco < 1000000) {
+		else if (fvco < 1000000)
 			lane_clock->txpll_bnksel = 1;
-		}
-		else if (fvco < 1200000) {
+		else if (fvco < 1200000)
 			lane_clock->txpll_bnksel = 2;
-		}
-		else {
+		else
 			lane_clock->txpll_bnksel = 3;
-		}
+
 		lane_clock->txpll_fbkdiv =  fvco * lane_clock->txpll_prediv / (25000 * lane_clock->txpll_prescal);
-		if ((fvco * lane_clock->txpll_prediv) % (25000 * lane_clock->txpll_prescal)) {
+		if ((fvco * lane_clock->txpll_prediv) % (25000 * lane_clock->txpll_prescal))
 			lane_clock->txpll_fbkdiv += 1;
-		}
+
 		DRM_DEBUG_DRIVER("\nMIPITX Lane Clock Info:\n"
-							"   %dKHz(pixel:%dKHz), Fvco=%dKHz \n"
+							"   %dKHz(pixel:%dKHz), Fvco=%dKHz\n"
 							"   txpll_prescal=%d, txpll_prediv=%d\n"
 							"   txpll_postdiv=%d, txpll_endiv5=%d\n"
 							"   txpll_fbkdiv=%d, txpll_bnksel=%d\n",
@@ -852,8 +847,8 @@ static void sp7350_mipitx_dsi_lane_clock_setting(struct sp7350_dsi_host *sp_dsi_
 	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL7, value);
 
 	/*
-	* check pll clock setting (debug only)
-	*/
+	 * check pll clock setting (debug only)
+	 */
 	sp7350_mipitx_txpll_get(sp_dsi_host);
 
 }
@@ -904,86 +899,71 @@ static void sp7350_mipitx_dsi_pixel_clock_setting(struct sp7350_dsi_host *sp_dsi
 			pixel_clock->prediv = 2;
 			pixel_clock->postdiv_10x = 125;
 			pixel_clock->seldiv  = 16;
-		}
-		else if (pixel_clock->clock < 14000) {
+		} else if (pixel_clock->clock < 14000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 125;
 			pixel_clock->seldiv  = 16;
-		}
-		else if (pixel_clock->clock < 20000) {
+		} else if (pixel_clock->clock < 20000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 90;
 			pixel_clock->seldiv  = 16;
-		}
-		else if (pixel_clock->clock < 29000) {
+		} else if (pixel_clock->clock < 29000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 125;
 			pixel_clock->seldiv  = 8;
-		}
-		else if (pixel_clock->clock < 40000) {
+		} else if (pixel_clock->clock < 40000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 90;
 			pixel_clock->seldiv  = 8;
-		}
-		else if (pixel_clock->clock < 70000) {
+		} else if (pixel_clock->clock < 70000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 25;
 			pixel_clock->seldiv  = 16;
-		}
-		else if (pixel_clock->clock < 112000) {
+		} else if (pixel_clock->clock < 112000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 125;
 			pixel_clock->seldiv  = 2;
-		}
-		else if (pixel_clock->clock < 160000) {
+		} else if (pixel_clock->clock < 160000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 90;
 			pixel_clock->seldiv  = 2;
-		}
-		else if (pixel_clock->clock < 230000) {
+		} else if (pixel_clock->clock < 230000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 125;
 			pixel_clock->seldiv  = 1;
-		}
-		else if (pixel_clock->clock < 320000) {
+		} else if (pixel_clock->clock < 320000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 90;
 			pixel_clock->seldiv  = 1;
-		}
-		else if (pixel_clock->clock < 540000) {
+		} else if (pixel_clock->clock < 540000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 25;
 			pixel_clock->seldiv  = 2;
-		}
-		else if (pixel_clock->clock < 900000) {
+		} else if (pixel_clock->clock < 900000) {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 30;
 			pixel_clock->seldiv  = 1;
-		}
-		else {
+		} else {
 			pixel_clock->prediv = 1;
 			pixel_clock->postdiv_10x = 25;
 			pixel_clock->seldiv  = 1;
 		}
 		fvco = pixel_clock->clock * pixel_clock->postdiv_10x * pixel_clock->seldiv / 10;
-		if (fvco < 1500000) {
+		if (fvco < 1500000)
 			pixel_clock->bnksel = 0;
-		}
-		else if (fvco < 2000000) {
+		else if (fvco < 2000000)
 			pixel_clock->bnksel = 1;
-		}
-		else if (fvco < 2500000) {
+		else if (fvco < 2500000)
 			pixel_clock->bnksel = 2;
-		}
-		else {
+		else
 			pixel_clock->bnksel = 3;
-		}
+
 		pixel_clock->fbkdiv =  fvco * pixel_clock->prediv / (25000 * pixel_clock->prescal);
-		if ((fvco * pixel_clock->prediv) % (25000 * pixel_clock->prescal)) {
+		if ((fvco * pixel_clock->prediv) % (25000 * pixel_clock->prescal))
 			pixel_clock->fbkdiv += 1;
-		}
+
 		DRM_DEBUG_DRIVER("\nMIPITX Pixel Clock Info:\n"
-							"   %dKHz(pixel:%dKHz), Fvco=%dKHz \n"
+							"   %dKHz(pixel:%dKHz), Fvco=%dKHz\n"
 							"   prescal=%d, prediv=%d\n"
 							"   postdiv_10x=%d, fbkdiv=%d\n"
 							"   bnksel=%d, seldiv=%d\n",
@@ -1014,24 +994,19 @@ static void sp7350_mipitx_dsi_pixel_clock_setting(struct sp7350_dsi_host *sp_dsi
 	 *   PSTDIV_H[6:3]   = (postdiv_10x-120)/5+14 for postdiv_10x<=125
 	 *   BNKSEL_H[1:0]   = bnksel
 	 */
-	if (pixel_clock->postdiv_10x == 90) {
+	if (pixel_clock->postdiv_10x == 90)
 		reg_postdiv = 10;
-	}
-	else if (pixel_clock->postdiv_10x <= 40) {
+	else if (pixel_clock->postdiv_10x <= 40)
 		reg_postdiv = (pixel_clock->postdiv_10x - 25) / 5;
-	}
-	else if (pixel_clock->postdiv_10x <= 60) {
+	else if (pixel_clock->postdiv_10x <= 60)
 		reg_postdiv = (pixel_clock->postdiv_10x - 50) / 5 + 4;
-	}
-	else if (pixel_clock->postdiv_10x <= 80) {
+	else if (pixel_clock->postdiv_10x <= 80)
 		reg_postdiv = (pixel_clock->postdiv_10x - 70) / 5 + 7;
-	}
-	else if (pixel_clock->postdiv_10x <= 110) {
+	else if (pixel_clock->postdiv_10x <= 110)
 		reg_postdiv = (pixel_clock->postdiv_10x - 100) / 5 + 11;
-	}
-	else {
+	else
 		reg_postdiv = (pixel_clock->postdiv_10x - 120) / 5 + 14;
-	}
+
 	DRM_DEBUG_DRIVER("\nAO MOON3 PLLH Setting:\n"
 						"   %dKHz\n"
 						"   PRESCAL[15]=%d, PREDIV[2:1]=%d\n"
@@ -1508,7 +1483,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	sp_dsi_host->regset_g204.regs = sp_dsi_host_g0_regs;
 	sp_dsi_host->regset_g204.nregs = ARRAY_SIZE(sp_dsi_host_g0_regs);
 
-	sp_dsi_host->regset_g205.base = sp_dsi_host->regs + (SP7350_REG_OFFSET_MIPITX_G205 << 7);;
+	sp_dsi_host->regset_g205.base = sp_dsi_host->regs + (SP7350_REG_OFFSET_MIPITX_G205 << 7);
 	sp_dsi_host->regset_g205.regs = sp_dsi_host_g1_regs;
 	sp_dsi_host->regset_g205.nregs = ARRAY_SIZE(sp_dsi_host_g1_regs);
 
@@ -1537,9 +1512,8 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, endpoint_id,
 						  &panel, &sp_dsi_host->bridge);
 		of_node_put(endpoint);
-		if (!ret) {
+		if (!ret)
 			break;
-		}
 	}
 	of_node_put(port);
 	if (!child_count) {

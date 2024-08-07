@@ -264,7 +264,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	/*
 	 * get connect_dev_name
 	 */
-	ret = of_property_read_string_index(disp_dev->pdev->of_node, "sp7350,dev_name", 0, &connect_dev_name);
+	ret = of_property_read_string_index(disp_dev->pdev->of_node, "sunplus,dev_name", 0, &connect_dev_name);
 	if(!strcmp("null_dev", connect_dev_name)) {
 		disp_dev->mipitx_dev_id = 0x88888888;
 		pr_err("video out not set\n");
@@ -284,7 +284,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set osd0_layer (offset & resolution & format)
 	 */
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
-			"sp7350,osd0_layer", osd0_res, 5);
+			"sunplus,osd0_layer", osd0_res, 5);
 	if (ret) {
 		disp_dev->osd_res[0].x_ofs = 0;
 		disp_dev->osd_res[0].y_ofs = 0;
@@ -303,7 +303,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set osd1_layer (offset & resolution & format)
 	 */
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
-		"sp7350,osd1_layer", osd1_res, 5);
+		"sunplus,osd1_layer", osd1_res, 5);
 	if (ret) {
 		disp_dev->osd_res[1].x_ofs = 0;
 		disp_dev->osd_res[1].y_ofs = 0;
@@ -322,7 +322,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set osd2_layer (offset & resolution & format)
 	 */
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
-		"sp7350,osd2_layer", osd2_res, 5);
+		"sunplus,osd2_layer", osd2_res, 5);
 	if (ret) {
 		disp_dev->osd_res[2].x_ofs = 0;
 		disp_dev->osd_res[2].y_ofs = 0;
@@ -341,7 +341,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set osd3_layer (offset & resolution & format)
 	 */
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
-		"sp7350,osd3_layer", osd3_res, 5);
+		"sunplus,osd3_layer", osd3_res, 5);
 	if (ret) {
 		disp_dev->osd_res[3].x_ofs = 0;
 		disp_dev->osd_res[3].y_ofs = 0;
@@ -373,7 +373,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 */
 	#ifdef SP_DISP_VPP_SCALE_NEW
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
-		"sp7350,vpp0_layer", vpp0_res, 7);
+		"sunplus,vpp0_layer", vpp0_res, 7);
 	if (ret) {
 		disp_dev->vpp_res[0].x_ofs = 0;
 		disp_dev->vpp_res[0].y_ofs = 0;
@@ -409,7 +409,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	#endif
 	#else
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
-		"sp7350,vpp0_layer", vpp0_res, 7);
+		"sunplus,vpp0_layer", vpp0_res, 7);
 	if (ret) {
 		disp_dev->vpp_res[0].x_ofs = 0;
 		disp_dev->vpp_res[0].y_ofs = 0;
@@ -449,7 +449,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set mipitx output type & resolution
 	 */
 	ret = of_property_read_u32_array(disp_dev->pdev->of_node,
-		"sp7350,disp_output", out_res, 3);
+		"sunplus,disp_output", out_res, 3);
 	if (ret) {
 		disp_dev->out_res.width = 0;//720;
 		disp_dev->out_res.height = 0;//480;
@@ -473,7 +473,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set mipitx_lane
 	 */
 	ret = of_property_read_u32(disp_dev->pdev->of_node,
-		"sp7350,disp_mipitx_lane", &mipitx_lane);
+		"sunplus,disp_mipitx_lane", &mipitx_lane);
 	if (ret)
 		disp_dev->mipitx_lane = 4;//4 lane;
 	else
@@ -486,7 +486,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set mipitx_clk_edge
 	 */
 	ret = of_property_read_u32(disp_dev->pdev->of_node,
-		"sp7350,disp_mipitx_clk_edge", &mipitx_clk_edge);
+		"sunplus,disp_mipitx_clk_edge", &mipitx_clk_edge);
 	if (ret)
 		disp_dev->mipitx_clk_edge = 0; //Raising Edge
 	else
@@ -496,7 +496,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set mipitx_sync_timing
 	 */
 	ret = of_property_read_u32(disp_dev->pdev->of_node,
-		"sp7350,disp_mipitx_sync_timing", &mipitx_sync_timing);
+		"sunplus,disp_mipitx_sync_timing", &mipitx_sync_timing);
 	if (ret)
 		disp_dev->mipitx_sync_timing = 0; //Sync Pulse
 	else
@@ -509,7 +509,7 @@ static int sp7350_resolution_get(struct sp_disp_device *disp_dev)
 	 * set mipitx_format
 	 */
 	ret = of_property_read_u32(disp_dev->pdev->of_node,
-		"sp7350,disp_mipitx_format", &mipitx_format);
+		"sunplus,disp_mipitx_format", &mipitx_format);
 	if (ret)
 		disp_dev->mipitx_format = 3;//DSI RGB888 or CSI_24BITS
 	else

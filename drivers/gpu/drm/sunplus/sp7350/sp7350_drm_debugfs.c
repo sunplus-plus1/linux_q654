@@ -28,7 +28,7 @@ sp7350_debugfs_init(struct drm_minor *minor)
 	struct sp7350_dev *sp_dev = to_sp7350_dev(minor->dev);
 	struct sp7350_debugfs_info_entry *entry;
 
-	debugfs_create_bool("debug_test", S_IRUGO | S_IWUSR,
+	debugfs_create_bool("debug_test", 0644,
 			    minor->debugfs_root, &sp_dev->debug_test_enabled);
 
 	list_for_each_entry(entry, &sp_dev->debugfs_list, link) {
