@@ -18,8 +18,11 @@
 
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-mediabus.h>
 
 #define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
 #define DST_WIDTH_3840 3840
@@ -837,7 +840,7 @@ struct imx415 {
 	struct v4l2_ctrl *hflip;
 	struct v4l2_ctrl *vflip;
 	const struct imx415_mode *supported_modes;
-	unsigned int cur_mode;
+	const struct imx415_mode *mode;
 	unsigned int num_data_lanes;
 	unsigned int cfg_num;
 	/*
@@ -1021,8 +1024,8 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 {
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl *ctrl;
-	u64 pixel_rate = supported_modes[sensor->cur_mode].pixel_rate;
-	u64 lane_rate = supported_modes[sensor->cur_mode].lane_rate;
+	u64 pixel_rate = sensor->mode->pixel_rate;
+	u64 lane_rate = sensor->mode->lane_rate;
 	u32 exposure_max = IMX415_PIXEL_ARRAY_HEIGHT +
 			   IMX415_PIXEL_ARRAY_VBLANK - 8;
 	u32 hblank;
@@ -1064,8 +1067,8 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 			  IMX415_AGAIN_MAX, IMX415_AGAIN_STEP,
 			  IMX415_AGAIN_DEFAULT);
 
-	hblank = supported_modes[sensor->cur_mode].hmax_pix -
-		 supported_modes[sensor->cur_mode].width;
+	hblank = sensor->mode->hmax_pix -
+		 sensor->mode->width;
 	ctrl = v4l2_ctrl_new_std(&sensor->ctrls, &imx415_ctrl_ops,
 				 V4L2_CID_HBLANK, hblank, hblank, 1, hblank);
 	if (ctrl)
@@ -1112,21 +1115,16 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 	return 0;
 }
 
-static int imx415_set_mode(struct imx415 *sensor, int mode)
+static int imx415_set_mode(struct imx415 *sensor)
 {
 	int ret = 0;
 
-	if (mode >= ARRAY_SIZE(supported_modes)) {
-		dev_err(sensor->dev, "Mode %d not supported\n", mode);
-		return -EINVAL;
-	}
-
 	cci_multi_reg_write(sensor->regmap,
-			    supported_modes[mode].reg_list.regs,
-			    supported_modes[mode].reg_list.num_of_regs,
+			    sensor->mode->reg_list.regs,
+			    sensor->mode->reg_list.num_of_regs,
 			    &ret);
 	cci_multi_reg_write(sensor->regmap,
-			    supported_modes[mode].clk_params.regs,
+			    sensor->mode->clk_params.regs,
 			    IMX415_NUM_CLK_PARAM_REGS,
 			    &ret);
 
@@ -1144,7 +1142,7 @@ static int imx415_setup(struct imx415 *sensor)
 	if (ret)
 		return ret;
 
-	return imx415_set_mode(sensor, sensor->cur_mode);
+	return imx415_set_mode(sensor);
 }
 
 static int imx415_wakeup(struct imx415 *sensor)
@@ -1274,92 +1272,67 @@ static int imx415_enum_frame_size(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
+static void imx415_reset_colorspace(struct v4l2_mbus_framefmt *fmt)
+{
+	fmt->colorspace = V4L2_COLORSPACE_RAW;
+	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
+	fmt->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
+							  fmt->colorspace,
+							  fmt->ycbcr_enc);
+	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt->colorspace);
+}
+
+static void imx415_update_image_pad_format(struct imx415 *imx415,
+					   const struct imx415_mode *mode,
+					   struct v4l2_subdev_format *fmt)
+{
+	fmt->format.code = mode->bus_fmt;
+	fmt->format.width = mode->width;
+	fmt->format.height = mode->height;
+	fmt->format.field = V4L2_FIELD_NONE;
+	imx415_reset_colorspace(&fmt->format);
+}
+
 static int imx415_get_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct imx415 *imx415 = to_imx415(sd);
-	const struct imx415_mode *mode = &imx415->supported_modes[imx415->cur_mode];
+	struct v4l2_mbus_framefmt *try_fmt;
+	const struct imx415_mode *mode = imx415->mode;
 
 	mutex_lock(&imx415->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		fmt->format = *v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-#else
-		mutex_unlock(&imx415->mutex);
-		return -ENOTTY;
-#endif
+		try_fmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		fmt->format = *try_fmt;
 	} else {
-		fmt->format.width = mode->width;
-		fmt->format.height = mode->height;
-		fmt->format.code = mode->bus_fmt;
-		fmt->format.field = V4L2_FIELD_NONE;
-		// need find this params in doc
-		fmt->format.colorspace = V4L2_COLORSPACE_RAW;
-		fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-		fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
-		fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+		imx415_update_image_pad_format(imx415, mode, fmt);
 	}
 	mutex_unlock(&imx415->mutex);
 
 	return 0;
 }
 
-static int imx415_get_reso_dist(const struct imx415_mode *mode,
-				struct v4l2_mbus_framefmt *framefmt)
-{
-	return abs(mode->width - framefmt->width) +
-	       abs(mode->height - framefmt->height);
-}
-
-static const struct imx415_mode *
-imx415_find_best_fit(struct imx415 *imx415, struct v4l2_subdev_format *fmt)
-{
-	struct v4l2_mbus_framefmt *framefmt = &fmt->format;
-	int dist;
-	int cur_best_fit = 0;
-	int cur_best_fit_dist = -1;
-	unsigned int i;
-
-	for (i = 0; i < imx415->cfg_num; i++) {
-		dist = imx415_get_reso_dist(&imx415->supported_modes[i], framefmt);
-		if ((cur_best_fit_dist == -1 || dist < cur_best_fit_dist) &&
-		    imx415->supported_modes[i].bus_fmt == framefmt->code) {
-			cur_best_fit_dist = dist;
-			cur_best_fit = i;
-		}
-	}
-	imx415->cur_mode = cur_best_fit;
-	return &imx415->supported_modes[cur_best_fit];
-}
-
 static int imx415_set_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_pad_config *cfg,
 			     struct v4l2_subdev_format *fmt)
 {
+	struct v4l2_mbus_framefmt *framefmt;
 	struct imx415 *imx415 = to_imx415(sd);
 	const struct imx415_mode *mode;
 
-	mode = imx415_find_best_fit(imx415, fmt);
+	mode = v4l2_find_nearest_size(imx415->supported_modes,
+				      imx415->cfg_num,
+				      width, height,
+				      fmt->format.width,
+				      fmt->format.height);
 	mutex_lock(&imx415->mutex);
-	fmt->format.code = mode->bus_fmt;
-	fmt->format.width = mode->width;
-	fmt->format.height = mode->height;
-	fmt->format.field = V4L2_FIELD_NONE;
-	fmt->format.colorspace = V4L2_COLORSPACE_RAW;
-	fmt->format.ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
-	fmt->format.quantization = V4L2_QUANTIZATION_DEFAULT;
-	fmt->format.xfer_func = V4L2_XFER_FUNC_NONE;
+	imx415_update_image_pad_format(imx415, mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		// dev_info(imx415->dev, "%s:%d", __func__, __LINE__);
-		*v4l2_subdev_get_try_format(sd, cfg, fmt->pad) = fmt->format;
-#else
-		mutex_unlock(&imx415->mutex);
-		return -ENOTTY;
-#endif
+		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		*framefmt = fmt->format;
 	} else {
-		// dev_info(imx415->dev, "%s:%d", __func__, __LINE__);
+		imx415->mode = mode;
 	}
 	mutex_unlock(&imx415->mutex);
 
@@ -1371,7 +1344,7 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_selection *sel)
 {
 	struct imx415 *imx415 = to_imx415(sd);
-	const struct imx415_mode *mode = &imx415->supported_modes[imx415->cur_mode];
+	const struct imx415_mode *mode = imx415->mode;
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP:
@@ -1416,6 +1389,11 @@ static int imx415_init_cfg(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static const struct v4l2_subdev_core_ops imx415_core_ops = {
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops imx415_subdev_video_ops = {
 	.s_stream = imx415_s_stream,
 };
@@ -1432,6 +1410,7 @@ static const struct v4l2_subdev_pad_ops imx415_subdev_pad_ops = {
 static const struct v4l2_subdev_ops imx415_subdev_ops = {
 	.video = &imx415_subdev_video_ops,
 	.pad = &imx415_subdev_pad_ops,
+	.core = &imx415_core_ops,
 };
 
 static int imx415_subdev_init(struct imx415 *sensor)
@@ -1601,12 +1580,17 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 		goto done_endpoint_free;
 	}
 
-	 sensor->cur_mode = 0;
-	 ret = 0;
+	ret = 0;
 done_endpoint_free:
 	v4l2_fwnode_endpoint_free(&bus_cfg);
 
 	return ret;
+}
+
+static void imx415_set_default_format(struct imx415 *imx415)
+{
+	/* Set default mode to max resolution */
+	imx415->mode = &supported_modes[1];
 }
 
 static int imx415_probe(struct i2c_client *client)
@@ -1640,6 +1624,9 @@ static int imx415_probe(struct i2c_client *client)
 	ret = imx415_identify_model(sensor);
 	if (ret)
 		goto err_power;
+
+	/* Initialize default format */
+	imx415_set_default_format(sensor);
 
 	ret = imx415_subdev_init(sensor);
 	if (ret)
