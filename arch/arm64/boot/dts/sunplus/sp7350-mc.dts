@@ -22,8 +22,16 @@
 #define AP6256_WIFI
 #define AP6256_BT
 
+/*choose legacy or drm display*/
 #define CONFIG_DISP_DRM_SUPPORT
 
+
+#if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
+//#define DISP_MIPITX_DSI_PANEL_240X320
+//#define DISP_MIPITX_DSI_PANEL_480X1280
+#define RASPBERRYPI_DSI_PANEL
+#define LT8912B_HDMI_ENABLE
+#else /* choose legacy display */
 //#define DISP_MIPITX_CSI
 //#define DISP_MIPITX_CSI_480P
 //#define DISP_MIPITX_CSI_720P
@@ -45,6 +53,7 @@
 //#define LT8912B_HDMI_480P
 //#define LT8912B_HDMI_720P
 #define LT8912B_HDMI_1080P
+#endif
 
 #ifdef CONFIG_DISP_DRM_SUPPORT
 #if defined(LT8912B_HDMI_ENABLE)
@@ -834,6 +843,7 @@
 		compatible = "raspberrypi,7inch-touchscreen-panel";
 		//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
 		reg = <0x45>;
+		status = "okay";
 		port {
 			panel_dsi_port: endpoint {
 			};
@@ -856,6 +866,7 @@
 		//compatible = "lontium,lt8912b-builtin";
 		reg = <0x48>;
 		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
+		#if !defined(CONFIG_DISP_DRM_SUPPORT)
 		#if defined(LT8912B_HDMI_480X272)
 		hdmi-mode = <0x0>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
 		hdmi-timing = <0x0>;
@@ -877,6 +888,7 @@
 		 * 0x2: 1280x720
 		 * 0x3: 1920x1080
 		 */
+		#endif
 		status = "okay";
 		ports {
 			#address-cells = <1>;
@@ -1248,9 +1260,7 @@
 };
 
 &display {
-	status = "okay";
-
-#ifndef CONFIG_DISP_DRM_SUPPORT
+#if !defined(CONFIG_DISP_DRM_SUPPORT)
 #if defined(DISP_MIPITX_CSI)
 	#if defined(DISP_MIPITX_CSI_480P)
 	sp7350,dev_name = "MIPITX-CSI-TEST_480P";
@@ -1436,9 +1446,6 @@
 		};
 	};
 #endif
-#else
-	//0xf8006380-66b8 and 0xf8800180 used for DRM DSI Driver.
-	reg = <0x00 0xf8005c80 0x00 0x700>;
 #endif
 };
 
@@ -2129,19 +2136,22 @@
 	};
 };
 
-#ifdef CONFIG_DISP_DRM_SUPPORT
-&drm_display_engine {
+#if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
+&display { /* legacy display off */
+	status = "disabled";
+};
+&fb_disp_device { /* legacy fb off */
+	status = "disabled";
+};
+&display_subsystem { /* drm display on */
 	memory-region = <&disp_reserve>;
 	status = "okay";
 };
-&crtc0 {
+&drm_crtc0 { /* drm display on */
 	status = "okay";
 };
-&dsi0 {
+&drm_dsi0 { /* drm display on */
 	status = "okay";
-};
-&fb_disp_device {
-	status = "disabled";
 };
 #ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
 &hxm0686tft_lcd {
@@ -2159,7 +2169,7 @@
 	};
 };
 #endif
-#ifdef LT8912B_HDMI_ENABLE
+#if defined(LT8912B_HDMI_ENABLE)
 &lontium_lt8912b {
 	status = "okay";
 };
@@ -2186,21 +2196,23 @@
 &dsi0_out0 {
 	remote-endpoint = <&panel_dsi_port>;
 };
-#else
-&fb_disp_device {
+#else /* choose legacy display */
+&display { /* legacy display on */
+	status = "okay";
+};
+&fb_disp_device { /* legacy fb on */
 	memory-region = <&disp_reserve>;
 	status = "okay";
 };
-&drm_display_engine {
+&display_subsystem { /* drm display off */
 	status = "disabled";
 };
-&crtc0 {
+&drm_crtc0 { /* drm display off */
 	status = "disabled";
 };
-&dsi0 {
+&drm_dsi0 { /* drm display off */
 	status = "disabled";
 };
-
 #ifdef RASPBERRYPI_DSI_PANEL
 &raspberrypi_lcd {
 	status = "okay";
@@ -2224,4 +2236,3 @@
 };
 #endif
 #endif
-

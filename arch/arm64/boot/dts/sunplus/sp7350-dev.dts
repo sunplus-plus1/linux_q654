@@ -1147,12 +1147,12 @@
 &fb_disp_device {
 	status = "disabled";
 };
-&drm_display_engine {
+&display_subsystem { /* drm display off */
 	status = "disabled";
 };
-&crtc0 {
+&drm_crtc0 { /* drm display off */
 	status = "disabled";
 };
-&dsi0 {
+&drm_dsi0 { /* drm display off */
 	status = "disabled";
 };
