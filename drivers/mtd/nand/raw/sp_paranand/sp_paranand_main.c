@@ -192,18 +192,6 @@ static const struct mtd_ooblayout_ops sp_nfc_ooblayout_ops = {
 	.free = sp_nfc_ooblayout_free,
 };
 
-static void sp_nfc_set_warmup_cycle(struct nand_chip *chip,
-			u8 wr_cyc, u8 rd_cyc)
-{
-	struct sp_nfc *nfc = nand_get_controller_data(chip);
-	int val;
-
-	val = readl(nfc->regs + MEM_ATTR_SET2);
-	val &= ~(0xFF);
-	val |= (((rd_cyc & 0x3) << 4) | (wr_cyc & 0x3));
-	writel(val, nfc->regs + MEM_ATTR_SET2);
-}
-
 static struct sp_nfc_chip_timing *sp_nfc_scan_timing(struct nand_chip *chip)
 {
 	struct sp_nfc *nfc = nand_get_controller_data(chip);
@@ -503,53 +491,6 @@ static int sp_nfc_onfi_sync(struct nand_chip *chip)
 	}
 
 	return 0;
-}
-
-static void sp_nfc_read_raw_id(struct nand_chip *chip)
-{
-	struct sp_nfc *nfc = nand_get_controller_data(chip);
-	struct cmd_feature cmd_f;
-	u8 id_size = 5;
-
-	nfc->cur_chan = 0;
-	nfc->sel_chip = 0;
-
-	// Set the flash to Legacy mode, in advance.
-	if(nfc->flash_type == ONFI2 || nfc->flash_type == ONFI3) {
-		sp_nfc_onfi_set_feature(chip, 0x00, LEGACY_FLASH);
-	}
-
-	// Issue the RESET cmd
-	cmd_f.cq1 = 0;
-	cmd_f.cq2 = 0;
-	cmd_f.cq3 = 0;
-	cmd_f.cq4 = CMD_COMPLETE_EN | CMD_FLASH_TYPE(LEGACY_FLASH) |\
-			CMD_START_CE(nfc->sel_chip) | CMD_INDEX(FIXFLOW_RESET);
-
-	sp_nfc_issue_cmd(chip, &cmd_f);
-
-	sp_nfc_wait(chip);
-
-	// Issue the READID cmd
-	cmd_f.row_cycle = ROW_ADDR_1CYCLE;
-	cmd_f.col_cycle = COL_ADDR_1CYCLE;
-	cmd_f.cq1 = 0;
-	cmd_f.cq2 = 0;
-	cmd_f.cq3 = CMD_COUNT(1);
-	cmd_f.cq4 = CMD_FLASH_TYPE(LEGACY_FLASH) | CMD_COMPLETE_EN |\
-			CMD_INDEX(FIXFLOW_READID) | CMD_START_CE(nfc->sel_chip) |\
-			CMD_BYTE_MODE | CMD_SPARE_NUM(id_size);
-
-	sp_nfc_issue_cmd(chip, &cmd_f);
-
-	sp_nfc_wait(chip);
-
-	memcpy(nfc->flash_raw_id, nfc->regs + SPARE_SRAM + (nfc->cur_chan << nfc->spare_ch_offset) , id_size);
-
-	DBGLEVEL2(sp_nfc_dbg("ID@(ch:%d, ce:%d):0x%x, 0x%x, 0x%x, 0x%x, 0x%x\n",
-					nfc->cur_chan, nfc->sel_chip, nfc->flash_raw_id[0],
-					nfc->flash_raw_id[1], nfc->flash_raw_id[2],
-					nfc->flash_raw_id[3], nfc->flash_raw_id[4]));
 }
 
 static void sp_nfc_calibrate_dqs_delay(struct nand_chip *chip)
@@ -1160,16 +1101,6 @@ static const struct nand_controller_ops sp_nfc_controller_ops = {
 	.attach_chip = sp_nfc_attach_chip,
 };
 
-static void sp_clk_disable_unprepare(void *nfc)
-{
-	clk_disable_unprepare(nfc);
-}
-
-static void sp_reset_control_assert(void *nfc)
-{
-	reset_control_assert(nfc);
-}
-
 static void sp_nfc_hw_init(struct sp_nfc *nfc, u8 nsels, u8 chan)
 {
 	int i;
@@ -1379,10 +1310,9 @@ MODULE_DEVICE_TABLE(of, sp_nfc_id_table);
 static int sp_nfc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct resource *res;
 	struct sp_nfc *nfc;
-	int ret, irq;
+	int ret;
 
 	nfc = devm_kzalloc(dev, sizeof(*nfc), GFP_KERNEL);
 	if (!nfc)
