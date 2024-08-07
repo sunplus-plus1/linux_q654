@@ -1674,7 +1674,7 @@
 				 */
 		};
 		tcxd024iblon_lcd: mipi_dsi_lcd@1 {
-			compatible = "fitipower,tcxd024iblon-2";
+			compatible = "xinli,tcxd024iblon-2";
 			reg = <1>;
 			status = "disabled";
 			disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
