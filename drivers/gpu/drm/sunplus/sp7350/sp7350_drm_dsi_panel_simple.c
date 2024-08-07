@@ -140,7 +140,7 @@ static const struct panel_init_cmd lx_hxm0686tft_001_init_cmd[] = {
 	{},
 };
 
-static const struct panel_init_cmd fitipower_tcxd024iblon_n2_init_cmd[] = {
+static const struct panel_init_cmd xinli_tcxd024iblon_n2_init_cmd[] = {
 	_INIT_DCS_CMD(0xDF, 0x98, 0x51, 0xE9),
 
 	/* Page 00 setting */
@@ -156,7 +156,8 @@ static const struct panel_init_cmd fitipower_tcxd024iblon_n2_init_cmd[] = {
 		      0x70),
 	_INIT_DCS_CMD(0xBC, 0x38, 0x3C),
 	_INIT_DCS_CMD(0xC0, 0x31, 0x20),
-	_INIT_DCS_CMD(0xC1, 0x12),
+	_INIT_DCS_CMD(0xC1, 0x12),  /* S240->S1, G1->G320 */
+	//_INIT_DCS_CMD(0xC1, 0x0A),  /* Reverse, S1->S240, G320->G1 */
 	_INIT_DCS_CMD(0xC3, 0x08, 0x00, 0x0A, 0x10, 0x08, 0x54, 0x45,
 		      0x71, 0x2C),
 	_INIT_DCS_CMD(0xC4, 0x00, 0xA0, 0x79, 0x0E, 0x0A, 0x16, 0x79,
@@ -244,27 +245,45 @@ static const struct sp7350_dsi_panel_desc lx_hxm0686tft_001_desc = {
 	.init_cmds = lx_hxm0686tft_001_init_cmd,
 };
 
-/* from sp7350 display driver. */
-	/* (w   h)   HSA  HFP HBP HACT VSA  VFP  VBP   VACT */
-/*	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x19, 320},  */
-	/* w   h    usr fps fmt htt  hact  vtt  (vact+vbb+1)  vbb) */
-/*  { 240,  320, 1, 0, 0,  683,  240,  354,  347, 26}, 240x320 60Hz */
-static const struct drm_display_mode fitipower_tcxd024iblon_n2_mode = {
-	.clock = 14506920 / 1000,
-	.hdisplay = 240,
-	.hsync_start = 240 + 434,
-	.hsync_end = 240 + 434 + 4,
-	.htotal = 240 + 434 + 4 + 5,
-	.vdisplay = 320,
-	.vsync_start = 320 + 8,
-	.vsync_end = 320 + 8 + 1,
-	.vtotal = 320 + 8 + 1 + 25,
+static const struct drm_display_mode xinli_tcxd024iblon_n2_mode[] = {
+	{
+		/* from specification timing values adjustment,
+		 * pixel clock greater than 10 MHz.
+		 */
+		.clock = 10171200 / 1000,
+		.hdisplay = 240,
+		.hsync_start = 240 + 40,
+		.hsync_end = 240 + 40 + 24,
+		.htotal = 240 + 40 + 24 + 22,
+		.vdisplay = 320,
+		.vsync_start = 320 + 14,
+		.vsync_end = 320 + 14 + 176,
+		.vtotal = 320 + 14 + 176 + 10,
+	},
+	{
+		/* from sp7350 display driver. */
+			/* (w   h)   HSA  HFP HBP HACT VSA  VFP  VBP   VACT */
+		/*	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x19, 320},  */
+			/* w   h    usr fps fmt htt  hact  vtt  (vact+vbb+1)  vbb) */
+		/*  { 240,  320, 1, 0, 0,  683,  240,  354,  347, 26}, 240x320 60Hz */
+		.clock = 14506920 / 1000,
+		.hdisplay = 240,
+		.hsync_start = 240 + 434,
+		.hsync_end = 240 + 434 + 4,
+		.htotal = 240 + 434 + 4 + 5,
+		.vdisplay = 320,
+		.vsync_start = 320 + 8,
+		.vsync_end = 320 + 8 + 1,
+		.vtotal = 320 + 8 + 1 + 25,
+	},
 };
 
 /* FIXME: size mm not truth!!! */
-static const struct sp7350_dsi_panel_desc fitipower_tcxd024iblon_n2_desc = {
-	.modes = &fitipower_tcxd024iblon_n2_mode,
-	.num_modes = 1,
+static const struct sp7350_dsi_panel_desc xinli_tcxd024iblon_n2_desc = {
+	.modes = xinli_tcxd024iblon_n2_mode,
+	.num_modes = ARRAY_SIZE(xinli_tcxd024iblon_n2_mode),
+	//.modes = &xinli_tcxd024iblon_n2_mode,
+	//.num_modes = 1,
 	.bpc = 8,
 	.size = {
 		.width_mm = 36,
@@ -274,7 +293,7 @@ static const struct sp7350_dsi_panel_desc fitipower_tcxd024iblon_n2_desc = {
 	.format = MIPI_DSI_FMT_RGB888,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 		      MIPI_DSI_MODE_LPM,
-	.init_cmds = fitipower_tcxd024iblon_n2_init_cmd,
+	.init_cmds = xinli_tcxd024iblon_n2_init_cmd,
 };
 
 static inline struct sp7350_panel_simple_dsi *to_simple_panel(struct drm_panel *panel)
@@ -610,7 +629,7 @@ static const struct of_device_id panel_simple_dsi_of_match[] = {
 	{
 		.compatible = "lx,hxm0686tft-001", .data = &lx_hxm0686tft_001_desc
 	}, {
-		.compatible = "fitipower,tcxd024iblon-2", .data = &fitipower_tcxd024iblon_n2_desc
+		.compatible = "xinli,tcxd024iblon-2", .data = &xinli_tcxd024iblon_n2_desc
 	}, {
 		/* sentinel */
 	}
