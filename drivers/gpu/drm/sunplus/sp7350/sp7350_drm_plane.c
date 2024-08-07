@@ -241,23 +241,21 @@ int sp7350_vpp_vscl_set(struct drm_plane *plane, int x, int y, int img_src_w, in
 		SP7350_VPP_VSCL_ACTRL_EN);
 	SP7350_PLANE_WRITE(VSCL_CONFIG2, value);
 
-	if (img_src_w < 128) img_src_w = 128;
-	if (img_src_h < 128) img_src_h = 128;
+	if (img_src_w < 128)
+		img_src_w = 128;
+	if (img_src_h < 128)
+		img_src_h = 128;
 
-	if (x > (img_src_w - 128)) x = img_src_w / 2;
-	if (y > (img_src_h - 128)) y = img_src_h / 2;
+	if (x > (img_src_w - 128))
+		x = img_src_w / 2;
+	if (y > (img_src_h - 128))
+		y = img_src_h / 2;
 
 	crop_xlen = img_src_w - x;
 	crop_ylen = img_src_h - y;
 
-	/* FIXME: For DRM Driver, L3 with VPP0 for overlay(media) plane, L1 with OSD3 for primary plane. */
-	#if  0//CONFIG_DRM_SP7350
-	SP7350_PLANE_WRITE(VSCL_ACTRL_I_XLEN, output_w);
-	SP7350_PLANE_WRITE(VSCL_ACTRL_I_YLEN, output_h);
-	#else
 	SP7350_PLANE_WRITE(VSCL_ACTRL_I_XLEN, crop_xlen);
 	SP7350_PLANE_WRITE(VSCL_ACTRL_I_YLEN, crop_ylen);
-	#endif
 
 	//#if (SP7350_VPP_SCALE_METHOD == 1) //method 1 , set imgread xstart&ystart, fix 0 here
 	SP7350_PLANE_WRITE(VSCL_ACTRL_S_XSTART, 0);
@@ -267,13 +265,13 @@ int sp7350_vpp_vscl_set(struct drm_plane *plane, int x, int y, int img_src_w, in
 	//SP7350_PLANE_WRITE(VSCL_ACTRL_S_YSTART, y);
 	//#endif
 
-	#if 1 //crop left & top only
+	//#if 1 //crop left & top only
 	SP7350_PLANE_WRITE(VSCL_ACTRL_S_XLEN, crop_xlen);
 	SP7350_PLANE_WRITE(VSCL_ACTRL_S_YLEN, crop_ylen);
-	#else //crop left & top & right & bot
-	SP7350_PLANE_WRITE(VSCL_ACTRL_S_XLEN, crop_xlen - x);
-	SP7350_PLANE_WRITE(VSCL_ACTRL_S_YLEN, crop_ylen - y);
-	#endif
+	//#else //crop left & top & right & bot
+	//SP7350_PLANE_WRITE(VSCL_ACTRL_S_XLEN, crop_xlen - x);
+	//SP7350_PLANE_WRITE(VSCL_ACTRL_S_YLEN, crop_ylen - y);
+	//#endif
 
 	SP7350_PLANE_WRITE(VSCL_DCTRL_D_XSTART, img_dest_x);
 	SP7350_PLANE_WRITE(VSCL_DCTRL_D_YSTART, img_dest_y);
@@ -400,7 +398,7 @@ int sp7350_vpp_vpost_opif_set(struct drm_plane *plane, int act_x, int act_y, int
 
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKBOT);
 	value &= ~SP7350_VPP_VPOST_OPIF_BOT_MASK;
-	value |= SP7350_VPP_VPOST_OPIF_BOT_SET(output_h -act_h - act_y);
+	value |= SP7350_VPP_VPOST_OPIF_BOT_SET(output_h - act_h - act_y);
 	SP7350_PLANE_WRITE(VPOST_OPIF_MSKBOT, value);
 
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKLEFT);
@@ -427,40 +425,40 @@ void sp7350_dmix_plane_alpha_config(struct drm_plane *plane, int layer, int enab
 	value2 = SP7350_PLANE_READ(DMIX_PLANE_ALPHA_CONFIG_1);
 
 	switch (layer) {
-		case SP7350_DMIX_L1:
-			value1 &= ~(GENMASK(15, 8));
-			value1 |= FIELD_PREP(GENMASK(15, 15), enable) |
-				FIELD_PREP(GENMASK(14, 14), fix_alpha) |
-				FIELD_PREP(GENMASK(13, 8), alpha_value);
-			break;
-		case SP7350_DMIX_L2:
-			break;
-		case SP7350_DMIX_L3:
-			value2 &= ~(GENMASK(31, 24));
-			value2 |= FIELD_PREP(GENMASK(31, 31), enable) |
-				FIELD_PREP(GENMASK(30, 30), fix_alpha) |
-				FIELD_PREP(GENMASK(29, 24), alpha_value);
-			break;
-		case SP7350_DMIX_L4:
-			value2 &= ~(GENMASK(23, 16));
-			value2 |= FIELD_PREP(GENMASK(23, 23), enable) |
-				FIELD_PREP(GENMASK(22, 22), fix_alpha) |
-				FIELD_PREP(GENMASK(21, 16), alpha_value);
-			break;
-		case SP7350_DMIX_L5:
-			value2 &= ~(GENMASK(15, 8));
-			value2 |= FIELD_PREP(GENMASK(15, 15), enable) |
-				FIELD_PREP(GENMASK(14, 14), fix_alpha) |
-				FIELD_PREP(GENMASK(13, 8), alpha_value);
-			break;
-		case SP7350_DMIX_L6:
-			value2 &= ~(GENMASK(7, 0));
-			value2 |= FIELD_PREP(GENMASK(7, 7), enable) |
-				FIELD_PREP(GENMASK(6, 6), fix_alpha) |
-				FIELD_PREP(GENMASK(5, 0), alpha_value);
-			break;
-		default:
-			break;
+	case SP7350_DMIX_L1:
+		value1 &= ~(GENMASK(15, 8));
+		value1 |= FIELD_PREP(GENMASK(15, 15), enable) |
+			FIELD_PREP(GENMASK(14, 14), fix_alpha) |
+			FIELD_PREP(GENMASK(13, 8), alpha_value);
+		break;
+	case SP7350_DMIX_L2:
+		break;
+	case SP7350_DMIX_L3:
+		value2 &= ~(GENMASK(31, 24));
+		value2 |= FIELD_PREP(GENMASK(31, 31), enable) |
+			FIELD_PREP(GENMASK(30, 30), fix_alpha) |
+			FIELD_PREP(GENMASK(29, 24), alpha_value);
+		break;
+	case SP7350_DMIX_L4:
+		value2 &= ~(GENMASK(23, 16));
+		value2 |= FIELD_PREP(GENMASK(23, 23), enable) |
+			FIELD_PREP(GENMASK(22, 22), fix_alpha) |
+			FIELD_PREP(GENMASK(21, 16), alpha_value);
+		break;
+	case SP7350_DMIX_L5:
+		value2 &= ~(GENMASK(15, 8));
+		value2 |= FIELD_PREP(GENMASK(15, 15), enable) |
+			FIELD_PREP(GENMASK(14, 14), fix_alpha) |
+			FIELD_PREP(GENMASK(13, 8), alpha_value);
+		break;
+	case SP7350_DMIX_L6:
+		value2 &= ~(GENMASK(7, 0));
+		value2 |= FIELD_PREP(GENMASK(7, 7), enable) |
+			FIELD_PREP(GENMASK(6, 6), fix_alpha) |
+			FIELD_PREP(GENMASK(5, 0), alpha_value);
+		break;
+	default:
+		break;
 	}
 	SP7350_PLANE_WRITE(DMIX_PLANE_ALPHA_CONFIG_0, value1);
 	SP7350_PLANE_WRITE(DMIX_PLANE_ALPHA_CONFIG_1, value2);
@@ -496,17 +494,16 @@ void sp7350_osd_layer_set_by_region(struct drm_plane *plane, struct sp7350_osd_r
 	//value = osd_header[0];
 
 	value |= (tmp_color_mode << 24) | SP7350_OSD_HDR_BS;
-	if(info->alpha_info.region_alpha_en){
+	if (info->alpha_info.region_alpha_en) {
 		tmp_alpha = info->alpha_info.region_alpha;
-		if(tmp_alpha <0 || tmp_alpha > 255){
+		if (tmp_alpha < 0 || tmp_alpha > 255)
 			tmp_alpha = 255;
-		}
-		value |= SP7350_OSD_HDR_BL |tmp_alpha;
+
+		value |= SP7350_OSD_HDR_BL | tmp_alpha;
 	}
 
-	if(info->alpha_info.color_key_en){
+	if (info->alpha_info.color_key_en)
 		value |= SP7350_OSD_HDR_KEY;
-	}
 
 	if (info->color_mode == SP7350_OSD_COLOR_MODE_8BPP)
 		value |= SP7350_OSD_HDR_CULT;
@@ -524,12 +521,11 @@ void sp7350_osd_layer_set_by_region(struct drm_plane *plane, struct sp7350_osd_r
 	osd_header[2] = SWAP32(tmp_height << 16 | tmp_width << 0);
 
 	/* Fill color key value */
-	if(info->alpha_info.color_key_en){
+	if (info->alpha_info.color_key_en) {
 		tmp_key = 0xffffffff & info->alpha_info.color_key;
 		osd_header[3] = SWAP32(tmp_key);
-	}else{
+	} else {
 		osd_header[3] = 0;
-
 	}
 
 	/* Fill DATA_start_row & DATA_start_column */
@@ -1318,15 +1314,6 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 		return ERR_PTR(ret);
 
 	drm_plane_helper_add(plane, sp_plane->funcs);
-
-#if 0
-	drm_plane_create_alpha_property(plane);
-	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
-					   DRM_MODE_ROTATE_0 |
-					   DRM_MODE_ROTATE_180 |
-					   DRM_MODE_REFLECT_X |
-					   DRM_MODE_REFLECT_Y);
-#endif
 
 	//sp_plane->index = plane->base->index;
 	sp_plane->base.index = plane->index;

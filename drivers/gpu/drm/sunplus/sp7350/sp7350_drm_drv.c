@@ -54,9 +54,9 @@ static struct drm_driver sp7350_drm_driver = {
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &sp7350_drm_fops,
 
-#if 1//defined(CONFIG_DEBUG_FS)
+//#if 1//defined(CONFIG_DEBUG_FS)
 	.debugfs_init = sp7350_debugfs_init,
-#endif
+//#endif
 
 	.name			= "sp7350-drm",
 	.desc			= "Sunplus SP7350 DRM",
@@ -250,6 +250,7 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 	for (i = 0; i < count; i++) {
 		struct device_driver *drv = &component_drivers[i]->driver;
 		struct device *p = NULL, *d;
+
 		DRM_DEV_DEBUG_DRIVER(&pdev->dev, "%s component %d\n", __func__, i);
 		while ((d = platform_find_device_by_driver(p, drv))) {
 			put_device(p);
