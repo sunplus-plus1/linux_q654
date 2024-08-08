@@ -23,6 +23,7 @@
 //#define MIPI_CSI_XTOR		/* Import RAW10 pattern from MIPI XTOR */
 //#define MIPI_CSI_QUALITY	/* Import test patterns from MIPI PHY */
 //#define MIPI_CSI_4VC		/* Switch MIPI-CSI2 to 4-VC mode */
+#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
 
 /* Number of HW buffers */
 #define HW_BUFFER_NUM 1
