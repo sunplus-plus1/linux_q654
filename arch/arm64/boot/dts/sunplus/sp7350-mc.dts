@@ -263,7 +263,7 @@
 		};*/
 	};
 
-	imx219_vana_2v8: 2p8v {
+	imx219_vana_2v8: imx219_vana_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vana";
 		regulator-min-microvolt = <2800000>;
@@ -271,7 +271,7 @@
 		regulator-always-on;
 	};
 
-	imx219_vdig_1v8: 1p8v {
+	imx219_vdig_1v8: imx219_vdig_1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vdig";
 		regulator-min-microvolt = <1500000>;
@@ -279,7 +279,7 @@
 		regulator-always-on;
 	};
 
-	imx219_vddl_1v2: 1p2v {
+	imx219_vddl_1v2: imx219_vddl_1v2 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vddl";
 		regulator-min-microvolt = <1200000>;
@@ -287,7 +287,7 @@
 		regulator-always-on;
 	};
 
-	ov5640_avdd_2p8v: ov5640_avdd_2p8v {
+	ov5640_avdd_2v8: ov5640_avdd_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "ov5640_avdd";
 		regulator-min-microvolt = <2800000>;
@@ -295,7 +295,7 @@
 		regulator-always-on;
 	};
 
-	ov5640_dovdd_1p8v: ov5640_dovdd_1p8v {
+	ov5640_dovdd_1v8: ov5640_dovdd_1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "ov5640_dovdd";
 		regulator-min-microvolt = <1800000>;
@@ -303,7 +303,7 @@
 		regulator-always-on;
 	};
 
-	ov5640_dvdd_1p5v: ov5640_dvdd_1p5v {
+	ov5640_dvdd_1v5: ov5640_dvdd_1v5 {
 		compatible = "regulator-fixed";
 		regulator-name = "ov5640_dvdd";
 		regulator-min-microvolt = <1500000>;
@@ -741,9 +741,9 @@
 		reg = <0x3c>;
 		clocks = <&ov5640_clk>;
 		clock-names = "xclk";
-		AVDD-supply = <&ov5640_avdd_2p8v>;
-		DOVDD-supply = <&ov5640_dovdd_1p8v>;
-		DVDD-supply = <&ov5640_dvdd_1p5v>;
+		AVDD-supply = <&ov5640_avdd_2v8>;
+		DOVDD-supply = <&ov5640_dovdd_1v8>;
+		DVDD-supply = <&ov5640_dvdd_1v5>;
 
 		port {
 			ov5640_5: endpoint {
