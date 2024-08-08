@@ -620,6 +620,17 @@ static int vin_parse_of_endpoint(struct device *dev,
 		goto out;
 	}
 
+#if defined(MIPI_CSI_DYN_REG)
+	/* Check if the CSI2 device has a driver bound */
+	if (asd->match.fwnode->dev->driver == NULL) {
+		vin_err(vin, "OF device %pOF probe failed. Remove VIN%d from group\n",
+			to_of_node(asd->match.fwnode), vin->id);
+		vin->group->vin[vin->id] = NULL;
+		ret = -ENOTCONN;
+		goto out;
+	}
+#endif
+
 	vin->group->csi[vep->base.id].fwnode = asd->match.fwnode;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",

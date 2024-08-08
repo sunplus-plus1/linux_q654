@@ -30,6 +30,7 @@ struct csi2_dev;
 //#define MIPI_CSI_XTOR		/* Import RAW10 pattern from MIPI XTOR */
 //#define MIPI_CSI_QUALITY	/* Import test patterns from MIPI PHY */
 //#define MIPI_CSI_VC_TEST	/* Set VC in DI with sysfs for testing */
+#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
 
 /* Max number on CSI instances that can be in a system */
 #define CSI_MAX_NUM 6
@@ -1116,6 +1117,33 @@ static int csi2_parse_v4l2(struct csi2_dev *priv,
 	return 0;
 }
 
+#if defined(MIPI_CSI_DYN_REG)
+static bool is_camera_probed(struct fwnode_handle *fwnode)
+{
+	struct device *dev;
+	struct fwnode_handle *parent, *grandparent;
+	bool ret = false;
+
+	parent = fwnode_get_parent(fwnode);
+	grandparent = fwnode_get_parent(parent);
+
+	/* Iterate over all device */
+	dev = bus_find_device(&i2c_bus_type, NULL, grandparent, device_match_fwnode);
+	fwnode_handle_put(parent);
+	fwnode_handle_put(grandparent);
+
+	if (dev) {
+		/* Check if the device has a drivers bound */
+		if (dev->driver) ret = true;
+
+		/* Put the device reference */
+		put_device(dev);
+	}
+
+	return ret;
+}
+#endif
+
 static int csi2_parse_dt(struct csi2_dev *priv)
 {
 	struct v4l2_async_subdev *asd;
@@ -1208,6 +1236,15 @@ static int csi2_parse_dt(struct csi2_dev *priv)
 	of_node_put(ep);
 
 	dev_dbg(priv->dev, "Found '%pOF'\n", to_of_node(fwnode));
+
+#if defined(MIPI_CSI_DYN_REG)
+	/* Check the camera probe status */
+	if (!is_camera_probed(fwnode)) {
+		dev_err(priv->dev, "Camera probe failed\n");
+		fwnode_handle_put(fwnode);
+		return -EIO;
+	}
+#endif
 
 	v4l2_async_notifier_init(&priv->notifier);
 	priv->notifier.ops = &csi2_notify_ops;
