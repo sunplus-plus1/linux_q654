@@ -770,17 +770,18 @@ static void spsdc_set_power_mode(struct spsdc_host *host, struct mmc_ios *ios)
 		/* power off->up->on */
 	case MMC_POWER_ON:
 		spsdc_pr(host->mode, DEBUG, "set SD_POWER_ON\n");
+		spsdc_controller_init(host);
 		pm_runtime_get_sync(host->mmc->parent);
 		break;
 	case MMC_POWER_UP:
-		spsdc_controller_init(host);
 		spsdc_pr(host->mode, DEBUG, "setSD_POWER_UP\n");
-		break;
-	case MMC_POWER_OFF:
-		spsdc_pr(host->mode, DEBUG, "set SD_POWER_OFF\n");
 		reset_control_assert(host->rstc);
 		msleep(1);
 		reset_control_deassert(host->rstc);
+		msleep(1);
+		break;
+	case MMC_POWER_OFF:
+		spsdc_pr(host->mode, DEBUG, "set SD_POWER_OFF\n");
 		pm_runtime_put(host->mmc->parent);
 		break;
 	}
