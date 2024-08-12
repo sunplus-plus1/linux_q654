@@ -392,6 +392,14 @@
 	};
 
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
+	lt8912b_1p8v: lt8912b_1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "lt8912b_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
 	hdmi-connector {
 		compatible = "hdmi-connector";
 		label = "hdmi";
@@ -1139,7 +1147,16 @@
 		compatible = "lontium,lt8912b";
 		//compatible = "lontium,lt8912b-builtin";
 		reg = <0x48>;
+
+		vcchdmipll-supply = <&lt8912b_1p8v>;
+		vcchdmitx-supply = <&lt8912b_1p8v>;
+		vcclvdspll-supply = <&lt8912b_1p8v>;
+		vcclvdstx-supply = <&lt8912b_1p8v>;
+		vccmipirx-supply = <&lt8912b_1p8v>;
+		vccsysclk-supply = <&lt8912b_1p8v>;
+		vdd-supply = <&lt8912b_1p8v>;
 		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
+
 		#if !defined(CONFIG_DISP_DRM_SUPPORT)
 		#if defined(LT8912B_HDMI_480X272)
 		hdmi-mode = <0x0>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
