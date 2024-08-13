@@ -24,6 +24,7 @@
 //#define MIPI_CSI_QUALITY	/* Import test patterns from MIPI PHY */
 //#define MIPI_CSI_4VC		/* Switch MIPI-CSI2 to 4-VC mode */
 #define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
+//#define MIPI_CSI_VIDEO_SEQ	/* Video device node numbers are in sequence */
 
 /* Number of HW buffers */
 #define HW_BUFFER_NUM 1
@@ -42,20 +43,12 @@ enum model_id {
 };
 
 enum vin_csi_id {
-	VIN_CSI0,		/* CSIRX0_CSIIW0 */
-	VIN_CSI1,		/* CSIRX0_CSIIW1 */
-	VIN_CSI2,		/* CSIRX1_CSIIW0 */
-	VIN_CSI3,		/* CSIRX1_CSIIW1 */
-	VIN_CSI4,		/* CSIRX23_CSIIW0 */
-	VIN_CSI5,		/* CSIRX23_CSIIW1 */
-	VIN_CSI6,		/* CSIRX23_CSIIW2 */
-	VIN_CSI7,		/* CSIRX23_CSIIW3 */
-	VIN_CSI8,		/* CSIRX4_CSIIW0 */
-	VIN_CSI9,		/* CSIRX4_CSIIW1 */
-	VIN_CSI10,		/* CSIRX5_CSIIW0 */
-	VIN_CSI11,		/* CSIRX5_CSIIW1 */
-	VIN_CSI12,		/* CSIRX5_CSIIW2 */
-	VIN_CSI13,		/* CSIRX5_CSIIW3 */
+	VIN_CSI0,
+	VIN_CSI1,
+	VIN_CSI2,
+	VIN_CSI3,
+	VIN_CSI4,
+	VIN_CSI5,
 	VIN_CSI_MAX,
 };
 
