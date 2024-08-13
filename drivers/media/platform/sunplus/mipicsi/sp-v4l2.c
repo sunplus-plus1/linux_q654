@@ -1488,7 +1488,11 @@ int vin_v4l2_register(struct vin_dev *vin)
 
 	vin_format_align(vin, &vin->format);
 
+#if defined(MIPI_CSI_VIDEO_SEQ)
 	ret = video_register_device(&vin->vdev, VFL_TYPE_VIDEO, -1);
+#else
+	ret = video_register_device(&vin->vdev, VFL_TYPE_VIDEO, vin->id);
+#endif
 	if (ret) {
 		vin_err(vin, "Failed to register video device\n");
 		return ret;
