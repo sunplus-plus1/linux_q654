@@ -361,7 +361,6 @@ static int lt8912_video_setup(struct lt8912 *lt)
 	return ret;
 }
 
-#if 0  /* TODO */
 static int lt8912_audio_setup(struct lt8912 *lt)
 {
 	u8 avi_pb0, avi_pb1, avi_pb2, avi_pb4, chksum;
@@ -488,7 +487,6 @@ static int lt8912_audio_setup(struct lt8912 *lt)
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x50, avi_pb13);
 	return ret;
 }
-#endif
 
 static int lt8912_soft_power_on(struct lt8912 *lt)
 {
@@ -565,7 +563,27 @@ static int lt8912_video_on(struct lt8912 *lt)
 	if (ret < 0)
 		goto end;
 
-#if 0 /* TODO */
+	/* Compatibility processing */
+	if (lt->mode.hactive == 1920 && lt->mode.vactive == 1080) { //1080P60
+		/* default use hdmi mode */
+		lt->hdmi_dvi_sel = 1;
+		lt->mode_sel = 0x03;
+	}
+	else if (lt->mode.hactive == 1280 && lt->mode.vactive == 720) { //720P60
+		/* default use hdmi mode */
+		lt->hdmi_dvi_sel = 1;
+		lt->mode_sel = 0x02;
+	}
+	else if (lt->mode.hactive == 720 && lt->mode.vactive == 480) { //480P60
+		/* default use hdmi mode */
+		lt->hdmi_dvi_sel = 1;
+		lt->mode_sel = 0x00;
+	}
+	else {
+		lt->hdmi_dvi_sel = 0;
+		lt->mode_sel = 0x00;
+	}
+
 	if (lt->hdmi_dvi_sel) {
 		ret = lt8912_audio_setup(lt);
 		if (ret < 0)
@@ -573,7 +591,6 @@ static int lt8912_video_on(struct lt8912 *lt)
 	} else {
 		pr_info("lt8912 bridge set DVI Mode\n");
 	}
-#endif
 
 end:
 	return ret;
