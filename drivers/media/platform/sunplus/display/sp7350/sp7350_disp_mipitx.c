@@ -510,12 +510,15 @@ static const u32 sp_mipitx_phy_pllclk_dsi[11][11] = {
 #else
 	{1920, 1080, 0x0, 0x24, 0x0, 0x0, 0x0, 0x1, 0x8, 0x1, 0x1}, /* 1080P */
 #endif
-	{ 480, 1280, 0x0, 0x0c, 0x0, 0x0, 0x0, 0x0, 0x5, 0x7, 0x0}, /* 480x1280 */
+	//{ 480, 1280, 0x0, 0x0c, 0x0, 0x0, 0x0, 0x0, 0x5, 0x7, 0x0}, /* 480x1280 */
+	{ 480, 1280, 0x0, 0x34, 0x0, 0x2, 0x0, 0x0, 0x5, 0x7, 0x0}, /* 480x1280 */ //update for sync drm setting
 	{ 128,  128, 0x1, 0x1f, 0x1, 0x4, 0x1, 0x1, 0x0, 0x0, 0x0}, /* 128x128 */
-	{  240, 320, 0x0, 0x0e, 0x0, 0x0, 0x0, 0x0, 0xa, 0xf, 0x2}, /* 240x320 */
+	//{  240, 320, 0x0, 0x0e, 0x0, 0x0, 0x0, 0x0, 0xa, 0xf, 0x2}, /* 240x320 */
+	{  240, 320, 0x0, 0x38, 0x0, 0x2, 0x0, 0x0, 0xa, 0xf, 0x2}, /* 240x320 */ //update for sync drm setting
 	{3840,   64, 0x0, 0x1f, 0x1, 0x0, 0x1, 0x0, 0x0, 0x0, 0x0}, /* 3840x64 */
 	{3840, 2880, 0x0, 0x3c, 0x0, 0x0, 0x0, 0x3, 0x0, 0x0, 0x0}, /* 3840x2880 */
-	{ 800,  480, 0x1, 0x0d, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 */
+	//{ 800,  480, 0x1, 0x0d, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 */
+	{ 800,  480, 0x0, 0x1b, 0x0, 0x0, 0x0, 0x1, 0xb, 0x7, 0x0}, /* 800x480 */ //update for sync drm setting
 	{1024,  600, 0x1, 0x3d, 0x1, 0x1, 0x1, 0x3, 0x0, 0x0, 0x0}  /* 1024x600 */
 };
 
@@ -553,7 +556,17 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 		}
 
 		#if 1
-		if ((disp_dev->out_res.width == 240) && (disp_dev->out_res.height == 320)) {
+		if ((disp_dev->out_res.width == 480) && (disp_dev->out_res.height == 1280)) {
+			#if 1 //update for sync drm setting
+			value = 0;
+			value |= 0x00780000;
+			value |= (0x7f800000 | (0x16 << 7));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+			value = 0x07800780; //PLLH MIPITX CLK = xxxxMHz
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#endif
+		} else if ((disp_dev->out_res.width == 240) && (disp_dev->out_res.height == 320)) {
 			value = 0;
 			value |= 0x80000000;
 			value |= 0x00780050;
@@ -563,6 +576,15 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 			value = 0x07800780; //PLLH MIPITX CLK = 14.583MHz
 			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
 		} else if ((disp_dev->out_res.width == 800) && (disp_dev->out_res.height == 480)) {
+			#if 1 //update for sync drm setting
+			value = 0;
+			value |= 0x00780078;
+			value |= (0x7f800000 | (0x31 << 7));
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_14); //AO_G3.14
+
+			value = 0x07800380; //PLLH MIPITX CLK = xxxxMHz
+			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#else
 			value = 0;
 			value |= 0x00780058;
 			value |= (0x7f800000 | (0x15 << 7));
@@ -570,6 +592,8 @@ void sp7350_mipitx_pllclk_set(int mode, int width, int height)
 
 			value = 0x07800380; //PLLH MIPITX CLK = 26.563MHz
 			writel(value, disp_dev->ao_moon3 + MIPITX_AO_MOON3_25); //AO_G3.25
+			#endif
+
 		} else if ((disp_dev->out_res.width == 720) && (disp_dev->out_res.height == 480)) {
 			value = 0;
 			value |= 0x00780050;
@@ -851,7 +875,7 @@ void sp7350_mipitx_panel_init(int mipitx_dev_id, int width, int height)
 	//pr_info("mipitx id 0x%08x\n", mipitx_dev_id);
 
 	if (mipitx_dev_id == 0x00001000) {
-		pr_info("MIPITX DSI Panel : HXM0686TFT-001(%dx%d)\n", width, height);
+		//pr_info("MIPITX DSI Panel : HXM0686TFT-001(%dx%d)\n", width, height);
 		//Panel HXM0686TFT-001 IPS
 		sp7350_mipitx_gpio_set();
 
@@ -911,7 +935,7 @@ void sp7350_mipitx_panel_init(int mipitx_dev_id, int width, int height)
 		sp7350_dcs_write_seq(0x29);
 		mdelay(20);
 	} else if (mipitx_dev_id == 0x00001001) {
-		pr_info("MIPITX DSI Panel : TCXD024IBLON-2(%dx%d)\n", width, height);
+		//pr_info("MIPITX DSI Panel : TCXD024IBLON-2(%dx%d)\n", width, height);
 		//Panel TCXD024IBLON-2 240x320
 		//sp7350_mipitx_gpio_set();
 
@@ -1196,7 +1220,8 @@ static const u32 sp_mipitx_input_timing_dsi[11][10] = {
 	{ 720,  576, 0x4,  0, 0x5,  0, 0x1, 0x4, 0x2B,  576}, /* 576P */
 	{1280,  720, 0x28,  0, 0xdc,  0, 0x5, 0x5, 0x14,  720}, /* 720P */
 	{1920, 1080, 0x2c,  0, 0x94,  0, 0x1, 0x4, 0x28, 1080}, /* 1080P */
-	{ 480, 1280, 0x4,  0, 0x4,  0, 0x1,0x11, 0x10, 1280}, /* 480x1280 */
+	//{ 480, 1280, 0x4,  0, 0x4,  0, 0x1,0x11, 0x10, 1280}, /* 480x1280 */
+	{ 480, 1280, 0x4,  0, 0xc,  0, 0x4,0x10, 0x0c, 1280}, /* 480x1280 */ //update for sync drm setting
 	{ 128,  128, 0x4,  0, 0x5,  0, 0x1, 0x2, 0x12,  128}, /* 128x128 */
 	//{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x23, 320}, /* 240x320 */
 	{ 240,  320, 0x4,  0, 0x5,  0, 0x1, 0x8, 0x19, 320}, /* 240x320 */

@@ -1313,8 +1313,11 @@
 
 #ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
 	raspberrypi_lcd: lcd@45 {
+		#if defined(CONFIG_DISP_DRM_SUPPORT)
 		compatible = "raspberrypi,7inch-touchscreen-panel";
-		//compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+		#else
+		compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+		#endif
 		reg = <0x45>;
 		status = "okay";
 		port {
@@ -1335,8 +1338,11 @@
 #endif
 #ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c6 */
 	lontium_lt8912b: hdmi@48 {
+		#if defined(CONFIG_DISP_DRM_SUPPORT)
 		compatible = "lontium,lt8912b";
-		//compatible = "lontium,lt8912b-builtin";
+		#else
+		compatible = "lontium,lt8912b-builtin";
+		#endif
 		reg = <0x48>;
 
 		vcchdmipll-supply = <&lt8912b_1p8v>;

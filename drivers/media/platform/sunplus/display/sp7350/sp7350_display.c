@@ -726,7 +726,7 @@ static int sp7350_display_probe(struct platform_device *pdev)
 	 * OSD0 OSD1 OSD2 OSD3 ---- VPP0 PTG
 	 */
 	if (disp_dev->out_res.mipitx_mode == SP7350_MIPITX_DSI) {
-		pr_info("%s: disp probe  set layer blending\n", __func__);
+		//pr_info("%s: disp probe  set layer blending\n", __func__);
 		sp7350_dmix_layer_init(SP7350_DMIX_L6, SP7350_DMIX_OSD0, SP7350_DMIX_BLENDING);
 		sp7350_dmix_layer_init(SP7350_DMIX_L5, SP7350_DMIX_OSD1, SP7350_DMIX_BLENDING);
 		sp7350_dmix_layer_init(SP7350_DMIX_L4, SP7350_DMIX_OSD2, SP7350_DMIX_BLENDING);

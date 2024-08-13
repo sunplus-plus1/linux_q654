@@ -101,7 +101,7 @@ static const struct sp7350_plane_format sp7350_osd_formats[] = {
 
 #define SP7350_FORMAT_UNSUPPORT 0xF
 
-void sp7350_dmix_layer_set(struct drm_plane *plane, int fg_sel, int layer_mode)
+void sp7350_drm_plane_set(struct drm_plane *plane, int fg_sel, int layer_mode)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -129,7 +129,7 @@ void sp7350_dmix_layer_set(struct drm_plane *plane, int fg_sel, int layer_mode)
 	SP7350_PLANE_WRITE(DMIX_LAYER_CONFIG_1, value1);
 }
 
-int sp7350_vpp_vpost_opif_alpha_set(struct drm_plane *plane, int alpha, int mask_alpha)
+int sp7350_vpp_plane_vpost_opif_alpha_set(struct drm_plane *plane, int alpha, int mask_alpha)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -150,7 +150,7 @@ int sp7350_vpp_vpost_opif_alpha_set(struct drm_plane *plane, int alpha, int mask
 	return 0;
 }
 
-int sp7350_vpp_imgread_set(struct drm_plane *plane, u32 data_addr1, int x, int y, int img_src_w, int img_src_h, int input_w, int input_h, int yuv_fmt)
+int sp7350_vpp_plane_imgread_set(struct drm_plane *plane, u32 data_addr1, int x, int y, int img_src_w, int img_src_h, int input_w, int input_h, int yuv_fmt)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -218,7 +218,7 @@ int sp7350_vpp_imgread_set(struct drm_plane *plane, u32 data_addr1, int x, int y
 	return 0;
 }
 
-int sp7350_vpp_vscl_set(struct drm_plane *plane, int x, int y, int img_src_w, int img_src_h, int img_dest_x, int img_dest_y, int img_dest_w, int img_dest_h, int output_w, int output_h)
+int sp7350_vpp_plane_vscl_set(struct drm_plane *plane, int x, int y, int img_src_w, int img_src_h, int img_dest_x, int img_dest_y, int img_dest_w, int img_dest_h, int output_w, int output_h)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -365,7 +365,7 @@ int sp7350_vpp_vscl_set(struct drm_plane *plane, int x, int y, int img_src_w, in
 #define SP7350_VPP_VPOST_WIN_ALPHA_VALUE	0xff
 #define SP7350_VPP_VPOST_VPP_ALPHA_VALUE	0xff
 
-int sp7350_vpp_vpost_opif_set(struct drm_plane *plane, int act_x, int act_y, int act_w, int act_h, int output_w, int output_h)
+int sp7350_vpp_plane_vpost_opif_set(struct drm_plane *plane, int act_x, int act_y, int act_w, int act_h, int output_w, int output_h)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -414,7 +414,7 @@ int sp7350_vpp_vpost_opif_set(struct drm_plane *plane, int act_x, int act_y, int
 	return 0;
 }
 
-void sp7350_dmix_plane_alpha_config(struct drm_plane *plane, int layer, int enable, int fix_alpha, int alpha_value)
+void sp7350_drm_plane_alpha_config(struct drm_plane *plane, int layer, int enable, int fix_alpha, int alpha_value)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -465,7 +465,7 @@ void sp7350_dmix_plane_alpha_config(struct drm_plane *plane, int layer, int enab
 
 }
 
-void sp7350_osd_layer_set_by_region(struct drm_plane *plane, struct sp7350_osd_region *info, int osd_layer_sel)
+void sp7350_osd_plane_set_by_region(struct drm_plane *plane, struct sp7350_osd_region *info, int osd_layer_sel)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -856,7 +856,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	/* reference to ade_plane_atomic_update */
 	if (!state->fb || !state->crtc) {
 		/* do nothing */
-		sp7350_dmix_layer_set(plane, SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
+		sp7350_drm_plane_set(plane, SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
 
@@ -872,7 +872,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 
 	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
 
-	sp7350_vpp_imgread_set(plane, (u32)obj->paddr,
+	sp7350_vpp_plane_imgread_set(plane, (u32)obj->paddr,
 			       state->src_x >> 16, state->src_y >> 16,
 			       state->src_w >> 16, state->src_h >> 16,
 			       state->fb->width, state->fb->height,
@@ -887,7 +887,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	sp7350_scl_coordinate_adjust(state->src_w >> 16, state->src_h >> 16, &dst_x, &dst_y, &dst_w, &dst_h);
 	DRM_DEBUG_ATOMIC("vscl adjust dst[%d, %d]\n", dst_w, dst_h);
 	#endif
-	sp7350_vpp_vscl_set(plane, state->src_x >> 16, state->src_y >> 16,
+	sp7350_vpp_plane_vscl_set(plane, state->src_x >> 16, state->src_y >> 16,
 			    state->src_w >> 16, state->src_h >> 16,
 			    #if SP7350_DRM_VPP_SCL_AUTO_ADJUST
 			    dst_x, dst_y,
@@ -899,7 +899,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 			    state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 
 	/* default setting for VPP OPIF(MASK function) */
-	sp7350_vpp_vpost_opif_set(plane, state->crtc_x, state->crtc_y,
+	sp7350_vpp_plane_vpost_opif_set(plane, state->crtc_x, state->crtc_y,
 				  state->crtc_w, state->crtc_h,
 				  state->crtc->mode.hdisplay, state->crtc->mode.vdisplay);
 	/*
@@ -915,7 +915,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
 				 plane->index, state->alpha >> 10, state->alpha);
 		/* NOTES: vpp layer(SP7350_DMIX_L3) used for media plane fixed. */
-		sp7350_dmix_plane_alpha_config(plane, SP7350_DMIX_L3, 1, 0, state->alpha >> 10);
+		sp7350_drm_plane_alpha_config(plane, SP7350_DMIX_L3, 1, 0, state->alpha >> 10);
 	}
 
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
@@ -927,10 +927,10 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		 * vpp plane region alpha setting by vpp opif mask function.
 		 * So only one region for media plane, the parameter "regionid" is invalid.
 		 */
-		sp7350_vpp_vpost_opif_alpha_set(plane, sp_plane->state.region_alpha.alpha, 0);
+		sp7350_vpp_plane_vpost_opif_alpha_set(plane, sp_plane->state.region_alpha.alpha, 0);
 	}
 
-	sp7350_dmix_layer_set(plane, SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
+	sp7350_drm_plane_set(plane, SP7350_DMIX_VPP0, SP7350_DMIX_BLENDING);
 }
 
 static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
@@ -977,7 +977,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	if (!state->fb || !state->crtc) {
 		/* disable this plane */
-		sp7350_dmix_layer_set(plane, SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_TRANSPARENT);
+		sp7350_drm_plane_set(plane, SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
 
@@ -1044,7 +1044,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		info.alpha_info.color_key = sp_plane->state.color_keying;
 	}
 
-	sp7350_osd_layer_set_by_region(plane, &info, osd_layer_sel);
+	sp7350_osd_plane_set_by_region(plane, &info, osd_layer_sel);
 
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND) {
 		/*
@@ -1054,7 +1054,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
 				 plane->index, state->alpha >> 10, state->alpha);
 
-		sp7350_dmix_plane_alpha_config(plane, layer, 1, 0, state->alpha >> 10);
+		sp7350_drm_plane_alpha_config(plane, layer, 1, 0, state->alpha >> 10);
 	}
 
 	DRM_DEBUG_ATOMIC("\n set osd region x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
@@ -1067,7 +1067,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 			 drm_get_format_name(state->fb->format->format, &format_name),
 			 state->fb->modifier, info.color_mode);
 
-	sp7350_dmix_layer_set(plane, SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
+	sp7350_drm_plane_set(plane, SP7350_DMIX_OSD0 + osd_layer_sel, SP7350_DMIX_BLENDING);
 }
 
 static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
