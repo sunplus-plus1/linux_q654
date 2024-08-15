@@ -91,6 +91,20 @@
 	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0        0x0 0xf0000000>;
+		numa-node-id = <0>;
+	};
+
+	memory@100000000 {
+		device_type = "memory";
+		reg = <0x1 0x0        0x0 0x10000000>;
+		numa-node-id = <1>;
+	};
+
+	distance-map {
+		compatible = "numa-distance-map-v1";
+		distance-matrix = <0 0 10>,
+				  <0 1 20>,
+				  <1 1 10>;
 	};
 
 	reserved-memory {
@@ -1884,8 +1898,8 @@
 	};
 };
 
-&display {
 #if !defined(CONFIG_DISP_DRM_SUPPORT)
+&display {
 #if defined(DISP_MIPITX_CSI)
 	#if defined(DISP_MIPITX_CSI_480P)
 	sunplus,dev_name = "MIPITX-CSI-TEST_480P";
@@ -2071,8 +2085,8 @@
 		};
 	};
 #endif
-#endif
 };
+#endif
 
 &adc {
 	//status = "disabled";
@@ -2813,9 +2827,6 @@
 	remote-endpoint = <&panel_dsi_port>;
 };
 #else /* choose legacy display */
-&display { /* legacy display on */
-	status = "okay";
-};
 &fb_disp_device { /* legacy fb on */
 	memory-region = <&disp_reserve>;
 	status = "okay";
