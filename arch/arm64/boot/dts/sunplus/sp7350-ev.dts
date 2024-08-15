@@ -93,7 +93,6 @@
 //#define ETHERNET_WITH_RMII_PHY
 
 //#define DRAM_SIZE_2GB
-//#define DRAM_SIZE_3_75GB
 #define DRAM_SIZE_4GB
 //#define DRAM_SIZE_8GB
 
@@ -111,17 +110,32 @@
 		device_type = "memory";
 #ifdef DRAM_SIZE_2GB
 		reg = <0x0 0x0        0x0 0x80000000>;
-#elif defined(DRAM_SIZE_3_75GB)
+#else
 		reg = <0x0 0x0        0x0 0xf0000000>;
-#elif defined(DRAM_SIZE_4GB)
-		reg = <0x0 0x0        0x0 0xf0000000>,
-		      <0x1 0x0        0x0 0x10000000>;
-#elif defined(DRAM_SIZE_8GB)
-		reg = <0x0 0x0        0x0 0xf0000000>,
-		      <0x1 0x0        0x1 0x00000000>,
+#endif
+		numa-node-id = <0>;
+	};
+
+#if defined(DRAM_SIZE_4GB) || defined(DRAM_SIZE_8GB)
+	memory@100000000 {
+		device_type = "memory";
+#if defined(DRAM_SIZE_4GB)
+		reg = <0x1 0x0        0x0 0x10000000>;
+#else
+		reg = <0x1 0x0        0x1 0x00000000>,
 		      <0x3 0x0        0x0 0x10000000>;
 #endif
+		numa-node-id = <1>;
 	};
+#endif
+
+	distance-map {
+		compatible = "numa-distance-map-v1";
+		distance-matrix = <0 0 10>,
+				  <0 1 20>,
+				  <1 1 10>;
+	};
+
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -2417,8 +2431,8 @@
 	};
 };
 
-&display {
 #if !defined(CONFIG_DISP_DRM_SUPPORT)
+&display {
 #if defined(DISP_MIPITX_CSI)
 	#if defined(DISP_MIPITX_CSI_480P)
 	sunplus,dev_name = "MIPITX-CSI-TEST_480P";
@@ -2604,8 +2618,8 @@
 		};
 	};
 #endif
-#endif
 };
+#endif
 
 &adc {
 	//status = "disabled";
@@ -3492,9 +3506,6 @@
 	remote-endpoint = <&panel_dsi_port>;
 };
 #else /* choose legacy display */
-&display { /* legacy display on */
-	status = "okay";
-};
 &fb_disp_device { /* legacy fb on */
 	memory-region = <&disp_reserve>;
 	status = "okay";
