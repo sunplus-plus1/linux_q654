@@ -2865,7 +2865,7 @@ struct video_device *vsi_v4l2_probe_enc(struct platform_device *pdev, struct vsi
 
 	video_set_drvdata(venc, vpu);
 
-	ret = video_register_device(venc, VSI_DEVTYPE, 0);
+	ret = video_register_device(venc, VSI_DEVTYPE, VIDEO_NODE_OFFSET);
 	if (ret) {
 		v4l2_err(&vpu->v4l2_dev, "Failed to register enc device\n");
 		video_device_release(venc);
