@@ -1491,7 +1491,7 @@ int vin_v4l2_register(struct vin_dev *vin)
 #if defined(MIPI_CSI_VIDEO_SEQ)
 	ret = video_register_device(&vin->vdev, VFL_TYPE_VIDEO, -1);
 #else
-	ret = video_register_device(&vin->vdev, VFL_TYPE_VIDEO, vin->id);
+	ret = video_register_device(&vin->vdev, VFL_TYPE_VIDEO, VIDEO_NODE_OFFSET + vin->id);
 #endif
 	if (ret) {
 		vin_err(vin, "Failed to register video device\n");
