@@ -35,6 +35,9 @@
 /* Max number on VIN instances that can be in a system */
 #define VIN_MAX_NUM 14
 
+/* The offset of the video device node */
+#define VIDEO_NODE_OFFSET 20
+
 struct vin_group;
 
 enum model_id {
