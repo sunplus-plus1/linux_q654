@@ -837,7 +837,7 @@ int sp7350_v4l2_reg_multi_layer(int i, struct platform_device *pdev,
 {
 	struct vb2_queue *q;
 	int ret;
-	int vid_num = 40;
+	int vid_num = 80;
 
 	/* Allocate memory for four plane display objects */
 
