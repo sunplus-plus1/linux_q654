@@ -30,6 +30,8 @@
 #define CTX_ARRAY_ID(ctxid)	((ctxid) & 0xFFFFFFFF)
 #define CTX_SEQ_ID(ctxid)	((ctxid) >> 32)
 
+#define VIDEO_NODE_OFFSET 64
+
 #define MIN_FRAME_4ENC	1
 
 #define MAX_MIN_BUFFERS_FOR_CAPTURE	16
