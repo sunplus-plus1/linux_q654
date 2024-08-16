@@ -36,7 +36,7 @@
 #define VIN_MAX_NUM 14
 
 /* The offset of the video device node */
-#define VIDEO_NODE_OFFSET 20
+#define VIDEO_NODE_OFFSET 32
 
 struct vin_group;
 
