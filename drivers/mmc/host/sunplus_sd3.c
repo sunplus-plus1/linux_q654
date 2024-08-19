@@ -169,6 +169,22 @@ static inline __maybe_unused void spsdc_txdummy(struct spsdc_host *host, int cou
 	writel(value, &host->base->sd_ctrl);
 }
 
+static int spsdc_wait_card_unbusy(struct spsdc_host *host, int count)
+{
+	void *status = &host->base->sd_status;
+
+	while (!(readl(status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS) && (count > 0)) {
+		msleep(100);
+		if(count >= 5)
+			spsdc_txdummy(host, 50);
+		else
+			spsdc_txdummy(host, 1);
+		count --;
+	}
+
+	return (readl(status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS) ? 0 : 1;
+}
+
 static void spsdc_get_rsp(struct spsdc_host *host, struct mmc_command *cmd)
 {
 	u32 value0_3, value4_5;
@@ -841,9 +857,24 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 	}
 
 	spsdc_check_error(host, mrq);
+	
+#ifdef SPMMC_CHECK_DATA_BUSY	
+	if ((cmd->error == -EILSEQ) && (cmd->flags & MMC_RSP_BUSY)){
+		spsdc_wait_card_unbusy(host, 10);
+		spsdc_pr(host->mode, ERROR, "error wait unbusy\n");
+	}
+#endif
+
 	if (mrq->stop) {
 		if (__send_stop_cmd(host, mrq->stop))
 			spsdc_sw_reset(host);
+#ifdef SPMMC_CHECK_DATA_BUSY	
+			__send_stop_cmd(host, mrq->stop);
+			if(cmd->error != 0) {
+				spsdc_wait_card_unbusy(host, 5);
+				spsdc_pr(host->mode, ERROR, "error and re-send stop\n");
+			}
+#endif
 	}
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
