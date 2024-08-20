@@ -77,8 +77,10 @@ struct sp7350_drm_tcon_timing_param {
 
 struct sp7350_crtc {
 	struct drm_crtc base;
+	struct drm_device *drm_dev;
 	struct platform_device *pdev;
 	void __iomem *regs;
+	bool is_enabled;
 
 	struct sp7350_crtc_tgen_timing_param tgen_timing;
 	struct sp7350_drm_tcon_timing_param tcon_timing;
@@ -87,7 +89,14 @@ struct sp7350_crtc {
 	struct drm_plane *overlay_planes[2];
 	struct drm_plane *cursor_plane;
 
-	struct drm_pending_vblank_event *event;
+	/* protected by dev->event_lock */
+	//struct drm_pending_vblank_event *event;
+
+	bool irq_hw_enabled;  /* no hw irq en reg??? */
+	/* lock irq set */
+	spinlock_t irq_lock;
+	/* protects crtc enable/disable */
+	struct mutex lock;
 
 	enum sp7350_encoder_type encoder_types[2];
 
@@ -868,27 +877,30 @@ static const u32 sp_tcon_tpg_para_dsi[11][10] = {
 };
 #endif
 
-void sp7350_crtc_handle_vblank(struct sp7350_crtc *crtc)
-{
-	DRM_DEBUG_DRIVER("[TODO]\n");
-	//crtc->t_vblank = ktime_get();
-	//drm_crtc_handle_vblank(&crtc->base);
-	//sp7350_crtc_handle_page_flip(crtc);
-}
-
 static irqreturn_t sp7350_crtc_irq_handler(int irq, void *data)
 {
 	struct sp7350_crtc *sp_crtc = data;
 	//u32 stat = CRTC_READ(PV_INTSTAT);
 	irqreturn_t ret = IRQ_NONE;
 
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	//DRM_DEBUG_DRIVER("irq:%d\n", irq);
 
-	//if (stat & PV_INT_VFP_START) {
-		//CRTC_WRITE(PV_INTSTAT, PV_INT_VFP_START);
-		sp7350_crtc_handle_vblank(sp_crtc);
-		ret = IRQ_HANDLED;
-	//}
+	/* todo:no hw irq en reg??? */
+	spin_lock(&sp_crtc->irq_lock);
+	if (!sp_crtc->irq_hw_enabled) {
+		DRM_DEBUG_DRIVER("irq hw disabled.\n");
+		spin_unlock(&sp_crtc->irq_lock);
+		return ret;
+	}
+	spin_unlock(&sp_crtc->irq_lock);
+
+	if (!sp_crtc->drm_dev || !sp_crtc->drm_dev->num_crtcs) {
+		DRM_DEBUG_DRIVER("not bind any display yet.\n");
+		return ret;
+	}
+
+	drm_crtc_handle_vblank(&sp_crtc->base);
+	ret = IRQ_HANDLED;
 
 	return ret;
 }
@@ -1104,6 +1116,28 @@ static void sp7350_crtc_tcon_tpg_setting(struct drm_crtc *crtc, struct drm_displ
 }
 #endif
 
+static int sp7350_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+
+	/* todo:no hw irq en reg??? */
+	spin_lock(&sp_crtc->irq_lock);
+	sp_crtc->irq_hw_enabled = true;
+	spin_unlock(&sp_crtc->irq_lock);
+
+	return 0;
+}
+
+static void sp7350_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+
+	/* todo:no hw irq en reg??? */
+	spin_lock(&sp_crtc->irq_lock);
+	sp_crtc->irq_hw_enabled = false;
+	spin_unlock(&sp_crtc->irq_lock);
+}
+
 static enum drm_mode_status sp7350_crtc_mode_valid(struct drm_crtc *crtc,
 						const struct drm_display_mode *mode)
 {
@@ -1158,17 +1192,39 @@ static int sp7350_crtc_atomic_check(struct drm_crtc *crtc,
 static void sp7350_crtc_atomic_enable(struct drm_crtc *crtc,
 					  struct drm_crtc_state *old_state)
 {
-	/* FIXME, NO vblank ??? */
-	//drm_crtc_vblank_on(crtc);
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+
+	DRM_DEBUG_DRIVER("Enable\n");
+
+	//ret = pm_runtime_resume_and_get(vop->dev);
+	//if (ret < 0) {
+	//	DRM_DEV_ERROR(vop->dev, "failed to get pm runtime: %d\n", ret);
+	//	return ret;
+	//}
+
+	/* [TODO]clock & iommu enable. */
+
+	mutex_lock(&sp_crtc->lock);
+	sp_crtc->is_enabled = true;
+
+	drm_crtc_vblank_on(crtc);
+	mutex_unlock(&sp_crtc->lock);
 }
 
 static void sp7350_crtc_atomic_disable(struct drm_crtc *crtc,
 					   struct drm_crtc_state *old_state)
 {
-	/* FIXME, NO vblank ??? */
-	//drm_crtc_vblank_off(crtc);
-	DRM_DEBUG_DRIVER("[TODO]\n");
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+
+	DRM_DEBUG_DRIVER("Disable\n");
+
+	mutex_lock(&sp_crtc->lock);
+	drm_crtc_vblank_off(crtc);
+
+	sp_crtc->is_enabled = false;
+
+	//pm_runtime_put(sp_crtc->dev);
+	mutex_unlock(&sp_crtc->lock);
 }
 
 static void sp7350_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -1201,6 +1257,13 @@ static void sp7350_crtc_atomic_flush(struct drm_crtc *crtc,
 	//struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
+	//if (!sp_crtc->is_enabled)
+	//	return;
+
+	/*
+	 * [TODO]Wait irq???
+	 */
+
 	DRM_DEBUG_DRIVER("[Start]\n");
 	if (event) {
 		crtc->state->event = NULL;
@@ -1221,6 +1284,8 @@ static const struct drm_crtc_funcs sp7350_crtc_funcs = {
 	.reset		= drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = sp7350_crtc_enable_vblank,
+	.disable_vblank = sp7350_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs sp7350_crtc_helper_funcs = {
@@ -1341,6 +1406,8 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	sp7350_crtc_tgen_init(crtc);
 	sp7350_crtc_tcon_init(crtc);
 
+	sp_crtc->is_enabled = false;
+
 	return ret;
 }
 
@@ -1364,6 +1431,10 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	crtc = &sp_crtc->base;
 
 	sp_crtc->pdev = pdev;
+	sp_crtc->drm_dev = drm;
+
+	spin_lock_init(&sp_crtc->irq_lock);
+	mutex_init(&sp_crtc->lock);
 
 	/*
 	 * get disp reg base (G185 - G203)
@@ -1476,11 +1547,15 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "sp7350_set_crtc_possible_masks\n");
 	sp7350_set_crtc_possible_masks(drm, crtc);
 
+	//pm_runtime_enable(&pdev->dev);
+
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "devm_request_irq\n");
-	ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
-			       sp7350_crtc_irq_handler,
-			       IRQF_SHARED,
-			       "sp7350 crtc", sp_crtc);
+	//ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
+	//		       sp7350_crtc_irq_handler,
+	//		       IRQF_SHARED,
+	//		       "sp7350 crtc", sp_crtc);
+	ret = devm_request_irq(&pdev->dev, platform_get_irq(pdev, 0), sp7350_crtc_irq_handler,
+			IRQF_TRIGGER_RISING, "sp7350 crtc irq fs", sp_crtc);
 	if (ret)
 		goto err_destroy_planes;
 
