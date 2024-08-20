@@ -180,8 +180,6 @@ struct sp7350_plane_state {
 	struct sp7350_plane_region_alpha_info region_alpha;
 	struct sp7350_plane_region_color_keying_info region_color_keying;
 	unsigned int color_keying;
-	struct drm_property_blob *region_alpha_blob;
-	struct drm_property_blob *region_color_keying_blob;
 };
 
 struct sp7350_plane {
@@ -196,12 +194,17 @@ struct sp7350_plane {
 	struct drm_property *region_alpha_property;
 	struct drm_property *region_color_keying_property;
 	struct drm_property *color_keying_property;
+	struct drm_property_blob *region_alpha_blob;
+	struct drm_property_blob *region_color_keying_blob;
 
 	struct sp7350_plane_state state;
 };
 
 #define to_sp7350_plane(plane) \
 	container_of(plane, struct sp7350_plane, base)
+
+#define to_sp7350_plane_state(state) \
+		container_of(state, struct sp7350_plane_state, base)
 
 struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 	enum drm_plane_type type, int sptype);
