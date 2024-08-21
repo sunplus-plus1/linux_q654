@@ -349,7 +349,6 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 
 	host->timing = timing;
 	spsdc_pr(host->mode, INFO, "set bus timing to %s\n", timing_name);
-
 }
 
 static void spsdc_set_bus_width(struct spsdc_host *host, int width)
@@ -411,6 +410,16 @@ static void spsdc_select_mode(struct spsdc_host *host)
 	}
 }
 
+static void spsdc_hw_reset(struct spsdc_host *host)
+{
+	spsdc_pr(host->mode, DEBUG, "hw reset\n");
+	reset_control_assert(host->rstc);
+	msleep(1);
+	reset_control_deassert(host->rstc);
+	msleep(1);
+	spsdc_pr(host->mode, DEBUG, "hw reset done\n");
+}
+
 static void spsdc_sw_reset(struct spsdc_host *host)
 {
 	u32 value;
@@ -432,7 +441,6 @@ static void spsdc_sw_reset(struct spsdc_host *host)
 	readl_poll_timeout_atomic(&host->base->sd_hw_state, value,
 		!(value & BIT(6)), 1, SPMMC_TIMEOUT_US);
 	spsdc_pr(host->mode, DEBUG, "sw reset done\n");
-
 }
 
 static void spsdc_prepare_cmd(struct spsdc_host *host, struct mmc_command *cmd)
@@ -604,7 +612,7 @@ static inline void spsdc_trigger_transaction(struct spsdc_host *host)
 	writel(value, &host->base->sd_ctrl);
 }
 
-static int __send_stop_cmd(struct spsdc_host *host, struct mmc_command *stop)
+static int spsdc_send_stop_cmd(struct spsdc_host *host, struct mmc_command *stop)
 {
 	u32 value;
 
@@ -680,7 +688,7 @@ static int spsdc_check_error(struct spsdc_host *host, struct mmc_request *mrq)
 				else
 					timing.bits.sd_rd_crc_dly_sel++;
 			}
-			}
+		}
 		cmd->error = ret;
 		if (data) {
 			data->error = ret;
@@ -791,13 +799,11 @@ static void spsdc_set_power_mode(struct spsdc_host *host, struct mmc_ios *ios)
 		break;
 	case MMC_POWER_UP:
 		spsdc_pr(host->mode, DEBUG, "setSD_POWER_UP\n");
-		reset_control_assert(host->rstc);
-		msleep(1);
-		reset_control_deassert(host->rstc);
-		msleep(1);
+		spsdc_hw_reset(host);
 		break;
 	case MMC_POWER_OFF:
 		spsdc_pr(host->mode, DEBUG, "set SD_POWER_OFF\n");
+		spsdc_hw_reset(host);
 		pm_runtime_put(host->mmc->parent);
 		break;
 	}
@@ -826,7 +832,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 	spsdc_get_rsp(host, cmd);
 
 	if (!(host->use_int || host->dma_use_int))
-			spsdc_wait_finish(host);
+		spsdc_wait_finish(host);
 
 	if (data && SPSDC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
@@ -866,10 +872,10 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 #endif
 
 	if (mrq->stop) {
-		if (__send_stop_cmd(host, mrq->stop))
+		if (spsdc_send_stop_cmd(host, mrq->stop))
 			spsdc_sw_reset(host);
 #ifdef SPMMC_CHECK_DATA_BUSY	
-			__send_stop_cmd(host, mrq->stop);
+			spsdc_send_stop_cmd(host, mrq->stop);
 			if(cmd->error != 0) {
 				spsdc_wait_card_unbusy(host, 5);
 				spsdc_pr(host->mode, ERROR, "error and re-send stop\n");
@@ -879,7 +885,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
 	//	if(((host->mode == SPSDC_MODE_SD) && (cmd->opcode != 13) && (cmd->opcode != 18) && (cmd->opcode != 25)) && (cmd->opcode != 52) && (cmd->opcode != 53)){
-	spsdc_pr(host->mode, VERBOSE, "request done > error:%d, cmd:%d, resp:0x%08x\n", cmd->error, cmd->opcode, cmd->resp[0]);
+			spsdc_pr(host->mode, VERBOSE, "request done > error:%d, cmd:%d, resp:0x%08x\n", cmd->error, cmd->opcode, cmd->resp[0]);
 	//		}
 	mmc_request_done(host->mmc, mrq);
 }
@@ -905,6 +911,8 @@ irqreturn_t spsdc_irq(int irq, void *dev_id)
 		/* we may need send stop command to stop data transaction,
 		 * which is time consuming, so make use of tasklet to handle this.
 		 */
+		complete(&host->dma_complete);
+
 		if (host->mrq && host->mrq->stop)
 			tasklet_schedule(&host->tsklet_finish_req);
 		else
@@ -912,7 +920,7 @@ irqreturn_t spsdc_irq(int irq, void *dev_id)
 
 		value = readl(&host->base->sd_int);
 		if ((value & SPSDC_SDINT_SDIO) && (value & SPSDC_SDINT_SDIOEN) && (sdio_no_irq))
-		mmc_signal_sdio_irq(host->mmc);
+			mmc_signal_sdio_irq(host->mmc);
 
 	}
 	return IRQ_HANDLED;
@@ -983,7 +991,14 @@ static void spsdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				spsdc_trigger_transaction(host);
 				spsdc_finish_request(host, mrq);
 			} else {
+				reinit_completion(&host->dma_complete);
 				spsdc_trigger_transaction(host);
+				/* Running in the IRQ thread, can sleep */
+				if(!wait_for_completion_interruptible_timeout(&host->dma_complete, host->timeout)) {
+					spsdc_pr(host->mode, ERROR, "error irq timeout\n");
+					spsdc_finish_request(host, mrq);
+					ret = -ETIMEDOUT;
+				}
 			}
 		}
 	}
@@ -995,11 +1010,13 @@ static void spsdc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	mutex_lock(&host->mrq_lock);
 	spsdc_set_power_mode(host, ios);
-	spsdc_set_bus_clk(host, ios->clock);
-	spsdc_set_bus_timing(host, ios->timing);
-	spsdc_set_bus_width(host, ios->bus_width);
-	/* ensure mode is correct, because we might have hw reset the controller */
-	spsdc_select_mode(host);
+	if (ios->power_mode != MMC_POWER_OFF) {
+		spsdc_set_bus_clk(host, ios->clock);
+		spsdc_set_bus_timing(host, ios->timing);
+		spsdc_set_bus_width(host, ios->bus_width);
+		/* ensure mode is correct, because we might have hw reset the controller */
+		spsdc_select_mode(host);
+	}
 	mutex_unlock(&host->mrq_lock);
 
 }
@@ -1035,7 +1052,7 @@ static int spmmc_card_busy(struct mmc_host *mmc)
 	struct spsdc_host *host = mmc_priv(mmc);
 
 	if(host->mode == SPSDC_MODE_SD)
-	spsdc_pr(host->mode, INFO, "card_busy! %d\n", !(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS));
+		spsdc_pr(host->mode, INFO, "card_busy! %d\n", !(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS));
 	return !(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS);
 }
 
@@ -1048,7 +1065,7 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 
 	if (host->signal_voltage == ios->signal_voltage) {
 		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
-			spsdc_txdummy(host, 400);
+		spsdc_txdummy(host, 400);
 		return 0;
 	}
 
@@ -1384,6 +1401,8 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	host->power_state = MMC_POWER_OFF;
 	host->dma_int_threshold = 1024;
 	host->dmapio_mode = SPSDC_DMA_MODE;
+	host->timeout = msecs_to_jiffies(3000);
+	init_completion(&host->dma_complete);
 	//host->dmapio_mode = SPSDC_PIO_MODE;
 	ret = mmc_of_parse(mmc);
 	if (ret)

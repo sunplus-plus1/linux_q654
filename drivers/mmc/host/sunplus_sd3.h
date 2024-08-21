@@ -40,6 +40,8 @@
 /* #define SPMMC_EMMC_VCCQ_1V8 */
 
 #define SPMMC_SUPPORT_VOLTAGE_1V8
+#define SPMMC_CHECK_DATA_BUSY
+
 //#define SPMMC_SUPPORT_EXECUTE_TUNING
 
 #ifdef SPMMC_SUPPORT_VOLTAGE_1V8
@@ -392,6 +394,9 @@ struct spsdc_host {
 	struct sg_mapping_iter sg_miter; /* for pio mode to access sglist */
 	int target_drv;
 	int curr_drv;
+
+	struct completion dma_complete;
+	u32 timeout;
 
 	struct device		*dev;
 	struct mmc_data		*data;
