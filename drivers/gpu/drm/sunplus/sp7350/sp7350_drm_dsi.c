@@ -1215,6 +1215,9 @@ static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_bridge *iter;
 
+	if (!sp_dsi_host || !sp_dsi_host->bridge || !encoder->name) {
+		return;
+	}
 	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
 	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
@@ -1236,6 +1239,10 @@ static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
 	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_bridge *iter;
+
+	if (!sp_dsi_host || !sp_dsi_host->bridge || !encoder->name) {
+		return;
+	}
 
 	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
@@ -1477,7 +1484,6 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	INIT_LIST_HEAD(&sp_dsi_host->bridge_chain);
 	sp_dsi_encoder->base.type = SP7350_DRM_ENCODER_TYPE_DSI0;
 	sp_dsi_encoder->sp_dsi_host = sp_dsi_host;
-	sp_dsi_host->encoder = &sp_dsi_encoder->base.base;
 
 	sp_dsi_host->regset_g204.base = sp_dsi_host->regs + (SP7350_REG_OFFSET_MIPITX_G204 << 7);
 	sp_dsi_host->regset_g204.regs = sp_dsi_host_g0_regs;
@@ -1543,14 +1549,19 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 			return PTR_ERR(sp_dsi_host->bridge);
 	}
 
+	sp_dsi_host->encoder = &sp_dsi_encoder->base.base;
+
 	DRM_DEV_DEBUG_DRIVER(dev, "sp7350_encoder_init\n");
 	ret = sp7350_encoder_init(dev, drm, sp_dsi_host->encoder);
-	if (ret)
+	if (ret) {
+		sp_dsi_host->encoder = NULL;
 		return ret;
+	}
 
 	ret = drm_bridge_attach(sp_dsi_host->encoder, sp_dsi_host->bridge, NULL, 0);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "bridge attach failed: %d\n", ret);
+		sp_dsi_host->encoder = NULL;
 		return ret;
 	}
 
@@ -1597,6 +1608,9 @@ static void sp7350_dsi_unbind(struct device *dev, struct device *master,
 	 */
 	list_splice_init(&sp_dsi_host->bridge_chain, &sp_dsi_host->encoder->bridge_chain);
 	drm_encoder_cleanup(sp_dsi_host->encoder);
+
+	/* sp_dsi_encoder alloc by devm_kzalloc, not care it. */
+	sp_dsi_host->encoder = NULL;
 }
 
 static const struct component_ops sp7350_dsi_ops = {
@@ -1751,15 +1765,16 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 	/*
 	 * phy mipitx restore...
 	 */
-	sp7350_mipitx_phy_init(sp_dsi_host);
-	sp7350_mipitx_clock_init(sp_dsi_host);
-	sp7350_mipitx_lane_timing_init(sp_dsi_host);
-	sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, NULL);
-	sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, NULL);
-	sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, NULL);
 
-	if (sp_dsi_host->encoder)
+	if (sp_dsi_host->encoder) {
+		sp7350_mipitx_phy_init(sp_dsi_host);
+		sp7350_mipitx_clock_init(sp_dsi_host);
+		sp7350_mipitx_lane_timing_init(sp_dsi_host);
+		sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, NULL);
+		sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, NULL);
+		sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, NULL);
 		sp7350_dsi_encoder_enable(sp_dsi_host->encoder);
+	}
 
 	return 0;
 }

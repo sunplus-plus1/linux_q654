@@ -462,7 +462,6 @@ void sp7350_drm_plane_alpha_config(struct drm_plane *plane, int layer, int enabl
 	}
 	SP7350_PLANE_WRITE(DMIX_PLANE_ALPHA_CONFIG_0, value1);
 	SP7350_PLANE_WRITE(DMIX_PLANE_ALPHA_CONFIG_1, value2);
-
 }
 
 void sp7350_osd_plane_init(struct drm_plane *plane, int osd_layer_sel)
@@ -1009,9 +1008,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 				       state->fb->width, state->fb->height,
 				       sp7350_get_plane_format(state->fb->format->format, SP7350_PLANE_TYPE_VPP));
 	}
-	else {
-		DRM_WARN("vpp plane source update skip.\n");
-	}
 
 	if (state->src_x != old_state->src_x || state->src_y != old_state->src_y
 		|| state->src_w != old_state->src_w || state->src_h != old_state->src_h
@@ -1019,7 +1015,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		|| state->crtc_w != old_state->crtc_w || state->crtc_h != old_state->crtc_h
 		|| state->crtc->mode.hdisplay != old_state->crtc->mode.hdisplay
 		|| state->crtc->mode.vdisplay != old_state->crtc->mode.vdisplay) {
-		DRM_WARN("vpp plane crtc region update.\n");
 		#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
 		dst_x = state->crtc_x;
 		dst_y = state->crtc_y;
@@ -1054,7 +1049,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 
 	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
 		&& state->alpha != old_state->alpha) {
-		DRM_WARN("vpp plane alpha update.\n");
 		/*
 		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
 		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0x3f.
@@ -1068,7 +1062,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)
 		&& (sp_state->region_alpha.regionid != old_sp_state->region_alpha.regionid ||
 		    sp_state->region_alpha.alpha != old_sp_state->region_alpha.alpha)) {
-		DRM_WARN("vpp plane alpha update.\n");
 		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
 				plane->index, sp_state->region_alpha.regionid,
 				sp_state->region_alpha.alpha);
@@ -1201,7 +1194,6 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
 		&& state->alpha != old_state->alpha) {
-		DRM_WARN("vpp plane alpha update.\n");
 		/*
 		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
 		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0x3f.
@@ -1499,7 +1491,7 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 			break;
 		default:
 			DRM_DEBUG_ATOMIC("Invalid osd layer select index!!!.\n");
-			return ERR_PTR(-ENOMEM);
+			return ERR_PTR(-EINVAL);
 		}
 
 		sp7350_osd_plane_init(plane, osd_layer_sel);
@@ -1517,3 +1509,46 @@ int sp7350_plane_release(struct drm_device *drm, struct drm_plane *plane)
 
 	return 0;
 }
+
+int sp7350_plane_dev_suspend(struct drm_plane *plane)
+{
+	return 0;
+}
+int sp7350_plane_dev_resume(struct drm_plane *plane)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+
+	if (!sp_plane->is_media_plane) {
+		int osd_layer_sel = 0;
+
+		/* reference to ade_plane_atomic_update */
+		/* osd_layer_sel  osd-layer  plane-index
+		 *    0             osd0        4
+		 *    1             osd1        3
+		 *    2             osd2        2
+		 *    3             osd3        0 (Primary plane)
+		 */
+		switch (sp_plane->zpos) {
+		case SP7350_DRM_LAYER_TYPE_OSD0:
+			osd_layer_sel = 0;
+			break;
+		case SP7350_DRM_LAYER_TYPE_OSD1:
+			osd_layer_sel = 1;
+			break;
+		case SP7350_DRM_LAYER_TYPE_OSD2:
+			osd_layer_sel = 2;
+			break;
+		case SP7350_DRM_LAYER_TYPE_OSD3:
+			osd_layer_sel = 3;
+			break;
+		default:
+			DRM_DEBUG_ATOMIC("Invalid osd layer select index!!!.\n");
+			return -EINVAL;
+		}
+
+		sp7350_osd_plane_init(plane, osd_layer_sel);
+	}
+
+	return 0;
+}
+

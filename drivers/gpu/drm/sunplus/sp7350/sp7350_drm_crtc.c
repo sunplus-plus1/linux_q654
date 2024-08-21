@@ -92,6 +92,7 @@ struct sp7350_crtc {
 	/* protected by dev->event_lock */
 	//struct drm_pending_vblank_event *event;
 
+	int irq;
 	bool irq_hw_enabled;  /* no hw irq en reg??? */
 	/* lock irq set */
 	spinlock_t irq_lock;
@@ -880,27 +881,29 @@ static const u32 sp_tcon_tpg_para_dsi[11][10] = {
 static irqreturn_t sp7350_crtc_irq_handler(int irq, void *data)
 {
 	struct sp7350_crtc *sp_crtc = data;
-	//u32 stat = CRTC_READ(PV_INTSTAT);
 	irqreturn_t ret = IRQ_NONE;
 
 	//DRM_DEBUG_DRIVER("irq:%d\n", irq);
 
+	/* [FIXME]always return IRQ_HANDLED, fix IRQ disable by system. */
+	ret = IRQ_HANDLED;
+
 	/* todo:no hw irq en reg??? */
 	spin_lock(&sp_crtc->irq_lock);
 	if (!sp_crtc->irq_hw_enabled) {
-		DRM_DEBUG_DRIVER("irq hw disabled.\n");
+		//DRM_DEBUG_DRIVER("irq hw disabled.\n");
 		spin_unlock(&sp_crtc->irq_lock);
 		return ret;
 	}
 	spin_unlock(&sp_crtc->irq_lock);
 
 	if (!sp_crtc->drm_dev || !sp_crtc->drm_dev->num_crtcs) {
-		DRM_DEBUG_DRIVER("not bind any display yet.\n");
+		DRM_DEBUG_DRIVER("not bind any crtc yet.\n");
 		return ret;
 	}
 
 	drm_crtc_handle_vblank(&sp_crtc->base);
-	ret = IRQ_HANDLED;
+	//ret = IRQ_HANDLED;
 
 	return ret;
 }
@@ -1120,7 +1123,15 @@ static int sp7350_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 
+	DRM_DEBUG_DRIVER("[Start]\n");
+
 	/* todo:no hw irq en reg??? */
+	//if (!sp_crtc->irq_hw_enabled) {
+	//	//enable_irq(sp_crtc->irq);
+	//	devm_request_irq(&sp_crtc->pdev->dev, sp_crtc->irq, sp7350_crtc_irq_handler,
+	//			IRQF_TRIGGER_RISING, "sp7350 crtc irq fs", sp_crtc);
+	//}
+
 	spin_lock(&sp_crtc->irq_lock);
 	sp_crtc->irq_hw_enabled = true;
 	spin_unlock(&sp_crtc->irq_lock);
@@ -1132,7 +1143,14 @@ static void sp7350_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 
+	DRM_DEBUG_DRIVER("[Start]\n");
+
 	/* todo:no hw irq en reg??? */
+	//if (sp_crtc->irq_hw_enabled) {
+	//	//disable_irq(sp_crtc->irq);
+	//	devm_free_irq(&sp_crtc->pdev->dev, sp_crtc->irq, sp_crtc);
+	//}
+
 	spin_lock(&sp_crtc->irq_lock);
 	sp_crtc->irq_hw_enabled = false;
 	spin_unlock(&sp_crtc->irq_lock);
@@ -1413,25 +1431,102 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 
 static int sp7350_crtc_bind(struct device *dev, struct device *master, void *data)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct sp7350_dev *sp_dev = to_sp7350_dev(drm);
+	struct sp7350_crtc *sp_crtc = dev_get_drvdata(dev);
+	struct drm_crtc *crtc = &sp_crtc->base;
+	int ret;
+
+	DRM_DEV_DEBUG_DRIVER(dev, "start\n");
+
+	sp_crtc->drm_dev = drm;
+	sp_dev->crtc_regs = sp_crtc->regs;
+
+	DRM_DEV_DEBUG_DRIVER(dev, "sp7350_crtc_init\n");
+	ret = sp7350_crtc_init(drm, crtc,
+		&sp7350_crtc_funcs, &sp7350_crtc_helper_funcs);
+
+	if (ret)
+		return ret;
+
+	DRM_DEV_DEBUG_DRIVER(dev, "sp7350_set_crtc_possible_masks\n");
+	sp7350_set_crtc_possible_masks(drm, crtc);
+
+	sp7350_debugfs_add_regset32(drm, "regs_g185", &sp_crtc->regset_g185);
+	sp7350_debugfs_add_regset32(drm, "regs_g186", &sp_crtc->regset_g186);
+	sp7350_debugfs_add_regset32(drm, "regs_g187", &sp_crtc->regset_g187);
+	sp7350_debugfs_add_regset32(drm, "regs_g188", &sp_crtc->regset_g188);
+	sp7350_debugfs_add_regset32(drm, "regs_g189", &sp_crtc->regset_g189);
+	sp7350_debugfs_add_regset32(drm, "regs_g190", &sp_crtc->regset_g190);
+	sp7350_debugfs_add_regset32(drm, "regs_g191", &sp_crtc->regset_g191);
+	sp7350_debugfs_add_regset32(drm, "regs_g192", &sp_crtc->regset_g192);
+	sp7350_debugfs_add_regset32(drm, "regs_g193", &sp_crtc->regset_g193);
+	sp7350_debugfs_add_regset32(drm, "regs_g194", &sp_crtc->regset_g194);
+	sp7350_debugfs_add_regset32(drm, "regs_g195", &sp_crtc->regset_g195);
+	sp7350_debugfs_add_regset32(drm, "regs_g196", &sp_crtc->regset_g196);
+	sp7350_debugfs_add_regset32(drm, "regs_g197", &sp_crtc->regset_g197);
+	sp7350_debugfs_add_regset32(drm, "regs_g198", &sp_crtc->regset_g198);
+	sp7350_debugfs_add_regset32(drm, "regs_g199", &sp_crtc->regset_g199);
+	sp7350_debugfs_add_regset32(drm, "regs_g200", &sp_crtc->regset_g200);
+	sp7350_debugfs_add_regset32(drm, "regs_g201", &sp_crtc->regset_g201);
+	sp7350_debugfs_add_regset32(drm, "regs_g202", &sp_crtc->regset_g202);
+	sp7350_debugfs_add_regset32(drm, "regs_g203", &sp_crtc->regset_g203);
+
+	DRM_DEV_DEBUG_DRIVER(dev, "done\n");
+	spin_lock(&sp_crtc->irq_lock);
+	sp_crtc->irq_hw_enabled = true;
+	spin_unlock(&sp_crtc->irq_lock);
+
+	return 0;
+}
+
+static void sp7350_crtc_unbind(struct device *dev, struct device *master,
+			       void *data)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct drm_device *drm = dev_get_drvdata(master);
+	struct sp7350_crtc *sp_crtc = dev_get_drvdata(dev);
+
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "drm_crtc_cleanup\n");
+	drm_crtc_cleanup(&sp_crtc->base);
+
+	/* TODO Set S3V SOC DISPLAY REG, disable crtc things... */
+
+	sp7350_plane_release(drm, sp_crtc->primary_plane);
+	sp7350_plane_release(drm, sp_crtc->media_plane);
+	sp7350_plane_release(drm, sp_crtc->overlay_planes[0]);
+	sp7350_plane_release(drm, sp_crtc->overlay_planes[1]);
+	//#if 0 //ubuntu mate issue, temporary off cursor plane
+	//sp7350_plane_release(drm, sp_crtc->cursor_plane);
+	//#endif
+	spin_lock(&sp_crtc->irq_lock);
+	sp_crtc->irq_hw_enabled = false;
+	spin_unlock(&sp_crtc->irq_lock);
+}
+
+static const struct component_ops sp7350_crtc_ops = {
+	.bind   = sp7350_crtc_bind,
+	.unbind = sp7350_crtc_unbind,
+};
+
+static int sp7350_crtc_dev_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
 	struct sp7350_crtc *sp_crtc;
 	struct drm_crtc *crtc;
 	struct resource *res;
 	int ret;
 
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "start\n");
+	DRM_DEV_DEBUG_DRIVER(dev, "start\n");
 
 	sp_crtc = devm_kzalloc(dev, sizeof(*sp_crtc), GFP_KERNEL);
 	if (!sp_crtc)
-
 		return -ENOMEM;
+	//dev_set_drvdata(dev, sp_crtc);
 
 	crtc = &sp_crtc->base;
 
 	sp_crtc->pdev = pdev;
-	sp_crtc->drm_dev = drm;
 
 	spin_lock_init(&sp_crtc->irq_lock);
 	mutex_init(&sp_crtc->lock);
@@ -1443,8 +1538,6 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	sp_crtc->regs = devm_platform_get_and_ioremap_resource(sp_crtc->pdev, 0, &res);
 	if (IS_ERR(sp_crtc->regs))
 		return dev_err_probe(&pdev->dev, PTR_ERR(sp_crtc->regs), "reg base not found\n");
-
-	sp_dev->crtc_regs = sp_crtc->regs;
 
 	/*
 	 * VPP Layer debugfs init
@@ -1537,99 +1630,25 @@ static int sp7350_crtc_bind(struct device *dev, struct device *master, void *dat
 	sp_crtc->regset_g203.regs = crtc_regs_g203;
 	sp_crtc->regset_g203.nregs = ARRAY_SIZE(crtc_regs_g203);
 
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "sp7350_crtc_init\n");
-	ret = sp7350_crtc_init(drm, crtc,
-		&sp7350_crtc_funcs, &sp7350_crtc_helper_funcs);
-
-	if (ret)
-		return ret;
-
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "sp7350_set_crtc_possible_masks\n");
-	sp7350_set_crtc_possible_masks(drm, crtc);
 
 	//pm_runtime_enable(&pdev->dev);
 
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "devm_request_irq\n");
 	//ret = devm_request_irq(dev, platform_get_irq(pdev, 0),
 	//		       sp7350_crtc_irq_handler,
 	//		       IRQF_SHARED,
 	//		       "sp7350 crtc", sp_crtc);
-	ret = devm_request_irq(&pdev->dev, platform_get_irq(pdev, 0), sp7350_crtc_irq_handler,
+	sp_crtc->irq_hw_enabled = false;
+	sp_crtc->irq = platform_get_irq(pdev, 0);
+	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "devm_request_irq:%d\n", sp_crtc->irq);
+	ret = devm_request_irq(&pdev->dev, sp_crtc->irq, sp7350_crtc_irq_handler,
 			IRQF_TRIGGER_RISING, "sp7350 crtc irq fs", sp_crtc);
 	if (ret)
-		goto err_destroy_planes;
+		return dev_err_probe(&pdev->dev, ret, "devm_request_irq\n");
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "platform_set_drvdata\n");
 	platform_set_drvdata(pdev, sp_crtc);
 
-	sp7350_debugfs_add_regset32(drm, "regs_g185", &sp_crtc->regset_g185);
-	sp7350_debugfs_add_regset32(drm, "regs_g186", &sp_crtc->regset_g186);
-	sp7350_debugfs_add_regset32(drm, "regs_g187", &sp_crtc->regset_g187);
-	sp7350_debugfs_add_regset32(drm, "regs_g188", &sp_crtc->regset_g188);
-	sp7350_debugfs_add_regset32(drm, "regs_g189", &sp_crtc->regset_g189);
-	sp7350_debugfs_add_regset32(drm, "regs_g190", &sp_crtc->regset_g190);
-	sp7350_debugfs_add_regset32(drm, "regs_g191", &sp_crtc->regset_g191);
-	sp7350_debugfs_add_regset32(drm, "regs_g192", &sp_crtc->regset_g192);
-	sp7350_debugfs_add_regset32(drm, "regs_g193", &sp_crtc->regset_g193);
-	sp7350_debugfs_add_regset32(drm, "regs_g194", &sp_crtc->regset_g194);
-	sp7350_debugfs_add_regset32(drm, "regs_g195", &sp_crtc->regset_g195);
-	sp7350_debugfs_add_regset32(drm, "regs_g196", &sp_crtc->regset_g196);
-	sp7350_debugfs_add_regset32(drm, "regs_g197", &sp_crtc->regset_g197);
-	sp7350_debugfs_add_regset32(drm, "regs_g198", &sp_crtc->regset_g198);
-	sp7350_debugfs_add_regset32(drm, "regs_g199", &sp_crtc->regset_g199);
-	sp7350_debugfs_add_regset32(drm, "regs_g200", &sp_crtc->regset_g200);
-	sp7350_debugfs_add_regset32(drm, "regs_g201", &sp_crtc->regset_g201);
-	sp7350_debugfs_add_regset32(drm, "regs_g202", &sp_crtc->regset_g202);
-	sp7350_debugfs_add_regset32(drm, "regs_g203", &sp_crtc->regset_g203);
-
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "done\n");
-
-	return 0;
-
-err_destroy_planes:
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "irq err\n");
-	//list_for_each_entry_safe(destroy_plane, temp,
-	//			 &drm->mode_config.plane_list, head) {
-	//	if (destroy_plane->possible_crtcs == drm_crtc_mask(crtc))
-	//	    destroy_plane->funcs->destroy(destroy_plane);
-	//}
-
-	return ret;
-}
-
-static void sp7350_crtc_unbind(struct device *dev, struct device *master,
-			       void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm = dev_get_drvdata(master);
-	struct sp7350_crtc *sp_crtc = dev_get_drvdata(dev);
-
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "drm_crtc_cleanup\n");
-	drm_crtc_cleanup(&sp_crtc->base);
-
-	/* TODO Set S3V SOC DISPLAY REG, disable crtc things... */
-
-	sp7350_plane_release(drm, sp_crtc->primary_plane);
-	sp7350_plane_release(drm, sp_crtc->media_plane);
-	sp7350_plane_release(drm, sp_crtc->overlay_planes[0]);
-	sp7350_plane_release(drm, sp_crtc->overlay_planes[1]);
-	//#if 0 //ubuntu mate issue, temporary off cursor plane
-	//sp7350_plane_release(drm, sp_crtc->cursor_plane);
-	//#endif
-
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "platform_set_drvdata\n");
-	platform_set_drvdata(pdev, NULL);
-}
-
-static const struct component_ops sp7350_crtc_ops = {
-	.bind   = sp7350_crtc_bind,
-	.unbind = sp7350_crtc_unbind,
-};
-
-static int sp7350_crtc_dev_probe(struct platform_device *pdev)
-{
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "component_add\n");
-
 	return component_add(&pdev->dev, &sp7350_crtc_ops);
 }
 
@@ -1638,6 +1657,9 @@ static int sp7350_crtc_dev_remove(struct platform_device *pdev)
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "component_del\n");
 
 	component_del(&pdev->dev, &sp7350_crtc_ops);
+
+	//DRM_DEV_DEBUG_DRIVER(&pdev->dev, "platform_set_drvdata\n");
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -1654,14 +1676,21 @@ static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "crtc driver resume.\n");
 
-	sp7350_crtc_dmix_init(&sp_crtc->base);
-	sp7350_crtc_tgen_init(&sp_crtc->base);
-	sp7350_crtc_tcon_init(&sp_crtc->base);
-	sp7350_crtc_tgen_timing_setting(&sp_crtc->base, NULL);
-	sp7350_crtc_tcon_timing_setting(&sp_crtc->base, NULL);
-	#if SP7350_TCON_TPG_EN
-	sp7350_crtc_tcon_tpg_setting(&sp_crtc->base, &sp_crtc->base.mode);
-	#endif
+	if (sp_crtc) {
+		sp7350_crtc_dmix_init(&sp_crtc->base);
+		sp7350_crtc_tgen_init(&sp_crtc->base);
+		sp7350_crtc_tcon_init(&sp_crtc->base);
+		sp7350_crtc_tgen_timing_setting(&sp_crtc->base, NULL);
+		sp7350_crtc_tcon_timing_setting(&sp_crtc->base, NULL);
+		#if SP7350_TCON_TPG_EN
+		sp7350_crtc_tcon_tpg_setting(&sp_crtc->base, &sp_crtc->base.mode);
+		#endif
+		sp7350_plane_dev_resume(sp_crtc->primary_plane);
+		sp7350_plane_dev_resume(sp_crtc->media_plane);
+		sp7350_plane_dev_resume(sp_crtc->overlay_planes[0]);
+		sp7350_plane_dev_resume(sp_crtc->overlay_planes[1]);
+		//sp7350_plane_dev_resume(sp_crtc->cursor_plane);
+	}
 
 	return 0;
 }
