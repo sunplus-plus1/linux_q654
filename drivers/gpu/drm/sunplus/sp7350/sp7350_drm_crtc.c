@@ -1360,6 +1360,7 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	of_node_put(port);
 	crtc->port = port;
 
+	/* !!!Notes: DO NOT change the sp7350_plane_init order. */
 	/* init plane for primary_plane */
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (primary_plane)\n");
 	sp_crtc->primary_plane = sp7350_plane_init(drm, DRM_PLANE_TYPE_PRIMARY, SP7350_DRM_LAYER_TYPE_OSD3);
@@ -1665,8 +1666,16 @@ static int sp7350_crtc_dev_remove(struct platform_device *pdev)
 
 static int sp7350_crtc_dev_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct sp7350_crtc *sp_crtc = dev_get_drvdata(&pdev->dev);
+
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver suspend.\n");
 
+	/* do nothing? */
+	sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->primary_plane);
+	sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->media_plane);
+	sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->overlay_planes[0]);
+	sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->overlay_planes[1]);
+	//sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->cursor_plane);
 	return 0;
 }
 
@@ -1685,11 +1694,11 @@ static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 		#if SP7350_TCON_TPG_EN
 		sp7350_crtc_tcon_tpg_setting(&sp_crtc->base, &sp_crtc->base.mode);
 		#endif
-		sp7350_plane_dev_resume(sp_crtc->primary_plane);
-		sp7350_plane_dev_resume(sp_crtc->media_plane);
-		sp7350_plane_dev_resume(sp_crtc->overlay_planes[0]);
-		sp7350_plane_dev_resume(sp_crtc->overlay_planes[1]);
-		//sp7350_plane_dev_resume(sp_crtc->cursor_plane);
+		sp7350_plane_dev_resume(&pdev->dev, sp_crtc->primary_plane);
+		sp7350_plane_dev_resume(&pdev->dev, sp_crtc->media_plane);
+		sp7350_plane_dev_resume(&pdev->dev, sp_crtc->overlay_planes[0]);
+		sp7350_plane_dev_resume(&pdev->dev, sp_crtc->overlay_planes[1]);
+		//sp7350_plane_dev_resume(&pdev->dev, sp_crtc->cursor_plane);
 	}
 
 	return 0;

@@ -180,6 +180,7 @@ struct sp7350_plane_state {
 	struct sp7350_plane_region_alpha_info region_alpha;
 	struct sp7350_plane_region_color_keying_info region_color_keying;
 	unsigned int color_keying;
+	struct sp7350_osd_region info;
 };
 
 struct sp7350_plane {
@@ -196,8 +197,14 @@ struct sp7350_plane {
 	struct drm_property *color_keying_property;
 	struct drm_property_blob *region_alpha_blob;
 	struct drm_property_blob *region_color_keying_blob;
+	u16 updated_alpha;
+	struct sp7350_plane_region_alpha_info updated_region_alpha;
+	struct sp7350_plane_region_color_keying_info updated_region_color_keying;
+	unsigned int updated_color_keying;
 
-	struct sp7350_plane_state state;
+	struct sp7350_plane_state *state;
+	int osd_layer_sel;
+	int layer;
 };
 
 #define to_sp7350_plane(plane) \
@@ -209,7 +216,7 @@ struct sp7350_plane {
 struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 	enum drm_plane_type type, int sptype);
 int sp7350_plane_release(struct drm_device *drm, struct drm_plane *plane);
-int sp7350_plane_dev_suspend(struct drm_plane *plane);
-int sp7350_plane_dev_resume(struct drm_plane *plane);
+int sp7350_plane_dev_suspend(struct device *dev, struct drm_plane *plane);
+int sp7350_plane_dev_resume(struct device *dev, struct drm_plane *plane);
 
 #endif /* __SUNPLUS_SP7350_DRM_PLANE_H__ */
