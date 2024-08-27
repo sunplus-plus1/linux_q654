@@ -28,6 +28,7 @@ subdir-y += rockchip
 subdir-y += socionext
 subdir-y += sprd
 subdir-y += st
+subdir-y += sunplus
 subdir-y += synaptics
 subdir-y += tesla
 subdir-y += ti

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * SP7021 reset driver
+ * SP7021/SP7350 reset driver
  *
  * Copyright (C) Sunplus Technology Co., Ltd.
  *       All rights reserved.
@@ -15,88 +15,6 @@
 
 /* HIWORD_MASK_REG BITS */
 #define BITS_PER_HWM_REG	16
-
-/* resets HW info: reg_index_shift */
-static const u32 sp_resets[] = {
-/* SP7021: mo_reset0 ~ mo_reset9 */
-	0x00,
-	0x02,
-	0x03,
-	0x04,
-	0x05,
-	0x06,
-	0x07,
-	0x08,
-	0x09,
-	0x0a,
-	0x0b,
-	0x0d,
-	0x0e,
-	0x0f,
-	0x10,
-	0x12,
-	0x14,
-	0x15,
-	0x16,
-	0x17,
-	0x18,
-	0x19,
-	0x1a,
-	0x1b,
-	0x1c,
-	0x1d,
-	0x1e,
-	0x1f,
-	0x20,
-	0x21,
-	0x22,
-	0x23,
-	0x24,
-	0x25,
-	0x26,
-	0x2a,
-	0x2b,
-	0x2d,
-	0x2e,
-	0x30,
-	0x31,
-	0x32,
-	0x33,
-	0x3d,
-	0x3e,
-	0x3f,
-	0x42,
-	0x44,
-	0x4b,
-	0x4c,
-	0x4d,
-	0x4e,
-	0x4f,
-	0x50,
-	0x55,
-	0x60,
-	0x61,
-	0x6a,
-	0x6f,
-	0x70,
-	0x73,
-	0x74,
-	0x86,
-	0x8a,
-	0x8b,
-	0x8d,
-	0x8e,
-	0x8f,
-	0x90,
-	0x92,
-	0x93,
-	0x94,
-	0x95,
-	0x96,
-	0x97,
-	0x98,
-	0x99,
-};
 
 struct sp_reset {
 	struct reset_controller_dev rcdev;
@@ -113,8 +31,8 @@ static int sp_reset_update(struct reset_controller_dev *rcdev,
 			   unsigned long id, bool assert)
 {
 	struct sp_reset *reset = to_sp_reset(rcdev);
-	int index = sp_resets[id] / BITS_PER_HWM_REG;
-	int shift = sp_resets[id] % BITS_PER_HWM_REG;
+	int index = id / BITS_PER_HWM_REG;
+	int shift = id % BITS_PER_HWM_REG;
 	u32 val;
 
 	val = (1 << (16 + shift)) | (assert << shift);
@@ -139,8 +57,8 @@ static int sp_reset_status(struct reset_controller_dev *rcdev,
 			   unsigned long id)
 {
 	struct sp_reset *reset = to_sp_reset(rcdev);
-	int index = sp_resets[id] / BITS_PER_HWM_REG;
-	int shift = sp_resets[id] % BITS_PER_HWM_REG;
+	int index = id / BITS_PER_HWM_REG;
+	int shift = id % BITS_PER_HWM_REG;
 	u32 reg;
 
 	reg = readl(reset->base + (index * 4));
@@ -198,6 +116,7 @@ static int sp_reset_probe(struct platform_device *pdev)
 
 static const struct of_device_id sp_reset_dt_ids[] = {
 	{.compatible = "sunplus,sp7021-reset",},
+	{.compatible = "sunplus,sp7350-reset",},
 	{ /* sentinel */ },
 };
 
