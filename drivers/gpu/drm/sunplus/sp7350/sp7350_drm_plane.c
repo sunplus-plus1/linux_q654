@@ -1563,6 +1563,10 @@ int sp7350_plane_release(struct drm_device *drm, struct drm_plane *plane)
 	//struct sp7350_dev *sp_dev = to_sp7350_dev(drm);
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 
+	if (!plane || !sp_plane) {
+		return -1;
+	}
+
 	/* DO ANY??? */
 	sp7350_plane_destroy_propertys(sp_plane);
 
@@ -1573,6 +1577,9 @@ int sp7350_plane_dev_suspend(struct device *dev, struct drm_plane *plane)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 
+	if (!plane || !sp_plane) {
+		return -1;
+	}
 	DRM_DEV_DEBUG_DRIVER(dev, "plane-%d suspend.\n", plane->index);
 
 	/* reset mixer setting */
@@ -1590,6 +1597,9 @@ int sp7350_plane_dev_resume(struct device *dev, struct drm_plane *plane)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 
+	if (!plane || !sp_plane) {
+		return -1;
+	}
 	DRM_DEV_DEBUG_DRIVER(dev, "plane-%d resume.\n", plane->index);
 
 	if (!sp_plane->is_media_plane) {

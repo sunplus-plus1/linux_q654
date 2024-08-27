@@ -80,15 +80,6 @@
 #define LT8912B_HDMI_1080P
 #endif
 
-#ifdef CONFIG_DISP_DRM_SUPPORT
-#if defined(LT8912B_HDMI_ENABLE)
-#define RASPBERRYPI_DSI_PANEL
-#endif
-#if defined(RASPBERRYPI_DSI_PANEL)
-#define LT8912B_HDMI_ENABLE
-#endif
-#endif
-
 //#define ETHERNET_WITHOUT_PHY
 //#define ETHERNET_WITH_RMII_PHY
 
