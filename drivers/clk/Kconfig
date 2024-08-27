@@ -467,6 +467,14 @@ config COMMON_CLK_SP7021
 	  Not all features of the PLL are currently supported
 	  by the driver.
 
+config COMMON_CLK_SP7350
+	def_bool OF && COMMON_CLK && SOC_SP7350
+	help
+	  This driver supports the Sunplus SP7350 SoC clocks,
+	  It implemented SP7350 PLL/mux/gate.
+	  Not all features of the PLL are currently supported
+	  by the driver.
+
 source "drivers/clk/actions/Kconfig"
 source "drivers/clk/analogbits/Kconfig"
 source "drivers/clk/baikal-t1/Kconfig"

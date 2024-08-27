@@ -374,4 +374,16 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
+config SOC_SP7350
+	bool "Sunplus SP7350 Soc"
+	select COMMON_CLK
+	select COMMON_CLK_SP7350
+	select RESET_CONTROLLER
+	select RESET_SUNPLUS
+	select SERIAL_SUNPLUS
+	select SERIAL_SUNPLUS_CONSOLE
+	select GPIOLIB
+	help
+	  This enables support of Sunplus SP7350 Soc
+
 endmenu # "Platform selection"

@@ -239,7 +239,7 @@ config RESET_SOCFPGA
 
 config RESET_SUNPLUS
 	bool "Sunplus SoCs Reset Driver" if COMPILE_TEST
-	default ARCH_SUNPLUS
+	default ARCH_SUNPLUS || SOC_SP7350
 	help
 	  This enables the reset driver support for Sunplus SoCs.
 	  The reset lines that can be asserted and deasserted by toggling bits
