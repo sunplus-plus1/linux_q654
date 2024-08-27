@@ -1463,6 +1463,18 @@ config RTC_DRV_SUNPLUS
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-sunplus.
 
+config RTC_DRV_SUNPLUS_SP7350
+	tristate "Sunplus SP7350 RTC"
+	depends on SOC_SP7350
+	help
+	  Say 'yes' to get support for the real-time clock present in
+	  Sunplus SP7350 - a SoC for industrial applications. It provides
+	  RTC status check, timer/alarm functionalities, user data
+	  reservation with the battery over 2.5V and RTC power status check.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-sp.
+
 config RTC_DRV_PL030
 	tristate "ARM AMBA PL030 RTC"
 	depends on ARM_AMBA
