@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) STMicroelectronics 2019 - All Rights Reserved
- * Authors: Arnaud Pouliquen <arnaud.pouliquen@st.com> for STMicroelectronics.
+ * Copyright (C) 2021 STMicroelectronics - All Rights Reserved
+ *
+ * The rpmsg tty driver implements serial communication on the RPMsg bus to makes
+ * possible for user-space programs to send and receive rpmsg messages as a standard
+ * tty protocol.
+ *
+ * The remote processor can instantiate a new tty by requesting a "rpmsg-tty" RPMsg service.
+ * The "rpmsg-tty" service is directly used for data exchange. No flow control is implemented yet.
  */
+
+#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 #include <linux/rpmsg.h>
@@ -10,114 +18,49 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 
+#define RPMSG_TTY_NAME	"ttyRPMSG"
 #define MAX_TTY_RPMSG	32
-
-#define TTY_CH_NAME_RAW		"rpmsg-tty-raw"
-#define TTY_CH_NAME_WITH_CTS	"rpmsg-tty-ctrl"
 
 static DEFINE_IDR(tty_idr);	/* tty instance id */
 static DEFINE_MUTEX(idr_lock);	/* protects tty_idr */
 
 static struct tty_driver *rpmsg_tty_driver;
 
-struct rpmsg_tty_ctrl {
-	u8 cts;			/* remote reception status */
-	u16 d_ept_addr;		/* data endpoint address */
-};
-
 struct rpmsg_tty_port {
 	struct tty_port		port;	 /* TTY port data */
 	int			id;	 /* TTY rpmsg index */
-	bool			cts;	 /* remote reception status */
 	struct rpmsg_device	*rpdev;	 /* rpmsg device */
-	struct rpmsg_endpoint   *cs_ept; /* channel control endpoint */
-	struct rpmsg_endpoint   *d_ept;  /* data endpoint */
-	u32 data_dst;			 /* data destination endpoint address */
 };
 
-typedef void (*rpmsg_tty_rx_cb_t)(struct rpmsg_device *, void *, int, void *,
-				  u32);
-
-static int rpmsg_tty_cb(struct rpmsg_device *rpdev, void *data, int len,
-			void *priv, u32 src)
+static int rpmsg_tty_cb(struct rpmsg_device *rpdev, void *data, int len, void *priv, u32 src)
 {
 	struct rpmsg_tty_port *cport = dev_get_drvdata(&rpdev->dev);
 	int copied;
 
-	if (src == cport->data_dst) {
-		/* data message */
-		if (!len)
-			return -EINVAL;
-		/* data message */
-		copied = tty_insert_flip_string_fixed_flag(&cport->port, data,
-							   TTY_NORMAL, len);
-		if (copied != len)
-			dev_dbg(&rpdev->dev, "trunc buffer: available space is %d\n",
-				copied);
-		tty_flip_buffer_push(&cport->port);
-	} else {
-		/* control message */
-		struct rpmsg_tty_ctrl *msg = data;
-
-		if (len != sizeof(*msg))
-			return -EINVAL;
-
-		cport->data_dst = msg->d_ept_addr;
-
-		/* Update remote cts state */
-		cport->cts = msg->cts ? 1 : 0;
-
-		if (cport->cts)
-			tty_port_tty_wakeup(&cport->port);
-	}
+	if (!len)
+		return -EINVAL;
+	copied = tty_insert_flip_string(&cport->port, data, len);
+	if (copied != len)
+		dev_err_ratelimited(&rpdev->dev, "Trunc buffer: available space is %d\n", copied);
+	tty_flip_buffer_push(&cport->port);
 
 	return 0;
 }
 
-static void rpmsg_tty_send_term_ready(struct tty_struct *tty, u8 state)
-{
-	struct rpmsg_tty_port *cport = tty->driver_data;
-	struct rpmsg_tty_ctrl m_ctrl;
-	int ret;
-
-	m_ctrl.cts = state;
-	m_ctrl.d_ept_addr = cport->d_ept->addr;
-
-	ret = rpmsg_trysend(cport->cs_ept, &m_ctrl, sizeof(m_ctrl));
-	if (ret < 0)
-		dev_dbg(tty->dev, "cannot send control (%d)\n", ret);
-};
-
-static void rpmsg_tty_throttle(struct tty_struct *tty)
-{
-	struct rpmsg_tty_port *cport = tty->driver_data;
-
-	/* Disable remote transmission */
-	if (cport->cs_ept)
-		rpmsg_tty_send_term_ready(tty, 0);
-};
-
-static void rpmsg_tty_unthrottle(struct tty_struct *tty)
-{
-	struct rpmsg_tty_port *cport = tty->driver_data;
-
-	/* Enable remote transmission */
-	if (cport->cs_ept)
-		rpmsg_tty_send_term_ready(tty, 1);
-};
-
 static int rpmsg_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct rpmsg_tty_port *cport = idr_find(&tty_idr, tty->index);
-
-	if (!cport) {
-		dev_err(tty->dev, "cannot get cport\n");
-		return -ENODEV;
-	}
+	struct tty_port *port;
 
 	tty->driver_data = cport;
 
-	return tty_port_install(&cport->port, driver, tty);
+	port = tty_port_get(&cport->port);
+	return tty_port_install(port, driver, tty);
+}
+
+static void rpmsg_tty_cleanup(struct tty_struct *tty)
+{
+	tty_port_put(tty->port);
 }
 
 static int rpmsg_tty_open(struct tty_struct *tty, struct file *filp)
@@ -130,51 +73,50 @@ static void rpmsg_tty_close(struct tty_struct *tty, struct file *filp)
 	return tty_port_close(tty->port, tty, filp);
 }
 
-static int rpmsg_tty_write(struct tty_struct *tty, const u8 *buf, int len)
+static ssize_t rpmsg_tty_write(struct tty_struct *tty, const u8 *buf,
+			       size_t len)
 {
 	struct rpmsg_tty_port *cport = tty->driver_data;
 	struct rpmsg_device *rpdev;
 	int msg_max_size, msg_size;
 	int ret;
-	u8 *tmpbuf;
-
-	/* If cts not set, the message is not sent*/
-	if (!cport->cts)
-		return 0;
 
 	rpdev = cport->rpdev;
 
-	dev_dbg(&rpdev->dev, "%s: send msg from tty->index = %d, len = %d\n",
-		__func__, tty->index, len);
-
 	msg_max_size = rpmsg_get_mtu(rpdev->ept);
+	if (msg_max_size < 0)
+		return msg_max_size;
 
-	msg_size = min(len, msg_max_size);
-	tmpbuf = kzalloc(msg_size, GFP_KERNEL);
-	if (!tmpbuf)
-		return -ENOMEM;
-
-	memcpy(tmpbuf, buf, msg_size);
+	msg_size = min_t(unsigned int, len, msg_max_size);
 
 	/*
-	 * Try to send the message to remote processor, if failed return 0 as
-	 * no data sent
+	 * Use rpmsg_trysend instead of rpmsg_send to send the message so the caller is not
+	 * hung until a rpmsg buffer is available. In such case rpmsg_trysend returns -ENOMEM.
 	 */
-	ret = rpmsg_trysendto(cport->d_ept, tmpbuf, msg_size, cport->data_dst);
-	kfree(tmpbuf);
+	ret = rpmsg_trysend(rpdev->ept, (void *)buf, msg_size);
 	if (ret) {
-		dev_dbg(&rpdev->dev, "rpmsg_send failed: %d\n", ret);
-		return 0;
+		dev_dbg_ratelimited(&rpdev->dev, "rpmsg_send failed: %d\n", ret);
+		return ret;
 	}
 
 	return msg_size;
 }
 
-static int rpmsg_tty_write_room(struct tty_struct *tty)
+static unsigned int rpmsg_tty_write_room(struct tty_struct *tty)
 {
 	struct rpmsg_tty_port *cport = tty->driver_data;
+	int size;
 
-	return cport->cts ? rpmsg_get_mtu(cport->rpdev->ept) : 0;
+	size = rpmsg_get_mtu(cport->rpdev->ept);
+	if (size < 0)
+		return 0;
+
+	return size;
+}
+
+static void rpmsg_tty_hangup(struct tty_struct *tty)
+{
+	tty_port_hangup(tty->port);
 }
 
 static const struct tty_operations rpmsg_tty_ops = {
@@ -183,32 +125,37 @@ static const struct tty_operations rpmsg_tty_ops = {
 	.close		= rpmsg_tty_close,
 	.write		= rpmsg_tty_write,
 	.write_room	= rpmsg_tty_write_room,
-	.throttle	= rpmsg_tty_throttle,
-	.unthrottle	= rpmsg_tty_unthrottle,
+	.hangup		= rpmsg_tty_hangup,
+	.cleanup	= rpmsg_tty_cleanup,
 };
 
 static struct rpmsg_tty_port *rpmsg_tty_alloc_cport(void)
 {
 	struct rpmsg_tty_port *cport;
+	int ret;
 
 	cport = kzalloc(sizeof(*cport), GFP_KERNEL);
 	if (!cport)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_lock(&idr_lock);
-	cport->id = idr_alloc(&tty_idr, cport, 0, MAX_TTY_RPMSG, GFP_KERNEL);
+	ret = idr_alloc(&tty_idr, cport, 0, MAX_TTY_RPMSG, GFP_KERNEL);
 	mutex_unlock(&idr_lock);
 
-	if (cport->id < 0) {
+	if (ret < 0) {
 		kfree(cport);
-		return ERR_PTR(-ENOSPC);
+		return ERR_PTR(ret);
 	}
+
+	cport->id = ret;
 
 	return cport;
 }
 
-static void rpmsg_tty_release_cport(struct rpmsg_tty_port *cport)
+static void rpmsg_tty_destruct_port(struct tty_port *port)
 {
+	struct rpmsg_tty_port *cport = container_of(port, struct rpmsg_tty_port, port);
+
 	mutex_lock(&idr_lock);
 	idr_remove(&tty_idr, cport->id);
 	mutex_unlock(&idr_lock);
@@ -216,84 +163,21 @@ static void rpmsg_tty_release_cport(struct rpmsg_tty_port *cport)
 	kfree(cport);
 }
 
-static int rpmsg_tty_port_activate(struct tty_port *p, struct tty_struct *tty)
-{
-	p->low_latency = (p->flags & ASYNC_LOW_LATENCY) ? 1 : 0;
-
-	/* Allocate the buffer we use for writing data */
-	return tty_port_alloc_xmit_buf(p);
-}
-
-static void rpmsg_tty_port_shutdown(struct tty_port *p)
-{
-	/* Free the write buffer */
-	tty_port_free_xmit_buf(p);
-}
-
-static void rpmsg_tty_dtr_rts(struct tty_port *port, int raise)
-{
-	dev_dbg(port->tty->dev, "%s: dtr_rts state %d\n", __func__, raise);
-
-	if (raise)
-		rpmsg_tty_unthrottle(port->tty);
-	else
-		rpmsg_tty_throttle(port->tty);
-}
-
 static const struct tty_port_operations rpmsg_tty_port_ops = {
-	.activate = rpmsg_tty_port_activate,
-	.shutdown = rpmsg_tty_port_shutdown,
-	.dtr_rts  = rpmsg_tty_dtr_rts,
+	.destruct = rpmsg_tty_destruct_port,
 };
+
 
 static int rpmsg_tty_probe(struct rpmsg_device *rpdev)
 {
 	struct rpmsg_tty_port *cport;
 	struct device *dev = &rpdev->dev;
-	struct rpmsg_channel_info chinfo;
 	struct device *tty_dev;
 	int ret;
 
 	cport = rpmsg_tty_alloc_cport();
-	if (IS_ERR(cport)) {
-		dev_err(dev, "failed to alloc tty port\n");
-		return PTR_ERR(cport);
-	}
-
-	if (!strncmp(rpdev->id.name, TTY_CH_NAME_WITH_CTS,
-		     sizeof(TTY_CH_NAME_WITH_CTS))) {
-		/*
-		 * the default endpoint is used for control. Create a second
-		 * endpoint for the data that would be exchanges trough control
-		 * endpoint. address of the data endpoint will be provided with
-		 * the cts state
-		 */
-		cport->cs_ept = rpdev->ept;
-		cport->data_dst = RPMSG_ADDR_ANY;
-
-		strscpy(chinfo.name, TTY_CH_NAME_WITH_CTS, sizeof(chinfo.name));
-		chinfo.src = RPMSG_ADDR_ANY;
-		chinfo.dst = RPMSG_ADDR_ANY;
-
-		cport->d_ept = rpmsg_create_ept(rpdev, rpmsg_tty_cb, cport,
-						chinfo);
-		if (!cport->d_ept) {
-			dev_err(dev, "failed to create tty control channel\n");
-			ret = -ENOMEM;
-			goto err_r_cport;
-		}
-		dev_dbg(dev, "%s: creating data endpoint with address %#x\n",
-			__func__, cport->d_ept->addr);
-	} else {
-		/*
-		 * TTY over rpmsg without CTS management the default endpoint
-		 * is use for raw data transmission.
-		 */
-		cport->cs_ept = NULL;
-		cport->cts = 1;
-		cport->d_ept = rpdev->ept;
-		cport->data_dst = rpdev->dst;
-	}
+	if (IS_ERR(cport))
+		return dev_err_probe(dev, PTR_ERR(cport), "Failed to alloc tty port\n");
 
 	tty_port_init(&cport->port);
 	cport->port.ops = &rpmsg_tty_port_ops;
@@ -301,51 +185,37 @@ static int rpmsg_tty_probe(struct rpmsg_device *rpdev)
 	tty_dev = tty_port_register_device(&cport->port, rpmsg_tty_driver,
 					   cport->id, dev);
 	if (IS_ERR(tty_dev)) {
-		dev_err(dev, "failed to register tty port\n");
-		ret = PTR_ERR(tty_dev);
-		goto  err_destroy;
+		ret = dev_err_probe(dev, PTR_ERR(tty_dev), "Failed to register tty port\n");
+		tty_port_put(&cport->port);
+		return ret;
 	}
 
 	cport->rpdev = rpdev;
 
 	dev_set_drvdata(dev, cport);
 
-	dev_dbg(dev, "new channel: 0x%x -> 0x%x : ttyRPMSG%d\n",
+	dev_dbg(dev, "New channel: 0x%x -> 0x%x: " RPMSG_TTY_NAME "%d\n",
 		rpdev->src, rpdev->dst, cport->id);
 
 	return 0;
-
-err_destroy:
-	tty_port_destroy(&cport->port);
-	if (cport->cs_ept)
-		rpmsg_destroy_ept(cport->d_ept);
-err_r_cport:
-	rpmsg_tty_release_cport(cport);
-
-	return ret;
 }
 
 static void rpmsg_tty_remove(struct rpmsg_device *rpdev)
 {
 	struct rpmsg_tty_port *cport = dev_get_drvdata(&rpdev->dev);
 
-	dev_dbg(&rpdev->dev, "removing rpmsg tty device %d\n", cport->id);
+	dev_dbg(&rpdev->dev, "Removing rpmsg tty device %d\n", cport->id);
 
 	/* User hang up to release the tty */
-	if (tty_port_initialized(&cport->port))
-		tty_port_tty_hangup(&cport->port, false);
+	tty_port_tty_hangup(&cport->port, false);
 
 	tty_unregister_device(rpmsg_tty_driver, cport->id);
 
-	tty_port_destroy(&cport->port);
-	if (cport->cs_ept)
-		rpmsg_destroy_ept(cport->d_ept);
-	rpmsg_tty_release_cport(cport);
+	tty_port_put(&cport->port);
 }
 
 static struct rpmsg_device_id rpmsg_driver_tty_id_table[] = {
-	{ .name	= TTY_CH_NAME_RAW },
-	{ .name	= TTY_CH_NAME_WITH_CTS},
+	{ .name	= "rpmsg-tty" },
 	{ },
 };
 MODULE_DEVICE_TABLE(rpmsg, rpmsg_driver_tty_id_table);
@@ -360,7 +230,7 @@ static struct rpmsg_driver rpmsg_tty_rpmsg_drv = {
 
 static int __init rpmsg_tty_init(void)
 {
-	int err;
+	int ret;
 
 	rpmsg_tty_driver = tty_alloc_driver(MAX_TTY_RPMSG, TTY_DRIVER_REAL_RAW |
 					    TTY_DRIVER_DYNAMIC_DEV);
@@ -368,7 +238,7 @@ static int __init rpmsg_tty_init(void)
 		return PTR_ERR(rpmsg_tty_driver);
 
 	rpmsg_tty_driver->driver_name = "rpmsg_tty";
-	rpmsg_tty_driver->name = "ttyRPMSG";
+	rpmsg_tty_driver->name = RPMSG_TTY_NAME;
 	rpmsg_tty_driver->major = 0;
 	rpmsg_tty_driver->type = TTY_DRIVER_TYPE_CONSOLE;
 
@@ -379,15 +249,15 @@ static int __init rpmsg_tty_init(void)
 
 	tty_set_operations(rpmsg_tty_driver, &rpmsg_tty_ops);
 
-	err = tty_register_driver(rpmsg_tty_driver);
-	if (err < 0) {
-		pr_err("Couldn't install rpmsg tty driver: err %d\n", err);
+	ret = tty_register_driver(rpmsg_tty_driver);
+	if (ret < 0) {
+		pr_err("Couldn't install driver: %d\n", ret);
 		goto error_put;
 	}
 
-	err = register_rpmsg_driver(&rpmsg_tty_rpmsg_drv);
-	if (err < 0) {
-		pr_err("Couldn't register rpmsg tty driver: err %d\n", err);
+	ret = register_rpmsg_driver(&rpmsg_tty_rpmsg_drv);
+	if (ret < 0) {
+		pr_err("Couldn't register driver: %d\n", ret);
 		goto error_unregister;
 	}
 
@@ -397,22 +267,22 @@ error_unregister:
 	tty_unregister_driver(rpmsg_tty_driver);
 
 error_put:
-	put_tty_driver(rpmsg_tty_driver);
+	tty_driver_kref_put(rpmsg_tty_driver);
 
-	return err;
+	return ret;
 }
 
 static void __exit rpmsg_tty_exit(void)
 {
 	unregister_rpmsg_driver(&rpmsg_tty_rpmsg_drv);
 	tty_unregister_driver(rpmsg_tty_driver);
-	put_tty_driver(rpmsg_tty_driver);
+	tty_driver_kref_put(rpmsg_tty_driver);
 	idr_destroy(&tty_idr);
 }
 
 module_init(rpmsg_tty_init);
 module_exit(rpmsg_tty_exit);
 
-MODULE_AUTHOR("Arnaud Pouliquen <arnaud.pouliquen@st.com>");
+MODULE_AUTHOR("Arnaud Pouliquen <arnaud.pouliquen@foss.st.com>");
 MODULE_DESCRIPTION("remote processor messaging tty driver");
 MODULE_LICENSE("GPL v2");

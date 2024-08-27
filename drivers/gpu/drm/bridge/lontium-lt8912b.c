@@ -3,18 +3,12 @@
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  */
 
-/*
- * Merge from kernel/git/arm64/linux.git
- *  commit f6d8a80f1d10ff01cff3ac26e242165a270bbbad.
- * Refer to https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git
- */
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/media-bus-format.h>
 #include <linux/regmap.h>
-#include <linux/regulator/consumer.h>
 
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -30,10 +24,7 @@
 #define I2C_CEC_DSI 1
 #define I2C_ADDR_CEC_DSI 0x49
 
-#define I2C_HDMITX_DSI 2
-#define I2C_ADDR_HDMITX_DSI 0x4a
-
-#define I2C_MAX_IDX 3
+#define I2C_MAX_IDX 2
 
 struct lt8912 {
 	struct device *dev;
@@ -51,10 +42,6 @@ struct lt8912 {
 	struct gpio_desc *gp_reset;
 
 	struct videomode mode;
-	u32 mode_sel;
-	u32 hdmi_dvi_sel;
-
-	struct regulator_bulk_data supplies[7];
 
 	u8 data_lanes;
 	bool is_power_on;
@@ -237,7 +224,6 @@ static int lt8912_init_i2c(struct lt8912 *lt, struct i2c_client *client)
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("lt8912p0", I2C_ADDR_MAIN), },
 		{ I2C_BOARD_INFO("lt8912p1", I2C_ADDR_CEC_DSI), },
-		{ I2C_BOARD_INFO("lt8912p2", I2C_ADDR_HDMITX_DSI), },
 	};
 
 	if (!lt)
@@ -271,12 +257,6 @@ static int lt8912_free_i2c(struct lt8912 *lt)
 
 static int lt8912_hard_power_on(struct lt8912 *lt)
 {
-	int ret;
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(lt->supplies), lt->supplies);
-	if (ret)
-		return ret;
-
 	gpiod_set_value_cansleep(lt->gp_reset, 0);
 	msleep(20);
 
@@ -287,9 +267,6 @@ static void lt8912_hard_power_off(struct lt8912 *lt)
 {
 	gpiod_set_value_cansleep(lt->gp_reset, 1);
 	msleep(20);
-
-	regulator_bulk_disable(ARRAY_SIZE(lt->supplies), lt->supplies);
-
 	lt->is_power_on = false;
 }
 
@@ -349,142 +326,13 @@ static int lt8912_video_setup(struct lt8912 *lt)
 	ret |= regmap_write(lt->regmap[I2C_CEC_DSI], 0x3e, hfp & 0xff);
 	ret |= regmap_write(lt->regmap[I2C_CEC_DSI], 0x3f, hfp >> 8);
 
-#if 0 //temporary off
 	ret |= regmap_update_bits(lt->regmap[I2C_MAIN], 0xab, BIT(0),
 				  vsync_activehigh ? BIT(0) : 0);
 	ret |= regmap_update_bits(lt->regmap[I2C_MAIN], 0xab, BIT(1),
 				  hsync_activehigh ? BIT(1) : 0);
 	ret |= regmap_update_bits(lt->regmap[I2C_MAIN], 0xb2, BIT(0),
 				  lt->connector.display_info.is_hdmi ? BIT(0) : 0);
-#endif
 
-	return ret;
-}
-
-static int lt8912_audio_setup(struct lt8912 *lt)
-{
-	u8 avi_pb0, avi_pb1, avi_pb2, avi_pb4, chksum;
-	u8 avi_pb6, avi_pb7, avi_pb8, avi_pb9;
-	u8 avi_pb10, avi_pb11, avi_pb12, avi_pb13;
-	int ret;
-
-	if (!lt)
-		return -EINVAL;
-
-	/*
-	 * bit0   : HDMI Mode 0: DVI mode, 1: HDMI mode
-	 */
-	ret = regmap_update_bits(lt->regmap[I2C_MAIN], 0xb2, BIT(0), BIT(0));
-
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x6, 0x08);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x7, 0xf0);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x9, 0x00);
-
-	/*
-	 * bit7-4 : Set Audio Freq
-	 *          0x0: 44.1k, 0x2: 48k, 0x3: 32k,
-	 *          0x8: 88.2k, 0xa:96k, 0xc: 176.4k, 0xe: 192k
-	 */
-	#if 1 //audio 48k
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0xf, 0x2b); // set audio 48kHz
-	/*
-	 * N Value : 32k:4096, 44.1k:6272, 48k:6144,
-	 *           88.2k:12544, 96k:12288, 176k:25088, 196k:24576
-	 */
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x37, 0x00);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x36, 0x18);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x35, 0x00); //N = 6144(0x1800)
-	#else //audio 44.1k
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0xf, 0x0b); // set audio 44.1kHz
-	/*
-	 * N Value : 32k:4096, 44.1k:6272, 48k:6144,
-	 *           88.2k:12544, 96k:12288, 176k:25088, 196k:24576
-	 */
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x37, 0x00);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x36, 0x18);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x35, 0x80); //N = 6272(0x1880)
-	#endif
-
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x34, 0xe2); //0x52 --> 0xE2
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x3c, 0x41); //0x40 --> 0x41
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x3e, 0x0a); //0x0a (default)
-
-	//avi settings
-	if (lt->mode_sel == 0x02) { //720P60
-		ret |= regmap_write(lt->regmap[I2C_MAIN], 0xab, 0x03); //Positive Polarity
-		avi_pb1 = 0x1C;
-		avi_pb2 = 0xa8;
-		avi_pb4 = 0x04; //VIC_CODE = 4
-
-		avi_pb6 = 0x19; //25
-		avi_pb7 = 0x00;
-		avi_pb8 = 0xe9; //745
-		avi_pb9 = 0x02;
-		avi_pb10 = 0x04; //260
-		avi_pb11 = 0x01;
-		avi_pb12 = 0x04; //1540
-		avi_pb13 = 0x06;
-	} else if (lt->mode_sel == 0x03) { //1080P60
-		ret |= regmap_write(lt->regmap[I2C_MAIN], 0xab, 0x03); //Positive Polarity
-		avi_pb1 = 0x1C;
-		avi_pb2 = 0xa8;
-		avi_pb4 = 0x10; //VIC_CODE = 16
-
-		avi_pb6 = 0x29; //41
-		avi_pb7 = 0x00;
-		avi_pb8 = 0x61; //1121
-		avi_pb9 = 0x04;
-		avi_pb10 = 0xc0; //192
-		avi_pb11 = 0x00;
-		avi_pb12 = 0x40; //2112
-		avi_pb13 = 0x08;
-	} else if (lt->mode_sel == 0x00) { //480P60
-		ret |= regmap_write(lt->regmap[I2C_MAIN], 0xab, 0x0c); //Negtive Polarity
-		avi_pb1 = 0x1C;
-		avi_pb2 = 0x58;
-		avi_pb4 = 0x02; //VIC_CODE = 2
-
-		avi_pb6 = 0x24; //36
-		avi_pb7 = 0x00;
-		avi_pb8 = 0x04; //516
-		avi_pb9 = 0x02;
-		avi_pb10 = 0x7a; //122
-		avi_pb11 = 0x00;
-		avi_pb12 = 0x4a; //842
-		avi_pb13 = 0x03;
-	} else {
-		avi_pb1 = 0x00;
-		avi_pb2 = 0x00;
-		avi_pb4 = 0x00;
-	}
-
-	chksum = 0x82 + 0x02 + 0x0d + avi_pb1 + avi_pb2 + avi_pb4;
-	chksum += (avi_pb6 + avi_pb7 +avi_pb8 + avi_pb9);
-	chksum += (avi_pb10 + avi_pb11 +avi_pb12 + avi_pb13);
-	avi_pb0 = 0x100 - chksum;
-	/*
-	 * 43: avi info pb0 checksum
-	 */
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x43, avi_pb0);
-	/*
-	 * 44 - 47: avi info PB1 - PB4
-	 */
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x44, avi_pb1);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x45, avi_pb2);
-	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x46, 0x00); //fixed 0
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x47, avi_pb4);
-	//ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x48, 0x00); //fixed 0
-	/*
-	 * 49 - 50: avi info PB6 - PB13
-	 */
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x49, avi_pb6);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4a, avi_pb7);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4b, avi_pb8);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4c, avi_pb9);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4d, avi_pb10);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4e, avi_pb11);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x4f, avi_pb12);
-	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x50, avi_pb13);
 	return ret;
 }
 
@@ -504,48 +352,9 @@ static int lt8912_soft_power_on(struct lt8912 *lt)
 	return 0;
 }
 
-#if 0
-/*
- * lt8912_input_timing[x][y]
- * y = 0-1, LT8912 width & height
- * y = 2-9, LT8912 HSA & HFP & HBP & HACT & VSA & VFP & VBP & VACT
- */
-static const u32 lt8912_input_timing[11][10] = {
-	/* (w   h)   HSA   HFP   HBP   HACT  VSA  VFP  VBP   VACT */
-	{ 720,  480, 0x3e, 0x10, 0x3c,  720, 0x6, 0x9, 0x1E,  480}, /* 480P */
-	{ 720,  576, 0x80, 0x28, 0x58,  720, 0x4, 0x1, 0x17,  576}, /* 576P */
-	{1280,  720, 0x28, 0x6e, 0xdc, 1280, 0x5, 0x5, 0x14,  720}, /* 720P */
-	{1920, 1080, 0x2c, 0x58, 0x94, 1920, 0x5, 0x4, 0x24, 1080}, /* 1080P */
-	{  64,   64, 0x14, 0x28, 0x58,   64, 0x5, 0x5, 0x24,   64}, /* 64x64 */
-	{ 128,  128, 0x14, 0x28, 0x58,  128, 0x5, 0x5, 0x24,  128}, /* 128x128 */
-	{  64, 2880, 0x14, 0x28, 0x58,   64, 0x5, 0x5, 0x24, 2880}, /* 64x2880 */
-	{3840,   64, 0x14, 0x28, 0x58, 3840, 0x5, 0x5, 0x24,   64}, /* 3840x64 */
-	{3840, 2880, 0x14, 0x28, 0x58, 3840, 0x5, 0x5, 0x24, 2880}, /* 3840x2880 */
-	{ 800,  480, 0x14, 0x28, 0x58,  800, 0x5, 0x5, 0x24,  480}, /* 800x480 */
-	{1024,  600, 0x14, 0x28, 0x58, 1024, 0x5, 0x5, 0x24,  600}  /* 1024x600 */
-};
-#endif
-
 static int lt8912_video_on(struct lt8912 *lt)
 {
 	int ret;
-#if 0
-	u32 i;
-
-	/* set default timing by lt8912_input_timing and mode_sel. */
-	i = lt->mode_sel;
-	if (i > 3) i = 3;
-
-	lt->mode.hactive = lt8912_input_timing[i][5];
-	lt->mode.hfront_porch = lt8912_input_timing[i][3];
-	lt->mode.hsync_len = lt8912_input_timing[i][2];
-	lt->mode.hback_porch = lt8912_input_timing[i][4];
-
-	lt->mode.vactive = lt8912_input_timing[i][9];
-	lt->mode.vfront_porch = lt8912_input_timing[i][7];
-	lt->mode.vsync_len = lt8912_input_timing[i][6];
-	lt->mode.vback_porch = lt8912_input_timing[i][8];
-#endif
 
 	ret = lt8912_video_setup(lt);
 	if (ret < 0)
@@ -562,35 +371,6 @@ static int lt8912_video_on(struct lt8912 *lt)
 	ret = lt8912_write_lvds_config(lt);
 	if (ret < 0)
 		goto end;
-
-	/* Compatibility processing */
-	if (lt->mode.hactive == 1920 && lt->mode.vactive == 1080) { //1080P60
-		/* default use hdmi mode */
-		lt->hdmi_dvi_sel = 1;
-		lt->mode_sel = 0x03;
-	}
-	else if (lt->mode.hactive == 1280 && lt->mode.vactive == 720) { //720P60
-		/* default use hdmi mode */
-		lt->hdmi_dvi_sel = 1;
-		lt->mode_sel = 0x02;
-	}
-	else if (lt->mode.hactive == 720 && lt->mode.vactive == 480) { //480P60
-		/* default use hdmi mode */
-		lt->hdmi_dvi_sel = 1;
-		lt->mode_sel = 0x00;
-	}
-	else {
-		lt->hdmi_dvi_sel = 0;
-		lt->mode_sel = 0x00;
-	}
-
-	if (lt->hdmi_dvi_sel) {
-		ret = lt8912_audio_setup(lt);
-		if (ret < 0)
-			goto end;
-	} else {
-		pr_info("lt8912 bridge set DVI Mode\n");
-	}
 
 end:
 	return ret;
@@ -616,10 +396,8 @@ lt8912_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct lt8912 *lt = connector_to_lt8912(connector);
 
-	#if !defined(CONFIG_DRM_SP7350)
 	if (lt->hdmi_port->ops & DRM_BRIDGE_OP_DETECT)
 		return drm_bridge_detect(lt->hdmi_port);
-	#endif
 
 	return lt8912_check_cable_status(lt);
 }
@@ -651,31 +429,24 @@ lt8912_connector_mode_valid(struct drm_connector *connector,
 
 static int lt8912_connector_get_modes(struct drm_connector *connector)
 {
-	struct edid *edid;
-	/*FIXME, why default rertun -1???  */
-	#if IS_ENABLED(CONFIG_DRM_LOAD_EDID_FIRMWARE)
-	int ret = 0;
-	#else
-	int ret = -1;
-	#endif
-	int num = 0;
+	const struct drm_edid *drm_edid;
 	struct lt8912 *lt = connector_to_lt8912(connector);
 	u32 bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	int ret, num;
 
-	edid = drm_bridge_get_edid(lt->hdmi_port, connector);
-	if (edid) {
-		drm_connector_update_edid_property(connector, edid);
-		num = drm_add_edid_modes(connector, edid);
-	} else {
-		return ret;
-	}
+	drm_edid = drm_bridge_edid_read(lt->hdmi_port, connector);
+	drm_edid_connector_update(connector, drm_edid);
+	if (!drm_edid)
+		return 0;
+
+	num = drm_edid_connector_add_modes(connector);
 
 	ret = drm_display_info_set_bus_formats(&connector->display_info,
 					       &bus_format, 1);
-	if (ret)
-		num = ret;
+	if (ret < 0)
+		num = 0;
 
-	kfree(edid);
+	drm_edid_free(drm_edid);
 	return num;
 }
 
@@ -712,15 +483,10 @@ static int lt8912_attach_dsi(struct lt8912 *lt)
 						 };
 
 	host = of_find_mipi_dsi_host_by_node(lt->host_node);
-	if (!host) {
-		dev_err(dev, "failed to find dsi host\n");
-		return -EPROBE_DEFER;
-	}
+	if (!host)
+		return dev_err_probe(dev, -EPROBE_DEFER, "failed to find dsi host\n");
 
-	/* devm_mipi_dsi_device_register_full not defined.
-	 * use mipi_dsi_device_register_full & mipi_dsi_device_unregister.
-	 */
-	dsi = mipi_dsi_device_register_full(host, &info);
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
 	if (IS_ERR(dsi)) {
 		ret = PTR_ERR(dsi);
 		dev_err(dev, "failed to create dsi device (%d)\n", ret);
@@ -734,23 +500,15 @@ static int lt8912_attach_dsi(struct lt8912 *lt)
 
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO |
 			  MIPI_DSI_MODE_LPM |
-			  MIPI_DSI_MODE_EOT_PACKET;
+			  MIPI_DSI_MODE_NO_EOT_PACKET;
 
-	/* devm_mipi_dsi_attach not defined.
-	 * use mipi_dsi_attach & mipi_dsi_detach.
-	 */
-	ret = mipi_dsi_attach(dsi);
+	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0) {
 		dev_err(dev, "failed to attach dsi to host\n");
-		goto err_dsi_attach;
+		return ret;
 	}
 
 	return 0;
-
-err_dsi_attach:
-	mipi_dsi_device_unregister(dsi);
-
-	return ret;
 }
 
 static void lt8912_bridge_hpd_cb(void *data, enum drm_connector_status status)
@@ -872,61 +630,13 @@ static const struct drm_bridge_funcs lt8912_bridge_funcs = {
 	.get_edid = lt8912_bridge_get_edid,
 };
 
-static int lt8912_bridge_resume(struct device *dev)
-{
-	struct lt8912 *lt = dev_get_drvdata(dev);
-	int ret;
-
-	ret = lt8912_hard_power_on(lt);
-	if (ret)
-		return ret;
-
-	ret = lt8912_soft_power_on(lt);
-	if (ret)
-		return ret;
-
-	return lt8912_video_on(lt);
-}
-
-static int lt8912_bridge_suspend(struct device *dev)
-{
-	struct lt8912 *lt = dev_get_drvdata(dev);
-
-	lt8912_hard_power_off(lt);
-
-	return 0;
-}
-
-//static DEFINE_SIMPLE_DEV_PM_OPS(lt8912_bridge_pm_ops, lt8912_bridge_suspend, lt8912_bridge_resume);
-static const struct dev_pm_ops lt8912_bridge_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(lt8912_bridge_suspend, lt8912_bridge_resume)
-};
-
-static int lt8912_get_regulators(struct lt8912 *lt)
-{
-	unsigned int i;
-	const char * const supply_names[] = {
-		"vdd", "vccmipirx", "vccsysclk", "vcclvdstx",
-		"vcchdmitx", "vcclvdspll", "vcchdmipll"
-	};
-
-	for (i = 0; i < ARRAY_SIZE(lt->supplies); i++)
-		lt->supplies[i].supply = supply_names[i];
-
-	return devm_regulator_bulk_get(lt->dev, ARRAY_SIZE(lt->supplies),
-				       lt->supplies);
-}
-
 static int lt8912_parse_dt(struct lt8912 *lt)
 {
 	struct gpio_desc *gp_reset;
 	struct device *dev = lt->dev;
 	int ret;
 	int data_lanes;
-	//u32 hdmi_mode;
-	//u32 mode;
 	struct device_node *port_node;
-	struct device_node *endpoint;
 
 	gp_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(gp_reset)) {
@@ -937,37 +647,12 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 	}
 	lt->gp_reset = gp_reset;
 
-#if 0
-	/* set hdmi_dvi_sel with dts. */
-	ret = of_property_read_u32(dev->of_node, "hdmi-mode", &hdmi_mode);
-	if (ret)
-		lt->hdmi_dvi_sel = 0;
-	else
-		lt->hdmi_dvi_sel = hdmi_mode;
-
-	/* set mode_sel with dts. */
-	ret = of_property_read_u32(dev->of_node, "hdmi-timing", &mode);
-	if (ret)
-		lt->mode_sel = 0;
-	else
-		lt->mode_sel = mode;
-#endif
-
-	/*
-	 * drm_of_get_data_lanes_count_ep not defined.
-	 * use of_graph_get_endpoint_by_regs & of_property_count_u32_elems.
-	 */
-	//data_lanes = drm_of_get_data_lanes_count_ep(dev->of_node, 0, -1, 1, 4);
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
-	if (!endpoint)
-		return -ENODEV;
-
-	data_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
-	of_node_put(endpoint);
+	data_lanes = drm_of_get_data_lanes_count_ep(dev->of_node, 0, -1, 1, 4);
 	if (data_lanes < 0) {
 		dev_err(lt->dev, "%s: Bad data-lanes property\n", __func__);
 		return data_lanes;
 	}
+
 	lt->data_lanes = data_lanes;
 
 	lt->host_node = of_graph_get_remote_node(dev->of_node, 0, -1);
@@ -996,10 +681,6 @@ static int lt8912_parse_dt(struct lt8912 *lt)
 		goto err_free_host_node;
 	}
 
-	ret = lt8912_get_regulators(lt);
-	if (ret)
-		goto err_free_host_node;
-
 	of_node_put(port_node);
 	return 0;
 
@@ -1015,8 +696,7 @@ static int lt8912_put_dt(struct lt8912 *lt)
 	return 0;
 }
 
-static int lt8912_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lt8912_probe(struct i2c_client *client)
 {
 	static struct lt8912 *lt;
 	int ret = 0;
@@ -1036,15 +716,6 @@ static int lt8912_probe(struct i2c_client *client,
 	ret = lt8912_init_i2c(lt, client);
 	if (ret)
 		goto err_i2c;
-
-	#if defined(CONFIG_DRM_SP7350)
-	{ /* Check chip valid */
-		unsigned int reg_val;
-		ret = regmap_read(lt->regmap[I2C_MAIN], 0xC1, &reg_val);
-		if (ret)
-			goto err_i2c;
-	}
-	#endif
 
 	i2c_set_clientdata(client, lt);
 
@@ -1070,23 +741,13 @@ err_dt_parse:
 	return ret;
 }
 
-static int lt8912_remove(struct i2c_client *client)
+static void lt8912_remove(struct i2c_client *client)
 {
 	struct lt8912 *lt = i2c_get_clientdata(client);
 
-	/* devm_mipi_dsi_attach not defined.
-	 * use mipi_dsi_attach & mipi_dsi_detach.
-	 */
-	mipi_dsi_detach(lt->dsi);
-	/* devm_mipi_dsi_device_register_full not defined.
-	 * use mipi_dsi_device_register_full & mipi_dsi_device_unregister.
-	 */
-	mipi_dsi_device_unregister(lt->dsi);
 	drm_bridge_remove(&lt->bridge);
 	lt8912_free_i2c(lt);
 	lt8912_put_dt(lt);
-
-	return 0;
 }
 
 static const struct of_device_id lt8912_dt_match[] = {
@@ -1105,8 +766,6 @@ static struct i2c_driver lt8912_i2c_driver = {
 	.driver = {
 		.name = "lt8912",
 		.of_match_table = lt8912_dt_match,
-		//.pm = pm_sleep_ptr(&lt8912_bridge_pm_ops),
-		.pm	= &lt8912_bridge_pm_ops,
 	},
 	.probe = lt8912_probe,
 	.remove = lt8912_remove,

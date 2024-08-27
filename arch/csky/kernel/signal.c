@@ -3,7 +3,7 @@
 #include <linux/signal.h>
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 
 #include <asm/traps.h>
 #include <asm/ucontext.h>
@@ -138,7 +138,6 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	int err = 0;
-	struct csky_vdso *vdso = current->mm->context.vdso;
 
 	frame = get_sigframe(ksig, regs, sizeof(*frame));
 	if (!access_ok(frame, sizeof(*frame)))
@@ -156,7 +155,8 @@ setup_rt_frame(struct ksignal *ksig, sigset_t *set, struct pt_regs *regs)
 		return -EFAULT;
 
 	/* Set up to return from userspace. */
-	regs->lr = (unsigned long)(vdso->rt_signal_retcode);
+	regs->lr = (unsigned long)VDSO_SYMBOL(
+		current->mm->context.vdso, rt_sigreturn);
 
 	/*
 	 * Set up registers for signal handler.
@@ -178,8 +178,6 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
-
-	rseq_signal_deliver(ksig, regs);
 
 	/* Are we from a system call? */
 	if (in_syscall(regs)) {
@@ -264,8 +262,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs,
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
 		do_signal(regs);
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		tracehook_notify_resume(regs);
-		rseq_handle_notify_resume(NULL, regs);
-	}
+	if (thread_info_flags & _TIF_NOTIFY_RESUME)
+		resume_user_mode_work(regs);
 }

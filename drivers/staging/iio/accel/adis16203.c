@@ -5,20 +5,14 @@
  * Copyright 2010 Analog Devices Inc.
  */
 
-#include <linux/delay.h>
 #include <linux/device.h>
 
-#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/imu/adis.h>
-#include <linux/iio/sysfs.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/sysfs.h>
 
 #define ADIS16203_STARTUP_DELAY 220 /* ms */
 
@@ -291,7 +285,7 @@ static int adis16203_probe(struct spi_device *spi)
 		return ret;
 
 	/* Get the device into a sane initial state */
-	ret = adis_initial_startup(st);
+	ret = __adis_initial_startup(st);
 	if (ret)
 		return ret;
 

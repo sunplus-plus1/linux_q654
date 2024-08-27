@@ -15,8 +15,10 @@ powerpc
     cxl
     cxlflash
     dawr-power9
+    dexcr
     dscr
     eeh-pci-error-recovery
+    elf_hwcaps
     elfnote
     firmware-assisted-dump
     hvcs
@@ -34,6 +36,9 @@ powerpc
     ultravisor
     vas-api
     vcpudispatch_stats
+    vmemmap_dedup
+
+    features
 
 .. only::  subproject and html
 

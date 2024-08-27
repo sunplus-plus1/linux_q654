@@ -20,9 +20,6 @@
 #include <net/tc_act/tc_gact.h>
 #include "stmmac.h"
 
-#define ONLY_TEST_PHYLOOPBACK 1
-//#define ONLY_TEST_MAC2MAC 1
-
 struct stmmachdr {
 	__be32 version;
 	__be64 magic;
@@ -39,7 +36,7 @@ struct stmmac_packet_attrs {
 	int vlan_id_in;
 	int vlan_id_out;
 	unsigned char *src;
-	unsigned char *dst;
+	const unsigned char *dst;
 	u32 ip_src;
 	u32 ip_dst;
 	int tcp;
@@ -219,7 +216,6 @@ static struct sk_buff *stmmac_test_get_udp_skb(struct stmmac_priv *priv,
 	return skb;
 }
 
-#ifndef ONLY_TEST_PHYLOOPBACK
 static struct sk_buff *stmmac_test_get_arp_skb(struct stmmac_priv *priv,
 					       struct stmmac_packet_attrs *attr)
 {
@@ -237,7 +233,6 @@ static struct sk_buff *stmmac_test_get_arp_skb(struct stmmac_priv *priv,
 
 	return skb;
 }
-#endif
 
 struct stmmac_test_priv {
 	struct stmmac_packet_attrs *packet;
@@ -254,8 +249,8 @@ static int stmmac_test_loopback_validate(struct sk_buff *skb,
 					 struct net_device *orig_ndev)
 {
 	struct stmmac_test_priv *tpriv = pt->af_packet_priv;
+	const unsigned char *dst = tpriv->packet->dst;
 	unsigned char *src = tpriv->packet->src;
-	unsigned char *dst = tpriv->packet->dst;
 	struct stmmachdr *shdr;
 	struct ethhdr *ehdr;
 	struct udphdr *uhdr;
@@ -371,7 +366,6 @@ cleanup:
 	return ret;
 }
 
-#ifndef ONLY_TEST_PHYLOOPBACK
 static int stmmac_test_mac_loopback(struct stmmac_priv *priv)
 {
 	struct stmmac_packet_attrs attr = { };
@@ -379,32 +373,26 @@ static int stmmac_test_mac_loopback(struct stmmac_priv *priv)
 	attr.dst = priv->dev->dev_addr;
 	return __stmmac_test_loopback(priv, &attr);
 }
-#endif
 
 static int stmmac_test_phy_loopback(struct stmmac_priv *priv)
 {
 	struct stmmac_packet_attrs attr = { };
 	int ret;
-#ifndef ONLY_TEST_MAC2MAC
+
 	if (!priv->dev->phydev)
 		return -EOPNOTSUPP;
-#endif
-#ifndef ONLY_TEST_PHYLOOPBACK
+
 	ret = phy_loopback(priv->dev->phydev, true);
 	if (ret)
 		return ret;
-#endif
 
 	attr.dst = priv->dev->dev_addr;
 	ret = __stmmac_test_loopback(priv, &attr);
 
-#ifndef ONLY_TEST_PHYLOOPBACK
 	phy_loopback(priv->dev->phydev, false);
-#endif
 	return ret;
 }
 
-#ifndef ONLY_TEST_PHYLOOPBACK
 static int stmmac_test_mmc(struct stmmac_priv *priv)
 {
 	struct stmmac_counters initial, final;
@@ -807,8 +795,8 @@ static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 		struct stmmac_channel *ch = &priv->channel[i];
 		u32 tail;
 
-		tail = priv->rx_queue[i].dma_rx_phy +
-			(priv->dma_rx_size * sizeof(struct dma_desc));
+		tail = priv->dma_conf.rx_queue[i].dma_rx_phy +
+			(priv->dma_conf.dma_rx_size * sizeof(struct dma_desc));
 
 		stmmac_set_rx_tail_ptr(priv, priv->ioaddr, tail, i);
 		stmmac_start_rx(priv, priv->ioaddr, i);
@@ -1096,8 +1084,9 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	unsigned char addr[ETH_ALEN] = {0xde, 0xad, 0xbe, 0xef, 0x00, 0x00};
 	struct tc_cls_u32_offload cls_u32 = { };
 	struct stmmac_packet_attrs attr = { };
-	struct tc_action **actions, *act;
+	struct tc_action **actions;
 	struct tc_u32_sel *sel;
+	struct tcf_gact *gact;
 	struct tcf_exts *exts;
 	int ret, i, nk = 1;
 
@@ -1116,14 +1105,14 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 		goto cleanup_sel;
 	}
 
-	actions = kzalloc(nk * sizeof(*actions), GFP_KERNEL);
+	actions = kcalloc(nk, sizeof(*actions), GFP_KERNEL);
 	if (!actions) {
 		ret = -ENOMEM;
 		goto cleanup_exts;
 	}
 
-	act = kzalloc(nk * sizeof(*act), GFP_KERNEL);
-	if (!act) {
+	gact = kcalloc(nk, sizeof(*gact), GFP_KERNEL);
+	if (!gact) {
 		ret = -ENOMEM;
 		goto cleanup_actions;
 	}
@@ -1138,9 +1127,7 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	exts->nr_actions = nk;
 	exts->actions = actions;
 	for (i = 0; i < nk; i++) {
-		struct tcf_gact *gact = to_gact(&act[i]);
-
-		actions[i] = &act[i];
+		actions[i] = (struct tc_action *)&gact[i];
 		gact->tcf_action = TC_ACT_SHOT;
 	}
 
@@ -1164,7 +1151,7 @@ static int stmmac_test_rxp(struct stmmac_priv *priv)
 	stmmac_tc_setup_cls_u32(priv, priv, &cls_u32);
 
 cleanup_act:
-	kfree(act);
+	kfree(gact);
 cleanup_actions:
 	kfree(actions);
 cleanup_exts:
@@ -1368,7 +1355,7 @@ static int __stmmac_test_l3filt(struct stmmac_priv *priv, u32 dst, u32 src,
 		goto cleanup_rss;
 	}
 
-	dissector->used_keys |= (1 << FLOW_DISSECTOR_KEY_IPV4_ADDRS);
+	dissector->used_keys |= (1ULL << FLOW_DISSECTOR_KEY_IPV4_ADDRS);
 	dissector->offset[FLOW_DISSECTOR_KEY_IPV4_ADDRS] = 0;
 
 	cls = kzalloc(sizeof(*cls), GFP_KERNEL);
@@ -1494,8 +1481,8 @@ static int __stmmac_test_l4filt(struct stmmac_priv *priv, u32 dst, u32 src,
 		goto cleanup_rss;
 	}
 
-	dissector->used_keys |= (1 << FLOW_DISSECTOR_KEY_BASIC);
-	dissector->used_keys |= (1 << FLOW_DISSECTOR_KEY_PORTS);
+	dissector->used_keys |= (1ULL << FLOW_DISSECTOR_KEY_BASIC);
+	dissector->used_keys |= (1ULL << FLOW_DISSECTOR_KEY_PORTS);
 	dissector->offset[FLOW_DISSECTOR_KEY_BASIC] = 0;
 	dissector->offset[FLOW_DISSECTOR_KEY_PORTS] = offsetof(typeof(keys), key);
 
@@ -1667,12 +1654,16 @@ static int stmmac_test_arpoffload(struct stmmac_priv *priv)
 	}
 
 	ret = stmmac_set_arp_offload(priv, priv->hw, true, ip_addr);
-	if (ret)
+	if (ret) {
+		kfree_skb(skb);
 		goto cleanup;
+	}
 
 	ret = dev_set_promiscuity(priv->dev, 1);
-	if (ret)
+	if (ret) {
+		kfree_skb(skb);
 		goto cleanup;
+	}
 
 	ret = dev_direct_xmit(skb, 0);
 	if (ret)
@@ -1693,7 +1684,7 @@ cleanup:
 static int __stmmac_test_jumbo(struct stmmac_priv *priv, u16 queue)
 {
 	struct stmmac_packet_attrs attr = { };
-	int size = priv->dma_buf_sz;
+	int size = priv->dma_conf.dma_buf_sz;
 
 	attr.dst = priv->dev->dev_addr;
 	attr.max_size = size - ETH_FCS_LEN;
@@ -1776,7 +1767,7 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 
 	/* Find first TBS enabled Queue, if any */
 	for (i = 0; i < priv->plat->tx_queues_to_use; i++)
-		if (priv->tx_queue[i].tbs & STMMAC_TBS_AVAIL)
+		if (priv->dma_conf.tx_queue[i].tbs & STMMAC_TBS_AVAIL)
 			break;
 
 	if (i >= priv->plat->tx_queues_to_use)
@@ -1789,9 +1780,9 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	read_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if (!curr_time) {
 		ret = -EOPNOTSUPP;
@@ -1811,9 +1802,9 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 		goto fail_disable;
 
 	/* Check if expected time has elapsed */
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	read_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if ((curr_time - start_time) < STMMAC_TBS_LT_OFFSET)
 		ret = -EINVAL;
@@ -1823,25 +1814,11 @@ fail_disable:
 	stmmac_tc_setup_etf(priv, priv, &qopt);
 	return ret;
 }
-#endif
 
 #define STMMAC_LOOPBACK_NONE	0
 #define STMMAC_LOOPBACK_MAC	1
 #define STMMAC_LOOPBACK_PHY	2
 
-#ifdef ONLY_TEST_PHYLOOPBACK
-static const struct stmmac_test {
-	char name[ETH_GSTRING_LEN];
-	int lb;
-	int (*fn)(struct stmmac_priv *priv);
-} stmmac_selftests[] = {
-	{
-		.name = "PHY Loopback               ",
-		.lb = STMMAC_LOOPBACK_PHY, /* Test will handle it */
-		.fn = stmmac_test_phy_loopback,
-	},
-};
-#else
 static const struct stmmac_test {
 	char name[ETH_GSTRING_LEN];
 	int lb;
@@ -1977,7 +1954,6 @@ static const struct stmmac_test {
 		.fn = stmmac_test_tbs,
 	},
 };
-#endif
 
 void stmmac_selftest_run(struct net_device *dev,
 			 struct ethtool_test *etest, u64 *buf)
@@ -1985,10 +1961,6 @@ void stmmac_selftest_run(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int count = stmmac_selftest_get_count(priv);
 	int i, ret;
-#ifdef ONLY_TEST_PHYLOOPBACK
-	int j, fail_count;
-	fail_count = 0;
-#endif
 
 	memset(buf, 0, sizeof(*buf) * count);
 	stmmac_test_next_id = 0;
@@ -2006,116 +1978,6 @@ void stmmac_selftest_run(struct net_device *dev,
 	/* Wait for queues drain */
 	msleep(200);
 
-#ifdef ONLY_TEST_MAC2MAC
-	for (j = 0; j <= 100; j++) {
-		for (i = 0; i < count; i++) {
-			ret = 0;
-			switch (stmmac_selftests[i].lb) {
-			case STMMAC_LOOPBACK_PHY:
-				break;
-			default:
-				ret = -EOPNOTSUPP;
-				break;
-			}
-
-			/*
-			* First tests will always be MAC / PHY loobpack. If any of
-			* them is not supported we abort earlier.
-			*/
-			if (ret) {
-				netdev_err(priv->dev, "Loopback is not supported\n");
-				etest->flags |= ETH_TEST_FL_FAILED;
-				break;
-			}
-
-			ret = stmmac_selftests[i].fn(priv);
-			printk("packet test result:%d \n",ret);
-			if (ret && (ret != -EOPNOTSUPP)) {
-				etest->flags |= ETH_TEST_FL_FAILED;
-				fail_count++;
-                //printk("packet test fail:%d \n",fail_count);
-			}
-
-			switch (stmmac_selftests[i].lb) {
-			case STMMAC_LOOPBACK_PHY:
-				if ((fail_count) || (j == 100)){
-					if (fail_count) {
-						j = 101;
-						printk("ETH test fail \n");
-						buf[i] = -110;
-					}
-					else {
-						buf[i] = ret;
-					}
-				}
-				break;
-			default:
-				break;
-			}
-		}
-	}
-#elif defined ONLY_TEST_PHYLOOPBACK
-	for (j = 0; j <= 10; j++) {
-		for (i = 0; i < count; i++) {
-			ret = 0;
-			switch (stmmac_selftests[i].lb) {
-			case STMMAC_LOOPBACK_PHY:
-				if (j == 0) {
-					ret = -EOPNOTSUPP;
-					if (dev->phydev) {
-						ret = phy_loopback(dev->phydev, true);
-					}
-					if (!ret)
-						break;
-				}
-				break;
-			default:
-				ret = -EOPNOTSUPP;
-				break;
-			}
-
-			/*
-			* First tests will always be MAC / PHY loobpack. If any of
-			* them is not supported we abort earlier.
-			*/
-			if (ret) {
-				netdev_err(priv->dev, "Loopback is not supported\n");
-				etest->flags |= ETH_TEST_FL_FAILED;
-				break;
-			}
-
-			ret = stmmac_selftests[i].fn(priv);
-			//printk("packet test result:%d \n",ret);
-			if (ret && (ret != -EOPNOTSUPP)) {
-				etest->flags |= ETH_TEST_FL_FAILED;
-				fail_count++;
-                //printk("packet test fail:%d \n",fail_count);
-			}
-
-			switch (stmmac_selftests[i].lb) {
-			case STMMAC_LOOPBACK_PHY:
-				if ((fail_count) || (j == 10)){
-					if (fail_count) {
-						j = 11;
-						printk("ETH test fail \n");
-						buf[i] = -110;
-					}
-					else {
-						buf[i] = ret;
-					}
-					ret = -EOPNOTSUPP;
-					if (dev->phydev)
-						ret = phy_loopback(dev->phydev, false);
-					if (!ret)
-						break;
-				}
-				break;
-			default:
-				break;
-			}
-		}
-	}
-#else
 	for (i = 0; i < count; i++) {
 		ret = 0;
 
@@ -2167,7 +2029,6 @@ void stmmac_selftest_run(struct net_device *dev,
 			break;
 		}
 	}
-#endif
 }
 
 void stmmac_selftest_get_strings(struct stmmac_priv *priv, u8 *data)

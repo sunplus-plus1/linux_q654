@@ -11,10 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtin.h"
-#include "special.h"
-#include "warn.h"
-#include "arch_special.h"
+#include <arch/special.h>
+#include <objtool/builtin.h>
+#include <objtool/special.h>
+#include <objtool/warn.h>
+#include <objtool/endianness.h>
 
 struct special_entry {
 	const char *sec;
@@ -22,9 +23,10 @@ struct special_entry {
 	unsigned char size, orig, new;
 	unsigned char orig_len, new_len; /* group only */
 	unsigned char feature; /* ALTERNATIVE macro CPU feature */
+	unsigned char key; /* jump_label key */
 };
 
-struct special_entry entries[] = {
+static const struct special_entry entries[] = {
 	{
 		.sec = ".altinstructions",
 		.group = true,
@@ -41,6 +43,7 @@ struct special_entry entries[] = {
 		.size = JUMP_ENTRY_SIZE,
 		.orig = JUMP_ORIG_OFFSET,
 		.new = JUMP_NEW_OFFSET,
+		.key = JUMP_KEY_OFFSET,
 	},
 	{
 		.sec = "__ex_table",
@@ -59,10 +62,10 @@ static void reloc_to_sec_off(struct reloc *reloc, struct section **sec,
 			     unsigned long *off)
 {
 	*sec = reloc->sym->sec;
-	*off = reloc->sym->offset + reloc->addend;
+	*off = reloc->sym->offset + reloc_addend(reloc);
 }
 
-static int get_alt_entry(struct elf *elf, struct special_entry *entry,
+static int get_alt_entry(struct elf *elf, const struct special_entry *entry,
 			 struct section *sec, int idx,
 			 struct special_alt *alt)
 {
@@ -84,8 +87,10 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 	if (entry->feature) {
 		unsigned short feature;
 
-		feature = *(unsigned short *)(sec->data->d_buf + offset +
-					      entry->feature);
+		feature = bswap_if_needed(elf,
+					  *(unsigned short *)(sec->data->d_buf +
+							      offset +
+							      entry->feature));
 		arch_handle_alternative(feature, alt);
 	}
 
@@ -112,6 +117,18 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 			alt->new_off -= 0x7ffffff0;
 	}
 
+	if (entry->key) {
+		struct reloc *key_reloc;
+
+		key_reloc = find_reloc_by_dest(elf, sec, offset + entry->key);
+		if (!key_reloc) {
+			WARN_FUNC("can't find key reloc",
+				  sec, offset + entry->key);
+			return -1;
+		}
+		alt->key_addend = reloc_addend(key_reloc);
+	}
+
 	return 0;
 }
 
@@ -122,7 +139,7 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
  */
 int special_get_alts(struct elf *elf, struct list_head *alts)
 {
-	struct special_entry *entry;
+	const struct special_entry *entry;
 	struct section *sec;
 	unsigned int nr_entries;
 	struct special_alt *alt;
@@ -135,13 +152,13 @@ int special_get_alts(struct elf *elf, struct list_head *alts)
 		if (!sec)
 			continue;
 
-		if (sec->len % entry->size != 0) {
+		if (sec->sh.sh_size % entry->size != 0) {
 			WARN("%s size not a multiple of %d",
 			     sec->name, entry->size);
 			return -1;
 		}
 
-		nr_entries = sec->len / entry->size;
+		nr_entries = sec->sh.sh_size / entry->size;
 
 		for (idx = 0; idx < nr_entries; idx++) {
 			alt = malloc(sizeof(*alt));

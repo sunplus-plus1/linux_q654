@@ -18,13 +18,6 @@
 
 #include "../virt-dma.h"
 
-/* These compiler switches were added for the SP7350 chip */
-#define ADDRESSING_CAPABILITY_32_BITS
-//#define SUPPORT_CFGR_CLK
-#define SUPPORT_RESET_CONTROL
-#define SKIP_APB_REGS_ERROR_MSG
-#define SUPPORT_PM_OPS
-
 #define DMAC_MAX_CHANNELS	16
 #define DMAC_MAX_MASTERS	2
 #define DMAC_MAX_BLK_SIZE	0x200000
@@ -40,6 +33,7 @@ struct dw_axi_dma_hcfg {
 	/* Register map for DMAX_NUM_CHANNELS <= 8 */
 	bool	reg_map_8_channels;
 	bool	restrict_axi_burst_len;
+	bool	use_cfg2;
 };
 
 struct axi_dma_chan {
@@ -75,12 +69,7 @@ struct axi_dma_chip {
 	void __iomem		*regs;
 	void __iomem		*apb_regs;
 	struct clk		*core_clk;
-#ifdef SUPPORT_CFGR_CLK
 	struct clk		*cfgr_clk;
-#endif
-#ifdef SUPPORT_RESET_CONTROL
-	struct reset_control	*core_rstc;
-#endif
 	struct dw_axi_dma	*dw;
 };
 
@@ -115,6 +104,7 @@ struct axi_dma_desc {
 	u32				completed_blocks;
 	u32				length;
 	u32				period_len;
+	u32				nr_hw_descs;
 };
 
 struct axi_dma_chan_config {

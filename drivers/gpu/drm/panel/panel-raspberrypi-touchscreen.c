@@ -29,7 +29,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-/**
+/*
  * Raspberry Pi 7" touchscreen panel driver.
  *
  * The 7" touchscreen consists of a DPI LCD panel, a Toshiba
@@ -43,11 +43,10 @@
 
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/fb.h>
 #include <linux/i2c.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/pm.h>
 
@@ -196,22 +195,6 @@ struct rpi_touchscreen {
 };
 
 static const struct drm_display_mode rpi_touchscreen_modes[] = {
-	#if defined(CONFIG_DRM_SP7350)
-	{
-		/* Modeline comes from the SP7350 firmware, with HFP=0
-		 * plugged in and clock re-computed from that.
-		 */
-		.clock = 28060200 / 1000,
-		.hdisplay = 800,
-		.hsync_start = 800 + 0,
-		.hsync_end = 800 + 0 + 112,
-		.htotal = 800 + 0 + 112+ 5,
-		.vdisplay = 480,
-		.vsync_start = 480 + 7,
-		.vsync_end = 480 + 7 + 2,
-		.vtotal = 480 + 7 + 2 + 21,
-	},
-	#else
 	{
 		/* Modeline comes from the Raspberry Pi firmware, with HFP=1
 		 * plugged in and clock re-computed from that.
@@ -226,7 +209,6 @@ static const struct drm_display_mode rpi_touchscreen_modes[] = {
 		.vsync_end = 480 + 7 + 2,
 		.vtotal = 480 + 7 + 2 + 21,
 	},
-	#endif
 };
 
 static struct rpi_touchscreen *panel_to_ts(struct drm_panel *panel)
@@ -378,8 +360,7 @@ static const struct drm_panel_funcs rpi_touchscreen_funcs = {
 	.get_modes = rpi_touchscreen_get_modes,
 };
 
-static int rpi_touchscreen_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *id)
+static int rpi_touchscreen_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct rpi_touchscreen *ts;
@@ -462,7 +443,7 @@ error:
 	return -ENODEV;
 }
 
-static int rpi_touchscreen_remove(struct i2c_client *i2c)
+static void rpi_touchscreen_remove(struct i2c_client *i2c)
 {
 	struct rpi_touchscreen *ts = i2c_get_clientdata(i2c);
 
@@ -471,8 +452,6 @@ static int rpi_touchscreen_remove(struct i2c_client *i2c)
 	drm_panel_remove(&ts->base);
 
 	mipi_dsi_device_unregister(ts->dsi);
-
-	return 0;
 }
 
 static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
