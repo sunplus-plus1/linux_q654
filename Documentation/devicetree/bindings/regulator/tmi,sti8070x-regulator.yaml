@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/tmi,sti8070x-regulator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TOLL Microelectronic(TMI) STI8070x series IIC Programmable Synchronous Buck Converter
+
+maintainers:
+  - YuBo Leng <yb.leng@sunmeida.com.cn>
+
+description: |
+  STI8070x is an I2C Programmable, high efficiency, 2.1MHz,
+  Synchronous Buck converter that operates in wide input voltage
+  range from 2.7V to 5.5V. The output Voltage could be programmed
+  from 0.7125V to 1.5V.
+
+properties:
+  compatible:
+    enum:
+      - tmi,sti8070x
+
+  reg:
+    maxItems: 1
+
+  regulator-allowed-modes:
+    description: |
+      buck allowed operating mode
+        0: auto mode (PFM)
+        1: force pwm mode
+    items:
+      enum: [0, 1]
+
+  tmi,sel-pin-status:
+    description: |
+      set SEL pin's level. If this property is omitted, 0 is set by default.
+        0:SEL pin is on low level.
+        1:SEL pin is on high level.
+
+  gpio:
+    description: |
+      gpio to use for enable control.
+      If Enable pin is connect to a fixed power pin(like,VCC),
+      this property should be omitted.
+    maxItems: 1
+
+allOf:
+  - $ref: regulator.yaml#
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  # example for STI8070A.
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      regulator@40 {
+        compatible = "tmi,sti8070x";
+        reg = <0x40>;
+        regulator-name = "sti8070x-buck";
+        regulator-min-microvolt = <712500>;
+        regulator-max-microvolt = <1500000>;
+        regulator-allowed-modes = <0 1>;
+        regulator-initial-mode = <1>;
+        regulator-always-on;
+      };
+    };
+  # example for STI8070B.
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      regulator@41 {
+        compatible = "tmi,sti8070x";
+        reg = <0x41>;
+        regulator-name = "sti8070x-buck";
+        regulator-min-microvolt = <712500>;
+        regulator-max-microvolt = <1500000>;
+        regulator-allowed-modes = <0 1>;
+        regulator-initial-mode = <1>;
+        regulator-always-on;
+      };
+    };
+  # example for STI8070C.
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      regulator@60 {
+        compatible = "tmi,sti8070x";
+        reg = <0x60>;
+        regulator-name = "sti8070x-buck";
+        regulator-min-microvolt = <712500>;
+        regulator-max-microvolt = <1500000>;
+        regulator-allowed-modes = <0 1>;
+        regulator-initial-mode = <1>;
+        regulator-always-on;
+      };
+    };
