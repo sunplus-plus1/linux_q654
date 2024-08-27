@@ -18,6 +18,8 @@ properties:
   compatible:
     enum:
       - sunplus,sp7021-mmc
+      - sunplus,sp7350-sd
+      - sunplus,sp7350-1v8-sdio
 
   reg:
     maxItems: 1

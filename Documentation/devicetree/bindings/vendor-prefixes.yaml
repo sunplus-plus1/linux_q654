@@ -357,7 +357,7 @@ patternProperties:
   "^dlink,.*":
     description: D-Link Corporation
   "^dmo,.*":
-    description: Data Modul AG
+    description: Data Module AG
   "^domintech,.*":
     description: Domintech Co., Ltd.
   "^dongwoon,.*":
@@ -1385,6 +1385,8 @@ patternProperties:
     description: Tianma Micro-electronics Co., Ltd.
   "^tlm,.*":
     description: Trusted Logic Mobility
+  "^tmi,.*":
+    description: TOLL Micro-Electronic Co., Ltd.
   "^tmt,.*":
     description: Tecon Microprocessor Technologies, LLC.
   "^topeet,.*":
