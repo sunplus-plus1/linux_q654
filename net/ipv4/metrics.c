@@ -15,9 +15,6 @@ static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
 	struct nlattr *nla;
 	int remaining;
 
-	if (!fc_mx)
-		return 0;
-
 	nla_for_each_attr(nla, fc_mx, fc_mx_len, remaining) {
 		int type = nla_type(nla);
 		u32 val;
@@ -33,7 +30,7 @@ static int ip_metrics_convert(struct net *net, struct nlattr *fc_mx,
 		if (type == RTAX_CC_ALGO) {
 			char tmp[TCP_CA_NAME_MAX];
 
-			nla_strlcpy(tmp, nla, sizeof(tmp));
+			nla_strscpy(tmp, nla, sizeof(tmp));
 			val = tcp_ca_get_key_by_name(net, tmp, &ecn_ca);
 			if (val == TCP_CA_UNSPEC) {
 				NL_SET_ERR_MSG(extack, "Unknown tcp congestion algorithm");

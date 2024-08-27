@@ -33,6 +33,7 @@
 
 struct dentry;
 struct dma_buf;
+struct iosys_map;
 struct drm_connector;
 struct drm_crtc;
 struct drm_framebuffer;
@@ -53,22 +54,9 @@ void drm_lastclose(struct drm_device *dev);
 #ifdef CONFIG_PCI
 
 /* drm_pci.c */
-int drm_irq_by_busid(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv);
-void drm_pci_agp_destroy(struct drm_device *dev);
 int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master);
 
 #else
-
-static inline int drm_irq_by_busid(struct drm_device *dev, void *data,
-				   struct drm_file *file_priv)
-{
-	return -EINVAL;
-}
-
-static inline void drm_pci_agp_destroy(struct drm_device *dev)
-{
-}
 
 static inline int drm_pci_set_busid(struct drm_device *dev,
 				    struct drm_master *master)
@@ -170,7 +158,6 @@ void drm_sysfs_connector_remove(struct drm_connector *connector);
 void drm_sysfs_lease_event(struct drm_device *dev);
 
 /* drm_gem.c */
-struct drm_gem_object;
 int drm_gem_init(struct drm_device *dev);
 int drm_gem_handle_create_tail(struct drm_file *file_priv,
 			       struct drm_gem_object *obj,
@@ -188,14 +175,15 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 
 int drm_gem_pin(struct drm_gem_object *obj);
 void drm_gem_unpin(struct drm_gem_object *obj);
-void *drm_gem_vmap(struct drm_gem_object *obj);
-void drm_gem_vunmap(struct drm_gem_object *obj, void *vaddr);
+int drm_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map);
+void drm_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map);
 
 /* drm_debugfs.c drm_debugfs_crc.c */
 #if defined(CONFIG_DEBUG_FS)
 int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		     struct dentry *root);
 void drm_debugfs_cleanup(struct drm_minor *minor);
+void drm_debugfs_late_register(struct drm_device *dev);
 void drm_debugfs_connector_add(struct drm_connector *connector);
 void drm_debugfs_connector_remove(struct drm_connector *connector);
 void drm_debugfs_crtc_add(struct drm_crtc *crtc);
@@ -209,6 +197,10 @@ static inline int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 }
 
 static inline void drm_debugfs_cleanup(struct drm_minor *minor)
+{
+}
+
+static inline void drm_debugfs_late_register(struct drm_device *dev)
 {
 }
 
@@ -253,6 +245,8 @@ int drm_syncobj_wait_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_private);
 int drm_syncobj_timeline_wait_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_private);
+int drm_syncobj_eventfd_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_private);
 int drm_syncobj_reset_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_private);
 int drm_syncobj_signal_ioctl(struct drm_device *dev, void *data,

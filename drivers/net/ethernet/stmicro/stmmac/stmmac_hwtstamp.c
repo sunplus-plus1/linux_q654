@@ -12,8 +12,11 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/delay.h>
+#include <linux/ptp_clock_kernel.h>
 #include "common.h"
 #include "stmmac_ptp.h"
+#include "dwmac4.h"
+#include "stmmac.h"
 
 static void config_hw_tstamping(void __iomem *ioaddr, u32 data)
 {
@@ -57,6 +60,48 @@ static void config_sub_second_increment(void __iomem *ioaddr,
 		*ssinc = data;
 }
 
+static void hwtstamp_correct_latency(struct stmmac_priv *priv)
+{
+	void __iomem *ioaddr = priv->ptpaddr;
+	u32 reg_tsic, reg_tsicsns;
+	u32 reg_tsec, reg_tsecsns;
+	u64 scaled_ns;
+	u32 val;
+
+	/* MAC-internal ingress latency */
+	scaled_ns = readl(ioaddr + PTP_TS_INGR_LAT);
+
+	/* See section 11.7.2.5.3.1 "Ingress Correction" on page 4001 of
+	 * i.MX8MP Applications Processor Reference Manual Rev. 1, 06/2021
+	 */
+	val = readl(ioaddr + PTP_TCR);
+	if (val & PTP_TCR_TSCTRLSSR)
+		/* nanoseconds field is in decimal format with granularity of 1ns/bit */
+		scaled_ns = ((u64)NSEC_PER_SEC << 16) - scaled_ns;
+	else
+		/* nanoseconds field is in binary format with granularity of ~0.466ns/bit */
+		scaled_ns = ((1ULL << 31) << 16) -
+			DIV_U64_ROUND_CLOSEST(scaled_ns * PSEC_PER_NSEC, 466U);
+
+	reg_tsic = scaled_ns >> 16;
+	reg_tsicsns = scaled_ns & 0xff00;
+
+	/* set bit 31 for 2's compliment */
+	reg_tsic |= BIT(31);
+
+	writel(reg_tsic, ioaddr + PTP_TS_INGR_CORR_NS);
+	writel(reg_tsicsns, ioaddr + PTP_TS_INGR_CORR_SNS);
+
+	/* MAC-internal egress latency */
+	scaled_ns = readl(ioaddr + PTP_TS_EGR_LAT);
+
+	reg_tsec = scaled_ns >> 16;
+	reg_tsecsns = scaled_ns & 0xff00;
+
+	writel(reg_tsec, ioaddr + PTP_TS_EGR_CORR_NS);
+	writel(reg_tsecsns, ioaddr + PTP_TS_EGR_CORR_SNS);
+}
+
 static int init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
 {
 	u32 value;
@@ -78,14 +123,6 @@ static int config_addend(void __iomem *ioaddr, u32 addend)
 {
 	u32 value;
 	int limit;
-	
-	/* Bugfix: check 0.465ns accuracy */
-	value = readl(ioaddr + PTP_TCR);
-	if (!(value & PTP_TCR_TSCTRLSSR)) {
-		unsigned long data = addend;
-		data = (data * 1000) / 465;
-		addend = data;
-	}
 
 	writel(addend, ioaddr + PTP_TAR);
 	/* issue command to update the addend value */
@@ -167,6 +204,60 @@ static void get_systime(void __iomem *ioaddr, u64 *systime)
 		*systime = ns + (sec1 * 1000000000ULL);
 }
 
+static void get_ptptime(void __iomem *ptpaddr, u64 *ptp_time)
+{
+	u64 ns;
+
+	ns = readl(ptpaddr + PTP_ATNR);
+	ns += readl(ptpaddr + PTP_ATSR) * NSEC_PER_SEC;
+
+	*ptp_time = ns;
+}
+
+static void timestamp_interrupt(struct stmmac_priv *priv)
+{
+	u32 num_snapshot, ts_status, tsync_int;
+	struct ptp_clock_event event;
+	u32 acr_value, channel;
+	unsigned long flags;
+	u64 ptp_time;
+	int i;
+
+	if (priv->plat->flags & STMMAC_FLAG_INT_SNAPSHOT_EN) {
+		wake_up(&priv->tstamp_busy_wait);
+		return;
+	}
+
+	tsync_int = readl(priv->ioaddr + GMAC_INT_STATUS) & GMAC_INT_TSIE;
+
+	if (!tsync_int)
+		return;
+
+	/* Read timestamp status to clear interrupt from either external
+	 * timestamp or start/end of PPS.
+	 */
+	ts_status = readl(priv->ioaddr + GMAC_TIMESTAMP_STATUS);
+
+	if (!(priv->plat->flags & STMMAC_FLAG_EXT_SNAPSHOT_EN))
+		return;
+
+	num_snapshot = (ts_status & GMAC_TIMESTAMP_ATSNS_MASK) >>
+		       GMAC_TIMESTAMP_ATSNS_SHIFT;
+
+	acr_value = readl(priv->ptpaddr + PTP_ACR);
+	channel = ilog2(FIELD_GET(PTP_ACR_MASK, acr_value));
+
+	for (i = 0; i < num_snapshot; i++) {
+		read_lock_irqsave(&priv->ptp_lock, flags);
+		get_ptptime(priv->ptpaddr, &ptp_time);
+		read_unlock_irqrestore(&priv->ptp_lock, flags);
+		event.type = PTP_CLOCK_EXTTS;
+		event.index = channel;
+		event.timestamp = ptp_time;
+		ptp_clock_event(priv->ptp_clock, &event);
+	}
+}
+
 const struct stmmac_hwtimestamp stmmac_ptp = {
 	.config_hw_tstamping = config_hw_tstamping,
 	.init_systime = init_systime,
@@ -174,4 +265,7 @@ const struct stmmac_hwtimestamp stmmac_ptp = {
 	.config_addend = config_addend,
 	.adjust_systime = adjust_systime,
 	.get_systime = get_systime,
+	.get_ptptime = get_ptptime,
+	.timestamp_interrupt = timestamp_interrupt,
+	.hwtstamp_correct_latency = hwtstamp_correct_latency,
 };

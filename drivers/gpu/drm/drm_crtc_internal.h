@@ -5,6 +5,7 @@
  *   Jesse Barnes <jesse.barnes@intel.com>
  * Copyright © 2014 Intel Corporation
  *   Daniel Vetter <daniel.vetter@ffwll.ch>
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -55,9 +56,10 @@ struct drm_plane;
 struct drm_plane_state;
 struct drm_property;
 struct edid;
-struct kref;
-struct work_struct;
 struct fwnode_handle;
+struct kref;
+struct seq_file;
+struct work_struct;
 
 /* drm_crtc.c */
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
@@ -73,6 +75,9 @@ int drm_crtc_force_disable(struct drm_crtc *crtc);
 
 struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc);
 
+struct drm_property *
+drm_create_scaling_filter_prop(struct drm_device *dev,
+			       unsigned int supported_filters);
 /* IOCTLs */
 int drm_mode_getcrtc(struct drm_device *dev,
 		     void *data, struct drm_file *file_priv);
@@ -235,7 +240,8 @@ int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
 int __drm_atomic_helper_set_config(struct drm_mode_set *set,
 				   struct drm_atomic_state *state);
 
-void drm_atomic_print_state(const struct drm_atomic_state *state);
+void drm_atomic_print_new_state(const struct drm_atomic_state *state,
+		struct drm_printer *p);
 
 /* drm_atomic_uapi.c */
 int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
@@ -259,6 +265,8 @@ int drm_plane_register_all(struct drm_device *dev);
 void drm_plane_unregister_all(struct drm_device *dev);
 int drm_plane_check_pixel_format(struct drm_plane *plane,
 				 u32 format, u64 modifier);
+struct drm_mode_rect *
+__drm_plane_get_damage_clips(const struct drm_plane_state *state);
 
 /* drm_bridge.c */
 void drm_bridge_detach(struct drm_bridge *bridge);
@@ -279,6 +287,17 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 /* drm_edid.c */
 void drm_mode_fixup_1366x768(struct drm_display_mode *mode);
-void drm_reset_display_info(struct drm_connector *connector);
-u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid);
-void drm_update_tile_info(struct drm_connector *connector, const struct edid *edid);
+int drm_edid_override_show(struct drm_connector *connector, struct seq_file *m);
+int drm_edid_override_set(struct drm_connector *connector, const void *edid, size_t size);
+int drm_edid_override_reset(struct drm_connector *connector);
+
+/* drm_edid_load.c */
+#ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
+const struct drm_edid *drm_edid_load_firmware(struct drm_connector *connector);
+#else
+static inline const struct drm_edid *
+drm_edid_load_firmware(struct drm_connector *connector)
+{
+	return ERR_PTR(-ENOENT);
+}
+#endif

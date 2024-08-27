@@ -109,10 +109,6 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_skcipher_clear_flags(ctr, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
 				       CRYPTO_TFM_REQ_MASK);
-#ifdef CONFIG_CRYPTO_DEV_SP // TODO: dirty hack code, fix me
-	if (!strcmp(ctr->base.__crt_alg->cra_driver_name, "sp-aes-ctr"))
-		ctr->base.__crt_alg->cra_init(crypto_skcipher_tfm(ctr));
-#endif
 	err = crypto_skcipher_setkey(ctr, key, keylen);
 	if (err)
 		return err;
@@ -142,7 +138,6 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_ahash_set_flags(ghash, crypto_aead_get_flags(aead) &
 			       CRYPTO_TFM_REQ_MASK);
 	err = crypto_ahash_setkey(ghash, (u8 *)&data->hash, sizeof(be128));
-
 out:
 	kfree_sensitive(data);
 	return err;
@@ -202,7 +197,7 @@ static inline unsigned int gcm_remain(unsigned int len)
 	return len ? 16 - len : 0;
 }
 
-static void gcm_hash_len_done(struct crypto_async_request *areq, int err);
+static void gcm_hash_len_done(void *data, int err);
 
 static int gcm_hash_update(struct aead_request *req,
 			   crypto_completion_t compl,
@@ -251,9 +246,9 @@ static int gcm_hash_len_continue(struct aead_request *req, u32 flags)
 	return gctx->complete(req, flags);
 }
 
-static void gcm_hash_len_done(struct crypto_async_request *areq, int err)
+static void gcm_hash_len_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (err)
 		goto out;
@@ -272,10 +267,9 @@ static int gcm_hash_crypt_remain_continue(struct aead_request *req, u32 flags)
 	       gcm_hash_len_continue(req, flags);
 }
 
-static void gcm_hash_crypt_remain_done(struct crypto_async_request *areq,
-				       int err)
+static void gcm_hash_crypt_remain_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (err)
 		goto out;
@@ -303,9 +297,9 @@ static int gcm_hash_crypt_continue(struct aead_request *req, u32 flags)
 	return gcm_hash_crypt_remain_continue(req, flags);
 }
 
-static void gcm_hash_crypt_done(struct crypto_async_request *areq, int err)
+static void gcm_hash_crypt_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (err)
 		goto out;
@@ -331,10 +325,9 @@ static int gcm_hash_assoc_remain_continue(struct aead_request *req, u32 flags)
 	return gcm_hash_crypt_remain_continue(req, flags);
 }
 
-static void gcm_hash_assoc_remain_done(struct crypto_async_request *areq,
-				       int err)
+static void gcm_hash_assoc_remain_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (err)
 		goto out;
@@ -360,9 +353,9 @@ static int gcm_hash_assoc_continue(struct aead_request *req, u32 flags)
 	return gcm_hash_assoc_remain_continue(req, flags);
 }
 
-static void gcm_hash_assoc_done(struct crypto_async_request *areq, int err)
+static void gcm_hash_assoc_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (err)
 		goto out;
@@ -385,9 +378,9 @@ static int gcm_hash_init_continue(struct aead_request *req, u32 flags)
 	return gcm_hash_assoc_remain_continue(req, flags);
 }
 
-static void gcm_hash_init_done(struct crypto_async_request *areq, int err)
+static void gcm_hash_init_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (err)
 		goto out;
@@ -438,9 +431,9 @@ static int gcm_encrypt_continue(struct aead_request *req, u32 flags)
 	return gcm_hash(req, flags);
 }
 
-static void gcm_encrypt_done(struct crypto_async_request *areq, int err)
+static void gcm_encrypt_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (err)
 		goto out;
@@ -482,9 +475,9 @@ static int crypto_gcm_verify(struct aead_request *req)
 	return crypto_memneq(iauth_tag, auth_tag, authsize) ? -EBADMSG : 0;
 }
 
-static void gcm_decrypt_done(struct crypto_async_request *areq, int err)
+static void gcm_decrypt_done(void *data, int err)
 {
-	struct aead_request *req = areq->data;
+	struct aead_request *req = data;
 
 	if (!err)
 		err = crypto_gcm_verify(req);

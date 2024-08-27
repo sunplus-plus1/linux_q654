@@ -36,9 +36,11 @@
 	 UVC_CTRL_FLAG_GET_MAX | UVC_CTRL_FLAG_GET_RES | \
 	 UVC_CTRL_FLAG_GET_DEF)
 
+#define UVC_MENU_NAME_LEN 32
+
 struct uvc_menu_info {
 	__u32 value;
-	__u8 name[32];
+	__u8 name[UVC_MENU_NAME_LEN];
 };
 
 struct uvc_xu_control_mapping {
@@ -76,11 +78,11 @@ struct uvc_xu_control_query {
 
 /**
  * struct uvc_meta_buf - metadata buffer building block
- * @ns		- system timestamp of the payload in nanoseconds
- * @sof		- USB Frame Number
- * @length	- length of the payload header
- * @flags	- payload header flags
- * @buf		- optional device-specific header data
+ * @ns: system timestamp of the payload in nanoseconds
+ * @sof: USB Frame Number
+ * @length: length of the payload header
+ * @flags: payload header flags
+ * @buf: optional device-specific header data
  *
  * UVC metadata nodes fill buffers with possibly multiple instances of this
  * struct. The first two fields are added by the driver, they can be used for

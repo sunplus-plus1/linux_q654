@@ -25,16 +25,13 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 
 #include "dw-axi-dmac.h"
 #include "../dmaengine.h"
 #include "../virt-dma.h"
-
-#ifdef SUPPORT_RESET_CONTROL
-#include <linux/reset.h>
-#endif
 
 /*
  * The set of bus widths supported by the DMA controller. DW AXI DMAC supports
@@ -49,6 +46,10 @@
 	DMA_SLAVE_BUSWIDTH_16_BYTES	| \
 	DMA_SLAVE_BUSWIDTH_32_BYTES	| \
 	DMA_SLAVE_BUSWIDTH_64_BYTES)
+
+#define AXI_DMA_FLAG_HAS_APB_REGS	BIT(0)
+#define AXI_DMA_FLAG_HAS_RESETS		BIT(1)
+#define AXI_DMA_FLAG_USE_CFG2		BIT(2)
 
 static inline void
 axi_dma_iowrite32(struct axi_dma_chip *chip, u32 reg, u32 val)
@@ -90,7 +91,8 @@ static inline void axi_chan_config_write(struct axi_dma_chan *chan,
 
 	cfg_lo = (config->dst_multblk_type << CH_CFG_L_DST_MULTBLK_TYPE_POS |
 		  config->src_multblk_type << CH_CFG_L_SRC_MULTBLK_TYPE_POS);
-	if (chan->chip->dw->hdata->reg_map_8_channels) {
+	if (chan->chip->dw->hdata->reg_map_8_channels &&
+	    !chan->chip->dw->hdata->use_cfg2) {
 		cfg_hi = config->tt_fc << CH_CFG_H_TT_FC_POS |
 			 config->hs_sel_src << CH_CFG_H_HS_SEL_SRC_POS |
 			 config->hs_sel_dst << CH_CFG_H_HS_SEL_DST_POS |
@@ -223,11 +225,7 @@ static void axi_dma_hw_init(struct axi_dma_chip *chip)
 		axi_chan_irq_disable(&chip->dw->chan[i], DWAXIDMAC_IRQ_ALL);
 		axi_chan_disable(&chip->dw->chan[i]);
 	}
-#ifdef ADDRESSING_CAPABILITY_32_BITS
-	ret = dma_set_mask_and_coherent(chip->dev, DMA_BIT_MASK(32));
-#else
 	ret = dma_set_mask_and_coherent(chip->dev, DMA_BIT_MASK(64));
-#endif
 	if (ret)
 		dev_warn(chip->dev, "Unable to set coherent mask\n");
 }
@@ -258,6 +256,7 @@ static struct axi_dma_desc *axi_desc_alloc(u32 num)
 		kfree(desc);
 		return NULL;
 	}
+	desc->nr_hw_descs = num;
 
 	return desc;
 }
@@ -284,7 +283,7 @@ static struct axi_dma_lli *axi_desc_get(struct axi_dma_chan *chan,
 static void axi_desc_put(struct axi_dma_desc *desc)
 {
 	struct axi_dma_chan *chan = desc->chan;
-	int count = atomic_read(&chan->descs_allocated);
+	int count = desc->nr_hw_descs;
 	struct axi_dma_hw_desc *hw_desc;
 	int descs_put;
 
@@ -333,8 +332,6 @@ dma_chan_tx_status(struct dma_chan *dchan, dma_cookie_t cookie,
 		len = vd_to_axi_desc(vdesc)->hw_desc[0].len;
 		completed_length = completed_blocks * len;
 		bytes = length - completed_length;
-	} else {
-		bytes = vd_to_axi_desc(vdesc)->length;
 	}
 
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
@@ -526,9 +523,7 @@ static void dw_axi_dma_set_hw_channel(struct axi_dma_chan *chan, bool set)
 	unsigned long reg_value, val;
 
 	if (!chip->apb_regs) {
-#ifndef SKIP_APB_REGS_ERROR_MSG
 		dev_err(chip->dev, "apb_regs not initialized\n");
-#endif
 		return;
 	}
 
@@ -1028,6 +1023,11 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 
 	/* The bad descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
+	if (!vd) {
+		dev_err(chan2dev(chan), "BUG: %s, IRQ with no descriptors\n",
+			axi_chan_name(chan));
+		goto out;
+	}
 	/* Remove the completed descriptor from issued list */
 	list_del(&vd->node);
 
@@ -1042,6 +1042,7 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 	/* Try to restart the controller */
 	axi_chan_start_first_queued(chan);
 
+out:
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 }
 
@@ -1093,9 +1094,6 @@ static void axi_chan_block_xfer_complete(struct axi_dma_chan *chan)
 		/* Remove the completed descriptor from issued list before completing */
 		list_del(&vd->node);
 		vchan_cookie_complete(vd);
-
-		/* Submit queued descriptors after processing the completed ones */
-		axi_chan_start_first_queued(chan);
 	}
 
 out:
@@ -1146,7 +1144,7 @@ static int dma_chan_terminate_all(struct dma_chan *dchan)
 	axi_chan_disable(chan);
 
 	ret = readl_poll_timeout_atomic(chan->chip->regs + DMAC_CHEN, val,
-					!(val & chan_active), 1000, 10000);
+					!(val & chan_active), 1000, 50000);
 	if (ret == -ETIMEDOUT)
 		dev_warn(dchan2dev(dchan),
 			 "%s failed to stop\n", axi_chan_name(chan));
@@ -1242,53 +1240,28 @@ static int dma_chan_resume(struct dma_chan *dchan)
 	return 0;
 }
 
-static int axi_dma_suspend(struct axi_dma_chip *chip, bool rst)
+static int axi_dma_suspend(struct axi_dma_chip *chip)
 {
 	axi_dma_irq_disable(chip);
 	axi_dma_disable(chip);
 
 	clk_disable_unprepare(chip->core_clk);
-#ifdef SUPPORT_CFGR_CLK
 	clk_disable_unprepare(chip->cfgr_clk);
-#endif
-
-#ifdef SUPPORT_RESET_CONTROL
-	if (rst) {
-		if (reset_control_assert(chip->core_rstc))
-			dev_err(chip->dev, "reset assert fail\n");
-	}
-#endif
 
 	return 0;
 }
 
-static int axi_dma_resume(struct axi_dma_chip *chip, bool rst)
+static int axi_dma_resume(struct axi_dma_chip *chip)
 {
 	int ret;
 
-#ifdef SUPPORT_RESET_CONTROL
-	if (rst) {
-		if (reset_control_deassert(chip->core_rstc))
-			dev_err(chip->dev, "reset deassert fail\n");
-	}
-#endif
-
-#ifdef SUPPORT_CFGR_CLK
 	ret = clk_prepare_enable(chip->cfgr_clk);
 	if (ret < 0)
 		return ret;
-#endif
 
 	ret = clk_prepare_enable(chip->core_clk);
 	if (ret < 0)
 		return ret;
-
-#ifdef SUPPORT_PM_OPS
-	/* When the system resumes, a delay is required before registers are
-	 * accessed. If not, the system will hang.
-	 */
-	usleep_range(500, 600);
-#endif
 
 	axi_dma_enable(chip);
 	axi_dma_irq_enable(chip);
@@ -1296,57 +1269,19 @@ static int axi_dma_resume(struct axi_dma_chip *chip, bool rst)
 	return 0;
 }
 
-#ifdef SUPPORT_PM_OPS
-static int __maybe_unused dw_pm_suspend(struct device *dev)
-{
-	struct axi_dma_chip *chip = dev_get_drvdata(dev);
-	u32 val;
-
-	val = axi_dma_ioread32(chip, DMAC_CHEN);
-	if (val) {
-		dev_warn(chip->dev, "Suspend is prevented by Chan %li. (DMAC_CHEN: 0x%08X)\n", __ffs(val), val);
-		return -EBUSY;
-	}
-
-	return axi_dma_suspend(chip, 1);
-}
-
-static int __maybe_unused dw_pm_resume(struct device *dev)
-{
-	struct axi_dma_chip *chip = dev_get_drvdata(dev);
-
-	return axi_dma_resume(chip, 1);
-}
-
-static int __maybe_unused dw_pm_runtime_suspend(struct device *dev)
-{
-	struct axi_dma_chip *chip = dev_get_drvdata(dev);
-
-	return axi_dma_suspend(chip, 0);
-}
-
-static int __maybe_unused dw_pm_runtime_resume(struct device *dev)
-{
-	struct axi_dma_chip *chip = dev_get_drvdata(dev);
-
-	return axi_dma_resume(chip, 0);
-}
-
-#else
 static int __maybe_unused axi_dma_runtime_suspend(struct device *dev)
 {
 	struct axi_dma_chip *chip = dev_get_drvdata(dev);
 
-	return axi_dma_suspend(chip, 0);
+	return axi_dma_suspend(chip);
 }
 
 static int __maybe_unused axi_dma_runtime_resume(struct device *dev)
 {
 	struct axi_dma_chip *chip = dev_get_drvdata(dev);
 
-	return axi_dma_resume(chip, 0);
+	return axi_dma_resume(chip);
 }
-#endif
 
 static struct dma_chan *dw_axi_dma_of_xlate(struct of_phandle_args *dma_spec,
 					    struct of_dma *ofdma)
@@ -1436,11 +1371,11 @@ static int parse_device_properties(struct axi_dma_chip *chip)
 
 static int dw_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct axi_dma_chip *chip;
-	struct resource *mem;
 	struct dw_axi_dma *dw;
 	struct dw_axi_dma_hcfg *hdata;
+	struct reset_control *resets;
+	unsigned int flags;
 	u32 i;
 	int ret;
 
@@ -1464,32 +1399,36 @@ static int dw_probe(struct platform_device *pdev)
 	if (chip->irq < 0)
 		return chip->irq;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->regs = devm_ioremap_resource(chip->dev, mem);
+	chip->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->regs))
 		return PTR_ERR(chip->regs);
 
-	if (of_device_is_compatible(node, "intel,kmb-axi-dma")) {
+	flags = (uintptr_t)of_device_get_match_data(&pdev->dev);
+	if (flags & AXI_DMA_FLAG_HAS_APB_REGS) {
 		chip->apb_regs = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(chip->apb_regs))
 			return PTR_ERR(chip->apb_regs);
 	}
 
+	if (flags & AXI_DMA_FLAG_HAS_RESETS) {
+		resets = devm_reset_control_array_get_exclusive(&pdev->dev);
+		if (IS_ERR(resets))
+			return PTR_ERR(resets);
+
+		ret = reset_control_deassert(resets);
+		if (ret)
+			return ret;
+	}
+
+	chip->dw->hdata->use_cfg2 = !!(flags & AXI_DMA_FLAG_USE_CFG2);
+
 	chip->core_clk = devm_clk_get(chip->dev, "core-clk");
 	if (IS_ERR(chip->core_clk))
 		return PTR_ERR(chip->core_clk);
 
-#ifdef SUPPORT_CFGR_CLK
 	chip->cfgr_clk = devm_clk_get(chip->dev, "cfgr-clk");
 	if (IS_ERR(chip->cfgr_clk))
 		return PTR_ERR(chip->cfgr_clk);
-#endif
-
-#ifdef SUPPORT_RESET_CONTROL
-	chip->core_rstc = devm_reset_control_get(chip->dev, "core-rstc");
-	if (IS_ERR(chip->core_rstc))
-		return PTR_ERR(chip->core_rstc);
-#endif
 
 	ret = parse_device_properties(chip);
 	if (ret)
@@ -1524,7 +1463,6 @@ static int dw_probe(struct platform_device *pdev)
 	dma_cap_set(DMA_CYCLIC, dw->dma.cap_mask);
 
 	/* DMA capabilities */
-	dw->dma.chancnt = hdata->nr_channels;
 	dw->dma.max_burst = hdata->axi_rw_burst_len;
 	dw->dma.src_addr_widths = AXI_DMA_BUSWIDTHS;
 	dw->dma.dst_addr_widths = AXI_DMA_BUSWIDTHS;
@@ -1565,7 +1503,7 @@ static int dw_probe(struct platform_device *pdev)
 	 * driver to work also without Runtime PM.
 	 */
 	pm_runtime_get_noresume(chip->dev);
-	ret = axi_dma_resume(chip, 1);
+	ret = axi_dma_resume(chip);
 	if (ret < 0)
 		goto err_pm_disable;
 
@@ -1603,9 +1541,7 @@ static int dw_remove(struct platform_device *pdev)
 	u32 i;
 
 	/* Enable clk before accessing to registers */
-#ifdef SUPPORT_CFGR_CLK
 	clk_prepare_enable(chip->cfgr_clk);
-#endif
 	clk_prepare_enable(chip->core_clk);
 	axi_dma_irq_disable(chip);
 	for (i = 0; i < dw->hdata->nr_channels; i++) {
@@ -1615,7 +1551,7 @@ static int dw_remove(struct platform_device *pdev)
 	axi_dma_disable(chip);
 
 	pm_runtime_disable(chip->dev);
-	axi_dma_suspend(chip, 1);
+	axi_dma_suspend(chip);
 
 	devm_free_irq(chip->dev, chip->irq, chip);
 
@@ -1631,18 +1567,19 @@ static int dw_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops dw_axi_dma_pm_ops = {
-#ifdef SUPPORT_PM_OPS
-	.suspend	= dw_pm_suspend,
-	.resume 	= dw_pm_resume,
-	SET_RUNTIME_PM_OPS(dw_pm_runtime_suspend, dw_pm_runtime_resume, NULL)
-#else
 	SET_RUNTIME_PM_OPS(axi_dma_runtime_suspend, axi_dma_runtime_resume, NULL)
-#endif
 };
 
 static const struct of_device_id dw_dma_of_id_table[] = {
-	{ .compatible = "snps,axi-dma-1.01a" },
-	{ .compatible = "intel,kmb-axi-dma" },
+	{
+		.compatible = "snps,axi-dma-1.01a"
+	}, {
+		.compatible = "intel,kmb-axi-dma",
+		.data = (void *)AXI_DMA_FLAG_HAS_APB_REGS,
+	}, {
+		.compatible = "starfive,jh7110-axi-dma",
+		.data = (void *)(AXI_DMA_FLAG_HAS_RESETS | AXI_DMA_FLAG_USE_CFG2),
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
