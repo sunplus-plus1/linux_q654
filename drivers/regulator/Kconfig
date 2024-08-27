@@ -1663,4 +1663,11 @@ config REGULATOR_QCOM_LABIBB
 	  boost regulator and IBB can be used as a negative boost regulator
 	  for LCD display panel.
 
+config REGULATOR_STI8070X
+	tristate "TOLL Microelectronic STI8070x Regulators"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator of the STI8070x series.
+
 endif
