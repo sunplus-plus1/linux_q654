@@ -1494,11 +1494,16 @@ static void sp7350_crtc_unbind(struct device *dev, struct device *master,
 	/* TODO Set S3V SOC DISPLAY REG, disable crtc things... */
 
 	sp7350_plane_release(drm, sp_crtc->primary_plane);
+	sp_crtc->primary_plane = NULL;
 	sp7350_plane_release(drm, sp_crtc->media_plane);
+	sp_crtc->media_plane = NULL;
 	sp7350_plane_release(drm, sp_crtc->overlay_planes[0]);
+	sp_crtc->overlay_planes[0] = NULL;
 	sp7350_plane_release(drm, sp_crtc->overlay_planes[1]);
+	sp_crtc->overlay_planes[1] = NULL;
 	//#if 0 //ubuntu mate issue, temporary off cursor plane
 	//sp7350_plane_release(drm, sp_crtc->cursor_plane);
+	//sp_crtc->cursor_plane = NULL;
 	//#endif
 	spin_lock(&sp_crtc->irq_lock);
 	sp_crtc->irq_hw_enabled = false;
@@ -1671,6 +1676,7 @@ static int sp7350_crtc_dev_suspend(struct platform_device *pdev, pm_message_t st
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver suspend.\n");
 
 	/* do nothing? */
+
 	sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->primary_plane);
 	sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->media_plane);
 	sp7350_plane_dev_suspend(&pdev->dev, sp_crtc->overlay_planes[0]);
