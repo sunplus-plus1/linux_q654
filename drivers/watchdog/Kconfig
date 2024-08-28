@@ -1047,6 +1047,18 @@ config SUNPLUS_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called sunplus_wdt.
 
+config SUNPLUS_SP7350_WATCHDOG
+	tristate "Sunplus SP7350 watchdog support"
+	depends on SOC_SP7350
+	select WATCHDOG_CORE
+	select WATCHDOG_NOWAYOUT
+	help
+	  Say Y here to include support for the watchdog timer
+	  in Sunplus SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sunplus_wdt.
+
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
