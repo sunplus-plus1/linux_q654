@@ -1,0 +1,42 @@
+
+config VIDEO_HANTRO_DECODER
+	tristate "HANTRO VC8000NanoD video decoder driver"
+	default n
+	help
+		Support for the hardware decoder driver.
+
+config VIDEO_HANTRO_ENCODER
+	tristate "HANTRO VC8000NanoE video encoder driver"
+	default n
+	help
+		Support for the hardware encoder driver.
+
+config VIDEO_HANTRO_DECODER_MEM
+	tristate "HANTRO VC8000NanoD video decoder memory driver"
+	default n
+	help
+		Support for the hardware decoder memory driver.
+
+config VIDEO_HANTRO_ENCODER_MEM
+	tristate "HANTRO VC8000NanoE video encoder memory driver"
+	default n
+	help
+		Support for the hardware encoder memory driver.
+
+config VIDEO_HANTRO_V4L2_DECODER
+	tristate "HANTRO VC8000NanoD video decoder v4l2 driver"
+	select VIDEOBUF2_DMA_CONTIG
+	select VIDEO_HANTRO_DECODER_MEM
+	select VIDEO_HANTRO_DECODER
+	default n
+	help
+		Support for the hardware decoder v4l2 driver.
+
+config VIDEO_HANTRO_V4L2_ENCODER
+	tristate "HANTRO VC8000NanoE video encoder v4l2 driver"
+	select VIDEOBUF2_DMA_CONTIG 
+	select VIDEO_HANTRO_ENCODER_MEM
+	select VIDEO_HANTRO_ENCODER
+	default n
+	help
+		Support for the hardware encoder v4l2 driver.

@@ -35,7 +35,7 @@ static int sp_otp_wait(void __iomem *_base)
 	unsigned int status;
 
 	do {
-		udelay(10);
+		usleep_range(10, 20);
 		if (timeout-- == 0)
 			return -ETIMEDOUT;
 
@@ -102,7 +102,7 @@ int sp_otp_read_real(struct sp_otp_data_t *_otp, int addr, char *value)
  *	};
  */
 static void sp_ocotp_byte_swap_check(struct sp_otp_data_t *otp,
-			unsigned int offset, size_t bytes, char *val)
+				     unsigned int offset, size_t bytes, char *val)
 {
 	struct device_node *parent, *child;
 	const __be32 *addr;
@@ -116,8 +116,8 @@ static void sp_ocotp_byte_swap_check(struct sp_otp_data_t *otp,
 		addr = of_get_property(child, "reg", NULL);
 		if (!addr)
 			continue;
-		if ((offset != be32_to_cpup(addr++)) ||
-		    (bytes != be32_to_cpup(addr)))
+		if (offset != be32_to_cpup(addr++) ||
+		    bytes != be32_to_cpup(addr))
 			continue;
 		for (i = 0; i < (bytes >> 1); i++) {
 			val[i] ^= val[bytes - 1 - i];
@@ -138,7 +138,7 @@ static int sp_ocotp_read(void *_c, unsigned int _off, void *_v, size_t _l)
 
 	dev_dbg(otp->dev, "OTP read %lu bytes at %u", _l, _off);
 
-	if ((_off >= QAK654_OTP_SIZE) || (_l == 0) || ((_off + _l) > QAK654_OTP_SIZE))
+	if (_off >= QAK654_OTP_SIZE || _l == 0 || ((_off + _l) > QAK654_OTP_SIZE))
 		return -EINVAL;
 
 	ret = clk_enable(otp->clk);
@@ -179,7 +179,7 @@ int sp_ocotp_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct sp_otp_vX_t *sp_otp_vX = NULL;
-	struct device *dev = &(pdev->dev);
+	struct device *dev = &pdev->dev;
 	struct nvmem_device *nvmem;
 	struct sp_otp_data_t *otp;
 	struct resource *res;
@@ -251,7 +251,7 @@ EXPORT_SYMBOL_GPL(sp_ocotp_probe);
 
 int sp_ocotp_remove(struct platform_device *pdev)
 {
-	// disbale for devm_*
+	// disable for devm_*
 	struct nvmem_device *nvmem = platform_get_drvdata(pdev);
 
 	nvmem_unregister(nvmem);

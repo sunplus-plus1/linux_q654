@@ -109,6 +109,10 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	crypto_skcipher_clear_flags(ctr, CRYPTO_TFM_REQ_MASK);
 	crypto_skcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
 				       CRYPTO_TFM_REQ_MASK);
+#ifdef CONFIG_CRYPTO_DEV_SP // TODO: dirty hack code, fix me
+	if (!strcmp(ctr->base.__crt_alg->cra_driver_name, "sp-aes-ctr"))
+		ctr->base.__crt_alg->cra_init(crypto_skcipher_tfm(ctr));
+#endif
 	err = crypto_skcipher_setkey(ctr, key, keylen);
 	if (err)
 		return err;
