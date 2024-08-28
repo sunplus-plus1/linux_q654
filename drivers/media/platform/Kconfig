@@ -88,3 +88,14 @@ source "drivers/media/platform/via/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
 
 endif # MEDIA_PLATFORM_DRIVERS
+
+menuconfig VIDEO_HWCODEC_DRIVERS
+	bool "Video hardware codec"
+	help
+	  Say Y here to enable hardware video codec
+
+if VIDEO_HWCODEC_DRIVERS
+
+source "drivers/media/platform/sunplus/videocodec/Kconfig"
+
+endif # VIDEO_HWCODEC_DRIVERS
