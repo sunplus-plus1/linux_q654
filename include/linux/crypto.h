@@ -462,6 +462,11 @@ static inline const char *crypto_tfm_alg_driver_name(struct crypto_tfm *tfm)
 	return tfm->__crt_alg->cra_driver_name;
 }
 
+static inline int crypto_tfm_alg_priority(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_priority;
+}
+
 static inline unsigned int crypto_tfm_alg_blocksize(struct crypto_tfm *tfm)
 {
 	return tfm->__crt_alg->cra_blocksize;

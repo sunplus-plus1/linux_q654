@@ -52,7 +52,7 @@ struct sunplus_rtc {
 	struct clk *rtcclk;
 	struct reset_control *rstc;
 	unsigned long set_alarm_again;
-	u32 __iomem * mbox_base;
+	u32 __iomem *mbox_base;
 	u32 rtc_irq;
 	u32 rtc_back_ctrl;
 	u32 rtc_back_ontime_set;
@@ -103,6 +103,7 @@ struct sp_rtc_reg {
 	unsigned int rsv30;
 	unsigned int rsv31;
 };
+
 static struct sp_rtc_reg *rtc_reg_ptr;
 
 static void sp_get_seconds(unsigned long *secs)
@@ -122,8 +123,8 @@ static int sp_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	sp_get_seconds(&secs);
 	rtc_time64_to_tm(secs, tm);
 	RTC_DEBUG("%s:  RTC date/time to %d-%d-%d, %02d:%02d:%02d.\r\n",
-		__func__, tm->tm_mday, tm->tm_mon + 1, tm->tm_year,
-					tm->tm_hour, tm->tm_min, tm->tm_sec);
+		  __func__, tm->tm_mday, tm->tm_mon + 1, tm->tm_year,
+		  tm->tm_hour, tm->tm_min, tm->tm_sec);
 
 	return rtc_valid_tm(tm);
 }
@@ -144,21 +145,18 @@ static int sp_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 
 	// Keep RTC from system reset
 	writel(MBOX_RTC_SUSPEND_IN, sp_rtc.mbox_base); // tell CM4 in suspend by mailbox
+
 	//backup rtc value, maybe clear by cm4 rtc wakeup
 	sp_rtc.rtc_back_ctrl = readl(&rtc_reg_ptr->rtc_ctrl);
 	sp_rtc.rtc_back_ontime_set = readl(&rtc_reg_ptr->rtc_ontime_set);
 
 	writel(0x13, &rtc_reg_ptr->rtc_ctrl);//enable rtc interrupt
-	if(sp_rtc.rtc_irq > 0 )
-	{
+
+	if (sp_rtc.rtc_irq > 0) {
 		if (device_may_wakeup(&pdev->dev))
-		{
 			enable_irq_wake(sp_rtc.rtc_irq);
-		}
 		else
-		{
 			disable_irq_wake(sp_rtc.rtc_irq);
-		}
 	}
 
 	return 0;
@@ -174,13 +172,12 @@ static int sp_rtc_resume(struct platform_device *pdev)
 
 	writel(MBOX_RTC_SUSPEND_OUT, sp_rtc.mbox_base); // tell CM4 out suspend by mailbox
 
-	writel(sp_rtc.rtc_back_ctrl,&rtc_reg_ptr->rtc_ctrl);
-	writel(sp_rtc.rtc_back_ontime_set,&rtc_reg_ptr->rtc_ontime_set);
-	if(sp_rtc.rtc_irq > 0 )
-	{
-		if (device_may_wakeup(&pdev->dev)){
+	writel(sp_rtc.rtc_back_ctrl, &rtc_reg_ptr->rtc_ctrl);
+	writel(sp_rtc.rtc_back_ontime_set, &rtc_reg_ptr->rtc_ontime_set);
+
+	if (sp_rtc.rtc_irq > 0) {
+		if (device_may_wakeup(&pdev->dev))
 			disable_irq_wake(sp_rtc.rtc_irq);
-		}
 	}
 
 	return 0;
@@ -208,7 +205,7 @@ static int sp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (alarm_time > 0xFFFFFFFF)
 		return -EINVAL;
 
-	if ((rtc->aie_timer.enabled) && (rtc->aie_timer.node.expires == ktime_set(alarm_time, 0))) {
+	if (rtc->aie_timer.enabled && rtc->aie_timer.node.expires == ktime_set(alarm_time, 0)) {
 		if (rtc->uie_rtctimer.enabled)
 			sp_rtc.set_alarm_again = 1;
 	}
@@ -223,7 +220,7 @@ static int sp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	else if (!rtc->aie_timer.enabled)
 		writel(0x10, &rtc_reg_ptr->rtc_ctrl);
 
-	udelay(10);
+	usleep_range(10, 20);
 
 	return 0;
 }
@@ -340,7 +337,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 	rtc_reg_ptr = (struct sp_rtc_reg *)(reg_base);
 
 	// Keep RTC from system reset
-	writel((1 << (16+4)) | (1 << 4), &rtc_reg_ptr->rtc_ctrl);
+	writel((1 << (16 + 4)) | (1 << 4), &rtc_reg_ptr->rtc_ctrl);
 
 	// request irq
 	irq = platform_get_irq(plat_dev, 0);
@@ -349,7 +346,8 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 		goto free_reset_assert;
 	}
 
-	err = devm_request_irq(&plat_dev->dev, irq, rtc_irq_handler, IRQF_TRIGGER_RISING, "rtc irq", plat_dev);
+	err = devm_request_irq(&plat_dev->dev, irq, rtc_irq_handler,
+			       IRQF_TRIGGER_RISING, "rtc irq", plat_dev);
 	if (err) {
 		RTC_ERR("devm_request_irq failed: %d\n", err);
 		goto free_reset_assert;

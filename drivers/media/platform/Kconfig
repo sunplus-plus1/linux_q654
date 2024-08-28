@@ -80,7 +80,7 @@ source "drivers/media/platform/renesas/Kconfig"
 source "drivers/media/platform/rockchip/Kconfig"
 source "drivers/media/platform/samsung/Kconfig"
 source "drivers/media/platform/st/Kconfig"
-source "drivers/media/platform/sunplus/display/sp7350/Kconfig"
+source "drivers/media/platform/sunplus/Kconfig"
 source "drivers/media/platform/sunxi/Kconfig"
 source "drivers/media/platform/ti/Kconfig"
 source "drivers/media/platform/verisilicon/Kconfig"
@@ -88,3 +88,14 @@ source "drivers/media/platform/via/Kconfig"
 source "drivers/media/platform/xilinx/Kconfig"
 
 endif # MEDIA_PLATFORM_DRIVERS
+
+menuconfig VIDEO_HWCODEC_DRIVERS
+	bool "Video hardware codec"
+	help
+	  Say Y here to enable hardware video codec
+
+if VIDEO_HWCODEC_DRIVERS
+
+source "drivers/media/platform/sunplus/videocodec/Kconfig"
+
+endif # VIDEO_HWCODEC_DRIVERS
