@@ -1,21 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * PWM device driver for SUNPLUS SP7021 SoC
- *
- * Links:
- *   Reference Manual:
- *   https://sunplus-tibbo.atlassian.net/wiki/spaces/doc/overview
- *
- *   Reference Manual(PWM module):
- *   https://sunplus.atlassian.net/wiki/spaces/doc/pages/461144198/12.+Pulse+Width+Modulation+PWM
- *
- * Limitations:
- * - Only supports normal polarity.
- * - It output low when PWM channel disabled.
- * - When the parameters change, current running period will not be completed
- *     and run new settings immediately.
- * - In .apply() PWM output need to write register FREQ and DUTY. When first write FREQ
- *     done and not yet write DUTY, it has short timing gap use new FREQ and old DUTY.
+ * PWM device driver for SUNPLUS SP7350 SoC
  *
  * Author: Hammer Hsieh <hammerh0314@gmail.com>
  */
@@ -28,19 +13,22 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
-#define SP7021_PWM_MODE0		0x000
-#define SP7021_PWM_MODE0_PWMEN(ch)	BIT(ch)
-#define SP7021_PWM_MODE0_BYPASS(ch)	BIT(8 + (ch))
-#define SP7021_PWM_MODE1		0x004
-#define SP7021_PWM_MODE1_CNT_EN(ch)	BIT(ch)
-#define SP7021_PWM_FREQ(ch)		(0x008 + 4 * (ch))
-#define SP7021_PWM_FREQ_MAX		GENMASK(15, 0)
-#define SP7021_PWM_DUTY(ch)		(0x018 + 4 * (ch))
-#define SP7021_PWM_DUTY_DD_SEL(ch)	FIELD_PREP(GENMASK(9, 8), ch)
-#define SP7021_PWM_DUTY_MAX		GENMASK(7, 0)
-#define SP7021_PWM_DUTY_MASK		SP7021_PWM_DUTY_MAX
-#define SP7021_PWM_FREQ_SCALER		256
-#define SP7021_PWM_NUM			4
+#define SP7350_PWM_MODE0		0x000
+#define SP7350_PWM_MODE0_PWMEN(ch)	BIT(ch)
+#define SP7350_PWM_MODE0_BYPASS(ch)	BIT(8 + (ch))
+#define SP7350_PWM_MODE1		0x080
+#define SP7350_PWM_MODE1_POL(ch)	BIT(8 + (ch))
+#define SP7350_PWM_MODE1_POL_MASK	GENMASK(15, 8)
+#define SP7350_PWM_POL_NORMAL		0
+#define SP7350_PWM_POL_INVERTED		1
+#define SP7350_PWM_FREQ(ch)		(0x044 + 4 * (ch))
+#define SP7350_PWM_FREQ_MAX		GENMASK(17, 0)
+#define SP7350_PWM_DUTY(ch)		(0x004 + 4 * (ch))
+#define SP7350_PWM_DUTY_DD_SEL(ch)	FIELD_PREP(GENMASK(17, 16), ch)
+#define SP7350_PWM_DUTY_MAX		GENMASK(11, 0)
+#define SP7350_PWM_DUTY_MASK		SP7350_PWM_DUTY_MAX
+#define SP7350_PWM_FREQ_SCALER		4096
+#define SP7350_PWM_NUM			4
 
 struct sunplus_pwm {
 	struct pwm_chip chip;
@@ -57,21 +45,29 @@ static int sunplus_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			     const struct pwm_state *state)
 {
 	struct sunplus_pwm *priv = to_sunplus_pwm(chip);
-	u32 dd_freq, duty, mode0, mode1;
+	u32 dd_freq, duty, mode0, mode1, mode1_pol;
 	u64 clk_rate;
 
 	if (state->polarity != pwm->state.polarity)
 		return -EINVAL;
 
+	/*
+	 * apply pwm polarity setting
+	 */
+	mode1 = readl(priv->base + SP7350_PWM_MODE1);
+	mode1_pol = (FIELD_GET(SP7350_PWM_MODE1_POL_MASK, mode1) >> (pwm->hwpwm)) & 0x01;
+	if (mode1_pol == SP7350_PWM_POL_NORMAL)
+		mode1 &= ~SP7350_PWM_MODE1_POL(pwm->hwpwm);
+	else
+		mode1 |= SP7350_PWM_MODE1_POL(pwm->hwpwm);
+
+	writel(mode1, priv->base + SP7350_PWM_MODE1);
+
 	if (!state->enabled) {
 		/* disable pwm channel output */
-		mode0 = readl(priv->base + SP7021_PWM_MODE0);
-		mode0 &= ~SP7021_PWM_MODE0_PWMEN(pwm->hwpwm);
-		writel(mode0, priv->base + SP7021_PWM_MODE0);
-		/* disable pwm channel clk source */
-		mode1 = readl(priv->base + SP7021_PWM_MODE1);
-		mode1 &= ~SP7021_PWM_MODE1_CNT_EN(pwm->hwpwm);
-		writel(mode1, priv->base + SP7021_PWM_MODE1);
+		mode0 = readl(priv->base + SP7350_PWM_MODE0);
+		mode0 &= ~SP7350_PWM_MODE0_PWMEN(pwm->hwpwm);
+		writel(mode0, priv->base + SP7350_PWM_MODE0);
 		return 0;
 	}
 
@@ -79,48 +75,45 @@ static int sunplus_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/*
 	 * The following calculations might overflow if clk is bigger
-	 * than 256 GHz. In practise it's 202.5MHz, so this limitation
+	 * than 256 GHz. In practise it's 200MHz, so this limitation
 	 * is only theoretic.
 	 */
-	if (clk_rate > (u64)SP7021_PWM_FREQ_SCALER * NSEC_PER_SEC)
+	if (clk_rate > (u64)SP7350_PWM_FREQ_SCALER * NSEC_PER_SEC)
 		return -EINVAL;
 
 	/*
 	 * With clk_rate limited above we have dd_freq <= state->period,
 	 * so this cannot overflow.
 	 */
-	dd_freq = mul_u64_u64_div_u64(clk_rate, state->period, (u64)SP7021_PWM_FREQ_SCALER
+	dd_freq = mul_u64_u64_div_u64(clk_rate, state->period, (u64)SP7350_PWM_FREQ_SCALER
 				* NSEC_PER_SEC);
 
 	if (dd_freq == 0)
 		return -EINVAL;
 
-	if (dd_freq > SP7021_PWM_FREQ_MAX)
-		dd_freq = SP7021_PWM_FREQ_MAX;
+	if (dd_freq > SP7350_PWM_FREQ_MAX)
+		dd_freq = SP7350_PWM_FREQ_MAX;
 
-	writel(dd_freq, priv->base + SP7021_PWM_FREQ(pwm->hwpwm));
+	writel(dd_freq, priv->base + SP7350_PWM_FREQ(pwm->hwpwm));
 
 	/* cal and set pwm duty */
-	mode0 = readl(priv->base + SP7021_PWM_MODE0);
-	mode0 |= SP7021_PWM_MODE0_PWMEN(pwm->hwpwm);
-	mode1 = readl(priv->base + SP7021_PWM_MODE1);
-	mode1 |= SP7021_PWM_MODE1_CNT_EN(pwm->hwpwm);
+	mode0 = readl(priv->base + SP7350_PWM_MODE0);
+	mode0 |= SP7350_PWM_MODE0_PWMEN(pwm->hwpwm);
 	if (state->duty_cycle == state->period) {
 		/* PWM channel output = high */
-		mode0 |= SP7021_PWM_MODE0_BYPASS(pwm->hwpwm);
-		duty = SP7021_PWM_DUTY_DD_SEL(pwm->hwpwm) | SP7021_PWM_DUTY_MAX;
+		mode0 |= SP7350_PWM_MODE0_BYPASS(pwm->hwpwm);
+		duty = SP7350_PWM_DUTY_DD_SEL(pwm->hwpwm) | SP7350_PWM_DUTY_MAX;
 	} else {
-		mode0 &= ~SP7021_PWM_MODE0_BYPASS(pwm->hwpwm);
+		mode0 &= ~SP7350_PWM_MODE0_BYPASS(pwm->hwpwm);
 		/*
 		 * duty_ns <= period_ns 27 bits, clk_rate 28 bits, won't overflow.
 		 */
 		duty = mul_u64_u64_div_u64(state->duty_cycle, clk_rate,
 					   (u64)dd_freq * NSEC_PER_SEC);
-		duty = SP7021_PWM_DUTY_DD_SEL(pwm->hwpwm) | duty;
+		duty = SP7350_PWM_DUTY_DD_SEL(pwm->hwpwm) | duty;
 	}
-	writel(duty, priv->base + SP7021_PWM_DUTY(pwm->hwpwm));
-	writel(mode1, priv->base + SP7021_PWM_MODE1);
-	writel(mode0, priv->base + SP7021_PWM_MODE0);
+	writel(duty, priv->base + SP7350_PWM_DUTY(pwm->hwpwm));
+	writel(mode0, priv->base + SP7350_PWM_MODE0);
 
 	return 0;
 }
@@ -129,24 +122,24 @@ static int sunplus_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 				 struct pwm_state *state)
 {
 	struct sunplus_pwm *priv = to_sunplus_pwm(chip);
-	u32 mode0, dd_freq, duty;
+	u32 mode0, mode1, mode1_pol, dd_freq, duty;
 	u64 clk_rate;
 
-	mode0 = readl(priv->base + SP7021_PWM_MODE0);
+	mode0 = readl(priv->base + SP7350_PWM_MODE0);
 
 	if (mode0 & BIT(pwm->hwpwm)) {
 		clk_rate = clk_get_rate(priv->clk);
-		dd_freq = readl(priv->base + SP7021_PWM_FREQ(pwm->hwpwm));
-		duty = readl(priv->base + SP7021_PWM_DUTY(pwm->hwpwm));
-		duty = FIELD_GET(SP7021_PWM_DUTY_MASK, duty);
+		dd_freq = readl(priv->base + SP7350_PWM_FREQ(pwm->hwpwm));
+		duty = readl(priv->base + SP7350_PWM_DUTY(pwm->hwpwm));
+		duty = FIELD_GET(SP7350_PWM_DUTY_MASK, duty);
 		/*
-		 * dd_freq 16 bits, SP7021_PWM_FREQ_SCALER 8 bits
+		 * dd_freq 18 bits, SP7350_PWM_FREQ_SCALER 12 bits
 		 * NSEC_PER_SEC 30 bits, won't overflow.
 		 */
-		state->period = DIV64_U64_ROUND_UP((u64)dd_freq * (u64)SP7021_PWM_FREQ_SCALER
+		state->period = DIV64_U64_ROUND_UP((u64)dd_freq * (u64)SP7350_PWM_FREQ_SCALER
 						* NSEC_PER_SEC, clk_rate);
 		/*
-		 * dd_freq 16 bits, duty 8 bits, NSEC_PER_SEC 30 bits, won't overflow.
+		 * dd_freq 18 bits, duty 12 bits, NSEC_PER_SEC 30 bits, won't overflow.
 		 */
 		state->duty_cycle = DIV64_U64_ROUND_UP((u64)dd_freq * (u64)duty * NSEC_PER_SEC,
 						       clk_rate);
@@ -155,7 +148,13 @@ static int sunplus_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->enabled = false;
 	}
 
-	state->polarity = PWM_POLARITY_NORMAL;
+	mode1 = readl(priv->base + SP7350_PWM_MODE1);
+	mode1_pol = (FIELD_GET(SP7350_PWM_MODE1_POL_MASK, mode1) >> (pwm->hwpwm)) & 0x01;
+
+	if (mode1_pol == SP7350_PWM_POL_NORMAL)
+		state->polarity = PWM_POLARITY_NORMAL;
+	else
+		state->polarity = PWM_POLARITY_INVERSED;
 
 	return 0;
 }
@@ -206,7 +205,7 @@ static int sunplus_pwm_probe(struct platform_device *pdev)
 
 	priv->chip.dev = dev;
 	priv->chip.ops = &sunplus_pwm_ops;
-	priv->chip.npwm = SP7021_PWM_NUM;
+	priv->chip.npwm = SP7350_PWM_NUM;
 
 	ret = devm_pwmchip_add(dev, &priv->chip);
 	if (ret < 0)
@@ -216,7 +215,7 @@ static int sunplus_pwm_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sunplus_pwm_of_match[] = {
-	{ .compatible = "sunplus,sp7021-pwm", },
+	{ .compatible = "sunplus,sp7350-pwm", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, sunplus_pwm_of_match);
