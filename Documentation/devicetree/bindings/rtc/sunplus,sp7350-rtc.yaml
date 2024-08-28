@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2024
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/sunplus,sp7350-rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SP7350 Real Time Clock controller
+
+maintainers:
+  - Vincent Shih <vincent.shih@sunplus.com>
+
+properties:
+  compatible:
+    const: sunplus,sp7350-rtc
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: rtc_reg
+      - const: mbox_reg
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - resets
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      rtc: rtc@f8801180 {
+        compatible = "sunplus,sp7350-rtc";
+        reg = <0x0 0xf8801180 0x0 0x30>,
+                <0x0 0xf8008178 0x0 0x04>; /* mbox G258.30, cpu0 to cpu2 direct reg06 */
+        reg-names = "rtc_reg","mbox_reg";
+        clocks = <&clkc RTC>;
+        resets = <&rstc RST_RTC>;
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+      };
+    };
+...
