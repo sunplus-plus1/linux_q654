@@ -1,7 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only OR .* */
 
-#ifndef __DT_BINDINGS_PINCTRL_SPPCTRL_CONFIG_H
-#define __DT_BINDINGS_PINCTRL_SPPCTRL_CONFIG_H
+#ifndef __DT_BINDINGS_PINCTRL_SP7350_CONFIG_H
+#define __DT_BINDINGS_PINCTRL_SP7350_CONFIG_H
 
 /* GPIO drive strength in uA.
  * IOH means typical source current.
@@ -45,4 +45,4 @@
 #define SPPCTRL_DVIO_DRV_IOH_40300_IOL_49500UA		40300
 #define SPPCTRL_DVIO_DRV_IOH_42700_IOL_52600UA		42700
 
-#endif /* __DT_BINDINGS_PINCTRL_SPPCTRL_CONFIG_H */
+#endif /* __DT_BINDINGS_PINCTRL_SP7350_CONFIG_H */

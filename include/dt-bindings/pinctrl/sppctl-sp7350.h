@@ -1,10 +1,11 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0-only OR .* */
 
 
 #ifndef _DT_BINDINGS_PINCTRL_SPPCTL_SP7350_H
 #define _DT_BINDINGS_PINCTRL_SPPCTL_SP7350_H
 
-#include <dt-bindings/pinctrl/sppctl.h>
+#include <dt-bindings/pinctrl/pinctrl-config-sp7350.h>
+#include <dt-bindings/pinctrl/pinctrl-sp7350.h>
 
 #define MUXF_GPIO		0
 #define MUXF_IOP		1
