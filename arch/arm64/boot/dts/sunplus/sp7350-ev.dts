@@ -50,7 +50,6 @@
 /*choose legacy or drm display*/
 #define CONFIG_DISP_DRM_SUPPORT
 
-
 #if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
 //#define DISP_MIPITX_DSI_PANEL_240X320
 //#define DISP_MIPITX_DSI_PANEL_480X1280
@@ -135,7 +134,6 @@
 				  <0 1 20>,
 				  <1 1 10>;
 	};
-
 
 	reserved-memory {
 		#address-cells = <2>;
@@ -511,12 +509,10 @@
 	regulator-boot-on;
 };
 
-#if 0 // FIXME: enable this when pinctrl driver ready
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins>;
 };
-#endif
 
 &uart1 {
 	pinctrl-names = "default";
@@ -2939,15 +2935,19 @@
 	stc-src-sel = /bits/ 8 <1>;
 	stc-freq = <100000>;
 };
+
 &stc_timer0 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_timer1 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_timer2 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_timer3 {
 	timer-mode = /bits/ 8 <1>;
 };
@@ -2956,15 +2956,19 @@
 	stc-src-sel = /bits/ 8 <1>;
 	stc-freq = <100000>;
 };
+
 &stc_av0_timer0 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av0_timer1 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av0_timer2 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av0_timer3 {
 	timer-mode = /bits/ 8 <1>;
 };
@@ -2973,15 +2977,19 @@
 	stc-src-sel = /bits/ 8 <1>;
 	stc-freq = <100000>;
 };
+
 &stc_av1_timer0 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av1_timer1 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av1_timer2 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av1_timer3 {
 	timer-mode = /bits/ 8 <1>;
 };
@@ -2990,15 +2998,19 @@
 	stc-src-sel = /bits/ 8 <1>;
 	stc-freq = <100000>;
 };
+
 &stc_av2_timer0 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av2_timer1 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av2_timer2 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av2_timer3 {
 	timer-mode = /bits/ 8 <1>;
 };
@@ -3007,15 +3019,19 @@
 	stc-src-sel = /bits/ 8 <1>;
 	stc-freq = <100000>;
 };
+
 &stc_av4_timer0 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av4_timer1 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av4_timer2 {
 	timer-mode = /bits/ 8 <1>;
 };
+
 &stc_av4_timer3 {
 	timer-mode = /bits/ 8 <1>;
 };
@@ -3451,19 +3467,24 @@
 &display { /* legacy display off */
 	status = "disabled";
 };
+
 &fb_disp_device { /* legacy fb off */
 	status = "disabled";
 };
+
 &display_subsystem { /* drm display on */
 	memory-region = <&disp_reserve>;
 	status = "okay";
 };
+
 &drm_crtc0 { /* drm display on */
 	status = "okay";
 };
+
 &drm_dsi0 { /* drm display on */
 	status = "okay";
 };
+
 #ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
 &hxm0686tft_lcd {
 	status = "okay";
@@ -3484,14 +3505,17 @@
 &lontium_lt8912b {
 	status = "okay";
 };
+
 &dsi0_out {
 	dsi0_out1: endpoint@1 {
 		reg = <1>;
 	};
 };
+
 &lt8912b_in {
 	remote-endpoint = <&dsi0_out1>;
 };
+
 &dsi0_out1 {
 	remote-endpoint = <&lt8912b_in>;
 };
@@ -3504,6 +3528,7 @@
 &panel_dsi_port {
 	remote-endpoint = <&dsi0_out0>;
 };
+
 &dsi0_out0 {
 	remote-endpoint = <&panel_dsi_port>;
 };
@@ -3512,19 +3537,24 @@
 	memory-region = <&disp_reserve>;
 	status = "okay";
 };
+
 &display_subsystem { /* drm display off */
 	status = "disabled";
 };
+
 &drm_crtc0 { /* drm display off */
 	status = "disabled";
 };
+
 &drm_dsi0 { /* drm display off */
 	status = "disabled";
 };
+
 #ifdef RASPBERRYPI_DSI_PANEL
 &raspberrypi_lcd {
 	status = "okay";
 };
+
 &panel_dsi_port {
 	remote-endpoint = <&disp_phy>;
 };
@@ -3539,6 +3569,7 @@
 	hdmi-timing = <0x3>;
 	#endif
 };
+
 &lt8912b_in {
 	remote-endpoint = <&disp_phy>;
 };
