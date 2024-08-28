@@ -220,7 +220,7 @@ static int sp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	else if (!rtc->aie_timer.enabled)
 		writel(0x10, &rtc_reg_ptr->rtc_ctrl);
 
-	usleep_range(10);
+	usleep_range(10, 20);
 
 	return 0;
 }
