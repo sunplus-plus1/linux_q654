@@ -1,3 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
 
+
 source "drivers/media/platform/sunplus/display/sp7350/Kconfig"
