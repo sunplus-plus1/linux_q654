@@ -12,7 +12,9 @@ maintainers:
 
 properties:
   compatible:
-    const: sunplus,sp7021-reset
+    enum:
+      - sunplus,sp7021-reset
+      - sunplus,sp7350-reset
 
   reg:
     maxItems: 1

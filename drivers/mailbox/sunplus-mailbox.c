@@ -27,7 +27,7 @@
 struct sunplus_mbox {
 	void __iomem *tx_regs;
 	void __iomem *rx_regs;
-	spinlock_t lock;
+	spinlock_t lock; // hw lock
 	struct mbox_controller controller;
 	struct clk *clk;
 };
@@ -90,7 +90,7 @@ static int sunplus_mbox_probe(struct platform_device *pdev)
 	struct sunplus_mbox *mbox;
 
 	mbox = devm_kzalloc(dev, sizeof(*mbox), GFP_KERNEL);
-	if (mbox == NULL)
+	if (!mbox)
 		return -ENOMEM;
 	spin_lock_init(&mbox->lock);
 
@@ -129,8 +129,7 @@ static int sunplus_mbox_probe(struct platform_device *pdev)
 	mbox->controller.ops = &sunplus_mbox_chan_ops;
 	mbox->controller.dev = dev;
 	mbox->controller.num_chans = 1;
-	mbox->controller.chans = devm_kzalloc(dev,
-		sizeof(*mbox->controller.chans), GFP_KERNEL);
+	mbox->controller.chans = devm_kzalloc(dev, sizeof(*mbox->controller.chans), GFP_KERNEL);
 	if (!mbox->controller.chans)
 		return -ENOMEM;
 

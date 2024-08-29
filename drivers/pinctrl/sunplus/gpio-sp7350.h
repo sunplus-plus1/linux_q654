@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#ifndef SPPCTL_GPIO_OPS_H
-#define SPPCTL_GPIO_OPS_H
+#ifndef __GPIO_SP7350_H
+#define __GPIO_SP7350_H
 
-#include "sppctl_gpio.h"
+#include "pinctrl-sunplus.h"
 
 /**
  * enum vol_ms_group - the groups of voltage mode select for DVIO.
@@ -279,4 +279,4 @@ int sppctl_gpio_to_irq(struct gpio_chip *chip, unsigned int offset);
 
 void sppctl_gpio_unmux_irq(struct gpio_chip *chip, unsigned int selector);
 
-#endif // SPPCTL_GPIO_OPS_H
+#endif // __GPIO_SP7350_H

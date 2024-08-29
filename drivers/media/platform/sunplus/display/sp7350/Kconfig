@@ -2,11 +2,11 @@
 
 config VIDEO_SP7350_DISP
 	tristate "Sunplus SP7350 Display Driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && SOC_SP7350
+	depends on VIDEO_DEV && V4L_PLATFORM_DRIVERS && SOC_SP7350
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
 	# select FB_SP7350
-	default y
+	default n
 	help
 	  Support for the Sunplus SP7350 display driver.
 
