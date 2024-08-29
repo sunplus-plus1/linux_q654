@@ -14,6 +14,7 @@
 #include <linux/pwm.h>
 
 #define SP7350_PWM_MODE0		0x000
+#define SP7350_PWM_MODE0_PWM_DU_MASK GENMASK(23, 20)
 #define SP7350_PWM_MODE0_PWMEN(ch)	BIT(ch)
 #define SP7350_PWM_MODE0_BYPASS(ch)	BIT(8 + (ch))
 #define SP7350_PWM_MODE1		0x080
@@ -48,15 +49,12 @@ static int sunplus_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	u32 dd_freq, duty, mode0, mode1, mode1_pol;
 	u64 clk_rate;
 
-	if (state->polarity != pwm->state.polarity)
-		return -EINVAL;
-
 	/*
 	 * apply pwm polarity setting
 	 */
+	printk("sunplus_pwm_apply\n");
 	mode1 = readl(priv->base + SP7350_PWM_MODE1);
-	mode1_pol = (FIELD_GET(SP7350_PWM_MODE1_POL_MASK, mode1) >> (pwm->hwpwm)) & 0x01;
-	if (mode1_pol == SP7350_PWM_POL_NORMAL)
+	if (pwm->state.polarity == PWM_POLARITY_NORMAL)
 		mode1 &= ~SP7350_PWM_MODE1_POL(pwm->hwpwm);
 	else
 		mode1 |= SP7350_PWM_MODE1_POL(pwm->hwpwm);
@@ -66,6 +64,7 @@ static int sunplus_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (!state->enabled) {
 		/* disable pwm channel output */
 		mode0 = readl(priv->base + SP7350_PWM_MODE0);
+		mode0 &= ~SP7350_PWM_MODE0_PWM_DU_MASK;
 		mode0 &= ~SP7350_PWM_MODE0_PWMEN(pwm->hwpwm);
 		writel(mode0, priv->base + SP7350_PWM_MODE0);
 		return 0;
