@@ -15,6 +15,8 @@
 #include "sp-crypto.h"
 #include "sp-hash.h"
 
+#define FIX_VPN_L2TP
+
 //#define DEBUG
 #ifdef DEBUG
 #define DBG_PRNT	pr_info
@@ -40,12 +42,12 @@ struct sp_hash_ctx {
 
 struct sp_hash_priv {
 	/* WORKBUF: blocks + key + hash */
-	u8* va;
+	u8 *va;
 	dma_addr_t pa;
 
 	bool done;
 	wait_queue_head_t wait;
-	struct mutex lock;
+	struct mutex lock; // hw lock
 } sp_hash;
 
 static struct sp_crypto_dev *crypto;
@@ -54,7 +56,7 @@ static struct sp_crypto_reg *reg;
 
 static void do_blocks(struct sp_hash_ctx *ctx, u32 len, u32 flag)
 {
-	DBG_PRNT("%s (%08x): %u\n", __FUNCTION__, ctx->mode | flag, len);
+	DBG_PRNT("%s (%08x): %u\n", __func__, ctx->mode | flag, len);
 	if (len) {
 		if (ctx->skip) {
 			memcpy(sp_hash.va + ctx->key_offset, sp_hash.va, ctx->skip);
@@ -73,9 +75,10 @@ static void do_blocks(struct sp_hash_ctx *ctx, u32 len, u32 flag)
 		sp_hash.done = false;
 		smp_wmb(); /* memory barrier */
 		W(HASHDMACS, SEC_DMA_SIZE(len) | SEC_DMA_ENABLE);
-		wait_event_interruptible_timeout(sp_hash.wait, sp_hash.done, 60*HZ);
+		wait_event_interruptible_timeout(sp_hash.wait, sp_hash.done, 60 * HZ);
 
-		ctx->bytes = ctx->skip = 0;
+		ctx->bytes = 0;
+		ctx->skip = 0;
 	}
 }
 
@@ -117,14 +120,14 @@ static int sp_shash_init(struct shash_desc *desc)
 		hash[7] = cpu_to_be32(SHA256_H7);
 		break;
 	case M_SHA512:
-		((u64*)hash)[0] = cpu_to_be64(SHA512_H0);
-		((u64*)hash)[1] = cpu_to_be64(SHA512_H1);
-		((u64*)hash)[2] = cpu_to_be64(SHA512_H2);
-		((u64*)hash)[3] = cpu_to_be64(SHA512_H3);
-		((u64*)hash)[4] = cpu_to_be64(SHA512_H4);
-		((u64*)hash)[5] = cpu_to_be64(SHA512_H5);
-		((u64*)hash)[6] = cpu_to_be64(SHA512_H6);
-		((u64*)hash)[7] = cpu_to_be64(SHA512_H7);
+		((u64 *)hash)[0] = cpu_to_be64(SHA512_H0);
+		((u64 *)hash)[1] = cpu_to_be64(SHA512_H1);
+		((u64 *)hash)[2] = cpu_to_be64(SHA512_H2);
+		((u64 *)hash)[3] = cpu_to_be64(SHA512_H3);
+		((u64 *)hash)[4] = cpu_to_be64(SHA512_H4);
+		((u64 *)hash)[5] = cpu_to_be64(SHA512_H5);
+		((u64 *)hash)[6] = cpu_to_be64(SHA512_H6);
+		((u64 *)hash)[7] = cpu_to_be64(SHA512_H7);
 		break;
 	default:
 		memset(hash, 0, hash_size);
@@ -150,15 +153,14 @@ static void sp_hash_lock(struct sp_hash_ctx *ctx)
 	}
 }
 
-static int sp_shash_update(struct shash_desc *desc, const u8 *data,
-		  u32 len)
+static int sp_shash_update(struct shash_desc *desc, const u8 *data, u32 len)
 {
 	if (len) {
 		struct sp_hash_ctx *ctx = crypto_tfm_ctx(&desc->tfm->base);
 		const u32 blocks_size = ctx->blocks_size;
 		u32 avail = blocks_size - ctx->bytes; // free bytes in blocks
 
-		DBG_PRNT("%px[%u] %u\n", data, ctx->bytes, len);
+		//DBG_PRNT("%px[%u] %u\n", data, ctx->bytes, len);
 		sp_hash_lock(ctx);
 		ctx->byte_count += len;
 
@@ -270,7 +272,7 @@ out:
 }
 
 static int sp_shash_ghash_setkey(struct crypto_shash *tfm,
-			const u8 *key, unsigned int keylen)
+				 const u8 *key, unsigned int keylen)
 {
 	struct sp_hash_ctx *ctx = crypto_tfm_ctx(&tfm->base);
 
@@ -291,7 +293,7 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "ghash",
-			.cra_driver_name= "sp-ghash",
+			.cra_driver_name = "sp-ghash",
 			.cra_blocksize	= GHASH_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_GHASH,
@@ -305,7 +307,7 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "md5",
-			.cra_driver_name= "sp-md5",
+			.cra_driver_name = "sp-md5",
 			.cra_blocksize	= MD5_HMAC_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_MD5,
@@ -319,7 +321,7 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "sha3-224",
-			.cra_driver_name= "sp-sha3-224",
+			.cra_driver_name = "sp-sha3-224",
 			.cra_blocksize	= SHA3_224_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_224,
@@ -327,13 +329,13 @@ static struct shash_alg hash_algs[] = {
 		},
 	},
 	{
-		.digestsize 	= SHA3_256_DIGEST_SIZE,
+		.digestsize	= SHA3_256_DIGEST_SIZE,
 		.init		= sp_shash_init,
 		.update		= sp_shash_update,
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "sha3-256",
-			.cra_driver_name= "sp-sha3-256",
+			.cra_driver_name = "sp-sha3-256",
 			.cra_blocksize	= SHA3_256_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_256,
@@ -347,7 +349,7 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "sha3-384",
-			.cra_driver_name= "sp-sha3-384",
+			.cra_driver_name = "sp-sha3-384",
 			.cra_blocksize	= SHA3_384_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_384,
@@ -361,14 +363,14 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "sha3-512",
-			.cra_driver_name= "sp-sha3-512",
+			.cra_driver_name = "sp-sha3-512",
 			.cra_blocksize	= SHA3_512_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_SHA3_512,
 			.cra_ctxsize	= sizeof(struct sp_hash_ctx),
 		},
 	},
-	#if 0 // FIXME: failed in VPN:L2TP auth
+	#ifndef FIX_VPN_L2TP // FIXME: failed in VPN:L2TP auth
 	{
 		.digestsize	= SHA256_DIGEST_SIZE,
 		.init		= sp_shash_init,
@@ -376,7 +378,7 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "sha256",
-			.cra_driver_name= "sp-sha256",
+			.cra_driver_name = "sp-sha256",
 			.cra_blocksize	= SHA256_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_SHA256,
@@ -391,7 +393,7 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "sha512",
-			.cra_driver_name= "sp-sha512",
+			.cra_driver_name = "sp-sha512",
 			.cra_blocksize	= SHA512_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_SHA512,
@@ -405,7 +407,7 @@ static struct shash_alg hash_algs[] = {
 		.final		= sp_shash_final,
 		.base		= {
 			.cra_name	= "poly1305",
-			.cra_driver_name= "sp-poly1305",
+			.cra_driver_name = "sp-poly1305",
 			.cra_blocksize	= POLY1305_BLOCK_SIZE,
 			.cra_module	= THIS_MODULE,
 			.cra_priority	= SP_CRYPTO_PRI | M_POLY1305,

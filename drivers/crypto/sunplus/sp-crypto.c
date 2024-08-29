@@ -23,11 +23,11 @@ static struct sp_crypto_dev sp_dd_tb[1];
 
 void dump_buf(u8 *buf, u32 len)
 {
-	static const char s[] = "       |       \n";
+	static const char s[] = "       |       \x0a";
 	char ss[52] = "";
 	u32 i = 0, j;
 
-	pr_info("buf:%px, len:%d\n", buf, len);
+	//pr_info("buf:%px, len:%d\n", buf, len);
 	while (i < len) {
 		j = i & 0x0F;
 		sprintf(ss + j * 3, "%02x%c", buf[i], s[j]);
@@ -57,7 +57,7 @@ static int hwcfg_set(const char *val, const struct kernel_param *kp)
 	int en_aes = -1, en_hash = -1, pr = 1;
 	int ret;
 
-	sscanf(val, "%d %d %d", &en_aes, &en_hash, &pr);
+	ret = sscanf(val, "%d %d %d", &en_aes, &en_hash, &pr);
 	if (en_aes >= 0) {
 		if (en_aes > 1)
 			en_aes = 1 - f_aes; // toggle
@@ -149,7 +149,6 @@ out1:
 	sp_hash_finit();
 out0:
 	return ret;
-
 }
 
 static void sp_crypto_exit(void)
@@ -192,14 +191,12 @@ static int sp_crypto_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 	reg = dev->reg;
-	SP_CRYPTO_INF("SP_CRYPTO_ENGINE @ %px =================\n", reg);
-
-	/////////////////////////////////////////////////////////////////////////////////
 
 	dev->version = R(VERSION);
 	SP_CRYPTO_INF("devid %d version %0x\n", dev->devid, dev->version);
 
-	ret = devm_request_irq(&pdev->dev, dev->irq, sp_crypto_irq, IRQF_TRIGGER_HIGH, "sp_crypto", dev);
+	ret = devm_request_irq(&pdev->dev, dev->irq, sp_crypto_irq,
+			       IRQF_TRIGGER_HIGH, "sp_crypto", dev);
 	ERR_OUT(ret, goto out2, "request_irq(%d)", dev->irq);
 
 	sp_crypto_hw_init(dev);
@@ -233,8 +230,7 @@ static int sp_crypto_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 #define REGS	35	// G123.0 ~ G124.2
 static u32 regs[REGS];
-static int sp_crypto_suspend(struct platform_device *pdev,
-	pm_message_t state)
+static int sp_crypto_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct sp_crypto_dev *dev = platform_get_drvdata(pdev);
 	void __iomem *reg = dev->reg;

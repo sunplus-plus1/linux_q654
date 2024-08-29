@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Sunplus MIPI/CSI RX driver configuration
+#
+
+config VIDEO_SUNPLUS_SP7350_CSI2
+	tristate "Sunplus SP7350 MIPI CSI-2 RX Driver"
+	depends on VIDEO_DEV && OF
+	depends on SOC_SP7350
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select RESET_CONTROLLER
+	select V4L2_FWNODE
+	help
+	  Support for Sunplus MIPI CSI-2 receiver.
+	  Supports SP7350 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp-mipi-sp7350.
+
+config VIDEO_SUNPLUS_SP7350_VIN
+	tristate "Sunplus SP7350 Video Input (VIN) Driver"
+	depends on VIDEO_DEV && OF
+	depends on SOC_SP7350
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	help
+	  Support for Sunplus Video Input (VIN) driver.
+	  Supports SP7350 SoC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp-vin-sp7350.
