@@ -562,6 +562,20 @@ config TPS6594_PFSM
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6594-pfsm.
 
+config SUNPLUS_STC
+	tristate "STC on Sunplus SP7350 Platform"
+	depends on SOC_SP7350
+	help
+	  Enable support for the Sunplus SOC's on-chip STC. STC provides clock 
+	  source for timer.
+
+config SUNPLUS_TIMER
+	tristate "Timers on Sunplus SP7350 Platform"
+	depends on SOC_SP7350 && SUNPLUS_STC
+	help
+	  Enable support for the Sunplus SOC's on-chip Timers. The default 
+	  clock source uses the STC source.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
