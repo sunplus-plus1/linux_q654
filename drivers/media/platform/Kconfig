@@ -3,6 +3,17 @@
 # Platform drivers
 #	Most drivers here are currently for webcam support
 
+menuconfig VIP9000_NPU_DRIVERS
+	tristate "ML Inference Processor NPU"
+	help
+	  Say Y here to enable hardware ml inference processor
+
+if VIP9000_NPU_DRIVERS
+
+source "drivers/media/platform/sunplus/vip9000/Kconfig"
+
+endif # VIP9000_NPU_DRIVERS
+
 menuconfig MEDIA_PLATFORM_DRIVERS
 	bool "Media platform devices"
 	default "y"
