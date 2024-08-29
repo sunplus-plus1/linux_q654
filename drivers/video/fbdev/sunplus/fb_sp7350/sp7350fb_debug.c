@@ -318,11 +318,11 @@ static void sp7350_draw_bmpfile(char *filename,
 	struct sp7350_bmp_header bmp = {0};
 	struct file *fp = NULL;
 	char *tmpbuf = NULL;
-	mm_segment_t oldfs;
+	//mm_segment_t oldfs;
 	int ret;
 
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
+	//oldfs = get_fs();
+	//set_fs(KERNEL_DS);
 	fp = filp_open(filename, O_RDONLY, 0);
 
 	if (!IS_ERR(fp)) {
@@ -429,7 +429,7 @@ err_init:
 	if (!IS_ERR(tmpbuf) && tmpbuf != NULL)
 		kfree(tmpbuf);
 
-	set_fs(oldfs);
+	//set_fs(oldfs);
 }
 #endif
 
