@@ -22,7 +22,7 @@
 //#define MIPI_CSI_XTOR		/* Import RAW10 pattern from MIPI XTOR */
 //#define MIPI_CSI_QUALITY	/* Import test patterns from MIPI PHY */
 //#define MIPI_CSI_4VC		/* Switch MIPI-CSI2 to 4-VC mode */
-#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
+//#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
 //#define MIPI_CSI_VIDEO_SEQ	/* Video device node numbers are in sequence */
 
 /* Number of HW buffers */
@@ -239,6 +239,8 @@ struct vin_dev {
 
 	unsigned int alpha;
 };
+
+#define V4L2_FWNODE_CSI2_MAX_DATA_LANES	4
 
 /* Debug */
 #define vin_dbg(d, fmt, arg...)		dev_dbg(d->dev, fmt, ##arg)

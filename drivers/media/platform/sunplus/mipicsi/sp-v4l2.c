@@ -398,7 +398,8 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 			  struct v4l2_pix_format *pix,
 			  struct v4l2_rect *src_rect)
 {
-	struct v4l2_subdev_pad_config *pad_cfg;
+	struct v4l2_subdev_state *sd_state;
+	static struct lock_class_key key;
 	struct v4l2_subdev_format format = {
 		.which = which,
 	};
@@ -411,7 +412,7 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -420,13 +421,17 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
-	pad_cfg = v4l2_subdev_alloc_pad_config(sd);
-	if (!pad_cfg)
-		return -ENOMEM;
+	/*
+	 * FIXME: Drop this call, drivers are not supposed to use
+	 * __v4l2_subdev_state_alloc().
+	 */
+	sd_state = __v4l2_subdev_state_alloc(sd, "vin:state->lock", &key);
+	if (IS_ERR(sd_state))
+		return PTR_ERR(sd_state);
 
-	dev_dbg(vin->dev, "%s, pad_cfg: code: 0x%04x %ux%u\n",
-		__func__, pad_cfg->try_fmt.code, pad_cfg->try_fmt.width, pad_cfg->try_fmt.height);
-	dev_dbg(vin->dev, "%s, pix->pixelformat: %s\n", __func__, fourcc_to_str(pix->pixelformat));
+	//dev_dbg(vin->dev, "%s, pad_cfg: code: 0x%04x %ux%u\n",
+	//	__func__, pad_cfg->try_fmt.code, pad_cfg->try_fmt.width, pad_cfg->try_fmt.height);
+	//dev_dbg(vin->dev, "%s, pix->pixelformat: %s\n", __func__, fourcc_to_str(pix->pixelformat));
 
 	if (!vin_format_from_pixel(vin, pix->pixelformat))
 		pix->pixelformat = VIN_DEFAULT_FORMAT;
@@ -454,7 +459,7 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 	width = pix->width;
 	height = pix->height;
 
-	ret = v4l2_subdev_call(sd, pad, set_fmt, pad_cfg, &format);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, sd_state, &format);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		goto done;
 	ret = 0;
@@ -479,7 +484,7 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 	vin_format_align(vin, pix);
 
 done:
-	v4l2_subdev_free_pad_config(pad_cfg);
+	__v4l2_subdev_state_free(sd_state);
 
 	return ret;
 }
@@ -570,7 +575,7 @@ static int vin_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	struct media_pad *pad;
 	int ret;
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -598,7 +603,7 @@ static int vin_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	struct media_pad *pad;
 	int ret;
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -683,7 +688,7 @@ static int vin_enum_framesizes(struct file *file, void *fh,
 	fse.code = sd_fmt->mbus_code;
 
 	/* Use media pad to get v4l2 subdevice */
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -726,7 +731,7 @@ static int vin_enum_frameintervals(struct file *file, void *fh,
 	fie.code = sd_fmt->mbus_code;
 
 	/* Use media pad to get v4l2 subdevice */
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -811,7 +816,7 @@ static int vin_mc_try_format_default(struct vin_dev *vin, u32 which,
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -1295,7 +1300,7 @@ int vin_v4l2_formats_init(struct vin_dev *vin)
 	};
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -1372,7 +1377,7 @@ int vin_v4l2_framesizes_init(struct vin_dev *vin)
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 

@@ -4,3 +4,4 @@
 #
 
 obj-y += display/sp7350/
+obj-y += mipicsi/
