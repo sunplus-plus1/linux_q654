@@ -23,7 +23,7 @@ struct rsa_priv_data {
 	struct rsa_para p2;
 	struct rsa_para mode;
 
-	struct mutex lock;
+	struct mutex lock; // hw lock
 	wait_queue_head_t wait;
 	u32 wait_flag;
 
@@ -97,7 +97,7 @@ rsabase_t mont_w(struct rsa_para *mod)
 #ifdef RSA_DATA_BIGENDBIAN
 	u32 pos = mod->crp_bytes - sizeof(mode);
 
-	mode = *(rsabase_t *) (mod->crp_p + pos);
+	mode = *(rsabase_t *)(mod->crp_p + pos);
 	mode = sp_rsabase_be_to_cpu(mode);
 #else
 	memcpy(&mode, mod->crp_p, sizeof(mode));
@@ -158,7 +158,7 @@ static int sp_rsa_cmp(struct rsa_para *a, struct rsa_para *b)
  * res.crp_p base.crp_p exp.crp_p mod.crp_p must physical continuity
  */
 int sp_powm(struct rsa_para *res, struct rsa_para *base,
-				 struct rsa_para *exp, struct rsa_para *mod)
+	    struct rsa_para *exp, struct rsa_para *mod)
 {
 	struct sp_crypto_reg *reg = rsa_priv.dev->reg;
 	struct device *dev = rsa_priv.dev->device;
@@ -167,10 +167,10 @@ int sp_powm(struct rsa_para *res, struct rsa_para *base,
 	int ret;
 
 	if (unlikely((base->crp_bytes & RSA_BYTES_MASK) ||
-		(exp->crp_bytes & RSA_BYTES_MASK) ||
-		(mod->crp_bytes & RSA_BYTES_MASK))) {
-		dev_err(dev, "invalid arg: base->crp_bytes = 0x%x, exp->crp_bytes = 0x%x, mod->crp_bytes = 0x%x",
-				base->crp_bytes, exp->crp_bytes, mod->crp_bytes);
+		     (exp->crp_bytes & RSA_BYTES_MASK) ||
+		     (mod->crp_bytes & RSA_BYTES_MASK))) {
+		dev_err(dev, "invalid arg: %x %x %x",
+			base->crp_bytes, exp->crp_bytes, mod->crp_bytes);
 		return -EINVAL;
 	}
 
@@ -205,7 +205,7 @@ int sp_powm(struct rsa_para *res, struct rsa_para *base,
 #else
 	W(RSADMACS, SEC_DMA_SIZE(rsa_bytes) | SEC_DATA_LE | SEC_DMA_ENABLE);
 #endif
-	ret = wait_event_interruptible_timeout(rsa_priv.wait, rsa_priv.wait_flag, 30*HZ);
+	ret = wait_event_interruptible_timeout(rsa_priv.wait, rsa_priv.wait_flag, 30 * HZ);
 	mutex_unlock(&rsa_priv.lock);
 	if (!ret) {
 		dev_err(dev, "wait RSA timeout\n");
