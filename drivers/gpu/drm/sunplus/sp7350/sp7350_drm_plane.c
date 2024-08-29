@@ -993,15 +993,24 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	//struct drm_device *drm = sp_plane->base.dev;
 	//struct sp7350_dev *sp_dev = to_sp7350_dev(drm);
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
-	struct sp7350_plane_state *sp_state = to_sp7350_plane_state(new_state);
+	struct drm_plane_state *old_state = NULL;
+	struct drm_plane_state *new_state = NULL;
+	struct sp7350_plane_state *sp_state = NULL;
 	#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
 	int32_t dst_w;
 	int32_t dst_h;
 	int32_t dst_x;
 	int32_t dst_y;
 	#endif
+
+	if (state) {
+		old_state = drm_atomic_get_old_plane_state(state, plane);
+		new_state = drm_atomic_get_new_plane_state(state, plane);
+	}
+	else {
+		new_state = plane->state;
+	}
+	sp_state = to_sp7350_plane_state(new_state);
 
 	/* reference to ade_plane_atomic_update */
 	if (!new_state->fb || !new_state->crtc) {
@@ -1112,13 +1121,22 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	//struct drm_device *drm = sp_plane->base.dev;
 	//struct sp7350_dev *sp_dev = to_sp7350_dev(drm);
-	struct drm_plane_state *old_state = drm_atomic_get_old_plane_state(state, plane);
-	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
-	struct sp7350_plane_state *sp_state = to_sp7350_plane_state(new_state);
-	struct sp7350_osd_region *info = &sp_state->info;
+	struct drm_plane_state *old_state = NULL;
+	struct drm_plane_state *new_state = NULL;
+	struct sp7350_plane_state *sp_state = NULL;
+	struct sp7350_osd_region *info = NULL;
 	//struct drm_format_name_buf format_name;
 	bool updated = false;
 
+	if (state) {
+		old_state = drm_atomic_get_old_plane_state(state, plane);
+		new_state = drm_atomic_get_new_plane_state(state, plane);
+	}
+	else {
+		new_state = plane->state;
+	}
+	sp_state = to_sp7350_plane_state(new_state);
+	info = &sp_state->info;
 
 	if (!new_state->fb || !new_state->crtc) {
 		/* disable this plane */
