@@ -380,8 +380,8 @@ config SOC_SP7350
 	select COMMON_CLK_SP7350
 	select RESET_CONTROLLER
 	select RESET_SUNPLUS
-	select SERIAL_SUNPLUS
-	select SERIAL_SUNPLUS_CONSOLE
+	select SERIAL_SUNPLUS_SP7350
+	select SERIAL_SUNPLUS_SP7350_CONSOLE
 	select GPIOLIB
 	help
 	  This enables support of Sunplus SP7350 Soc
