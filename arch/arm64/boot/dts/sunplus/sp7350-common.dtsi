@@ -931,7 +931,7 @@
 	};
 
 	hwlock: hwspinlock@f800f880 {
-		compatible = "sp,sunplus-hwspinlock";
+		compatible = "sunplus,sp-hwspinlock";
 		#hwlock-cells = <1>;
 		reg = <0 0xf800f880 0 0x80>;
 		clocks = <&clkc SEMAPHORE>;
