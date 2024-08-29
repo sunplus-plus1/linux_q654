@@ -40,18 +40,22 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     aliases {
         serial0 = &uart0;
     };
 
-    uart0: serial@f8801900 {
-        compatible = "sunplus,sp7350-uart";
-        reg = <0x00 0xf8801900 0x00 0x80>;
-        interrupt-parent = <&gic>;
-        interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
-        clocks = <&clkc 0x56>;
-        resets = <&rstc 0x56>;
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      uart0: serial@f8801900 {
+          compatible = "sunplus,sp7350-uart";
+          reg = <0x00 0xf8801900 0x00 0x80>;
+          interrupt-parent = <&gic>;
+          interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+          clocks = <&clkc 0x56>;
+          resets = <&rstc 0x56>;
+      };
     };
 ...
