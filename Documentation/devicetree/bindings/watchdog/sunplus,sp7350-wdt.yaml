@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2024
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/sunplus,sp7350-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SoCs Watchdog
+
+maintainers:
+  - XianTao Hu <xt.hu@sunmedia.com.cn>
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    const: sunplus,sp7350-wdt
+
+  reg:
+    items:
+      - description: watchdog control and counter registers regions
+      - description: watchdog mode select and pretimeout registers regions
+      - description: watchdog reset enable registers regions
+      - description: STC pre-scaling registers regions
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+      watchdog: watchdog@f800061c {
+          compatible = "sunplus,sp7350-wdt";
+          reg = <0x00 0xf800061c 0x00 0x08>, <0x00 0xf800066c 0x00 0x08>,
+                <0x00 0xf8800258 0x00 0x04>, <0x00 0xf800060c 0x00 0x04>;
+          interrupt-parent = <&gic>;
+          interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
+          clocks = <&clkc STC_AV3>;
+          resets = <&rstc RST_STC_AV3>;
+      };
+    };
+...

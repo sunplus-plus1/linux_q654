@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 
-
 #include <linux/clk.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
@@ -13,8 +12,6 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 #include <linux/hwspinlock.h>
-
-#define TRACE	printk("!!! %s:%d !!!\n", __FUNCTION__, __LINE__)
 
 #define MIN_VOLT_SHIFT		(100000)
 #define MAX_VOLT_SHIFT		(200000)
@@ -50,7 +47,7 @@ static LIST_HEAD(dvfs_info_list);
 
 #define MEMCTL_HWM	0x03ff0000
 static void __iomem *ca55_memctl;
-extern void __iomem *sp_clk_reg_base(void);
+void __iomem *sp_clk_reg_base(void);
 
 static void sp_clkc_ca55_memctl(u32 val)
 {
@@ -74,12 +71,13 @@ static struct sp7350_cpu_dvfs_info *sp7350_cpu_dvfs_info_lookup(int cpu)
 void sp7350_dvfs_unlock(void)
 {
 	struct sp7350_cpu_dvfs_info *info = sp7350_cpu_dvfs_info_lookup(0);
+
 	hwspin_unlock_raw(info->hwlock);
 }
 EXPORT_SYMBOL_GPL(sp7350_dvfs_unlock);
 
 static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
-				  unsigned int index)
+				     unsigned int index)
 {
 	struct cpufreq_frequency_table *freq_table = policy->freq_table;
 	struct clk *cpu_clk = policy->clk;
@@ -99,8 +97,7 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 	//pr_debug("\n>>> %s: %lu -> %lu\n", __FUNCTION__, clk_get_rate(cpu_clk), new_freq);
 	opp = dev_pm_opp_find_freq_ceil(cpu_dev, &new_freq);
 	if (IS_ERR(opp)) {
-		pr_err("cpu%d: failed to find OPP for %ld\n",
-		policy->cpu, new_freq);
+		pr_err("cpu%d: failed to find OPP for %ld\n", policy->cpu, new_freq);
 		ret = PTR_ERR(opp);
 		goto dvfs_exit;
 	}
@@ -116,15 +113,15 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		}
 
 		/*
-		* If the new voltage is higher than the current voltage,
-		* scale up voltage first.
-		*/
+		 * If the new voltage is higher than the current voltage,
+		 * scale up voltage first.
+		 */
 		if (old_vproc < new_vproc) {
 			//pr_debug(">>> scale up voltage from %d to %d\n", old_vproc, new_vproc);
-			ret = regulator_set_voltage(info->proc_reg, new_vproc, new_vproc + VOLT_TOL);
+			ret = regulator_set_voltage(info->proc_reg, new_vproc,
+						    new_vproc + VOLT_TOL);
 			if (ret) {
-				pr_err("cpu%d: failed to scale up voltage!\n",
-				policy->cpu);
+				pr_err("cpu%d: failed to scale up voltage!\n", policy->cpu);
 				goto dvfs_exit;
 			}
 		}
@@ -143,8 +140,7 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 		/* Set the cpu_clk/L3_clk to target rate. */
 		ret = clk_set_rate(cpu_clk, new_freq);
 		ret = clk_set_rate(info->l3_clk, L3_F(new_freq));
-	}
-	else if (new_freq < old_freq) {
+	} else if (new_freq < old_freq) {
 		/* WORKAROUND: enter slow mode with freq @ 0.5G */
 		if (old_freq > MAX_F_SLOW && new_freq <= MAX_F_SLOW) {
 			clk_set_rate(info->l3_clk, L3_F(MIN_F_SLOW));
@@ -162,15 +158,15 @@ static int sp7350_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	if (info->proc_reg) {
 		/*
-		* If the new voltage is lower than the current voltage,
-		* scale down to the new voltage.
-		*/
+		 * If the new voltage is lower than the current voltage,
+		 * scale down to the new voltage.
+		 */
 		if (new_vproc < old_vproc) {
 			//pr_debug(">>> scale down voltage from %d to %d\n", old_vproc, new_vproc);
-			ret = regulator_set_voltage(info->proc_reg, new_vproc, new_vproc + VOLT_TOL);
+			ret = regulator_set_voltage(info->proc_reg, new_vproc,
+						    new_vproc + VOLT_TOL);
 			if (ret) {
-				pr_err("cpu%d: failed to scale down voltage!\n",
-				policy->cpu);
+				pr_err("cpu%d: failed to scale down voltage!\n", policy->cpu);
 				goto dvfs_exit;
 			}
 		}
@@ -200,42 +196,33 @@ static int sp7350_cpu_dvfs_info_init(struct sp7350_cpu_dvfs_info *info, int cpu)
 
 	cpu_clk = clk_get(cpu_dev, NULL);
 	if (IS_ERR(cpu_clk)) {
-		if (PTR_ERR(cpu_clk) == -EPROBE_DEFER)
-			pr_warn("cpu clk for cpu%d not ready, retry.\n", cpu);
-		else
-			pr_err("failed to get cpu clk for cpu%d\n", cpu);
-
 		ret = PTR_ERR(cpu_clk);
+		if (ret != -EPROBE_DEFER)
+			pr_err("failed to get cpu clk for cpu%d\n", cpu);
 		return ret;
 	}
 
 	l3_clk = clk_get(cpu_dev, "PLLL3");
 	if (IS_ERR(l3_clk)) {
-		if (PTR_ERR(l3_clk) == -EPROBE_DEFER)
-			pr_warn("l3 clk for cpu%d not ready, retry.\n", cpu);
-		else
+		ret = PTR_ERR(l3_clk);
+		if (ret != -EPROBE_DEFER)
 			pr_err("failed to get l3 clk for cpu%d\n", cpu);
 
-		ret = PTR_ERR(l3_clk);
 		return ret;
 	}
 
 	proc_reg = regulator_get_optional(cpu_dev, "proc");
 	if (IS_ERR(proc_reg)) {
-		if (PTR_ERR(proc_reg) == -EPROBE_DEFER)
-			pr_warn("proc regulator for cpu%d not ready\n",
-				cpu);
-		else
-			pr_warn("failed to get proc regulator for cpu%d\n",
-			       cpu);
-		proc_reg = NULL;
+		ret = PTR_ERR(proc_reg);
+		if (ret != -EPROBE_DEFER)
+			pr_err("failed to get proc regulator for cpu%d\n", cpu);
+		return ret;
 	}
 
 	/* Get OPP-sharing information from "operating-points-v2" bindings */
 	ret = dev_pm_opp_of_get_sharing_cpus(cpu_dev, &info->cpus);
 	if (ret) {
-		pr_err("failed to get OPP-sharing information for cpu%d\n",
-		       cpu);
+		pr_err("failed to get OPP-sharing information for cpu%d\n", cpu);
 		goto out_free_resources;
 	}
 
@@ -343,12 +330,10 @@ static int sp7350_cpufreq_probe(struct platform_device *pdev)
 		}
 
 		ret = sp7350_cpu_dvfs_info_init(info, cpu);
-		if (ret) {
-			dev_err(&pdev->dev,
-				"failed to initialize dvfs info for cpu%d\n",
-				cpu);
+		if (ret && ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to initialize dvfs info for cpu%d\n", cpu);
+		if (ret)
 			goto release_dvfs_info_list;
-		}
 
 		list_add(&info->list_head, &dvfs_info_list);
 	}
@@ -367,7 +352,7 @@ static int sp7350_cpufreq_probe(struct platform_device *pdev)
 		hwspin_lock_free(info->hwlock);
 		goto release_dvfs_info_list;
 	}
-	
+
 	return 0;
 
 release_dvfs_info_list:
