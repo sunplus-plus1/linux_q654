@@ -16,6 +16,53 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+static void sunplus_fix_mac_speed(void *priv, unsigned int speed,
+				unsigned int mode)
+{
+	struct stmmac_priv *stmmac = (struct stmmac_priv *)priv;
+	unsigned long rate;
+	int ret;
+
+	clk_disable(stmmac->plat->stmmac_clk);
+	clk_unprepare(stmmac->plat->stmmac_clk);
+
+	if (stmmac->plat->phy_interface == PHY_INTERFACE_MODE_RMII) {
+		switch (speed) {
+		case SPEED_100:
+			rate = 50000000;
+			break;
+		case SPEED_10:
+			rate = 5000000;
+			break;
+		default:
+			dev_err(stmmac->device, "Invalid speed!\n");
+			break;
+		}
+	} else {
+		switch (speed) {
+		case SPEED_1000:
+			rate = 125000000;
+			break;
+		case SPEED_100:
+			rate = 25000000;
+			break;
+		case SPEED_10:
+			rate = 2500000;
+			break;
+		default:
+			dev_err(stmmac->device, "Invalid speed!\n");
+			break;
+		}
+	}
+
+	ret = clk_set_rate(stmmac->plat->stmmac_clk, rate);
+	if (ret)
+		dev_err(stmmac->device, "Failed to configure stmmac clock rate!\n");
+	clk_prepare_enable(stmmac->plat->stmmac_clk);
+}
+#endif
+
 static int dwmac_generic_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -45,6 +92,10 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 		/* Set default value for unicast filter entries */
 		plat_dat->unicast_filter_entries = 1;
 	}
+
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+	plat_dat->fix_mac_speed = sunplus_fix_mac_speed;
+#endif
 
 	ret = stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 	if (ret)

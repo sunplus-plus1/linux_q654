@@ -20,6 +20,9 @@
 #include <net/tc_act/tc_gact.h>
 #include "stmmac.h"
 
+#define ONLY_TEST_PHYLOOPBACK 1
+//#define ONLY_TEST_MAC2MAC 1
+
 struct stmmachdr {
 	__be32 version;
 	__be64 magic;
@@ -216,6 +219,7 @@ static struct sk_buff *stmmac_test_get_udp_skb(struct stmmac_priv *priv,
 	return skb;
 }
 
+#ifndef ONLY_TEST_PHYLOOPBACK
 static struct sk_buff *stmmac_test_get_arp_skb(struct stmmac_priv *priv,
 					       struct stmmac_packet_attrs *attr)
 {
@@ -233,6 +237,7 @@ static struct sk_buff *stmmac_test_get_arp_skb(struct stmmac_priv *priv,
 
 	return skb;
 }
+#endif
 
 struct stmmac_test_priv {
 	struct stmmac_packet_attrs *packet;
@@ -366,6 +371,7 @@ cleanup:
 	return ret;
 }
 
+#ifndef ONLY_TEST_PHYLOOPBACK
 static int stmmac_test_mac_loopback(struct stmmac_priv *priv)
 {
 	struct stmmac_packet_attrs attr = { };
@@ -373,26 +379,32 @@ static int stmmac_test_mac_loopback(struct stmmac_priv *priv)
 	attr.dst = priv->dev->dev_addr;
 	return __stmmac_test_loopback(priv, &attr);
 }
+#endif
 
 static int stmmac_test_phy_loopback(struct stmmac_priv *priv)
 {
 	struct stmmac_packet_attrs attr = { };
 	int ret;
-
+#ifndef ONLY_TEST_MAC2MAC
 	if (!priv->dev->phydev)
 		return -EOPNOTSUPP;
-
+#endif
+#ifndef ONLY_TEST_PHYLOOPBACK
 	ret = phy_loopback(priv->dev->phydev, true);
 	if (ret)
 		return ret;
+#endif
 
 	attr.dst = priv->dev->dev_addr;
 	ret = __stmmac_test_loopback(priv, &attr);
 
+#ifndef ONLY_TEST_PHYLOOPBACK
 	phy_loopback(priv->dev->phydev, false);
+#endif
 	return ret;
 }
 
+#ifndef ONLY_TEST_PHYLOOPBACK
 static int stmmac_test_mmc(struct stmmac_priv *priv)
 {
 	struct stmmac_counters initial, final;
@@ -1819,6 +1831,19 @@ fail_disable:
 #define STMMAC_LOOPBACK_MAC	1
 #define STMMAC_LOOPBACK_PHY	2
 
+#ifdef ONLY_TEST_PHYLOOPBACK
+static const struct stmmac_test {
+	char name[ETH_GSTRING_LEN];
+	int lb;
+	int (*fn)(struct stmmac_priv *priv);
+} stmmac_selftests[] = {
+	{
+		.name = "PHY Loopback               ",
+		.lb = STMMAC_LOOPBACK_PHY, /* Test will handle it */
+		.fn = stmmac_test_phy_loopback,
+	},
+};
+#else
 static const struct stmmac_test {
 	char name[ETH_GSTRING_LEN];
 	int lb;
@@ -1954,6 +1979,7 @@ static const struct stmmac_test {
 		.fn = stmmac_test_tbs,
 	},
 };
+#endif
 
 void stmmac_selftest_run(struct net_device *dev,
 			 struct ethtool_test *etest, u64 *buf)
@@ -1961,6 +1987,9 @@ void stmmac_selftest_run(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int count = stmmac_selftest_get_count(priv);
 	int i, ret;
+#ifdef ONLY_TEST_PHYLOOPBACK
+	int j, fail_count = 0;
+#endif
 
 	memset(buf, 0, sizeof(*buf) * count);
 	stmmac_test_next_id = 0;
@@ -1978,6 +2007,111 @@ void stmmac_selftest_run(struct net_device *dev,
 	/* Wait for queues drain */
 	msleep(200);
 
+#ifdef ONLY_TEST_MAC2MAC
+	for (j = 0; j <= 100; j++) {
+		for (i = 0; i < count; i++) {
+			ret = 0;
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				break;
+			default:
+				ret = -EOPNOTSUPP;
+				break;
+			}
+
+			/* First tests will always be MAC / PHY loobpack. If any of
+			 * them is not supported we abort earlier.
+			 */
+			if (ret) {
+				netdev_err(priv->dev, "Loopback is not supported\n");
+				etest->flags |= ETH_TEST_FL_FAILED;
+				break;
+			}
+
+			ret = stmmac_selftests[i].fn(priv);
+			netdev_info(priv->dev, "packet test result:%d\n", ret);
+			if (ret && (ret != -EOPNOTSUPP)) {
+				etest->flags |= ETH_TEST_FL_FAILED;
+				fail_count++;
+			}
+
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				if ((fail_count) || (j == 100)) {
+					if (fail_count) {
+						j = 101;
+						netdev_err(priv->dev, "ETH test fail\n");
+						buf[i] = -110;
+					} else {
+						buf[i] = ret;
+					}
+				}
+				break;
+			default:
+				break;
+			}
+		}
+	}
+#elif defined ONLY_TEST_PHYLOOPBACK
+	for (j = 0; j <= 10; j++) {
+		for (i = 0; i < count; i++) {
+			ret = 0;
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				if (j == 0) {
+					ret = -EOPNOTSUPP;
+					if (dev->phydev)
+						ret = phy_loopback(dev->phydev, true);
+
+					if (!ret)
+						break;
+				}
+				break;
+			default:
+				ret = -EOPNOTSUPP;
+				break;
+			}
+
+			/* First tests will always be MAC / PHY loobpack. If any of
+			 * them is not supported we abort earlier.
+			 */
+			if (ret) {
+				netdev_err(priv->dev, "Loopback is not supported\n");
+				etest->flags |= ETH_TEST_FL_FAILED;
+				break;
+			}
+
+			ret = stmmac_selftests[i].fn(priv);
+			//printk("packet test result:%d\n",ret);
+			if (ret && (ret != -EOPNOTSUPP)) {
+				etest->flags |= ETH_TEST_FL_FAILED;
+				fail_count++;
+				//printk("packet test fail:%d\n",fail_count);
+			}
+
+			switch (stmmac_selftests[i].lb) {
+			case STMMAC_LOOPBACK_PHY:
+				if ((fail_count) || (j == 10)) {
+					if (fail_count) {
+						j = 11;
+						netdev_err(priv->dev, "ETH test fail\n");
+						buf[i] = -110;
+					} else {
+						buf[i] = ret;
+					}
+					ret = -EOPNOTSUPP;
+					if (dev->phydev)
+						ret = phy_loopback(dev->phydev, false);
+					if (!ret)
+						break;
+				}
+				break;
+			default:
+				break;
+			}
+		}
+	}
+#else
 	for (i = 0; i < count; i++) {
 		ret = 0;
 
@@ -2029,6 +2163,7 @@ void stmmac_selftest_run(struct net_device *dev,
 			break;
 		}
 	}
+#endif
 }
 
 void stmmac_selftest_get_strings(struct stmmac_priv *priv, u8 *data)

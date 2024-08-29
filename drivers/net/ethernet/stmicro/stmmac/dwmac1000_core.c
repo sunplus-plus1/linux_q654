@@ -28,7 +28,12 @@ static void dwmac1000_core_init(struct mac_device_info *hw,
 	int mtu = dev->mtu;
 
 	/* Configure GMAC core */
+#ifndef SKIP_PHY
 	value |= GMAC_CORE_INIT;
+#else
+	value |= (GMAC_CONTROL_JD | GMAC_CONTROL_DM | GMAC_CONTROL_ACS | GMAC_CONTROL_BE | GMAC_CONTROL_DCRS);
+#endif
+
 
 	if (mtu > 1500)
 		value |= GMAC_CONTROL_2K;

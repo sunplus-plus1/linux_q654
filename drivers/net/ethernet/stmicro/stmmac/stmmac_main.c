@@ -88,7 +88,12 @@ MODULE_PARM_DESC(phyaddr, "Physical device address");
 #define STMMAC_XDP_TX		BIT(1)
 #define STMMAC_XDP_REDIRECT	BIT(2)
 
+#ifndef SKIP_PHY
 static int flow_ctrl = FLOW_AUTO;
+#else
+static int flow_ctrl = FLOW_OFF;
+#endif
+
 module_param(flow_ctrl, int, 0644);
 MODULE_PARM_DESC(flow_ctrl, "Flow control ability [on/off]");
 
@@ -918,7 +923,9 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 
 static void stmmac_release_ptp(struct stmmac_priv *priv)
 {
+#if !IS_ENABLED(CONFIG_SOC_SP7350)
 	clk_disable_unprepare(priv->plat->clk_ptp_ref);
+#endif
 	stmmac_ptp_unregister(priv);
 }
 
@@ -1003,6 +1010,7 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	old_ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
 	ctrl = old_ctrl & ~priv->hw->link.speed_mask;
 
+#ifndef SKIP_PHY
 	if (interface == PHY_INTERFACE_MODE_USXGMII) {
 		switch (speed) {
 		case SPEED_10000:
@@ -1061,16 +1069,26 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 			return;
 		}
 	}
-
+#else
+	ctrl |= priv->hw->link.speed1000;
+#endif
 	priv->speed = speed;
 
 	if (priv->plat->fix_mac_speed)
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+		priv->plat->fix_mac_speed(priv, speed, mode);
+#else
 		priv->plat->fix_mac_speed(priv->plat->bsp_priv, speed, mode);
+#endif
 
+#ifndef SKIP_PHY
 	if (!duplex)
 		ctrl &= ~priv->hw->link.duplex;
 	else
 		ctrl |= priv->hw->link.duplex;
+#else
+	ctrl |= priv->hw->link.duplex;
+#endif
 
 	/* Flow Control operation */
 	if (rx_pause && tx_pause)
@@ -1200,6 +1218,7 @@ static int stmmac_init_phy(struct net_device *dev)
 
 static int stmmac_phy_setup(struct stmmac_priv *priv)
 {
+#ifndef SKIP_PHY
 	struct stmmac_mdio_bus_data *mdio_bus_data;
 	int mode = priv->plat->phy_interface;
 	struct fwnode_handle *fwnode;
@@ -1245,6 +1264,24 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 
 	priv->phylink = phylink;
 	return 0;
+#else
+	u32 ctrl;
+
+	ctrl = readl(priv->ioaddr + MAC_CTRL_REG);
+	ctrl &= ~priv->hw->link.speed_mask;
+	ctrl |= priv->hw->link.speed1000;
+
+	priv->speed = SPEED_1000;
+	if (priv->plat->fix_mac_speed)
+		priv->plat->fix_mac_speed(priv->plat->bsp_priv, priv->speed);
+
+	ctrl |= priv->hw->link.duplex;
+
+	writel(ctrl, priv->ioaddr + MAC_CTRL_REG);
+	printk(KERN_INFO "3. MAC config reg = 0x%08x\n", readl(priv->ioaddr + MAC_CTRL_REG));
+
+	return 0;
+#endif
 }
 
 static void stmmac_display_rx_rings(struct stmmac_priv *priv,
@@ -2928,6 +2965,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	u32 chan = 0;
 	int atds = 0;
 	int ret = 0;
+	int retry, retry_cnt = 5;
 
 	if (!priv->plat->dma_cfg || !priv->plat->dma_cfg->pbl) {
 		dev_err(priv->device, "Invalid DMA configuration\n");
@@ -2937,7 +2975,14 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
 		atds = 1;
 
-	ret = stmmac_reset(priv, priv->ioaddr);
+	for (retry = 0; retry < retry_cnt; retry++) {
+		ret = stmmac_reset(priv, priv->ioaddr);
+		if (!ret)
+			break;
+		dev_info(priv->device, "Retry to reset the dma\n");
+		msleep(300);
+	}
+
 	if (ret) {
 		dev_err(priv->device, "Failed to reset the dma\n");
 		return ret;
@@ -3449,9 +3494,11 @@ static int stmmac_hw_setup(struct net_device *dev, bool ptp_register)
 
 static void stmmac_hw_teardown(struct net_device *dev)
 {
+#if  !IS_ENABLED(CONFIG_SOC_SP7350)
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	clk_disable_unprepare(priv->plat->clk_ptp_ref);
+#endif
 }
 
 static void stmmac_free_irq(struct net_device *dev,
@@ -3819,6 +3866,7 @@ static int __stmmac_open(struct net_device *dev,
 	if (ret < 0)
 		return ret;
 
+#ifndef SKIP_PHY
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI &&
 	    (!priv->hw->xpcs ||
@@ -3832,6 +3880,7 @@ static int __stmmac_open(struct net_device *dev,
 			goto init_phy_error;
 		}
 	}
+#endif
 
 	priv->rx_copybreak = STMMAC_RX_COPYBREAK;
 
@@ -3861,9 +3910,11 @@ static int __stmmac_open(struct net_device *dev,
 
 	stmmac_init_coalesce(priv);
 
+#ifndef SKIP_PHY
 	phylink_start(priv->phylink);
 	/* We may have called phylink_speed_down before */
 	phylink_speed_up(priv->phylink);
+#endif
 
 	ret = stmmac_request_irq(dev);
 	if (ret)
@@ -3876,14 +3927,18 @@ static int __stmmac_open(struct net_device *dev,
 	return 0;
 
 irq_error:
+#ifndef SKIP_PHY
 	phylink_stop(priv->phylink);
+#endif
 
 	for (chan = 0; chan < priv->plat->tx_queues_to_use; chan++)
 		hrtimer_cancel(&priv->dma_conf.tx_queue[chan].txtimer);
 
 	stmmac_hw_teardown(dev);
 init_error:
+#ifndef SKIP_PHY
 	phylink_disconnect_phy(priv->phylink);
+#endif
 init_phy_error:
 	pm_runtime_put(priv->device);
 	return ret;
@@ -3930,11 +3985,13 @@ static int stmmac_release(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 chan;
 
+#ifndef SKIP_PHY
 	if (device_may_wakeup(priv->device))
 		phylink_speed_down(priv->phylink, false);
 	/* Stop and disconnect the PHY */
 	phylink_stop(priv->phylink);
 	phylink_disconnect_phy(priv->phylink);
+#endif
 
 	stmmac_disable_all_queues(priv);
 
@@ -6030,7 +6087,9 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
+#ifndef SKIP_PHY
 		ret = phylink_mii_ioctl(priv->phylink, rq, cmd);
+#endif
 		break;
 	case SIOCSHWTSTAMP:
 		ret = stmmac_hwtstamp_set(dev, rq);
@@ -7576,6 +7635,7 @@ int stmmac_dvr_probe(struct device *device,
 	if (!pm_runtime_enabled(device))
 		pm_runtime_enable(device);
 
+#ifndef SKIP_PHY
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
 	    priv->hw->pcs != STMMAC_PCS_RTBI) {
 		/* MDIO bus Registration */
@@ -7587,6 +7647,7 @@ int stmmac_dvr_probe(struct device *device,
 			goto error_mdio_register;
 		}
 	}
+#endif
 
 	if (priv->plat->speed_mode_2500)
 		priv->plat->speed_mode_2500(ndev, priv->plat->bsp_priv);
@@ -7625,7 +7686,9 @@ int stmmac_dvr_probe(struct device *device,
 	return ret;
 
 error_netdev_register:
+#ifndef SKIP_PHY
 	phylink_destroy(priv->phylink);
+#endif
 error_xpcs_setup:
 error_phy_setup:
 	if (priv->hw->pcs != STMMAC_PCS_TBI &&
@@ -7665,7 +7728,9 @@ void stmmac_dvr_remove(struct device *dev)
 #ifdef CONFIG_DEBUG_FS
 	stmmac_exit_fs(ndev);
 #endif
+#ifndef SKIP_PHY
 	phylink_destroy(priv->phylink);
+#endif
 	if (priv->plat->stmmac_rst)
 		reset_control_assert(priv->plat->stmmac_rst);
 	reset_control_assert(priv->plat->stmmac_ahb_rst);
@@ -7696,6 +7761,10 @@ int stmmac_suspend(struct device *dev)
 
 	if (!ndev || !netif_running(ndev))
 		return 0;
+
+#ifndef SKIP_PHY
+	phylink_mac_change(priv->phylink, false);
+#endif
 
 	mutex_lock(&priv->lock);
 
@@ -7728,6 +7797,7 @@ int stmmac_suspend(struct device *dev)
 
 	mutex_unlock(&priv->lock);
 
+#ifndef SKIP_PHY
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_suspend(priv->phylink, true);
@@ -7737,6 +7807,7 @@ int stmmac_suspend(struct device *dev)
 		phylink_suspend(priv->phylink, false);
 	}
 	rtnl_unlock();
+#endif
 
 	if (priv->dma_cap.fpesel) {
 		/* Disable FPE */
@@ -7832,6 +7903,7 @@ int stmmac_resume(struct device *dev)
 			return ret;
 	}
 
+#ifndef SKIP_PHY
 	rtnl_lock();
 	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		phylink_resume(priv->phylink);
@@ -7841,6 +7913,7 @@ int stmmac_resume(struct device *dev)
 			phylink_speed_up(priv->phylink);
 	}
 	rtnl_unlock();
+#endif
 
 	rtnl_lock();
 	mutex_lock(&priv->lock);
@@ -7861,6 +7934,10 @@ int stmmac_resume(struct device *dev)
 
 	mutex_unlock(&priv->lock);
 	rtnl_unlock();
+
+#ifndef SKIP_PHY
+	phylink_mac_change(priv->phylink, true);
+#endif
 
 	netif_device_attach(ndev);
 

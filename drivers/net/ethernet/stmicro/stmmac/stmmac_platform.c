@@ -940,7 +940,9 @@ static int __maybe_unused stmmac_pltfr_noirq_suspend(struct device *dev)
 
 	if (!device_may_wakeup(priv->device) || !priv->plat->pmt) {
 		/* Disable clock in case of PWM is off */
+#if !IS_ENABLED(CONFIG_SOC_SP7350)
 		clk_disable_unprepare(priv->plat->clk_ptp_ref);
+#endif
 
 		ret = pm_runtime_force_suspend(dev);
 		if (ret)
