@@ -511,17 +511,16 @@ static void spmmc_set_bus_width(struct spmmc_host *host, int width)
 /**
  * select the working mode of controller: sd/sdio/emmc
  */
-static void spmmc_select_mode(struct spmmc_host *host, int mode)
+static void spmmc_select_mode(struct spmmc_host *host)
 {
 	u32 value = readl(&host->base->sd_config0);
 
-	host->mode = mode;
 	/* set `sdmmcmode', as it will sample data at fall edge */
 	/* of SD bus clock if `sdmmcmode' is not set when */
 	/* `sd_high_speed_en' is not set, which is not compliant */
 	/* with SD specification */
 	value = bitfield_replace(value, 10, 1, 1);
-	switch (mode) {
+	switch (host->mode) {
 	case SPMMC_MODE_EMMC:
 		value = bitfield_replace(value, 9, 1, 0);
 		writel(value, &host->base->sd_config0);
@@ -636,12 +635,12 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 		dma_addr_t dma_addr;
 		unsigned int dma_size;
 		#ifdef SPMMC_DMA_ALLOC
-		#ifndef SPMMC_HIGH_MEM		
+		#ifndef SPMMC_HIGH_MEM
 		unsigned int sg_xlen;
 		#endif
 		#endif
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		#ifndef SPMMC_HIGH_MEM		
+		#ifndef SPMMC_HIGH_MEM
 		struct scatterlist *sg;
 		int i;
 		u32 *reg_addr;
@@ -1136,8 +1135,9 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct spmmc_host *host = mmc_priv(mmc);
 	struct mmc_data *data;
 	struct mmc_command *cmd;
+	int ret = 0;
 
-	mutex_lock_interruptible(&host->mrq_lock);
+	ret = mutex_lock_interruptible(&host->mrq_lock);
 	host->mrq = mrq;
 	data = mrq->data;
 
@@ -1213,7 +1213,7 @@ static void spmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	spmmc_set_bus_timing(host, ios->timing);
 	spmmc_set_bus_width(host, ios->bus_width);
 	/* ensure mode is correct, because we might have hw reset the controller */
-	spmmc_select_mode(host, host->mode);
+	spmmc_select_mode(host);
 	mutex_unlock(&host->mrq_lock);
 	//return;
 }
@@ -1496,15 +1496,15 @@ static int config_mode_show(struct spmmc_host *host, char *buf)
 static int config_mode_store(struct spmmc_host *host, const char *arg)
 {
 	if (!strcasecmp("sd", arg)) {
-		spmmc_select_mode(host, SPMMC_MODE_SD);
+		spmmc_select_mode(host);
 		return SPMMC_CFG_REINIT;
 	}
 	if (!strcasecmp("sdio", arg)) {
-		spmmc_select_mode(host, SPMMC_MODE_SDIO);
+		spmmc_select_mode(host);
 		return SPMMC_CFG_REINIT;
 	}
 	if (!strcasecmp("emmc", arg)) {
-		spmmc_select_mode(host, SPMMC_MODE_EMMC);
+		spmmc_select_mode(host);
 		return SPMMC_CFG_REINIT;
 	}
 	return SPMMC_CFG_FAIL;
@@ -2327,9 +2327,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	struct resource *res_driving;
 	struct resource *res_pad_ctl2;
 	#endif
-
 	struct spmmc_host *host;
-	unsigned int mode;
 	u32 x;
 
 	ret = spmmc_device_create_sysfs(pdev);
@@ -2349,6 +2347,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	host->power_state = MMC_POWER_OFF;
 	host->dma_int_threshold = 1024;
 	host->dmapio_mode = SPMMC_DMA_MODE;
+	host->mode = SPMMC_MODE_EMMC;
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
@@ -2505,8 +2504,7 @@ ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
 
 	dev_set_drvdata(&pdev->dev, host);
 	spmmc_controller_init(host);
-	mode = (unsigned int)of_device_get_match_data(&pdev->dev);
-	spmmc_select_mode(host, mode);
+	spmmc_select_mode(host);
 	mmc_add_host(mmc);
 	host->tuning_info.enable_tuning = 1;
 	pm_runtime_set_active(&pdev->dev);
