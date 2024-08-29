@@ -30,7 +30,7 @@ struct csi2_dev;
 //#define MIPI_CSI_XTOR		/* Import RAW10 pattern from MIPI XTOR */
 //#define MIPI_CSI_QUALITY	/* Import test patterns from MIPI PHY */
 //#define MIPI_CSI_VC_TEST	/* Set VC in DI with sysfs for testing */
-#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
+//#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
 
 /* Max number on CSI instances that can be in a system */
 #define CSI_MAX_NUM 6
@@ -306,7 +306,6 @@ static int csi2_get_active_lanes(struct csi2_dev *priv,
 				  unsigned int *lanes)
 {
 	struct v4l2_mbus_config mbus_config = { 0 };
-	unsigned int num_lanes = UINT_MAX;
 	int ret;
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
@@ -336,23 +335,14 @@ static int csi2_get_active_lanes(struct csi2_dev *priv,
 		return -EINVAL;
 	}
 
-	if (mbus_config.flags & V4L2_MBUS_CSI2_1_LANE)
-		num_lanes = 1;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_2_LANE)
-		num_lanes = 2;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_3_LANE)
-		num_lanes = 3;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_4_LANE)
-		num_lanes = 4;
-
-	if (num_lanes > priv->lanes) {
+	if (mbus_config.bus.mipi_csi2.num_data_lanes > priv->lanes) {
 		dev_err(priv->dev,
 			"Unsupported mbus config: too many data lanes %u\n",
-			num_lanes);
+			mbus_config.bus.mipi_csi2.num_data_lanes);
 		return -EINVAL;
 	}
 
-	*lanes = num_lanes;
+	*lanes = mbus_config.bus.mipi_csi2.num_data_lanes;
 
 	return 0;
 }
@@ -865,7 +855,7 @@ static int csi_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int csi2_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -881,7 +871,7 @@ static int csi2_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int csi2_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -897,7 +887,7 @@ static int csi2_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int csi2_enum_frame_interval(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -913,7 +903,7 @@ static int csi2_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int csi2_set_pad_format(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_format *format)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -935,7 +925,7 @@ static int csi2_set_pad_format(struct v4l2_subdev *sd,
 
 			dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
-			ret = v4l2_subdev_call(priv->remote, pad, set_fmt, cfg, format);
+			ret = v4l2_subdev_call(priv->remote, pad, set_fmt, state, format);
 			if (ret < 0 && ret != -ENOIOCTLCMD)
 				return ret;
 
@@ -950,7 +940,7 @@ static int csi2_set_pad_format(struct v4l2_subdev *sd,
 			__func__, priv->mf.code, priv->mf.width, priv->mf.height);
 	} else {
 
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		framefmt = v4l2_subdev_get_try_format(sd, state, 0);
 		*framefmt = format->format;
 
 		dev_dbg(priv->dev, "%s, framefmt->code: 0x%x %ux%u\n",
@@ -961,7 +951,7 @@ static int csi2_set_pad_format(struct v4l2_subdev *sd,
 }
 
 static int csi2_get_pad_format(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_format *format)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -971,7 +961,7 @@ static int csi2_get_pad_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		format->format = priv->mf;
 	else
-		format->format = *v4l2_subdev_get_try_format(sd, cfg, 0);
+		format->format = *v4l2_subdev_get_try_format(sd, state, 0);
 
 	dev_dbg(priv->dev, "%s, code: 0x%x %ux%u\n", __func__,
 		format->format.code, format->format.width, format->format.height);
@@ -1005,14 +995,14 @@ static const struct v4l2_subdev_ops car_csi2_subdev_ops = {
 
 static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *priv = notifier_to_csi2(notifier);
 	int pad, ret = 0;
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+	pad = media_entity_get_fwnode_pad(&subdev->entity, asc->match.fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
@@ -1041,7 +1031,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *priv = notifier_to_csi2(notifier);
 
@@ -1056,6 +1046,8 @@ static const struct v4l2_async_notifier_operations csi2_notify_ops = {
 	.bound = csi2_notify_bound,
 	.unbind = csi2_notify_unbind,
 };
+
+#define V4L2_FWNODE_CSI2_MAX_DATA_LANES	4
 
 static int csi2_parse_v4l2(struct csi2_dev *priv,
 			    struct v4l2_fwnode_endpoint *vep)
@@ -1146,7 +1138,7 @@ static bool is_camera_probed(struct fwnode_handle *fwnode)
 
 static int csi2_parse_dt(struct csi2_dev *priv)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asc;
 	struct fwnode_handle *fwnode;
 	struct device_node *ep;
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
@@ -1246,22 +1238,20 @@ static int csi2_parse_dt(struct csi2_dev *priv)
 	}
 #endif
 
-	v4l2_async_notifier_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->subdev);
 	priv->notifier.ops = &csi2_notify_ops;
 
-	asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier, fwnode,
-						    sizeof(*asd));
+	asc = v4l2_async_nf_add_fwnode(&priv->notifier, fwnode,
+						    struct v4l2_async_connection);
 	fwnode_handle_put(fwnode);
-	if (IS_ERR(asd)) {
+	if (IS_ERR(asc)) {
 		dev_err(priv->dev, "Failed to add subdev notifier\n");
-		return PTR_ERR(asd);
+		return PTR_ERR(asc);
 	}
-
-	ret = v4l2_async_subdev_notifier_register(&priv->subdev,
-						  &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret) {
 		dev_err(priv->dev, "Failed to register notifier\n");
-		v4l2_async_notifier_cleanup(&priv->notifier);
+		v4l2_async_nf_cleanup(&priv->notifier);
 	}
 
 	return ret;
@@ -1514,8 +1504,8 @@ static int sp_csi2_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 
 	return ret;
 }
@@ -1526,8 +1516,8 @@ static int sp_csi2_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s, %d\n", __func__, __LINE__);
 
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 	v4l2_async_unregister_subdev(&priv->subdev);
 
 #ifdef CONFIG_PM_RUNTIME_MIPICSI

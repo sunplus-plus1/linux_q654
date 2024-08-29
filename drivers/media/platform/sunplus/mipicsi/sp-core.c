@@ -140,7 +140,7 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 	 * running streams.
 	 */
 	media_device_for_each_entity(entity, &group->mdev)
-		if (entity->stream_count)
+		if (media_entity_is_streaming(entity))
 			return -EBUSY;
 
 	mutex_lock(&group->lock);
@@ -537,7 +537,7 @@ static int vin_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void vin_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *subdev,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asc)
 {
 	struct vin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
@@ -551,7 +551,7 @@ static void vin_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < VIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].fwnode != asc->match.fwnode)
 			continue;
 		vin->group->csi[i].subdev = NULL;
 		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
@@ -565,7 +565,7 @@ static void vin_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int vin_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asc)
 {
 	struct vin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
@@ -575,7 +575,7 @@ static int vin_notify_bound(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < VIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].fwnode != asc->match.fwnode)
 			continue;
 		vin->group->csi[i].subdev = subdev;
 		vin_dbg(vin, "Bound CSI-2 %s to slot %u\n", subdev->name, i);
@@ -595,7 +595,7 @@ static const struct v4l2_async_notifier_operations vin_notify_ops = {
 
 static int vin_parse_of_endpoint(struct device *dev,
 				     struct v4l2_fwnode_endpoint *vep,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asc)
 {
 	struct vin_dev *vin = dev_get_drvdata(dev);
 	int ret = 0;
@@ -606,9 +606,9 @@ static int vin_parse_of_endpoint(struct device *dev,
 	if (vep->base.port != 1 || vep->base.id >= VIN_CSI_MAX)
 		return -EINVAL;
 
-	if (!of_device_is_available(to_of_node(asd->match.fwnode))) {
+	if (!of_device_is_available(to_of_node(asc->match.fwnode))) {
 		vin_dbg(vin, "OF device %pOF disabled, ignoring\n",
-			to_of_node(asd->match.fwnode));
+			to_of_node(asc->match.fwnode));
 		return -ENOTCONN;
 	}
 
@@ -616,28 +616,63 @@ static int vin_parse_of_endpoint(struct device *dev,
 
 	if (vin->group->csi[vep->base.id].fwnode) {
 		vin_dbg(vin, "OF device %pOF already handled\n",
-			to_of_node(asd->match.fwnode));
+			to_of_node(asc->match.fwnode));
 		ret = -ENOTCONN;
 		goto out;
 	}
 
 #if defined(MIPI_CSI_DYN_REG)
 	/* Check if the CSI2 device has a driver bound */
-	if (asd->match.fwnode->dev->driver == NULL) {
+	if (asc->match.fwnode->dev->driver == NULL) {
 		vin_err(vin, "OF device %pOF probe failed. Remove VIN%d from group\n",
-			to_of_node(asd->match.fwnode), vin->id);
+			to_of_node(asc->match.fwnode), vin->id);
 		vin->group->vin[vin->id] = NULL;
 		ret = -ENOTCONN;
 		goto out;
 	}
 #endif
-
-	vin->group->csi[vep->base.id].fwnode = asd->match.fwnode;
+	vin->group->csi[vep->base.id].fwnode = asc->match.fwnode;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
-		to_of_node(asd->match.fwnode), vep->base.id);
+		to_of_node(asc->match.fwnode), vep->base.id);
 out:
 	mutex_unlock(&vin->group->lock);
+
+	return ret;
+}
+
+static int vin_group_parse_of(struct vin_dev *vin, unsigned int port,
+			       unsigned int id)
+{
+	struct fwnode_handle *ep, *fwnode;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
+	struct v4l2_async_connection *asc;
+	int ret;
+
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), port, id, 0);
+	if (!ep)
+		return 0;
+
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	fwnode_handle_put(ep);
+	if (ret) {
+		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	asc = v4l2_async_nf_add_fwnode(&vin->group->notifier, fwnode,
+				    struct v4l2_async_connection);
+	if (IS_ERR(asc)) {
+		ret = PTR_ERR(asc);
+		goto out;
+	}
+	vin_parse_of_endpoint(vin->dev, &vep, asc);
+out:
+	fwnode_handle_put(fwnode);
 
 	return ret;
 }
@@ -645,7 +680,7 @@ out:
 static int vin_parse_of_graph(struct vin_dev *vin)
 {
 	unsigned int count = 0, vin_mask = 0;
-	unsigned int i;
+	unsigned int i, id;
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
@@ -669,7 +704,7 @@ static int vin_parse_of_graph(struct vin_dev *vin)
 
 	mutex_unlock(&vin->group->lock);
 
-	v4l2_async_notifier_init(&vin->group->notifier);
+	v4l2_async_nf_init(&vin->group->notifier, &vin->v4l2_dev);
 
 	/*
 	 * Have all VIN's look for CSI-2 subdevices. Some subdevices will
@@ -680,24 +715,23 @@ static int vin_parse_of_graph(struct vin_dev *vin)
 		if (!(vin_mask & BIT(i)))
 			continue;
 
-		ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-				vin->group->vin[i]->dev, &vin->group->notifier,
-				sizeof(struct v4l2_async_subdev), 1,
-				vin_parse_of_endpoint);
-
-		if (ret)
-			return ret;
+		for (id = 0; id < VIN_CSI_MAX; id++) {
+			if (vin->group->csi[id].fwnode)
+				continue;
+			ret = vin_group_parse_of(vin->group->vin[i], 1, id);
+			if (ret)
+				return ret;
+		}
 	}
 
-	if (list_empty(&vin->group->notifier.asd_list))
+	if (list_empty(&vin->group->notifier.waiting_list))
 		return 0;
 
 	vin->group->notifier.ops = &vin_notify_ops;
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev,
-					   &vin->group->notifier);
+	ret = v4l2_async_nf_register(&vin->group->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_nf_cleanup(&vin->group->notifier);
 		return ret;
 	}
 
@@ -832,7 +866,7 @@ static int vin_group_notify_complete(struct v4l2_async_notifier *notifier)
 
 static void vin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 				     struct v4l2_subdev *subdev,
-				     struct v4l2_async_subdev *asd)
+				     struct v4l2_async_connection *asc)
 {
 	struct vin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
@@ -846,7 +880,7 @@ static void vin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < VIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].fwnode != asc->match.fwnode)
 			continue;
 		vin->group->csi[i].subdev = NULL;
 		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
@@ -860,7 +894,7 @@ static void vin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 
 static int vin_group_notify_bound(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				   struct v4l2_async_connection *asc)
 {
 	struct vin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
 	unsigned int i;
@@ -870,7 +904,7 @@ static int vin_group_notify_bound(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < VIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].fwnode != asc->match.fwnode)
 			continue;
 		vin->group->csi[i].subdev = subdev;
 		vin_dbg(vin, "Bound CSI-2 %s to slot %u\n", subdev->name, i);
@@ -888,44 +922,44 @@ static const struct v4l2_async_notifier_operations vin_group_notify_ops = {
 	.complete = vin_group_notify_complete,
 };
 
-static int vin_mc_parse_of_endpoint(struct device *dev,
-				     struct v4l2_fwnode_endpoint *vep,
-				     struct v4l2_async_subdev *asd)
-{
-	struct vin_dev *vin = dev_get_drvdata(dev);
-	int ret = 0;
+// static int vin_mc_parse_of_endpoint(struct device *dev,
+//				     struct v4l2_fwnode_endpoint *vep,
+//				     struct v4l2_async_connection *asc)
+// {
+//	struct vin_dev *vin = dev_get_drvdata(dev);
+//	int ret = 0;
 
-	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
+//	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
-	if (vep->base.port != 1 || vep->base.id >= VIN_CSI_MAX)
-		return -EINVAL;
+//	if (vep->base.port != 1 || vep->base.id >= VIN_CSI_MAX)
+//		return -EINVAL;
 
-	dev_dbg(vin->dev, "vep->base.port: %d, vep->base.id: %d\n", vep->base.port, vep->base.id);
+//	dev_dbg(vin->dev, "vep->base.port: %d, vep->base.id: %d\n", vep->base.port, vep->base.id);
 
-	if (!of_device_is_available(to_of_node(asd->match.fwnode))) {
-		vin_dbg(vin, "OF device %pOF disabled, ignoring\n",
-			to_of_node(asd->match.fwnode));
-		return -ENOTCONN;
-	}
+//	if (!of_device_is_available(to_of_node(asc->match.fwnode))) {
+//		vin_dbg(vin, "OF device %pOF disabled, ignoring\n",
+//			to_of_node(asc->match.fwnode));
+//		return -ENOTCONN;
+//	}
 
-	mutex_lock(&vin->group->lock);
+//	mutex_lock(&vin->group->lock);
 
-	if (vin->group->csi[vep->base.id].fwnode) {
-		vin_dbg(vin, "OF device %pOF already handled\n",
-			to_of_node(asd->match.fwnode));
-		ret = -ENOTCONN;
-		goto out;
-	}
+//	if (vin->group->csi[vep->base.id].fwnode) {
+//		vin_dbg(vin, "OF device %pOF already handled\n",
+//			to_of_node(asc->match.fwnode));
+//		ret = -ENOTCONN;
+//		goto out;
+//	}
 
-	vin->group->csi[vep->base.id].fwnode = asd->match.fwnode;
+//	vin->group->csi[vep->base.id].fwnode = asc->match.fwnode;
 
-	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
-		to_of_node(asd->match.fwnode), vep->base.id);
-out:
-	mutex_unlock(&vin->group->lock);
+//	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
+//		to_of_node(asc->match.fwnode), vep->base.id);
+// out:
+//	mutex_unlock(&vin->group->lock);
 
-	return ret;
-}
+//	return ret;
+// }
 
 static int vin_mc_parse_of_graph(struct vin_dev *vin)
 {
@@ -945,7 +979,7 @@ static int vin_mc_parse_of_graph(struct vin_dev *vin)
 		}
 	}
 
-	dev_dbg(vin->dev, "vin->group->count: %d, count: %d\n", vin->group->count, count);
+	dev_dbg(vin->dev, "vin->group->count: %d, count: %d\n", vin->group->count, i);
 
 	if (vin->group->count != count) {
 		mutex_unlock(&vin->group->lock);
@@ -954,7 +988,7 @@ static int vin_mc_parse_of_graph(struct vin_dev *vin)
 
 	mutex_unlock(&vin->group->lock);
 
-	v4l2_async_notifier_init(&vin->group->notifier);
+	v4l2_async_nf_init(&vin->group->notifier, &vin->v4l2_dev);
 
 	/*
 	 * Have all VIN's look for CSI-2 subdevices. Some subdevices will
@@ -965,24 +999,19 @@ static int vin_mc_parse_of_graph(struct vin_dev *vin)
 		if (!(vin_mask & BIT(i)))
 			continue;
 
-		ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-				vin->group->vin[i]->dev, &vin->group->notifier,
-				sizeof(struct v4l2_async_subdev), 1,
-				vin_mc_parse_of_endpoint);
-
+		ret = vin_group_parse_of(vin->group->vin[i], 1, i);
 		if (ret)
 			return ret;
 	}
 
-	if (list_empty(&vin->group->notifier.asd_list))
+	if (list_empty(&vin->group->notifier.waiting_list))
 		return 0;
 
 	vin->group->notifier.ops = &vin_group_notify_ops;
-	ret = v4l2_async_notifier_register(&vin->v4l2_dev,
-					   &vin->group->notifier);
+	ret = v4l2_async_nf_register(&vin->group->notifier);
 	if (ret < 0) {
 		vin_err(vin, "Notifier registration failed\n");
-		v4l2_async_notifier_cleanup(&vin->group->notifier);
+		v4l2_async_nf_cleanup(&vin->group->notifier);
 		return ret;
 	}
 
@@ -1183,8 +1212,8 @@ static int sp_vin_remove(struct platform_device *pdev)
 
 	vin_v4l2_unregister(vin);
 
-	v4l2_async_notifier_unregister(&vin->group->notifier);
-	v4l2_async_notifier_cleanup(&vin->group->notifier);
+	v4l2_async_nf_unregister(&vin->group->notifier);
+	v4l2_async_nf_cleanup(&vin->group->notifier);
 	vin_group_put(vin);
 
 	v4l2_ctrl_handler_free(&vin->ctrl_handler);
