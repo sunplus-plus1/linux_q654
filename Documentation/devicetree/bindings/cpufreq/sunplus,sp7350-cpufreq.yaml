@@ -1,0 +1,128 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cpufreq/sunplus,sp7350-cpufreq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SP7350 SoC cpufreq device
+
+maintainers:
+  - Qin Jian <qinjian@sunmedia.com.cn>
+
+description:
+  CPUFREQ engine used by Sunplus SP7350 SoC to manage
+  frequency & voltage for all CPU cores.
+
+patternProperties:
+  '^opp-table(-[a-z0-9]+)?$':
+    properties:
+      compatible:
+        const: operating-points-v2
+    $ref: /schemas/opp/opp-v2.yaml#
+
+    unevaluatedProperties: false
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sp-sp7350.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      cpu_vdd_reg: regulator@62 {
+        compatible = "richtek,rt5759";
+        reg = <0x62>;
+        regulator-name = "rt5759-buck";
+        regulator-min-microvolt = <630000>;
+        regulator-max-microvolt = <1100000>;
+        regulator-allowed-modes = <0 1>;
+        regulator-initial-mode = <1>;
+        regulator-always-on;
+      };
+    };
+
+    cpus {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      cpu0: cpu@0 {
+        device_type = "cpu";
+        compatible = "arm,cortex-a55";
+        reg = <0x0000>;
+        enable-method = "psci";
+        clocks = <&clkc PLLC>, <&clkc PLLL3>;
+        clock-names = "PLLC", "PLLL3";
+        proc-supply = <&cpu_vdd_reg>;
+        operating-points-v2 = <&cpu_opp_table>;
+      };
+
+      cpu1: cpu@1 {
+        device_type = "cpu";
+        compatible = "arm,cortex-a55";
+        reg = <0x0100>;
+        enable-method = "psci";
+        clocks = <&clkc PLLC>, <&clkc PLLL3>;
+        clock-names = "PLLC", "PLLL3";
+        proc-supply = <&cpu_vdd_reg>;
+        operating-points-v2 = <&cpu_opp_table>;
+      };
+
+      cpu2: cpu@2 {
+        device_type = "cpu";
+        compatible = "arm,cortex-a55";
+        reg = <0x0200>;
+        enable-method = "psci";
+        clocks = <&clkc PLLC>, <&clkc PLLL3>;
+        clock-names = "PLLC", "PLLL3";
+        proc-supply = <&cpu_vdd_reg>;
+        operating-points-v2 = <&cpu_opp_table>;
+      };
+
+      cpu3: cpu@3 {
+        device_type = "cpu";
+        compatible = "arm,cortex-a55";
+        reg = <0x0300>;
+        enable-method = "psci";
+        clocks = <&clkc PLLC>, <&clkc PLLL3>;
+        clock-names = "PLLC", "PLLL3";
+        proc-supply = <&cpu_vdd_reg>;
+        operating-points-v2 = <&cpu_opp_table>;
+      };
+    };
+
+    cpu_opp_table: opp-table {
+      compatible = "operating-points-v2";
+      opp-shared;
+
+      opp-5 {
+        opp-hz = /bits/ 64 <500000000>;
+        opp-microvolt = <670000>;
+      };
+
+      opp-10 {
+        opp-hz = /bits/ 64 <1000000000>;
+        opp-microvolt = <700000>;
+      };
+
+      opp-15 {
+        opp-hz = /bits/ 64 <1500000000>;
+        opp-microvolt = <750000>;
+      };
+
+      opp-16 {
+        opp-hz = /bits/ 64 <1600000000>;
+        opp-microvolt = <770000>;
+      };
+
+      opp-17 {
+        opp-hz = /bits/ 64 <1700000000>;
+        opp-microvolt = <800000>;
+      };
+
+      opp-18 {
+        opp-hz = /bits/ 64 <1800000000>;
+        opp-microvolt = <840000>;
+      };
+    };
