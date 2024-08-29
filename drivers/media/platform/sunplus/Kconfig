@@ -2,3 +2,4 @@
 
 
 source "drivers/media/platform/sunplus/display/sp7350/Kconfig"
+source "drivers/media/platform/sunplus/mipicsi/Kconfig"
