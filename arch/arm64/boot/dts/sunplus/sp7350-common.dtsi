@@ -272,7 +272,6 @@
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>; /* CPU2_TO_0_DIRECT_INT7 */
 		resets = <&rstc RST_CM4>;
 		memory-region = <&rproc_0_reserved>, <&rproc0runaddr>, <&vdev0buffer>, <&vdev0vring0>, <&vdev0vring1>;
-		mboxes = <&mbox 0>; // for SUNPLUS_MBOX_TEST
 	};
 
 	npu_core_0v8: npu_0p8v {
