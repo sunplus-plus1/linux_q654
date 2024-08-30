@@ -439,7 +439,7 @@ static int dwc3_drd_notifier(struct notifier_block *nb,
 }
 
 #if IS_ENABLED(CONFIG_USB_ROLE_SWITCH)
-#define ROLE_SWITCH 1
+#define ROLE_SWITCH 0
 static int dwc3_usb_role_switch_set(struct usb_role_switch *sw,
 				    enum usb_role role)
 {
