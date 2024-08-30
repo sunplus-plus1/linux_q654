@@ -1282,7 +1282,7 @@
 		dma-names = "rxtx";
 	};
 
-	video_codec: video_codec {
+	video_codec: video_codec@f880125c {
 		compatible = "sunplus,sp7350-hantro-codec";
 		reg = <0x0 0xf880125c 0x0 0xff>;
 		clocks = <&clkc VIDEO_CODEC>;
