@@ -1,0 +1,156 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/sunplus,sp7350-vin.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus Video Input (VIN)
+
+maintainers:
+  - JiaWei Li <jw.li@sunmedia.com.cn>
+
+description:
+  The Video Input (VIN) device provides video input capabilities for the
+  Sunplus devices.
+
+  Each VIN instance has a single input that supports RGB and YUV video,
+  with both external synchronization and BT.656 synchronization for the latter.
+  Depending on the instance the VIN input is connected to a CSI-2 receiver.
+
+properties:
+  compatible:
+    enum:
+      - sunplus,sp7350-vin
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: csiiw
+
+  interrupts:
+    maxItems: 2
+
+  interrupt-names:
+    items:
+      - const: fs_irq
+      - const: fe_irq
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: clk_csiiw
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    items:
+      - const: rstc_csiiw
+
+  sunplus,id:
+    description: VIN channel number
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 13
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    properties:
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Input port node, multiple endpoints describing all the CSI-2
+          modules connected the VIN.
+
+        properties:
+          endpoint@0:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to CSI0.
+
+          endpoint@1:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to CSI1.
+
+          endpoint@2:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to CSI2.
+
+          endpoint@3:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to CSI3.
+
+          endpoint@4:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to CSI4.
+
+          endpoint@5:
+            $ref: /schemas/graph.yaml#/properties/endpoint
+            description: Endpoint connected to CSI5.
+
+        anyOf:
+          - required:
+              - endpoint@0
+          - required:
+              - endpoint@1
+          - required:
+              - endpoint@2
+          - required:
+              - endpoint@3
+          - required:
+              - endpoint@4
+          - required:
+              - endpoint@5
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+
+additionalProperties: false
+
+examples:
+  # Device node example for Gen2 platform
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    vin0: video@f8005580 {
+      compatible = "sunplus,sp7350-vin";
+      reg = <0x0 0xf8005580 0x0 0x80>;
+      reg-names = "csiiw";
+      interrupt-parent = <&gic>;
+      interrupts = <GIC_SPI 36 IRQ_TYPE_LEVEL_HIGH>,
+            <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
+      interrupt-names = "fs_irq", "fe_irq";
+      clocks = <&clkc VI0_CSIIW0>;
+      clock-names = "clk_csiiw";
+      resets = <&rstc RST_VI0_CSIIW0>;
+      reset-names = "rstc_csiiw";
+      sunplus,id = <0>;
+      status = "okay";
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        port@1 {
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          reg = <1>;
+          vin0csi0: endpoint@0 {
+            reg = <0>;
+            remote-endpoint = <&csi0vin0>;
+          };
+        };
+      };
+    };
