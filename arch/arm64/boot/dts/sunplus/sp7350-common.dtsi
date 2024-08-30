@@ -2,8 +2,7 @@
 
 /dts-v1/;
 
-#define CONFIG_SOC_SP7350
-
+#include <autoconf.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -272,6 +271,9 @@
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>; /* CPU2_TO_0_DIRECT_INT7 */
 		resets = <&rstc RST_CM4>;
 		memory-region = <&rproc_0_reserved>, <&rproc0runaddr>, <&vdev0buffer>, <&vdev0vring0>, <&vdev0vring1>;
+#ifdef CONFIG_SUNPLUS_MBOX_TEST
+		mboxes = <&mbox 0>;
+#endif
 	};
 
 	npu_core_0v8: npu_0p8v {
@@ -1334,10 +1336,10 @@
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc NPU>;
-		clock-names = "clk_vip9000";
+		clock-names = "clk_npu";
 		clock-frequency = <900000000>;
 		resets = <&rstc RST_NPU>;
-		reset-names = "rstc_vip9000";
+		reset-names = "rstc_npu";
 	};
 
 	dummymaster: dm@f8000700 {
