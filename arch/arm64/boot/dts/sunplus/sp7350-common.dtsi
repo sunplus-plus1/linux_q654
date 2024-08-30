@@ -1334,10 +1334,10 @@
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc NPU>;
-		clock-names = "clk_vip9000";
+		clock-names = "clk_npu";
 		clock-frequency = <900000000>;
 		resets = <&rstc RST_NPU>;
-		reset-names = "rstc_vip9000";
+		reset-names = "rstc_npu";
 	};
 
 	dummymaster: dm@f8000700 {
