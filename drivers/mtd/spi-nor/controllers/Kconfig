@@ -16,3 +16,12 @@ config SPI_NXP_SPIFI
 	  SPIFI is a specialized controller for connecting serial SPI
 	  Flash. Enable this option if you have a device with a SPIFI
 	  controller and want to access the Flash as a mtd device.
+	  
+config SPI_SUNPLUS_SPI
+	tristate "Sunplus SPI NOR controller"
+	depends on SOC_SP7350
+	help
+	  Enable the Sunplus SPI NOR controller driver. This driver
+	  can be used to access the SPI NOR flash.
+	  To compile this driver as a module, choose M here: the module
+	  will be called sp-spi-nor.
