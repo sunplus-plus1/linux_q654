@@ -12,8 +12,14 @@ config DRM_SP7350
 	select DRM_GEM_DMA_HELPER
 	default y
 	help
-	  Choose this option if you have a Sunplus SP7350 SoCs.
-	  Support for the SUNPLUS SP7350 DRM driver.
+	   This option enables support for the Sunplus SP7350 SoCs with a
+	   Display Engine.
+	   This driver is necessary for drm framework that wishes to utilize the
+	   SoCs Hardware Display for its intended purposes. Without this driver,
+	   the device will not be recognized or accessible by the system.
+	   Please note that this driver requires the SOC_SP7350 and VIDEO_DEV
+	   to be enabled as well, as it depends on certain functionality
+	   provided by that option.
 
 config DRM_PANEL_SP7350_SIMPLE_DSI
 	tristate "support for sunplus simple dsi panels"

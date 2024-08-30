@@ -214,7 +214,6 @@ static void sp7350_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
-	DRM_DEV_DEBUG_DRIVER(dev, "%s\n", __func__);
 
 	drm_dev_unregister(drm);
 
@@ -247,7 +246,6 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 	int count = ARRAY_SIZE(component_drivers);
 	int i;
 
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "%s\n", __func__);
 	for (i = 0; i < count; i++) {
 		struct device_driver *drv = &component_drivers[i]->driver;
 		struct device *p = NULL, *d;
@@ -266,7 +264,6 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 
 static int sp7350_drm_remove(struct platform_device *pdev)
 {
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "%s\n", __func__);
 	component_master_del(&pdev->dev, &sp7350_drm_ops);
 
 	return 0;
