@@ -15,21 +15,6 @@ usage() {
 	exit 1
 }
 
-no_local=false
-if test "$1" = "--no-local"; then
-	no_local=true
-	shift
-fi
-
-srctree=.
-if test $# -gt 0; then
-	srctree=$1
-	shift
-fi
-if test $# -gt 0 -o ! -d "$srctree"; then
-	usage
-fi
-
 scm_version()
 {
 	local short=false
@@ -127,6 +112,26 @@ scm_version()
 	fi
 }
 
+if test "$1" = "--scm"; then
+	echo $(scm_version)
+	exit 0
+fi
+
+no_local=false
+if test "$1" = "--no-local"; then
+	no_local=true
+	shift
+fi
+
+srctree=.
+if test $# -gt 0; then
+	srctree=$1
+	shift
+fi
+if test $# -gt 0 -o ! -d "$srctree"; then
+	usage
+fi
+
 collect_files()
 {
 	local file res=
@@ -183,4 +188,4 @@ elif [ "${LOCALVERSION+set}" != "set" ]; then
 	scm_version="$(scm_version --short)"
 fi
 
-echo "${KERNELVERSION}${file_localversion}${config_localversion}${LOCALVERSION}${scm_version}"
+echo "${KERNELVERSION}${file_localversion}${config_localversion}${LOCALVERSION}"
