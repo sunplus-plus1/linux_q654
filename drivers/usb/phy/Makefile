@@ -2,6 +2,8 @@
 #
 # Makefile for physical layer USB drivers
 #
+obj-$(CONFIG_SUNPLUS_SYNOPSYS_USB3_PHY)         += synopsysu3phy-sunplus.o
+
 obj-$(CONFIG_USB_PHY)			+= phy.o
 obj-$(CONFIG_OF)			+= of.o
 
