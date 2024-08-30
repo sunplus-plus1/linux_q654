@@ -917,7 +917,6 @@ static void sp7350_crtc_dmix_init(struct drm_crtc *crtc)
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 	u32 value;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	/* DMIX Setting for DRM Driver:
 	 * L6   L5   L4   L3   L2   L1   BG
@@ -971,7 +970,6 @@ static void sp7350_crtc_tgen_init(struct drm_crtc *crtc)
 {
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	SP7350_CRTC_WRITE(TGEN_CONFIG, 0x00000000);
 	SP7350_CRTC_WRITE(TGEN_USER_INT1_CONFIG, 0x0000000a);
@@ -986,7 +984,6 @@ static void sp7350_crtc_tcon_init(struct drm_crtc *crtc)
 {
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	SP7350_CRTC_WRITE(TCON_TCON0, 0x00008127);
 	SP7350_CRTC_WRITE(TCON_TCON1, 0x00008011);
