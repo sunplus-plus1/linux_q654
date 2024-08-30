@@ -974,16 +974,16 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	} else {
 		new_state = plane->state;
 	}
-	sp_state = to_sp7350_plane_state(new_state);
 
 	/* reference to ade_plane_atomic_update */
-	if (!new_state->fb || !new_state->crtc) {
+	if (!new_state || !new_state->fb || !new_state->crtc) {
 		/* do nothing */
 		DRM_DEBUG_ATOMIC("plane-%d SP7350_DMIX_TRANSPARENT.\n", plane->index);
 		sp7350_drm_plane_set(plane, SP7350_DMIX_VPP0, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
 	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
+	sp_state = to_sp7350_plane_state(new_state);
 
 	/* Check parameter updates first  */
 	/* for crop state check */
@@ -1099,16 +1099,16 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	} else {
 		new_state = plane->state;
 	}
-	sp_state = to_sp7350_plane_state(new_state);
-	info = &sp_state->info;
 
-	if (!new_state->fb || !new_state->crtc) {
+	if (!new_state || !new_state->fb || !new_state->crtc) {
 		/* disable this plane */
 		DRM_DEBUG_ATOMIC("plane-%d SP7350_DMIX_TRANSPARENT.\n", plane->index);
 		sp7350_drm_plane_set(plane, SP7350_DMIX_OSD0 + sp_plane->osd_layer_sel, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
 	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
+	sp_state = to_sp7350_plane_state(new_state);
+	info = &sp_state->info;
 
 	/* Check parameter updates first  */
 	if (!old_state || new_state->fb != old_state->fb) {
