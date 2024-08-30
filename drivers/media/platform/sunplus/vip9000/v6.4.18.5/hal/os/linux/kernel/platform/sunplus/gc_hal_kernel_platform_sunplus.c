@@ -289,7 +289,7 @@ gceSTATUS _GetPower(IN gcsPLATFORM *platform)
 		return gcvSTATUS_FALSE;
 	}
 
-	dec_rstc = devm_reset_control_get(dev, "rstc_vip9000");
+	dec_rstc = devm_reset_control_get(dev, "rstc_npu");
 	if (IS_ERR(dec_rstc)) {
 		dev_err(dev, "failed to retrieve reset controller\n");
 		return PTR_ERR(dec_rstc);
