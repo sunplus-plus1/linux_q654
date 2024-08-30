@@ -22,7 +22,9 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-memops.h>
-
+#if defined(CONFIG_SOC_SP7350)
+static bool remap;
+#endif
 struct vb2_dc_buf {
 	struct device			*dev;
 	void				*vaddr;
@@ -124,6 +126,12 @@ static void vb2_dc_prepare(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
+#if defined(CONFIG_SOC_SP7350)
+	if (remap) {
+		dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+#endif
 
 	/* This takes care of DMABUF and user-enforced cache sync hint */
 	if (buf->vb->skip_cache_sync_on_prepare)
@@ -145,6 +153,12 @@ static void vb2_dc_finish(void *buf_priv)
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
 
+#if defined(CONFIG_SOC_SP7350)
+	if (remap) {
+		dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+#endif
 	/* This takes care of DMABUF and user-enforced cache sync hint */
 	if (buf->vb->skip_cache_sync_on_finish)
 		return;
@@ -280,17 +294,40 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		printk(KERN_ERR "No buffer to map\n");
 		return -EINVAL;
 	}
-
-	if (buf->non_coherent_mem)
-		ret = dma_mmap_noncontiguous(buf->dev, vma, buf->size,
-					     buf->dma_sgt);
-	else
-		ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
-				     buf->size, buf->attrs);
-	if (ret) {
-		pr_err("Remapping memory failed, error: %d\n", ret);
-		return ret;
+#if defined(CONFIG_SOC_SP7350)
+	if (remap) {
+		vm_flags_set(vma, VM_LOCKED);
+		if (remap_pfn_range(vma, vma->vm_start,
+				    buf->dma_addr >> PAGE_SHIFT,
+				    vma->vm_end - vma->vm_start,
+				    vma->vm_page_prot)) {
+			pr_err("%s(): remap_pfn_range() failed\n", __func__);
+			return -ENOBUFS;
+		}
+	} else {
+		if (buf->non_coherent_mem)
+			ret = dma_mmap_noncontiguous(buf->dev, vma, buf->size,
+						     buf->dma_sgt);
+		else
+			ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
+					     buf->size, buf->attrs);
+		if (ret) {
+			pr_err("Remapping memory failed, error: %d\n", ret);
+			return ret;
+		}
 	}
+#else
+		if (buf->non_coherent_mem)
+			ret = dma_mmap_noncontiguous(buf->dev, vma, buf->size,
+						     buf->dma_sgt);
+		else
+			ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
+					     buf->size, buf->attrs);
+		if (ret) {
+			pr_err("Remapping memory failed, error: %d\n", ret);
+			return ret;
+		}
+#endif
 
 	vm_flags_set(vma, VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_private_data	= &buf->handler;
@@ -858,7 +895,11 @@ int vb2_dma_contig_set_max_seg_size(struct device *dev, unsigned int size)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_dma_contig_set_max_seg_size);
-
+#if defined(CONFIG_SOC_SP7350)
+module_param_named(remap, remap, bool, 0644);
+MODULE_PARM_DESC(remap,
+		 "enable | disable remap. (default: disable)");
+#endif
 MODULE_DESCRIPTION("DMA-contig memory handling routines for videobuf2");
 MODULE_AUTHOR("Pawel Osciak <pawel@osciak.com>");
 MODULE_LICENSE("GPL");
