@@ -402,6 +402,7 @@ struct sp7350_dsi_host {
 struct sp7350_dsi_encoder {
 	struct sp7350_encoder base;
 	struct sp7350_dsi_host *sp_dsi_host;
+	bool is_enabled;
 };
 
 #define to_sp7350_dsi_encoder(encoder) \
@@ -804,6 +805,10 @@ static void sp7350_mipitx_dsi_lane_clock_setting(struct sp7350_dsi_host *sp_dsi_
 			lane_clock->txpll_postdiv, lane_clock->txpll_endiv5,
 			lane_clock->txpll_fbkdiv, lane_clock->txpll_bnksel);
 	}
+	if (!lane_clock->clock) {
+		/* do nothing */
+		return;
+	}
 
 	/* Register Setting Formula:
 	 *   txpll_prescal= PRESCAL[4]+1 = {1, 2}
@@ -980,6 +985,10 @@ static void sp7350_mipitx_dsi_pixel_clock_setting(struct sp7350_dsi_host *sp_dsi
 			pixel_clock->postdiv_10x, pixel_clock->fbkdiv,
 			pixel_clock->bnksel, pixel_clock->seldiv);
 	}
+	if (!pixel_clock->clock) {
+		/* do nothing */
+		return;
+	}
 
 	/* Register Setting Formula:
 	 *   prescal= PRESCAL_H[15]+1 = {1, 2}
@@ -1073,6 +1082,10 @@ static void sp7350_mipitx_dsi_video_mode_setting(struct sp7350_dsi_host *sp_dsi_
 		sync_timing->vfp  = mode->vsync_start - mode->vdisplay;
 		sync_timing->vbp  = mode->vtotal - mode->vsync_end;
 		sync_timing->vact = mode->vdisplay;
+	}
+	if (!sync_timing->hact || !sync_timing->vact) {
+		/* do nothing */
+		return;
 	}
 	/* Register Setting Formula:
 	 *   hsa = HSA[31:24]
@@ -1223,8 +1236,8 @@ static void sp7350_dsi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 static void sp7350_dsi_encoder_atomic_disable(struct drm_encoder *encoder,
 			       struct drm_atomic_state *state)
 {
-	#if DSI_BRIDGE_OPERATION_MANUALLY
 	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
+	#if DSI_BRIDGE_OPERATION_MANUALLY
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_bridge *iter;
 
@@ -1243,6 +1256,7 @@ static void sp7350_dsi_encoder_atomic_disable(struct drm_encoder *encoder,
 	#else
 	DRM_DEBUG_DRIVER("[nothing]%s\n", encoder->name);
 	#endif
+	sp_dsi_encoder->is_enabled = false;
 }
 
 static void sp7350_dsi_encoder_atomic_enable(struct drm_encoder *encoder,
@@ -1274,6 +1288,7 @@ static void sp7350_dsi_encoder_atomic_enable(struct drm_encoder *encoder,
 			iter->funcs->enable(iter);
 	}
 	#endif
+	sp_dsi_encoder->is_enabled = true;
 }
 
 /*
@@ -1740,26 +1755,31 @@ static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t sta
 	 */
 
 	if (sp_dsi_host->encoder) {
-		#if DSI_BRIDGE_OPERATION_MANUALLY
-		sp7350_dsi_encoder_atomic_disable(sp_dsi_host->encoder, NULL);
-		#else
-		/* TODO: disbale output display device, because some output display device
-		 *        not any suspend/resume function.
-		 */
-		 //temporary off, i2c issue.
-		//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
-		//	drm_panel_disable(sp_dsi_host->panel);
-		//	drm_panel_unprepare(sp_dsi_host->panel);
-		//}
-		//else {  /* for bridge, ex.HDMI/DVI... */
-		//	/* todo: how to support atomic_xxx hook? */
-		//	if (sp_dsi_host->bridge->funcs->disable)
-		//		sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
-
-		//	if (sp_dsi_host->bridge->funcs->post_disable)
-		//		sp_dsi_host->bridge->funcs->post_disable(sp_dsi_host->bridge);
-		//}
-		#endif
+		struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(sp_dsi_host->encoder);
+		if (sp_dsi_encoder->is_enabled) {
+			#if DSI_BRIDGE_OPERATION_MANUALLY
+			if (sp_dsi_host->bridge->funcs->disable)
+				sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
+			if (sp_dsi_host->bridge->funcs->post_disable)
+				sp_dsi_host->bridge->funcs->post_disable(sp_dsi_host->bridge);
+			#else
+			/* TODO: disbale output display device, because some output display device
+			 *        not any suspend/resume function.
+			 */
+			 //temporary off, i2c issue.
+			//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
+			//	drm_panel_disable(sp_dsi_host->panel);
+			//	drm_panel_unprepare(sp_dsi_host->panel);
+			//}
+			//else {  /* for bridge, ex.HDMI/DVI... */
+			//	/* todo: how to support atomic_xxx hook? */
+			//	if (sp_dsi_host->bridge->funcs->disable)
+			//		sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
+			//	if (sp_dsi_host->bridge->funcs->post_disable)
+			//		sp_dsi_host->bridge->funcs->post_disable(sp_dsi_host->bridge);
+			//}
+			#endif
+		}
 	}
 
 	return 0;
@@ -1784,34 +1804,42 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 	 */
 
 	if (sp_dsi_host->encoder) {
+		struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(sp_dsi_host->encoder);
+
 		sp7350_mipitx_phy_init(sp_dsi_host);
 		sp7350_mipitx_clock_init(sp_dsi_host);
 		sp7350_mipitx_lane_timing_init(sp_dsi_host);
-		sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, NULL);
-		sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, NULL);
-		sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, NULL);
 		sp7350_mipitx_dsi_cmd_mode_start(sp_dsi_host);
-		#if DSI_BRIDGE_OPERATION_MANUALLY
-		sp7350_dsi_encoder_atomic_enable(sp_dsi_host->encoder, NULL);
-		#else
-		/* TODO: enable output display device, because some output display device
-		 *        not any suspend/resume function.
-		 */
-		 //temporary off, i2c issue.
-		//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
-		//	drm_panel_prepare(sp_dsi_host->panel);
-		//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
-		//	drm_panel_enable(sp_dsi_host->panel);
-		//}
-		//else {  /* for bridge, ex.HDMI/DVI... */
-		//	/* todo: how to support atomic_xxx hook? */
-		//	if (sp_dsi_host->bridge->funcs->pre_enable)
-		//		sp_dsi_host->bridge->funcs->pre_enable(sp_dsi_host->bridge);
-		//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
-		//	if (sp_dsi_host->bridge->funcs->enable)
-		//		sp_dsi_host->bridge->funcs->enable(sp_dsi_host->bridge);
-		//}
-		#endif
+		if (sp_dsi_encoder->is_enabled) {
+			sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, NULL);
+			sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, NULL);
+			sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, NULL);
+			#if DSI_BRIDGE_OPERATION_MANUALLY
+			if (sp_dsi_host->bridge->funcs->pre_enable)
+				sp_dsi_host->bridge->funcs->pre_enable(sp_dsi_host->bridge);
+			sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+			if (sp_dsi_host->bridge->funcs->enable)
+				sp_dsi_host->bridge->funcs->enable(sp_dsi_host->bridge);
+			#else
+			/* TODO: enable output display device, because some output display device
+			 *        not any suspend/resume function.
+			 */
+			//temporary off, i2c issue.
+			//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
+			//	drm_panel_prepare(sp_dsi_host->panel);
+			//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+			//	drm_panel_enable(sp_dsi_host->panel);
+			//}
+			//else {  /* for bridge, ex.HDMI/DVI... */
+			//	/* todo: how to support atomic_xxx hook? */
+			//	if (sp_dsi_host->bridge->funcs->pre_enable)
+			//		sp_dsi_host->bridge->funcs->pre_enable(sp_dsi_host->bridge);
+			//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+			//	if (sp_dsi_host->bridge->funcs->enable)
+			//		sp_dsi_host->bridge->funcs->enable(sp_dsi_host->bridge);
+			//}
+			#endif
+		}
 	}
 
 	return 0;
