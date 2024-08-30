@@ -1,0 +1,155 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 sunplus Electronics Corp.
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/sunplus,sp7350-mipicsi-rx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: sunplus MIPI CSI-2 receiver
+
+maintainers:
+  - JiaWei Li <jw.li@sunmedia.com.cn>
+
+description:
+  The CSI-2 receiver device provides MIPI CSI-2 capabilities for the
+  sunplus devices. It is used in conjunction with the VIN module,
+  which provides the video capture capabilities.
+
+properties:
+  compatible:
+    enum:
+      - sunplus,sp7350-mipicsi-rx
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: mipicsi
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: clk_mipicsi
+
+  resets:
+    maxItems: 1
+
+  resets-name:
+    items:
+      - const: rstc_mipicsi
+
+  sunplus,id:
+    description: mipicsi rx number
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 5
+
+  max_channels:
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  num_channels:
+    $ref: /schemas/types.yaml#/definitions/uint32
+  
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description:
+          Input port node, single endpoint describing the CSI-2 transmitter.
+
+        properties:
+          endpoint:
+            $ref: video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              clock-lanes:
+                maxItems: 1
+
+              data-lanes:
+                minItems: 1
+                maxItems: 4
+                items:
+                  maximum: 4
+
+              bus-type:
+                maxItems: 1
+
+            required:
+              - clock-lanes
+              - data-lanes
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Output port node, multiple endpoints describing all the VIN
+          modules connected the CSI-2 receiver.
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - resets
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+
+    mipicsirx0: csirx@f8005280 {
+            compatible = "sunplus,sp7350-mipicsi-rx";
+            reg = <0x0 0xf8005280 0x0 0x80>;
+            reg-names = "mipicsi";
+            clocks = <&clkc MIPICSI0>;
+            clock-names = "clk_mipicsi";
+            resets = <&rstc RST_MIPICSI0>;
+            sunplus,id = <0>;
+            max_channels = <4>;
+            num_channels = <1>;
+
+            ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+                    port@0 {
+                            reg = <0>;
+                            csi2_0: endpoint {
+                              remote-endpoint = <&imx219_0>;
+                              bus-type = <4>;
+                              clock-lanes = <0>;
+                              data-lanes = <1 2>;
+                            };
+                    };
+
+                    port@1 {
+                            #address-cells = <1>;
+                            #size-cells = <0>;
+
+                            reg = <1>;
+                            csi0vin0: endpoint@0 {
+                              reg = <0>;
+                              remote-endpoint = <&vin0csi0>;
+                            };
+
+                            csi0vin1: endpoint@1 {
+                              reg = <1>;
+                              remote-endpoint = <&vin1csi0>;
+                            };
+                    };
+            };
+    };
