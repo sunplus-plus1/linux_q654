@@ -192,4 +192,12 @@ config EXTCON_USBC_TUSB320
 	  Say Y here to enable support for USB Type C cable detection extcon
 	  support using a TUSB320.
 
+config EXTCON_USB_GPIO_SUNPLUS
+	tristate "Sunplus USB GPIO extcon support"
+	depends on GPIOLIB || COMPILE_TEST
+	default USB_DWC3_DUAL_ROLE
+	help
+	  Say Y here to enable GPIO based USB cable detection extcon support.
+	  Used typically if GPIO is used for USB ID pin detection.
+
 endif
