@@ -1,5 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
-# Copyright (C) Sunplus Co., Ltd. 2024
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/nvmem/sunplus,sp7350-ocotp.yaml#
@@ -14,42 +13,12 @@ allOf:
   - $ref: nvmem.yaml#
 
 properties:
-  compatible:
-    const: sunplus,sp7350-ocotp
-
-  reg:
-    maxItems: 3
-
-  reg-names:
-    items:
-      - const: hb_gpio
-      - const: otprx
-      - const: otp_key
-
-  clocks:
-    maxItems: 1
-
-  resets:
-    maxItems: 1
-
-  thermal-calibration:
-    type: object
-    description: thermal calibration values
-
-  mac-address:
-    type: object
-    description: MAC address of ethernet
-
-  disconnect-voltage:
-    type: object
-    description: disconnect voltages of usb2 port
-
-required:
-  - compatible
-  - reg
-  - reg-names
-  - clocks
-  - resets
+  nvmem-layout:
+    $ref: /schemas/nvmem/layouts/nvmem-layout.yaml
+    description:
+      Alternative to the statically defined nvmem cells, this
+      container may reference more advanced (dynamic) layout
+      parsers.
 
 unevaluatedProperties: false
 
@@ -58,17 +27,15 @@ examples:
     #include <dt-bindings/clock/sp-sp7350.h>
     #include <dt-bindings/reset/sp-sp7350.h>
 
-    soc {
-      #address-cells = <2>;
-      #size-cells = <2>;
-
-      otp0: otp@f8802380 {
-        compatible = "sunplus,sp7350-ocotp";
-        reg = <0x0 0xf8802380 0x0 0x60>, <0x0 0xf8802400 0x0 0x80>,
+    otp0: otp@f8802380 {
+      compatible = "sunplus,sp7350-ocotp";
+      reg = <0x0 0xf8802380 0x0 0x60>, <0x0 0xf8802400 0x0 0x80>,
                 <0x0 0xf8802480 0x0 0x18>;
-        reg-names = "hb_gpio", "otprx", "otp_key";
-        clocks = <&clkc OTPRX>;
-        resets = <&rstc RST_OTPRX>;
+      reg-names = "hb_gpio", "otprx", "otp_key";
+      clocks = <&clkc OTPRX>;
+      resets = <&rstc RST_OTPRX>;
+      nvmem-layout {
+        compatible = "fixed-layout";
         #address-cells = <1>;
         #size-cells = <1>;
         therm_calib: therm_calib@9 {
@@ -76,11 +43,11 @@ examples:
         };
         mac_addr: mac-address@16 {
           reg = <0x16 0x6>;
-          sunplus,byte-swap;
         };
         disc_vol: disc_vol@2d {
           reg = <0x2d 0x1>;
         };
       };
     };
+
 ...

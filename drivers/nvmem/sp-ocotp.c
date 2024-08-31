@@ -104,26 +104,31 @@ int sp_otp_read_real(struct sp_otp_data_t *_otp, int addr, char *value)
 static void sp_ocotp_byte_swap_check(struct sp_otp_data_t *otp,
 				     unsigned int offset, size_t bytes, char *val)
 {
-	struct device_node *parent, *child;
+	struct device_node *parent, *child, *layout_np;
 	const __be32 *addr;
 	int i;
 
 	parent = otp->dev->of_node;
+	layout_np = of_get_child_by_name(parent, "nvmem-layout");
 
-	for_each_child_of_node(parent, child) {
+	for_each_child_of_node(layout_np, child) {
 		if (!of_find_property(child, "sunplus,byte-swap", NULL))
 			continue;
+
 		addr = of_get_property(child, "reg", NULL);
 		if (!addr)
 			continue;
+
 		if (offset != be32_to_cpup(addr++) ||
 		    bytes != be32_to_cpup(addr))
 			continue;
+
 		for (i = 0; i < (bytes >> 1); i++) {
 			val[i] ^= val[bytes - 1 - i];
 			val[bytes - 1 - i] ^= val[i];
 			val[i] ^= val[bytes - 1 - i];
 		}
+
 		break;
 	}
 }

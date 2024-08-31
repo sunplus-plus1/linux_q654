@@ -1054,17 +1054,20 @@
 		reg-names = "hb_gpio", "otprx", "otp_key";
 		clocks = <&clkc OTPRX>;
 		resets = <&rstc RST_OTPRX>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		therm_calib: therm_calib@9 {
-			reg = <0x9 0x3>;
-		};
-		mac_addr: mac-address@16 {
-			reg = <0x16 0x6>;
-			sunplus,byte-swap;
-		};
-		disc_vol: disc_vol@2d {
-			reg = <0x2d 0x1>;
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			therm_calib: therm_calib@9 {
+				reg = <0x9 0x3>;
+			};
+			mac_addr: mac-address@16 {
+				reg = <0x16 0x6>;
+				sunplus,byte-swap;
+			};
+			disc_vol: disc_vol@2d {
+				reg = <0x2d 0x1>;
+			};
 		};
 	};
 
