@@ -14,9 +14,6 @@
 #define HIGH_MASK_BITS				GENMASK(31, 16)
 #define LOW_MASK_BITS				GENMASK(15, 0)
 
-#define PORT0_ENABLED				BIT(0)
-#define PORT1_ENABLED				BIT(1)
-#define PORT2_ENABLED				BIT(3)
 #define USB_PORT0_ID				0
 #define USB_PORT1_ID				1
 #define USB_PORT_NUM				3
@@ -76,14 +73,6 @@
 void __iomem *uphy0_regs;
 EXPORT_SYMBOL_GPL(uphy0_regs);
 
-u8 sp_port0_enabled;
-EXPORT_SYMBOL_GPL(sp_port0_enabled);
-
-static void sp_get_port0_state(void)
-{
-	sp_port0_enabled |= PORT0_ENABLED;
-}
-
 struct sp_usbphy {
 	struct device *dev;
 	struct resource *phy_res_mem;
@@ -92,7 +81,6 @@ struct sp_usbphy {
 	struct clk *phy_clk;
 	void __iomem *phy_regs;
 	void __iomem *moon4_regs;
-	u32 port_num;
 	u32 disc_vol_addr_off;
 };
 
@@ -328,9 +316,6 @@ static int sp_usb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(usbphy->phy_clk))
 		return PTR_ERR(usbphy->phy_clk);
 
-	if (usbphy->port_num == USB_PORT0_ID)
-		sp_get_port0_state();
-
 	of_property_read_u32(pdev->dev.of_node, "sunplus,disc-vol-addr-off",
 			     &usbphy->disc_vol_addr_off);
 
@@ -355,6 +340,7 @@ static struct platform_driver sunplus_usb_phy_driver = {
 		.of_match_table = sp_uphy_dt_ids,
 	},
 };
+
 module_platform_driver(sunplus_usb_phy_driver);
 
 MODULE_AUTHOR("Vincent Shih <vincent.shih@sunplus.com>");
