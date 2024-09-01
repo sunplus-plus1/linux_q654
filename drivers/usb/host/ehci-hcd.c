@@ -1333,6 +1333,10 @@ MODULE_LICENSE ("GPL");
 #include "ehci-grlib.c"
 #endif
 
+#ifdef CONFIG_USB_EHCI_SUNPLUS
+#include "ehci-sunplus.c"
+#endif
+
 static struct platform_driver * const platform_drivers[] = {
 #ifdef CONFIG_USB_EHCI_SH
 	&ehci_hcd_sh_driver,

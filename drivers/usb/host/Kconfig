@@ -347,6 +347,14 @@ config USB_OCTEON_EHCI
 	  USB 2.0 device support.  All CN6XXX based chips with USB are
 	  supported.
 
+config USB_EHCI_SUNPLUS
+	tristate "EHCI support for Sunplus USB controller"
+	depends on SOC_SP7350
+	select USB_EHCI_HCD_PLATFORM
+	select PHY_SUNPLUS_SP7350_USB
+	help
+	  Enable support for the Sunplus SOC's on-chip EHCI controller.
+
 endif # USB_EHCI_HCD
 
 config USB_OXU210HP_HCD
@@ -573,6 +581,14 @@ config USB_OCTEON_OHCI
 	  Enable support for the Octeon II SOC's on-chip OHCI
 	  controller.  It is needed for low-speed USB 1.0 device
 	  support.  All CN6XXX based chips with USB are supported.
+
+config USB_OHCI_SUNPLUS
+	tristate "OHCI support for Sunplus USB controller"
+	depends on SOC_SP7350
+	select USB_OHCI_HCD_PLATFORM
+	select PHY_SUNPLUS_SP7350_USB
+	help
+	  Enable support for the Sunplus SOC's on-chip OHCI controller.
 
 endif # USB_OHCI_HCD
 
