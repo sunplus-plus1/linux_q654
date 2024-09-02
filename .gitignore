@@ -51,6 +51,7 @@
 *.tar
 *.xz
 *.zst
+*.bak
 Module.symvers
 modules.order
 
