@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/sunplus,audio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus Aduio controller
+
+maintainers:
+  - ChingChou Huang <chingchou.huang@sunplus.com>
+
+description: |
+  Sunplus Audio controller.
+  The device node of Sunplus Audio controller has following properties.
+
+properties:
+  compatible:
+    items:
+      - const: sunplus,audio
+
+  reg:
+    items:
+      - description: Base address and length of the Audio registers.
+
+  reg-names:
+    maxItems: 1
+
+  clocks:
+    description: |
+      Clock controller selector for Audio controller.
+    maxItems: 1
+
+  clock-names:
+    maxItems: 1
+
+  resets:
+    description: |
+      Reset controller selector for Audio controller.
+    maxItems: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - clocks
+  - clock-names
+  - resets
+
+examples:
+  - |
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    audio: audio@f8800480 {
+        compatible = "sunplus,audio";
+        reg = <0xf8800480 0x700>;
+        reg-names = "audio";
+        clocks = <&clkc AUD>;
+        clock-names = "aud";
+        resets = <&rstc RST_AUD>;
+    };
+...
