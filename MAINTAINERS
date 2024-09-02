@@ -20655,7 +20655,12 @@ M:	Li-hao Kuo <lhjeff911@gmail.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/mmc/sunplus,mmc.yaml
 F:	drivers/mmc/host/sunplus-mmc.c
-F:	drivers/mmc/host/sunplus_sd3.c
+
+SUNPLUS SD DRIVER
+M:	Li-hao Kuo <lhjeff911@gmail.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/mmc/sunplus,sp7350-sd.yaml
+F:	drivers/mmc/host/sunplus,sp7350-sd.c
 
 SUNPLUS OCOTP DRIVER
 M:	Vincent Shih <vincent.sunplus@gmail.com>
