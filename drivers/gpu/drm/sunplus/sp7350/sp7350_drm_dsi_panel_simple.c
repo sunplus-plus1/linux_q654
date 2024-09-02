@@ -627,9 +627,9 @@ static void sp7350_panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
 
 static const struct of_device_id panel_simple_dsi_of_match[] = {
 	{
-		.compatible = "lx,hxm0686tft-001", .data = &lx_hxm0686tft_001_desc
+		.compatible = "sunplus,lx-hxm0686tft-001", .data = &lx_hxm0686tft_001_desc
 	}, {
-		.compatible = "xinli,tcxd024iblon-2", .data = &xinli_tcxd024iblon_n2_desc
+		.compatible = "sunplus,xinli-tcxd024iblon-2", .data = &xinli_tcxd024iblon_n2_desc
 	}, {
 		/* sentinel */
 	}
