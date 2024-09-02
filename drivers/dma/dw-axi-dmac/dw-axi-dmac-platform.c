@@ -527,7 +527,9 @@ static void dw_axi_dma_set_hw_channel(struct axi_dma_chan *chan, bool set)
 	unsigned long reg_value, val;
 
 	if (!chip->apb_regs) {
+#ifndef SKIP_APB_REGS_ERROR_MSG
 		dev_err(chip->dev, "apb_regs not initialized\n");
+#endif
 		return;
 	}
 
