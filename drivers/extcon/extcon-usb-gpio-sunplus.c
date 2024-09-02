@@ -123,25 +123,30 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 	}
 
 	if (id != pre_id) {
-		pre_id = id;
-		//printk("@@@usb_extcon_detect_cable id 0x%x vbus 0x%x\n", id, vbus);
-		/* at first we clean states which are no longer active */
-		if (id)
-			extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
-		if (!vbus)
-			extcon_set_state_sync(info->edev, EXTCON_USB, false);
+		if (info->spphydata->dir == gpiod_get_value(info->spphydata->gpiodir)) {
+			pre_id = id;
+			//printk("@@@usb_extcon_detect_cable id 0x%x vbus 0x%x\n", id, vbus);
+			/* at first we clean states which are no longer active */
+			if (id)
+				extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
+			if (!vbus)
+				extcon_set_state_sync(info->edev, EXTCON_USB, false);
 
-		if (!id) {
-			/* Usb3 vbus eco solution */
-			phy_reg->cfg[29] |= (3 << 30);
-			extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
-		} else {
-			if (vbus) {
+			if (!id) {
 				/* Usb3 vbus eco solution */
-				phy_reg->cfg[29] |= (1 << 31);
-				phy_reg->cfg[29] &= ~(1 << 30);
-				extcon_set_state_sync(info->edev, EXTCON_USB, true);
+				phy_reg->cfg[29] |= (3 << 30);
+				extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
+			} else {
+				if (vbus) {
+					/* Usb3 vbus eco solution */
+					phy_reg->cfg[29] |= (1 << 31);
+					phy_reg->cfg[29] &= ~(1 << 30);
+					extcon_set_state_sync(info->edev, EXTCON_USB, true);
+				}
 			}
+		} else {
+			schedule_delayed_work(&info->wq_detcable, msecs_to_jiffies(10));
+			return;
 		}
 	}
 	schedule_delayed_work(&info->wq_detcable, msecs_to_jiffies(150));
