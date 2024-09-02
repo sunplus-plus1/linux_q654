@@ -1663,22 +1663,14 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		hxm0686tft_lcd: mipi_dsi_lcd@0 {
-			compatible = "lx,hxm0686tft-001";
+			compatible = "sunplus,lx-hxm0686tft-001";
 			reg = <0>;
 			status = "disabled";
-			disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-				/* 0x0:Raising Edge(default)
-				 * 0x1:Falling Edge
-				 */
 		};
 		tcxd024iblon_lcd: mipi_dsi_lcd@1 {
-			compatible = "xinli,tcxd024iblon-2";
+			compatible = "sunplus,xinli-tcxd024iblon-2";
 			reg = <1>;
 			status = "disabled";
-			disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-				/* 0x0:Raising Edge(default)
-				 * 0x1:Falling Edge
-				 */
 		};
 
 		ports {

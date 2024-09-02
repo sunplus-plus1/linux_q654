@@ -1756,6 +1756,7 @@ static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t sta
 
 	if (sp_dsi_host->encoder) {
 		struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(sp_dsi_host->encoder);
+
 		if (sp_dsi_encoder->is_enabled) {
 			#if DSI_BRIDGE_OPERATION_MANUALLY
 			if (sp_dsi_host->bridge->funcs->disable)
