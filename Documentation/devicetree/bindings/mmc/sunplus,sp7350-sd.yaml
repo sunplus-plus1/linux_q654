@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Ltd. Co. 2024
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/sunplus,sp7350-sd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus sd Controller
+
+maintainers:
+  - Li-hao Kuo <lhjeff911@gmail.com>
+
+allOf:
+  - $ref: mmc-controller.yaml
+
+properties:
+  compatible:
+    enum:
+      - sunplus,sp7350-sd
+      - sunplus,sp7350-loscr-sd
+      - sunplus,sp7350-1v8-sdio
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>  
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    mmc1: mmc@f8003e80 {
+        compatible = "sunplus,sp7350-sd";
+        reg = <0xf8003e80 0x180>;
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clkc CARD_CTL1>;
+        resets = <&rstc RST_CARD_CTL1>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&sdcard_pins &sdcard_cd_pins>;
+        bus-width = <4>;
+        non-removable;
+        disable-wp;
+        cap-mmc-highspeed;
+        no-sdio;
+        no-mmc;
+    };
