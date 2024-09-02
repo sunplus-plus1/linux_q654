@@ -20689,6 +20689,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/iio/adc/sunplus,sp7350-adc
 F:	drivers/iio/adc/sp-adc.c
 
+SUNPLUS THERMAL DRIVER
+M:	Li-hao Kuo <lhjeff911@gmail.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/thermal/sunplus,sp7350-thermal
+F:	drivers/thermal/sunplus_thermal.c
+
 SUNPLUS UART DRIVER
 M:	Hammer Hsieh <hammerh0314@gmail.com>
 S:	Maintained
