@@ -6,7 +6,6 @@
  *         hammer.hsieh<hammer.hsieh@sunplus.com>
  */
 
-#include <linux/version.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
@@ -35,13 +34,6 @@
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_dsi.h"
 #include "sp7350_drm_regs.h"
-
-/* disable it for kernel 6.6.x */
-#if (LINUX_VERSION_MAJOR >= 6 && LINUX_VERSION_PATCHLEVEL >= 6)
-#define DSI_BRIDGE_OPERATION_MANUALLY  0
-#else
-#define DSI_BRIDGE_OPERATION_MANUALLY  1
-#endif
 
 #define DSI_PFORMAT_RGB565          0
 #define DSI_PFORMAT_RGB666_PACKED   1
@@ -327,7 +319,7 @@ struct sp7350_dsi_host {
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	struct list_head bridge_chain;
 	#endif
 
@@ -1208,7 +1200,7 @@ static void sp7350_dsi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_display_mode *adj_mode = &crtc_state->adjusted_mode;
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	struct drm_bridge *iter;
 	#endif
 
@@ -1221,7 +1213,7 @@ static void sp7350_dsi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		 adj_mode->hdisplay, adj_mode->hsync_start, adj_mode->hsync_end, adj_mode->htotal,
 		 adj_mode->vdisplay, adj_mode->vsync_start, adj_mode->vsync_end, adj_mode->vtotal);
 
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->mode_set)
 			iter->funcs->mode_set(iter, &crtc_state->mode, adj_mode);
@@ -1237,7 +1229,7 @@ static void sp7350_dsi_encoder_atomic_disable(struct drm_encoder *encoder,
 			       struct drm_atomic_state *state)
 {
 	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_bridge *iter;
 
@@ -1264,7 +1256,7 @@ static void sp7350_dsi_encoder_atomic_enable(struct drm_encoder *encoder,
 {
 	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	struct drm_bridge *iter;
 	#endif
 
@@ -1273,7 +1265,7 @@ static void sp7350_dsi_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->pre_enable)
 			iter->funcs->pre_enable(iter);
@@ -1282,7 +1274,7 @@ static void sp7350_dsi_encoder_atomic_enable(struct drm_encoder *encoder,
 
 	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
 
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->enable)
 			iter->funcs->enable(iter);
@@ -1489,7 +1481,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	if (!sp_dsi_encoder)
 		return -ENOMEM;
 
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	INIT_LIST_HEAD(&sp_dsi_host->bridge_chain);
 	#endif
 	sp_dsi_encoder->base.type = SP7350_DRM_ENCODER_TYPE_DSI0;
@@ -1585,7 +1577,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	}
 	#endif
 
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	/* Disable the atomic helper calls into the bridge.  We
 	 * manually call the bridge pre_enable / enable / etc. calls
 	 * from our driver, since we need to sequence them within the
@@ -1615,7 +1607,7 @@ static void sp7350_dsi_unbind(struct device *dev, struct device *master,
 	if (sp_dsi_host->bridge)
 		pm_runtime_disable(dev);
 
-	#if DSI_BRIDGE_OPERATION_MANUALLY
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	/*
 	 * Restore the bridge_chain so the bridge detach procedure can happen
 	 * normally.
@@ -1758,7 +1750,7 @@ static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t sta
 		struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(sp_dsi_host->encoder);
 
 		if (sp_dsi_encoder->is_enabled) {
-			#if DSI_BRIDGE_OPERATION_MANUALLY
+			#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 			if (sp_dsi_host->bridge->funcs->disable)
 				sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
 			if (sp_dsi_host->bridge->funcs->post_disable)
@@ -1815,7 +1807,7 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 			sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, NULL);
 			sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, NULL);
 			sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, NULL);
-			#if DSI_BRIDGE_OPERATION_MANUALLY
+			#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 			if (sp_dsi_host->bridge->funcs->pre_enable)
 				sp_dsi_host->bridge->funcs->pre_enable(sp_dsi_host->bridge);
 			sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
