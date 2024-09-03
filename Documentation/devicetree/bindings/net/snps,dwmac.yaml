@@ -153,7 +153,7 @@ properties:
     maxItems: 1
 
   mac-mode:
-    $ref: ethernet-controller.yaml#/properties/phy-connection-type
+    $ref: ethernet-controller.yaml#/properties/phy-mode
     description:
       The property is identical to 'phy-mode', and assumes that there is mode
       converter in-between the MAC & PHY (e.g. GMII-to-RGMII). This converter
@@ -237,7 +237,8 @@ properties:
             type: boolean
             description: Multicast & Broadcast Packets
           snps,priority:
-            $ref: /schemas/types.yaml#/definitions/uint32
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            maxItems: 1
             description: Bitmask of the tagged frames priorities assigned to the queue
         allOf:
           - if:
@@ -388,7 +389,8 @@ properties:
             $ref: /schemas/types.yaml#/definitions/uint32
             description: max read outstanding req. limit
           snps,priority:
-            $ref: /schemas/types.yaml#/definitions/uint32
+            $ref: /schemas/types.yaml#/definitions/uint32-array
+            maxItems: 1
             description:
               Bitmask of the tagged frames priorities assigned to the queue.
               When a PFC frame is received with priorities matching the bitmask,
