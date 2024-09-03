@@ -10,13 +10,18 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_fb_dma_helper.h>
-//#include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_plane_helper.h>
 
 #include "sp7350_drm_drv.h"
+#if defined(DRM_GEM_DMA_AVAILABLE)
+#include <drm/drm_fb_dma_helper.h>
+#include <drm/drm_gem_dma_helper.h>
+#else
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
+#endif
+
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_plane.h"
 #include "sp7350_drm_regs.h"
@@ -990,9 +995,15 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	if (!old_state || new_state->fb != old_state->fb
 		|| new_state->src_x != old_state->src_x || new_state->src_y != old_state->src_y
 		|| new_state->src_w != old_state->src_w || new_state->src_h != old_state->src_h) {
+		#if defined(DRM_GEM_DMA_AVAILABLE)
 		struct drm_gem_dma_object *obj = drm_fb_dma_get_gem_obj(new_state->fb, 0);
+		dma_addr_t paddr = obj->dma_addr;
+		#else
+		struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(new_state->fb, 0);
+		dma_addr_t paddr = obj->paddr;
+		#endif
 
-		if (!obj || !obj->dma_addr) {
+		if (!obj || !paddr) {
 			DRM_DEBUG_ATOMIC("plane-%d drm_fb_cma_get_gem_obj fail.\n", plane->index);
 			return;
 		}
@@ -1002,7 +1013,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 				 new_state->src_x >> 16, new_state->src_y >> 16, new_state->src_w >> 16, new_state->src_h >> 16,
 				 new_state->crtc_x, new_state->crtc_y, new_state->crtc_w, new_state->crtc_h);
 
-		sp7350_vpp_plane_imgread_set(plane, (u32)obj->dma_addr,
+		sp7350_vpp_plane_imgread_set(plane, (u32)paddr,
 				       new_state->src_x >> 16, new_state->src_y >> 16,
 				       new_state->src_w >> 16, new_state->src_h >> 16,
 				       new_state->fb->width, new_state->fb->height,
@@ -1112,17 +1123,24 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	/* Check parameter updates first  */
 	if (!old_state || new_state->fb != old_state->fb) {
+		/* Check parameter updates first  */
+		#if defined(DRM_GEM_DMA_AVAILABLE)
+		struct drm_gem_dma_object *obj = drm_fb_dma_get_gem_obj(new_state->fb, 0);
+		dma_addr_t paddr = obj->dma_addr;
+		#else
+		struct drm_gem_cma_object *obj = drm_fb_cma_get_gem_obj(new_state->fb, 0);
+		dma_addr_t paddr = obj->paddr;
+		#endif
+
 		DRM_DEBUG_ATOMIC("plane-%d update fb (%dx%d)",
 				 plane->index, new_state->fb->width, new_state->fb->width);
-		/* Check parameter updates first  */
-		struct drm_gem_dma_object *obj = drm_fb_dma_get_gem_obj(new_state->fb, 0);
 
-		if (!obj || !obj->dma_addr) {
+		if (!obj || !paddr) {
 			DRM_DEBUG_ATOMIC("plane-%d drm_fb_cma_get_gem_obj fail.\n", plane->index);
 			return;
 		}
 		updated = true;
-		info->buf_addr_phy = (u32)obj->dma_addr;
+		info->buf_addr_phy = (u32)paddr;
 		info->region_info.buf_width = new_state->fb->width;
 		info->region_info.buf_height = new_state->fb->height;
 	}
@@ -1251,7 +1269,7 @@ static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
 		return 0;
 	}
 
-	crtc_state = drm_atomic_get_crtc_state(state, new_state->crtc);
+	crtc_state = drm_atomic_get_crtc_state(new_state->state, new_state->crtc);
 	if (IS_ERR(crtc_state)) {
 		DRM_DEBUG_ATOMIC("plane-%d drm_atomic_get_crtc_state is err\n", plane->index);
 		return PTR_ERR(crtc_state);
@@ -1306,7 +1324,7 @@ static int sp7350_kms_plane_osd_atomic_check(struct drm_plane *plane,
 		return 0;
 	}
 
-	crtc_state = drm_atomic_get_crtc_state(state, new_state->crtc);
+	crtc_state = drm_atomic_get_crtc_state(new_state->state, new_state->crtc);
 	if (IS_ERR(crtc_state)) {
 		DRM_DEBUG_ATOMIC("plane-%d drm_atomic_get_crtc_state is err\n", plane->index);
 		return PTR_ERR(crtc_state);

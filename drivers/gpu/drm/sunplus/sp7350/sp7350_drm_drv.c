@@ -19,17 +19,21 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
-//#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_gem_dma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "sp7350_drm_drv.h"
+#if defined(DRM_GEM_DMA_AVAILABLE)
+#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_gem_dma_helper.h>
+#else
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fb_cma_helper.h>
+#endif
+
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_plane.h"
 #include "sp7350_drm_regs.h"
@@ -47,14 +51,21 @@
  * DRM operations
  */
 
+#if defined(DRM_GEM_DMA_AVAILABLE)
 DEFINE_DRM_GEM_DMA_FOPS(sp7350_drm_fops);
+#else
+DEFINE_DRM_GEM_CMA_FOPS(sp7350_drm_fops);
+#endif
 
 static struct drm_driver sp7350_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	//.irq_handler		= sp7350_drm_irq,
-	//DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &sp7350_drm_fops,
+#if defined(DRM_GEM_DMA_AVAILABLE)
 	DRM_GEM_DMA_DRIVER_OPS,
+#else
+	DRM_GEM_CMA_DRIVER_OPS,
+#endif
 //#if 1//defined(CONFIG_DEBUG_FS)
 	.debugfs_init = sp7350_debugfs_init,
 //#endif

@@ -80,6 +80,16 @@
 #define M06_REG_CMD(factory) ((factory) ? 0xf3 : 0xfc)
 #define M06_REG_ADDR(factory, addr) ((factory) ? (addr) & 0x7f : (addr) & 0x3f)
 
+#if defined(CONFIG_SOC_SP7350)
+/* interrupt pin not implemented for sp7350. */
+#define FT5X06_POLLING_MODE  1
+#endif
+
+#if defined(FT5X06_POLLING_MODE)
+#define FIRST_POLL_DELAY_MS		300	/* in addition to the above */
+#define POLL_INTERVAL_MS		17	/* 17ms = 60fps */
+#endif
+
 enum edt_pmode {
 	EDT_PMODE_NOT_SUPPORTED,
 	EDT_PMODE_HIBERNATE,
@@ -147,6 +157,13 @@ struct edt_ft5x06_ts_data {
 	enum edt_ver version;
 	unsigned int crc_errors;
 	unsigned int header_errors;
+
+#if defined(FT5X06_POLLING_MODE)
+	unsigned int known_ids;
+	int init_td_status;
+	struct timer_list timer;
+	struct work_struct work_i2c_poll;
+#endif
 };
 
 struct edt_i2c_chip_data {
@@ -303,6 +320,12 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	u8 rdbuf[63];
 	int i, type, x, y, id;
 	int error;
+#if defined(FT5X06_POLLING_MODE)
+	unsigned int active_ids = 0, known_ids = tsdata->known_ids;
+	long released_ids;
+	int b = 0;
+#endif
+	unsigned int num_points = tsdata->max_support_points;
 
 	memset(rdbuf, 0, sizeof(rdbuf));
 	error = regmap_bulk_read(tsdata->regmap, tsdata->tdata_cmd, rdbuf,
@@ -313,7 +336,31 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		goto out;
 	}
 
-	for (i = 0; i < tsdata->max_support_points; i++) {
+#if defined(FT5X06_POLLING_MODE)
+	/* M09/M12 does not send header or CRC */
+	if (tsdata->version != EDT_M06) {
+		/* Register 2 is TD_STATUS, containing the number of touch
+		 * points.
+		 */
+		num_points = min(rdbuf[2] & 0xf, tsdata->max_support_points);
+
+		/* When polling FT5x06 without IRQ: initial register contents
+		 * could be stale or undefined; discard all readings until
+		 * TD_STATUS changes for the first time (or num_points is 0).
+		 */
+		if (tsdata->init_td_status) {
+			if (tsdata->init_td_status < 0)
+				tsdata->init_td_status = rdbuf[2];
+
+			if (num_points && rdbuf[2] == tsdata->init_td_status)
+				goto out;
+
+			tsdata->init_td_status = 0;
+		}
+	}
+#endif
+
+	for (i = 0; i < num_points; i++) {
 		u8 *buf = &rdbuf[i * tsdata->point_len + tsdata->tdata_offset];
 
 		type = buf[0] >> 6;
@@ -336,9 +383,32 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 		input_mt_slot(tsdata->input, id);
 		if (input_mt_report_slot_state(tsdata->input, MT_TOOL_FINGER,
 					       type != TOUCH_EVENT_UP))
+		#if !defined(FT5X06_POLLING_MODE)
 			touchscreen_report_pos(tsdata->input, &tsdata->prop,
 					       x, y, true);
+		#else
+		{
+			touchscreen_report_pos(tsdata->input, &tsdata->prop,
+					       x, y, true);
+			active_ids |= BIT(id);
+		} else {
+			known_ids &= ~BIT(id);
+		}
+		#endif
 	}
+
+#if defined(FT5X06_POLLING_MODE)
+	/* One issue with the device is the TOUCH_UP message is not always
+	 * returned. Instead track which ids we know about and report when they
+	 * are no longer updated
+	 */
+	released_ids = known_ids & ~active_ids;
+	for_each_set_bit_from(b, &released_ids, tsdata->max_support_points) {
+		input_mt_slot(tsdata->input, b);
+		input_mt_report_slot_inactive(tsdata->input);
+	}
+	tsdata->known_ids = active_ids;
+#endif
 
 	input_mt_report_pointer_emulation(tsdata->input, true);
 	input_sync(tsdata->input);
@@ -346,6 +416,24 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 out:
 	return IRQ_HANDLED;
 }
+
+#if defined(FT5X06_POLLING_MODE)
+static void edt_ft5x06_ts_irq_poll_timer(struct timer_list *t)
+{
+	struct edt_ft5x06_ts_data *tsdata = from_timer(tsdata, t, timer);
+
+	schedule_work(&tsdata->work_i2c_poll);
+	mod_timer(&tsdata->timer, jiffies + msecs_to_jiffies(POLL_INTERVAL_MS));
+}
+
+static void edt_ft5x06_ts_work_i2c_poll(struct work_struct *work)
+{
+	struct edt_ft5x06_ts_data *tsdata = container_of(work,
+			struct edt_ft5x06_ts_data, work_i2c_poll);
+
+	edt_ft5x06_ts_isr(0, tsdata);
+}
+#endif
 
 struct edt_ft5x06_attribute {
 	struct device_attribute dattr;
@@ -1139,7 +1227,9 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	struct edt_ft5x06_ts_data *tsdata;
 	unsigned int val;
 	struct input_dev *input;
+#if !defined(FT5X06_POLLING_MODE)
 	unsigned long irq_flags;
+#endif
 	int error;
 	u32 report_rate;
 
@@ -1317,6 +1407,13 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 		return error;
 	}
 
+#if defined(FT5X06_POLLING_MODE)
+	tsdata->init_td_status = -1; /* filter bogus initial data */
+	INIT_WORK(&tsdata->work_i2c_poll, edt_ft5x06_ts_work_i2c_poll);
+	timer_setup(&tsdata->timer, edt_ft5x06_ts_irq_poll_timer, 0);
+	tsdata->timer.expires = jiffies + msecs_to_jiffies(FIRST_POLL_DELAY_MS);
+	add_timer(&tsdata->timer);
+#else
 	irq_flags = irq_get_trigger_type(client->irq);
 	if (irq_flags == IRQF_TRIGGER_NONE)
 		irq_flags = IRQF_TRIGGER_FALLING;
@@ -1329,6 +1426,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
 		return error;
 	}
+#endif
 
 	error = devm_device_add_group(&client->dev, &edt_ft5x06_attr_group);
 	if (error)
@@ -1352,6 +1450,11 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 static void edt_ft5x06_ts_remove(struct i2c_client *client)
 {
 	struct edt_ft5x06_ts_data *tsdata = i2c_get_clientdata(client);
+
+	#if defined(FT5X06_POLLING_MODE)
+	del_timer(&tsdata->timer);
+	cancel_work_sync(&tsdata->work_i2c_poll);
+	#endif
 
 	edt_ft5x06_ts_teardown_debugfs(tsdata);
 	regmap_exit(tsdata->regmap);
