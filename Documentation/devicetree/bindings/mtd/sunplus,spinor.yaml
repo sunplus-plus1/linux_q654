@@ -17,7 +17,7 @@ description: |
 properties:
   compatible:
     items:
-      - const: sunplus,sp-spi-nor
+      - const: sunplus,sp7350-spi-nor
 
   reg:
     items:
@@ -95,7 +95,7 @@ examples:
     #include <dt-bindings/clock/sp-sp7350.h>
     #include <dt-bindings/reset/sp-sp7350.h>
     sp_spinor0: spinor@9C000B00 {
-        compatible = "sunplus,sp-spi-nor";
+        compatible = "sunplus,sp7350-spi-nor";
         reg = <0x9C000B00 0x80>, <0x9c000080 0x80>;
         interrupt-parent = <&intc>;
         interrupts = <143 IRQ_TYPE_LEVEL_HIGH>;
