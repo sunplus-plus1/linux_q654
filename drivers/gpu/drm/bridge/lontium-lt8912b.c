@@ -51,8 +51,10 @@ struct lt8912 {
 	struct gpio_desc *gp_reset;
 
 	struct videomode mode;
+	#if defined(CONFIG_DRM_SP7350)
 	u32 mode_sel;
 	u32 hdmi_dvi_sel;
+	#endif
 
 	struct regulator_bulk_data supplies[7];
 
@@ -237,7 +239,9 @@ static int lt8912_init_i2c(struct lt8912 *lt, struct i2c_client *client)
 	struct i2c_board_info info[] = {
 		{ I2C_BOARD_INFO("lt8912p0", I2C_ADDR_MAIN), },
 		{ I2C_BOARD_INFO("lt8912p1", I2C_ADDR_CEC_DSI), },
+		#if defined(CONFIG_DRM_SP7350)
 		{ I2C_BOARD_INFO("lt8912p2", I2C_ADDR_HDMITX_DSI), },
+		#endif
 	};
 
 	if (!lt)
@@ -349,7 +353,7 @@ static int lt8912_video_setup(struct lt8912 *lt)
 	ret |= regmap_write(lt->regmap[I2C_CEC_DSI], 0x3e, hfp & 0xff);
 	ret |= regmap_write(lt->regmap[I2C_CEC_DSI], 0x3f, hfp >> 8);
 
-#if 0 //temporary off
+#if !defined(CONFIG_DRM_SP7350) //temporary off
 	ret |= regmap_update_bits(lt->regmap[I2C_MAIN], 0xab, BIT(0),
 				  vsync_activehigh ? BIT(0) : 0);
 	ret |= regmap_update_bits(lt->regmap[I2C_MAIN], 0xab, BIT(1),
@@ -361,6 +365,7 @@ static int lt8912_video_setup(struct lt8912 *lt)
 	return ret;
 }
 
+#if defined(CONFIG_DRM_SP7350)
 static int lt8912_audio_setup(struct lt8912 *lt)
 {
 	u8 avi_pb0, avi_pb1, avi_pb2, avi_pb4, chksum;
@@ -487,6 +492,7 @@ static int lt8912_audio_setup(struct lt8912 *lt)
 	ret |= regmap_write(lt->regmap[I2C_HDMITX_DSI], 0x50, avi_pb13);
 	return ret;
 }
+#endif
 
 static int lt8912_soft_power_on(struct lt8912 *lt)
 {
@@ -504,48 +510,9 @@ static int lt8912_soft_power_on(struct lt8912 *lt)
 	return 0;
 }
 
-#if 0
-/*
- * lt8912_input_timing[x][y]
- * y = 0-1, LT8912 width & height
- * y = 2-9, LT8912 HSA & HFP & HBP & HACT & VSA & VFP & VBP & VACT
- */
-static const u32 lt8912_input_timing[11][10] = {
-	/* (w   h)   HSA   HFP   HBP   HACT  VSA  VFP  VBP   VACT */
-	{ 720,  480, 0x3e, 0x10, 0x3c,  720, 0x6, 0x9, 0x1E,  480}, /* 480P */
-	{ 720,  576, 0x80, 0x28, 0x58,  720, 0x4, 0x1, 0x17,  576}, /* 576P */
-	{1280,  720, 0x28, 0x6e, 0xdc, 1280, 0x5, 0x5, 0x14,  720}, /* 720P */
-	{1920, 1080, 0x2c, 0x58, 0x94, 1920, 0x5, 0x4, 0x24, 1080}, /* 1080P */
-	{  64,   64, 0x14, 0x28, 0x58,   64, 0x5, 0x5, 0x24,   64}, /* 64x64 */
-	{ 128,  128, 0x14, 0x28, 0x58,  128, 0x5, 0x5, 0x24,  128}, /* 128x128 */
-	{  64, 2880, 0x14, 0x28, 0x58,   64, 0x5, 0x5, 0x24, 2880}, /* 64x2880 */
-	{3840,   64, 0x14, 0x28, 0x58, 3840, 0x5, 0x5, 0x24,   64}, /* 3840x64 */
-	{3840, 2880, 0x14, 0x28, 0x58, 3840, 0x5, 0x5, 0x24, 2880}, /* 3840x2880 */
-	{ 800,  480, 0x14, 0x28, 0x58,  800, 0x5, 0x5, 0x24,  480}, /* 800x480 */
-	{1024,  600, 0x14, 0x28, 0x58, 1024, 0x5, 0x5, 0x24,  600}  /* 1024x600 */
-};
-#endif
-
 static int lt8912_video_on(struct lt8912 *lt)
 {
 	int ret;
-#if 0
-	u32 i;
-
-	/* set default timing by lt8912_input_timing and mode_sel. */
-	i = lt->mode_sel;
-	if (i > 3) i = 3;
-
-	lt->mode.hactive = lt8912_input_timing[i][5];
-	lt->mode.hfront_porch = lt8912_input_timing[i][3];
-	lt->mode.hsync_len = lt8912_input_timing[i][2];
-	lt->mode.hback_porch = lt8912_input_timing[i][4];
-
-	lt->mode.vactive = lt8912_input_timing[i][9];
-	lt->mode.vfront_porch = lt8912_input_timing[i][7];
-	lt->mode.vsync_len = lt8912_input_timing[i][6];
-	lt->mode.vback_porch = lt8912_input_timing[i][8];
-#endif
 
 	ret = lt8912_video_setup(lt);
 	if (ret < 0)
@@ -563,6 +530,7 @@ static int lt8912_video_on(struct lt8912 *lt)
 	if (ret < 0)
 		goto end;
 
+	#if defined(CONFIG_DRM_SP7350)
 	/* Compatibility processing */
 	if (lt->mode.hactive == 1920 && lt->mode.vactive == 1080) { //1080P60
 		/* default use hdmi mode */
@@ -591,6 +559,7 @@ static int lt8912_video_on(struct lt8912 *lt)
 	} else {
 		pr_info("lt8912 bridge set DVI Mode\n");
 	}
+	#endif
 
 end:
 	return ret;

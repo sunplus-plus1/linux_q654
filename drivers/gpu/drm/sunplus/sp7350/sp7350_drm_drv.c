@@ -19,16 +19,21 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "sp7350_drm_drv.h"
+#if defined(DRM_GEM_DMA_AVAILABLE)
+#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_gem_dma_helper.h>
+#else
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_fb_cma_helper.h>
+#endif
+
 #include "sp7350_drm_crtc.h"
 #include "sp7350_drm_plane.h"
 #include "sp7350_drm_regs.h"
@@ -46,21 +51,28 @@
  * DRM operations
  */
 
+#if defined(DRM_GEM_DMA_AVAILABLE)
+DEFINE_DRM_GEM_DMA_FOPS(sp7350_drm_fops);
+#else
 DEFINE_DRM_GEM_CMA_FOPS(sp7350_drm_fops);
+#endif
 
 static struct drm_driver sp7350_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	//.irq_handler		= sp7350_drm_irq,
-	DRM_GEM_CMA_DRIVER_OPS,
 	.fops			= &sp7350_drm_fops,
-
+#if defined(DRM_GEM_DMA_AVAILABLE)
+	DRM_GEM_DMA_DRIVER_OPS,
+#else
+	DRM_GEM_CMA_DRIVER_OPS,
+#endif
 //#if 1//defined(CONFIG_DEBUG_FS)
 	.debugfs_init = sp7350_debugfs_init,
 //#endif
 
 	.name			= "sp7350-drm",
 	.desc			= "Sunplus SP7350 DRM",
-	.date			= "20240726",
+	.date			= "20240828",
 	.major			= 1,
 	.minor			= 0,
 };
@@ -162,8 +174,8 @@ static int sp7350_drm_bind(struct device *dev)
 		}
 	}
 
-	DRM_DEV_DEBUG_DRIVER(dev, "drm_fb_helper_remove_conflicting_framebuffers\n");
-	drm_fb_helper_remove_conflicting_framebuffers(NULL, "sp7350drmfb", false);
+	//DRM_DEV_DEBUG_DRIVER(dev, "drm_fb_helper_remove_conflicting_framebuffers\n");
+	//drm_fb_helper_remove_conflicting_framebuffers(NULL, "sp7350drmfb", false);
 
 	/* display controller init */
 	DRM_DEV_DEBUG_DRIVER(dev, "sp7350_drm_modeset_init\n");
@@ -213,7 +225,6 @@ static void sp7350_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
-	DRM_DEV_DEBUG_DRIVER(dev, "%s\n", __func__);
 
 	drm_dev_unregister(drm);
 
@@ -246,7 +257,6 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 	int count = ARRAY_SIZE(component_drivers);
 	int i;
 
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "%s\n", __func__);
 	for (i = 0; i < count; i++) {
 		struct device_driver *drv = &component_drivers[i]->driver;
 		struct device *p = NULL, *d;
@@ -265,7 +275,6 @@ static int sp7350_drm_probe(struct platform_device *pdev)
 
 static int sp7350_drm_remove(struct platform_device *pdev)
 {
-	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "%s\n", __func__);
 	component_master_del(&pdev->dev, &sp7350_drm_ops);
 
 	return 0;

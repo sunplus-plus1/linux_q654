@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/sunplus/sunplus,sp7350-dsi0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus sp7350-series SoC Display mipi-dsi controller
+
+maintainers:
+  - Daxun Jiang <dx.jiang@sunmedia.com.cn>
+
+description: |
+  - The MIPI-DSI controller in Sunplus SoCs.
+
+properties:
+  compatible:
+    const: sunplus,sp7350-dsi0
+
+  reg:
+    maxItems: 4
+
+  clocks:
+    minItems: 2
+    maxItems: 16
+
+  clock-names:
+    minItems: 2
+    maxItems: 16
+
+  resets:
+    minItems: 2
+    maxItems: 16
+
+  reset-names:
+    minItems: 2
+    maxItems: 16
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - ports
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+
+    drm_dsi0: mipi-dsi@f8006600 {
+      compatible = "sunplus,sp7350-dsi0";
+      reg = <0x00 0xf8006600 0x00 0xb8>, <0x00 0xf8800180 0x00 0x80>;
+
+      clocks = <&clkc DISPSYS>, <&clkc DMIX>, <&clkc TGEN>, <&clkc TCON>, <&clkc MIPITX>,
+              <&clkc GPOST0>, <&clkc GPOST1>, <&clkc GPOST2>, <&clkc GPOST3>,
+              <&clkc OSD0>, <&clkc OSD1>, <&clkc OSD2>, <&clkc OSD3>,
+              <&clkc IMGREAD0>, <&clkc VSCL0>, <&clkc VPOST0>;
+      clock-names = "clkc_dispsys", "clkc_dmix", "clkc_tgen", "clkc_tcon", "clkc_mipitx",
+              "clkc_gpost0", "clkc_gpost1", "clkc_gpost2", "clkc_gpost3",
+              "clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
+              "clkc_imgread0", "clkc_vscl0", "clkc_vpost0";
+      resets = <&rstc RST_DISPSYS>, <&rstc RST_DMIX>, <&rstc RST_TGEN>, <&rstc RST_TCON>, <&rstc RST_MIPITX>,
+              <&rstc RST_GPOST0>, <&rstc RST_GPOST1>, <&rstc RST_GPOST2>, <&rstc RST_GPOST3>,
+              <&rstc RST_OSD0>, <&rstc RST_OSD1>, <&rstc RST_OSD2>, <&rstc RST_OSD3>,
+              <&rstc RST_IMGREAD0>, <&rstc RST_VSCL0>, <&rstc RST_VPOST0>;
+      reset-names = "rstc_dispsys", "rstc_dmix", "rstc_tgen", "rstc_tcon", "rstc_mipitx",
+              "rstc_gpost0", "rstc_gpost1", "rstc_gpost2", "rstc_gpost3",
+              "rstc_osd0", "rstc_osd1", "rstc_osd2", "rstc_osd3",
+              "rstc_imgread0", "rstc_vscl0", "rstc_vpost0";
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dsi0_in: port@0 {
+          reg = <0>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+          dsi0_in0: endpoint@0 {
+            remote-endpoint = <&crtc0_out>;
+            reg = <0>;
+          };
+        };
+
+        dsi0_out: port@1 {
+          reg = <1>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+          dsi0_out0: endpoint@0 {
+            reg = <0>;
+          };
+        };
+      };
+    };

@@ -318,7 +318,10 @@ struct sp7350_dsi_host {
 	struct platform_device *pdev;
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
+	struct drm_panel *panel;
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	struct list_head bridge_chain;
+	#endif
 
 	void __iomem *regs;
 	void __iomem *ao_moon3;
@@ -391,6 +394,7 @@ struct sp7350_dsi_host {
 struct sp7350_dsi_encoder {
 	struct sp7350_encoder base;
 	struct sp7350_dsi_host *sp_dsi_host;
+	bool is_enabled;
 };
 
 #define to_sp7350_dsi_encoder(encoder) \
@@ -637,7 +641,6 @@ static void sp7350_mipitx_lane_timing_init(struct sp7350_dsi_host *sp_dsi_host)
 {
 	u32 value = 0;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 	/*
 	 * Enable clock lane at High Speed Mode
 	 */
@@ -650,7 +653,6 @@ static void sp7350_mipitx_dsi_cmd_mode_start(struct sp7350_dsi_host *sp_dsi_host
 {
 	u32 value;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	value = 0;
 	value |= SP7350_MIPITX_OP_CTRL_TXLDPT;
@@ -676,7 +678,6 @@ static void sp7350_mipitx_dsi_video_mode_on(struct sp7350_dsi_host *sp_dsi_host)
 {
 	u32 value;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	value = 0;
 	value |= (SP7350_MIPITX_CORE_CTRL_INPUT_EN |
@@ -795,6 +796,10 @@ static void sp7350_mipitx_dsi_lane_clock_setting(struct sp7350_dsi_host *sp_dsi_
 			lane_clock->txpll_prescal, lane_clock->txpll_prediv,
 			lane_clock->txpll_postdiv, lane_clock->txpll_endiv5,
 			lane_clock->txpll_fbkdiv, lane_clock->txpll_bnksel);
+	}
+	if (!lane_clock->clock) {
+		/* do nothing */
+		return;
 	}
 
 	/* Register Setting Formula:
@@ -972,6 +977,10 @@ static void sp7350_mipitx_dsi_pixel_clock_setting(struct sp7350_dsi_host *sp_dsi
 			pixel_clock->postdiv_10x, pixel_clock->fbkdiv,
 			pixel_clock->bnksel, pixel_clock->seldiv);
 	}
+	if (!pixel_clock->clock) {
+		/* do nothing */
+		return;
+	}
 
 	/* Register Setting Formula:
 	 *   prescal= PRESCAL_H[15]+1 = {1, 2}
@@ -1066,6 +1075,10 @@ static void sp7350_mipitx_dsi_video_mode_setting(struct sp7350_dsi_host *sp_dsi_
 		sync_timing->vbp  = mode->vtotal - mode->vsync_end;
 		sync_timing->vact = mode->vdisplay;
 	}
+	if (!sync_timing->hact || !sync_timing->vact) {
+		/* do nothing */
+		return;
+	}
 	/* Register Setting Formula:
 	 *   hsa = HSA[31:24]
 	 *   hbp = HBP[11:0]
@@ -1144,7 +1157,6 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 	struct drm_display_mode adj_mode;
 	enum drm_mode_status ret;
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 
 	/*
 	 * The crtc might adjust the mode, so go through the
@@ -1172,14 +1184,25 @@ static enum drm_mode_status sp7350_dsi_encoder_mode_valid(struct drm_encoder *en
 	return MODE_OK;
 }
 
-static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
-					struct drm_display_mode *mode,
-					struct drm_display_mode *adj_mode)
+static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
+					   struct drm_crtc_state *crtc_state,
+				    struct drm_connector_state *conn_state)
+{
+	/* do nothing */
+	DRM_DEBUG_DRIVER("[do nothing]\n");
+	return 0;
+}
+
+static void sp7350_dsi_encoder_atomic_mode_set(struct drm_encoder *encoder,
+				struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state)
 {
 	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
-
+	struct drm_display_mode *adj_mode = &crtc_state->adjusted_mode;
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	struct drm_bridge *iter;
+	#endif
 
 	/* TODO reference to dsi_encoder_mode_set */
 	//DRM_DEBUG_DRIVER("[TODO]\n");
@@ -1190,95 +1213,74 @@ static void sp7350_dsi_encoder_mode_set(struct drm_encoder *encoder,
 		 adj_mode->hdisplay, adj_mode->hsync_start, adj_mode->hsync_end, adj_mode->htotal,
 		 adj_mode->vdisplay, adj_mode->vsync_start, adj_mode->vsync_end, adj_mode->vtotal);
 
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->mode_set)
-			iter->funcs->mode_set(iter, mode, adj_mode);
+			iter->funcs->mode_set(iter, &crtc_state->mode, adj_mode);
 	}
+	#endif
 
 	sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, adj_mode);
 	sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, adj_mode);
 	sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, adj_mode);
 }
 
-static int sp7350_dsi_encoder_atomic_check(struct drm_encoder *encoder,
-					   struct drm_crtc_state *crtc_state,
-				    struct drm_connector_state *conn_state)
-{
-	/* do nothing */
-	DRM_DEBUG_DRIVER("[do nothing]\n");
-	return 0;
-}
-
-static void sp7350_dsi_encoder_disable(struct drm_encoder *encoder)
+static void sp7350_dsi_encoder_atomic_disable(struct drm_encoder *encoder,
+			       struct drm_atomic_state *state)
 {
 	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
 	struct drm_bridge *iter;
 
-	if (!sp_dsi_host || !sp_dsi_host->bridge || !encoder->name) {
+	if (!sp_dsi_host || !sp_dsi_host->bridge || !encoder->name)
 		return;
-	}
+
 	DRM_DEBUG_DRIVER("%s\n", encoder->name);
 
 	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->disable)
 			iter->funcs->disable(iter);
 
-		if (iter == sp_dsi_host->bridge)
-			break;
-	}
-
-	list_for_each_entry_from(iter, &sp_dsi_host->bridge_chain, chain_node) {
 		if (iter->funcs->post_disable)
 			iter->funcs->post_disable(iter);
 	}
-}
-
-static void sp7350_dsi_encoder_enable(struct drm_encoder *encoder)
-{
-	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
-	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
-	struct drm_bridge *iter;
-
-	if (!sp_dsi_host || !sp_dsi_host->bridge || !encoder->name) {
-		return;
-	}
-
-	DRM_DEBUG_DRIVER("%s\n", encoder->name);
-
-	sp7350_mipitx_dsi_cmd_mode_start(sp_dsi_host);
-
-	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
-		if (iter->funcs->pre_enable)
-			iter->funcs->pre_enable(iter);
-	}
-
-	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
-
-	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
-		if (iter->funcs->enable)
-			iter->funcs->enable(iter);
-	}
-}
-
-static void sp7350_dsi_encoder_atomic_mode_set(struct drm_encoder *encoder,
-				struct drm_crtc_state *crtc_state,
-				struct drm_connector_state *conn_state)
-{
-	sp7350_dsi_encoder_mode_set(encoder, &crtc_state->mode, &crtc_state->adjusted_mode);
-}
-
-
-static void sp7350_dsi_encoder_atomic_disable(struct drm_encoder *encoder,
-			       struct drm_atomic_state *state)
-{
-	sp7350_dsi_encoder_disable(encoder);
+	#else
+	DRM_DEBUG_DRIVER("[nothing]%s\n", encoder->name);
+	#endif
+	sp_dsi_encoder->is_enabled = false;
 }
 
 static void sp7350_dsi_encoder_atomic_enable(struct drm_encoder *encoder,
 			      struct drm_atomic_state *state)
 {
-	sp7350_dsi_encoder_enable(encoder);
+	struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(encoder);
+	struct sp7350_dsi_host *sp_dsi_host = sp_dsi_encoder->sp_dsi_host;
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
+	struct drm_bridge *iter;
+	#endif
+
+	if (!sp_dsi_host || !sp_dsi_host->bridge || !encoder->name)
+		return;
+
+	DRM_DEBUG_DRIVER("%s\n", encoder->name);
+
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
+	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
+		if (iter->funcs->pre_enable)
+			iter->funcs->pre_enable(iter);
+	}
+	#endif
+
+	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
+	list_for_each_entry_reverse(iter, &sp_dsi_host->bridge_chain, chain_node) {
+		if (iter->funcs->enable)
+			iter->funcs->enable(iter);
+	}
+	#endif
+	sp_dsi_encoder->is_enabled = true;
 }
 
 /*
@@ -1345,7 +1347,6 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 {
 	struct sp7350_dsi_host *sp_dsi_host = sp7350_host_to_dsi(host);
 
-	DRM_DEBUG_DRIVER("%s\n", __func__);
 	if (!sp_dsi_host->regs || !sp_dsi_host->ao_moon3) {
 		DRM_DEV_ERROR(&sp_dsi_host->pdev->dev, "dsi host probe fail!.\n");
 		return -1;
@@ -1394,6 +1395,7 @@ static int sp7350_dsi_host_attach(struct mipi_dsi_host *host,
 	sp7350_mipitx_clock_init(sp_dsi_host);
 	sp7350_mipitx_lane_timing_init(sp_dsi_host);
 	//sp7350_dsi_tcon_init(sp_dsi_host);
+	sp7350_mipitx_dsi_cmd_mode_start(sp_dsi_host);
 
 	return 0;
 }
@@ -1434,7 +1436,6 @@ static int sp7350_encoder_init(struct device *dev,
 	u32 crtc_mask = drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 	int ret;
 
-	DRM_DEV_DEBUG_DRIVER(dev, "%s\n", __func__);
 
 	if (!crtc_mask) {
 		DRM_DEV_ERROR(dev, "failed to find crtc mask\n");
@@ -1460,7 +1461,6 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	struct drm_device *drm = dev_get_drvdata(master);
 	struct sp7350_dsi_host *sp_dsi_host = dev_get_drvdata(dev);
 	struct sp7350_dsi_encoder *sp_dsi_encoder;
-	struct drm_panel *panel;
 	//const struct of_device_id *match;
 	//dma_cap_mask_t dma_mask;
 	int ret;
@@ -1481,7 +1481,9 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	if (!sp_dsi_encoder)
 		return -ENOMEM;
 
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	INIT_LIST_HEAD(&sp_dsi_host->bridge_chain);
+	#endif
 	sp_dsi_encoder->base.type = SP7350_DRM_ENCODER_TYPE_DSI0;
 	sp_dsi_encoder->sp_dsi_host = sp_dsi_host;
 
@@ -1516,7 +1518,7 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 		of_property_read_u32(endpoint, "reg", &endpoint_id);
 		DRM_DEV_DEBUG(dev, "endpoint_id:%d\n", endpoint_id);
 		ret = drm_of_find_panel_or_bridge(dev->of_node, 1, endpoint_id,
-						  &panel, &sp_dsi_host->bridge);
+						  &sp_dsi_host->panel, &sp_dsi_host->bridge);
 		of_node_put(endpoint);
 		if (!ret)
 			break;
@@ -1524,11 +1526,10 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	of_node_put(port);
 	if (!child_count) {
 		DRM_DEV_ERROR(dev, "dsi0 port does not have any children\n");
-		ret = -EINVAL;
-		return ret;
+		return -EINVAL;
 	}
 	if (ret) {
-		DRM_DEV_ERROR(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
+		DRM_DEV_DEBUG(dev, "drm_of_find_panel_or_bridge failed -%d\n", -ret);
 		/* If the bridge or panel pointed by dev->of_node is not
 		 * enabled, just return 0 here so that we don't prevent the DRM
 		 * dev from being registered. Of course that means the DSI
@@ -1542,8 +1543,8 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	}
 
 	DRM_DEV_DEBUG_DRIVER(dev, "devm_drm_panel_bridge_add_typed\n");
-	if (panel) {
-		sp_dsi_host->bridge = devm_drm_panel_bridge_add_typed(dev, panel,
+	if (sp_dsi_host->panel && !sp_dsi_host->bridge) {
+		sp_dsi_host->bridge = devm_drm_panel_bridge_add_typed(dev, sp_dsi_host->panel,
 							      DRM_MODE_CONNECTOR_DSI);
 		if (IS_ERR(sp_dsi_host->bridge))
 			return PTR_ERR(sp_dsi_host->bridge);
@@ -1558,12 +1559,15 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 		return ret;
 	}
 
+
 	ret = drm_bridge_attach(sp_dsi_host->encoder, sp_dsi_host->bridge, NULL, 0);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "bridge attach failed: %d\n", ret);
 		sp_dsi_host->encoder = NULL;
 		return ret;
 	}
+	DRM_DEV_DEBUG_DRIVER(dev, "Add [encoder:%d:%s] encoder:%p\n",
+			sp_dsi_host->encoder->base.id, sp_dsi_host->encoder->name, sp_dsi_host->encoder);
 
 	/* FIXME, use firmware EDID for lt8912b */
 	#if IS_ENABLED(CONFIG_DRM_LOAD_EDID_FIRMWARE) && IS_ENABLED(CONFIG_DRM_LONTIUM_LT8912B)
@@ -1573,12 +1577,14 @@ static int sp7350_dsi_bind(struct device *dev, struct device *master, void *data
 	}
 	#endif
 
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	/* Disable the atomic helper calls into the bridge.  We
 	 * manually call the bridge pre_enable / enable / etc. calls
 	 * from our driver, since we need to sequence them within the
 	 * encoder's enable/disable paths.
 	 */
 	list_splice_init(&sp_dsi_host->encoder->bridge_chain, &sp_dsi_host->bridge_chain);
+	#endif
 
 	//sp7350_debugfs_add_regset32(drm, dsi->variant->debugfs_name, &sp_dsi_host->regset);
 	sp7350_debugfs_add_regset32(drm, "regs_g204", &sp_dsi_host->regset_g204);
@@ -1597,16 +1603,17 @@ static void sp7350_dsi_unbind(struct device *dev, struct device *master,
 {
 	struct sp7350_dsi_host *sp_dsi_host = dev_get_drvdata(dev);
 
-	DRM_DEV_DEBUG_DRIVER(dev, "%s\n", __func__);
 
 	if (sp_dsi_host->bridge)
 		pm_runtime_disable(dev);
 
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	/*
 	 * Restore the bridge_chain so the bridge detach procedure can happen
 	 * normally.
 	 */
 	list_splice_init(&sp_dsi_host->bridge_chain, &sp_dsi_host->encoder->bridge_chain);
+	#endif
 	drm_encoder_cleanup(sp_dsi_host->encoder);
 
 	/* sp_dsi_encoder alloc by devm_kzalloc, not care it. */
@@ -1715,9 +1722,6 @@ static int sp7350_dsi_dev_remove(struct platform_device *pdev)
 
 	DRM_DEV_DEBUG_DRIVER(dev, "dsi driver remove.\n");
 
-	if (sp_dsi_host->encoder)
-		sp7350_dsi_encoder_disable(sp_dsi_host->encoder);
-
 	component_del(&pdev->dev, &sp7350_dsi_ops);
 	mipi_dsi_host_unregister(&sp_dsi_host->dsi_host);
 
@@ -1742,8 +1746,34 @@ static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t sta
 	 * phy power off, disable clock, disable irq...
 	 */
 
-	if (sp_dsi_host->encoder)
-		sp7350_dsi_encoder_disable(sp_dsi_host->encoder);
+	if (sp_dsi_host->encoder) {
+		struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(sp_dsi_host->encoder);
+
+		if (sp_dsi_encoder->is_enabled) {
+			#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
+			if (sp_dsi_host->bridge->funcs->disable)
+				sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
+			if (sp_dsi_host->bridge->funcs->post_disable)
+				sp_dsi_host->bridge->funcs->post_disable(sp_dsi_host->bridge);
+			#else
+			/* TODO: disbale output display device, because some output display device
+			 *        not any suspend/resume function.
+			 */
+			 //temporary off, i2c issue.
+			//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
+			//	drm_panel_disable(sp_dsi_host->panel);
+			//	drm_panel_unprepare(sp_dsi_host->panel);
+			//}
+			//else {  /* for bridge, ex.HDMI/DVI... */
+			//	/* todo: how to support atomic_xxx hook? */
+			//	if (sp_dsi_host->bridge->funcs->disable)
+			//		sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
+			//	if (sp_dsi_host->bridge->funcs->post_disable)
+			//		sp_dsi_host->bridge->funcs->post_disable(sp_dsi_host->bridge);
+			//}
+			#endif
+		}
+	}
 
 	return 0;
 }
@@ -1767,13 +1797,42 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 	 */
 
 	if (sp_dsi_host->encoder) {
+		struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(sp_dsi_host->encoder);
+
 		sp7350_mipitx_phy_init(sp_dsi_host);
 		sp7350_mipitx_clock_init(sp_dsi_host);
 		sp7350_mipitx_lane_timing_init(sp_dsi_host);
-		sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, NULL);
-		sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, NULL);
-		sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, NULL);
-		sp7350_dsi_encoder_enable(sp_dsi_host->encoder);
+		sp7350_mipitx_dsi_cmd_mode_start(sp_dsi_host);
+		if (sp_dsi_encoder->is_enabled) {
+			sp7350_mipitx_dsi_pixel_clock_setting(sp_dsi_host, NULL);
+			sp7350_mipitx_dsi_lane_clock_setting(sp_dsi_host, NULL);
+			sp7350_mipitx_dsi_video_mode_setting(sp_dsi_host, NULL);
+			#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
+			if (sp_dsi_host->bridge->funcs->pre_enable)
+				sp_dsi_host->bridge->funcs->pre_enable(sp_dsi_host->bridge);
+			sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+			if (sp_dsi_host->bridge->funcs->enable)
+				sp_dsi_host->bridge->funcs->enable(sp_dsi_host->bridge);
+			#else
+			/* TODO: enable output display device, because some output display device
+			 *        not any suspend/resume function.
+			 */
+			//temporary off, i2c issue.
+			//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
+			//	drm_panel_prepare(sp_dsi_host->panel);
+			//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+			//	drm_panel_enable(sp_dsi_host->panel);
+			//}
+			//else {  /* for bridge, ex.HDMI/DVI... */
+			//	/* todo: how to support atomic_xxx hook? */
+			//	if (sp_dsi_host->bridge->funcs->pre_enable)
+			//		sp_dsi_host->bridge->funcs->pre_enable(sp_dsi_host->bridge);
+			//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
+			//	if (sp_dsi_host->bridge->funcs->enable)
+			//		sp_dsi_host->bridge->funcs->enable(sp_dsi_host->bridge);
+			//}
+			#endif
+		}
 	}
 
 	return 0;
