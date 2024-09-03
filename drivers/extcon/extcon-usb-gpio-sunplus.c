@@ -85,9 +85,9 @@ static const unsigned int usb_extcon_cable[] = {
  * In case we have only one of these signals:
  * - VBUS only - we want to distinguish between [1] and [2], so ID is always 1.
  * - ID only - we want to distinguish between [1] and [4], so VBUS = ID.
-*/
+ */
 static int pre_id = 2;
-static int pre_u3linkstate = 0;
+static int pre_u3linkstate = 0xff;
 static void usb_extcon_detect_cable(struct work_struct *work)
 {
 	int id, vbus, u3linkstate;
@@ -96,7 +96,7 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 						    wq_detcable);
 	struct u2phy_regs *phy_reg;
 
-	phy_reg = (struct u2phy_regs *) info->u2phy_base_addr;
+	phy_reg = (struct u2phy_regs *)info->u2phy_base_addr;
 	/* check ID and VBUS and update cable state */
 	id = info->id_gpiod ?
 		gpiod_get_value_cansleep(info->id_gpiod) : 1;
@@ -190,7 +190,8 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	iounmap(stamp);
 
 	u2phy_res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->u2phy_base_addr = devm_ioremap(&pdev->dev, u2phy_res_mem->start, resource_size(u2phy_res_mem));
+	info->u2phy_base_addr = devm_ioremap(&pdev->dev, u2phy_res_mem->start,
+					     resource_size(u2phy_res_mem));
 	if (IS_ERR(info->u2phy_base_addr))
 		return PTR_ERR(info->u2phy_base_addr);
 
@@ -208,9 +209,9 @@ static int usb_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (!phynp)
+	if (!phynp) {
 		dev_err(dev, "!!!no phy\n");
-	else {
+	} else {
 		info->spphydata = dev_get_drvdata(&spphypdev->dev);
 		if (!info->spphydata)
 			dev_err(dev, "!!!no phy data\n");
@@ -238,7 +239,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	device_set_wakeup_capable(&pdev->dev, true);
 	/* Perform initial detection */
 	usb_extcon_detect_cable(&info->wq_detcable.work);
-	pr_info("*****usb_extcon_probe end\n");
+	//pr_info("%s end\n", __func__);
 	return 0;
 }
 
