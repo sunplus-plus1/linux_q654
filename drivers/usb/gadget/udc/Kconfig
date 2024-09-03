@@ -145,6 +145,14 @@ config USB_PXA25X
 	   dynamically linked module called "pxa25x_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
+config USB_SP_UDC
+ 	tristate "Sunplus USB 2.0 Device Controller"
+ 	depends on SOC_SP7350
+ 	select USB_GADGET_DUALSPEED
+ 	select PHY_SUNPLUS_SP7350_USB
+ 	help
+	   This option selects the USB device controller.
+
 # if there's only one gadget driver, using only two bulk endpoints,
 # don't waste memory for the other endpoints
 config USB_PXA25X_SMALL
