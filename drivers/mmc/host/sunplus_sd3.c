@@ -35,6 +35,7 @@ enum loglevel {
 	SPSDC_LOG_VERBOSE,
 	SPSDC_LOG_MAX
 };
+
 static int loglevel = SPSDC_LOG_WARNING;
 
 /**
@@ -67,9 +68,10 @@ static inline u32 bitfield_replace(u32 reg_val, u32 shift, u32 width, u32 val)
 
 	return (reg_val & ~mask) | (val << shift);
 }
+
 /* for register value with mask bits */
 #define __bitfield_replace(value, shift, width, new_value)		\
-	(bitfield_replace(value, shift, width, new_value) | bitfield_mask(shift+16, width))
+	(bitfield_replace(value, shift, width, new_value) | bitfield_mask(shift + 16, width))
 
 static const u8 tuning_blk_pattern_4bit[] = {
 	0xff, 0x0f, 0xff, 0x00, 0xff, 0xcc, 0xc3, 0xcc,
@@ -113,7 +115,7 @@ static void spsdc_dump_regs(struct spsdc_host *host, int start_group, int start_
 	pr_info("### dump sd card controller registers start ###\n");
 	for (i = 0; i < groups; i++) {
 		for (j =  start_reg; j < 32 && p < end; j++) {
-			pr_info("g%02d.%02d = 0x%08x\n", i+start_group, j, readl(p));
+			pr_info("g%02d.%02d = 0x%08x\n", i + start_group, j, readl(p));
 			p++;
 		}
 		start_reg = 0;
@@ -175,11 +177,11 @@ static int spsdc_wait_card_unbusy(struct spsdc_host *host, int count)
 
 	while (!(readl(status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS) && (count > 0)) {
 		msleep(100);
-		if(count >= 5)
+		if (count >= 5)
 			spsdc_txdummy(host, 50);
 		else
 			spsdc_txdummy(host, 1);
-		count --;
+		count--;
 	}
 
 	return (readl(status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS) ? 0 : 1;
@@ -230,20 +232,20 @@ static void spsdc_set_bus_clk(struct spsdc_host *host, int clk)
 		clk = f_min;
 	if (clk > f_max)
 		clk = f_max;
-	if(host->work_clk == clk)
+	if (host->work_clk == clk)
 		return;
 
-	if (host->soc_clk != soc_clk){
+	if (host->soc_clk != soc_clk) {
 		clk_set_rate(host->clk, host->soc_clk);
 		soc_clk  = clk_get_rate(host->clk);
 	}
 
-	clkdiv = (soc_clk/clk)-1;
-	if ((soc_clk % clk) > (clk/10)) {
+	clkdiv = (soc_clk / clk) - 1;
+	if ((soc_clk % clk) > (clk / 10))
 		clkdiv++;
-	} 
+
 	spsdc_pr(host->mode, INFO, "clk to %d,SYS_CLK %d,clkdiv %d real_clk %d\n", clk,
-			soc_clk, clkdiv, (soc_clk / (clkdiv+1)));
+		 soc_clk, clkdiv, (soc_clk / (clkdiv + 1)));
 
 	if (clkdiv > 0xfff) {
 		spsdc_pr(host->mode, WARNING, "clock %d is too low to be set!\n", clk);
@@ -255,7 +257,7 @@ static void spsdc_set_bus_clk(struct spsdc_host *host, int clk)
 
 	/* In order to reduce the frequency of context switch,
 	 * if it is high speed or upper, we do not use interrupt
-	 * when send a command that without data transfering.
+	 * when send a command that without data.
 	 */
 	if (clk > 25000000)
 		host->use_int = 0;
@@ -268,12 +270,12 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 	u32 value = readl(&host->base->sd_config1);
 	int clkdiv = readl(&host->base->sd_config0) >> SPSDC_sdfqsel_w12;
 	int wr_delay = clkdiv < 7 ? 1 : 7;
-	int rd_delay = clkdiv < 7 ? clkdiv+1 : 7;
+	int rd_delay = clkdiv < 7 ? clkdiv + 1 : 7;
 	int hs_en = 1;
 	union spmmc_reg_timing_config0 reg_timing;
 	char *timing_name;
 
-	if(host->timing == timing)
+	if (host->timing == timing)
 		return;
 
 	host->ddr_enabled = 0;
@@ -296,14 +298,14 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 		timing_name = "sd high-speed";
 		break;
 	case MMC_TIMING_UHS_SDR50:
-		if(host->mode == SPSDC_MODE_SDIO)
+		if (host->mode == SPSDC_MODE_SDIO)
 			reg_timing.val = host->val;
 		else
 			reg_timing.val = host->val;
 		timing_name = "sd uhs SDR50";
 		break;
 	case MMC_TIMING_UHS_SDR104:
-		if(host->mode == SPSDC_MODE_SDIO)
+		if (host->mode == SPSDC_MODE_SDIO)
 			reg_timing.val = host->val;	// 160M : 0x666330;
 		else
 			reg_timing.val = host->val;
@@ -345,7 +347,6 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 		value = bitfield_replace(value, SPSDC_sdddrmode_w01, 1, 0);
 		writel(value, &host->base->sd_config0);
 	}
-
 
 	host->timing = timing;
 	spsdc_pr(host->mode, INFO, "set bus timing to %s\n", timing_name);
@@ -414,9 +415,9 @@ static void spsdc_hw_reset(struct spsdc_host *host)
 {
 	spsdc_pr(host->mode, DEBUG, "hw reset\n");
 	reset_control_assert(host->rstc);
-	msleep(1);
+	msleep(20);
 	reset_control_deassert(host->rstc);
-	msleep(1);
+	msleep(20);
 	//spsdc_pr(host->mode, DEBUG, "hw reset done\n");
 }
 
@@ -439,13 +440,12 @@ static void spsdc_sw_reset(struct spsdc_host *host)
 	writel(value, &host->base->hw_dma_ctrl);
 	writel(0x7, &host->base->sd_rst);
 	readl_poll_timeout_atomic(&host->base->sd_hw_state, value,
-		!(value & BIT(6)), 1, SPMMC_TIMEOUT_US);
+				  !(value & BIT(6)), 1, SPMMC_TIMEOUT_US);
 	//spsdc_pr(host->mode, DEBUG, "sw reset done\n");
 }
 
 static void spsdc_prepare_cmd(struct spsdc_host *host, struct mmc_command *cmd)
 {
-
 	u32 value;
 
 	value = ((cmd->opcode | 0x40) << 24) | (cmd->arg >> 8); /* add start bit, according to spec, command format */
@@ -491,8 +491,8 @@ static void spsdc_prepare_cmd(struct spsdc_host *host, struct mmc_command *cmd)
 static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 {
 	u32 value, srcdst;
-	host->data = data;
 
+	host->data = data;
 	writel(data->blocks - 1, &host->base->sd_page_num);
 	writel(data->blksz - 1, &host->base->sd_blocksize);
 	value = readl(&host->base->sd_config0);
@@ -531,21 +531,21 @@ static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 
 		count = dma_map_sg(host->dev, data->sg, data->sg_len, dma_direction);
 		if (unlikely(!count)) {
-			spsdc_pr(host->mode, ERROR, "error occured at dma_mapp_sg: count = %d\n", count);
+			spsdc_pr(host->mode, ERROR, "error at dma_mapp_sg: count = %d\n", count);
 			data->error = -EINVAL;
 			return;
 		}
 
-		if((host->ram >= 8) && (data->sg_len > SPSDC_HW_SEGS) ) {
+		if (host->ram >= 8 && data->sg_len > SPSDC_HW_SEGS) {
 			host->xfer_len = data->blocks * data->blksz;
 			if (data->flags & MMC_DATA_WRITE) {
 				sg_copy_to_buffer(data->sg, data->sg_len,
-					host->buffer, host->xfer_len);
+						  host->buffer, host->xfer_len);
 					/* Switch ownership to the DMA */
 				dma_sync_single_for_device(host->dev,
-							host->buf_phys_addr,
-							host->xfer_len,
-							mmc_get_dma_dir(data));
+							   host->buf_phys_addr,
+							   host->xfer_len,
+							   mmc_get_dma_dir(data));
 			}
 			dma_addr = host->buf_phys_addr;
 			dma_size = data->blocks - 1;
@@ -553,10 +553,10 @@ static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 			writel(dma_addr, &host->base->dma_base_addr);
 			writel(dma_size, &host->base->sdram_sector_0_size);
 		} else {
-			if(data->sg_len > SPSDC_HW_SEGS) {
-			host->xfer_len = data->blocks * data->blksz;
-			count = 8;
-		}
+			if (data->sg_len > SPSDC_HW_SEGS) {
+				host->xfer_len = data->blocks * data->blksz;
+				count = 8;
+			}
 			for_each_sg(data->sg, sg, count, i) {
 				dma_addr = sg_dma_address(sg);
 				sg_xlen = sg_dma_len(sg);
@@ -572,13 +572,13 @@ static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 					host->xfer_len -= sg_xlen;
 				} else {
 					if (data->flags & MMC_DATA_WRITE) {
-						sg_copy_to_buffer(sg, data->sg_len-7,
-					  		host->buffer, host->xfer_len);
+						sg_copy_to_buffer(sg, data->sg_len - 7,
+								  host->buffer, host->xfer_len);
 						/* Switch ownership to the DMA */
 						dma_sync_single_for_device(host->dev,
-							host->buf_phys_addr,
-							host->xfer_len,
-							mmc_get_dma_dir(data));
+									   host->buf_phys_addr,
+									   host->xfer_len,
+									   mmc_get_dma_dir(data));
 					}
 					dma_addr = host->buf_phys_addr;
 					dma_size = host->xfer_len / data->blksz - 1;
@@ -634,7 +634,7 @@ static int spsdc_send_stop_cmd(struct spsdc_host *host, struct mmc_command *stop
 }
 
 /*
- * check if error occured during transaction.
+ * check if error during transaction.
  * @host -  host
  * @mrq - the mrq
  * @return 0 if no error otherwise the error number.
@@ -655,10 +655,9 @@ static int spsdc_check_error(struct spsdc_host *host, struct mmc_request *mrq)
 		value = readl(&host->base->sd_status);
 		spsdc_pr(host->mode, VERBOSE, "%s sd_status: 0x%08x\n", __func__, value);
 
-		if (host->tuning_info.enable_tuning) {
+		if (host->tuning_info.enable_tuning)
 			timing.val = readl(&host->base->sd_timing_config0);
-		}
-                
+
 		if (value & SPSDC_SDSTATUS_RSP_TIMEOUT) {
 			spsdc_pr(host->mode, VERBOSE, "SPSDC_SDSTATUS_RSP_TIMEOUT\n");
 			ret = (host->tuning_info.enable_tuning) ? -ETIMEDOUT : -1;
@@ -700,9 +699,8 @@ static int spsdc_check_error(struct spsdc_host *host, struct mmc_request *mrq)
 			cmd->retries = SPSDC_MAX_RETRIES; /* retry it */
 
 		spsdc_sw_reset(host);
-		if (host->tuning_info.enable_tuning) {
+		if (host->tuning_info.enable_tuning)
 			writel(timing.val, &host->base->sd_timing_config0);
-		}
 
 	} else if (data) {
 		data->error = 0;
@@ -770,7 +768,7 @@ static void spsdc_controller_init(struct spsdc_host *host)
 	 * use the macro `SPMMC_SDIO_1V8'to indicate that. Set signal
 	 * voltage to 1.8V here.
 	 */
-	if ((host->mode == SPSDC_MODE_SDIO) && (host->vol_mode == SPSDC_1V8_MODE)) {
+	if (host->mode == SPSDC_MODE_SDIO && host->vol_mode == SPSDC_1V8_MODE) {
 		value = readl(&host->base->sd_vol_ctrl);
 		value = bitfield_replace(value, SPSDC_sw_set_vol_w01, 1, 1);
 		writel(value, &host->base->sd_vol_ctrl);
@@ -832,24 +830,24 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 
 	if (data && SPSDC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		if ((data->flags & MMC_DATA_READ) && (data->sg_len > SPSDC_HW_SEGS) ){
-			if(host->ram >= 8) {
+		if (data->flags & MMC_DATA_READ && data->sg_len > SPSDC_HW_SEGS) {
+			if (host->ram >= 8) {
 				dma_sync_single_for_cpu(host->dev,
-					host->buf_phys_addr,
-					host->xfer_len,
-					DMA_FROM_DEVICE);
+							host->buf_phys_addr,
+							host->xfer_len,
+							DMA_FROM_DEVICE);
 				sg_copy_from_buffer(data->sg, data->sg_len,
-					host->buffer, host->xfer_len);
+						    host->buffer, host->xfer_len);
 			} else {
 				count = 8;
 				for_each_sg(data->sg, sg, count, i) {
 					if (i == 7) {
 						dma_sync_single_for_cpu(host->dev,
-						host->buf_phys_addr,
-						host->xfer_len,
-						DMA_FROM_DEVICE);
-						sg_copy_from_buffer(sg, data->sg_len -7,
-						   host->buffer, host->xfer_len);
+									host->buf_phys_addr,
+									host->xfer_len,
+									DMA_FROM_DEVICE);
+						sg_copy_from_buffer(sg, data->sg_len - 7,
+								    host->buffer, host->xfer_len);
 					}
 				}
 			}
@@ -859,9 +857,9 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 	}
 
 	spsdc_check_error(host, mrq);
-	
-#ifdef SPMMC_CHECK_DATA_BUSY	
-	if ((cmd->error == -EILSEQ) && (cmd->flags & MMC_RSP_BUSY)){
+
+#ifdef SPMMC_CHECK_DATA_BUSY
+	if ((cmd->error == -EILSEQ) && (cmd->flags & MMC_RSP_BUSY)) {
 		spsdc_wait_card_unbusy(host, 10);
 		spsdc_pr(host->mode, ERROR, "error wait unbusy\n");
 	}
@@ -870,9 +868,9 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 	if (mrq->stop) {
 		if (spsdc_send_stop_cmd(host, mrq->stop))
 			spsdc_sw_reset(host);
-#ifdef SPMMC_CHECK_DATA_BUSY	
+#ifdef SPMMC_CHECK_DATA_BUSY
 			spsdc_send_stop_cmd(host, mrq->stop);
-			if(cmd->error != 0) {
+			if (cmd->error != 0) {
 				spsdc_wait_card_unbusy(host, 5);
 				spsdc_pr(host->mode, ERROR, "error and re-send stop\n");
 			}
@@ -886,7 +884,6 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 	mmc_request_done(host->mmc, mrq);
 }
 
-
 /* Interrupt Service Routine */
 irqreturn_t spsdc_irq(int irq, void *dev_id)
 {
@@ -894,13 +891,12 @@ irqreturn_t spsdc_irq(int irq, void *dev_id)
 	u32 value = readl(&host->base->sd_int);
 	unsigned int sdio_no_irq = 1;
 
-	if ((value & SPSDC_SDINT_SDIO) && (value & SPSDC_SDINT_SDIOEN)){
+	if ((value & SPSDC_SDINT_SDIO) && (value & SPSDC_SDINT_SDIOEN)) {
 		mmc_signal_sdio_irq(host->mmc);
 		sdio_no_irq = 0;
 	}
 
-	if ((value & SPSDC_SDINT_SDCMP) &&
-		(value & SPSDC_SDINT_SDCMPEN)) {
+	if ((value & SPSDC_SDINT_SDCMP) && (value & SPSDC_SDINT_SDCMPEN)) {
 		value = bitfield_replace(value, SPSDC_sdcmpen_w01, 1, 0); /* disable sdcmmp */
 		value = bitfield_replace(value, SPSDC_sd_cmp_w01, 1, 1); /* sd_cmp_clr */
 		writel(value, &host->base->sd_int);
@@ -917,7 +913,6 @@ irqreturn_t spsdc_irq(int irq, void *dev_id)
 		value = readl(&host->base->sd_int);
 		if ((value & SPSDC_SDINT_SDIO) && (value & SPSDC_SDINT_SDIOEN) && (sdio_no_irq))
 			mmc_signal_sdio_irq(host->mmc);
-
 	}
 	return IRQ_HANDLED;
 }
@@ -936,7 +931,7 @@ static void spsdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	//if(((host->mode == SPSDC_MODE_SD) && (cmd->opcode != 13) && (cmd->opcode != 18) && (cmd->opcode != 25)) && (cmd->opcode != 52) && (cmd->opcode != 53)){
 	spsdc_pr(host->mode, VERBOSE, "%s > cmd:%d, arg:0x%08x, data len:%d\n", __func__,
-		cmd->opcode, cmd->arg, data ? (data->blocks*data->blksz) : 0);
+		 cmd->opcode, cmd->arg, data ? (data->blocks * data->blksz) : 0);
 	//}
 
 #ifdef HW_VOLTAGE_1V8
@@ -990,7 +985,8 @@ static void spsdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				reinit_completion(&host->dma_complete);
 				spsdc_trigger_transaction(host);
 				/* Running in the IRQ thread, can sleep */
-				if(!wait_for_completion_interruptible_timeout(&host->dma_complete, host->timeout)) {
+				if (!wait_for_completion_interruptible_timeout(&host->dma_complete,
+									       host->timeout)) {
 					spsdc_pr(host->mode, ERROR, "error irq timeout\n");
 					spsdc_finish_request(host, mrq);
 					ret = -ETIMEDOUT;
@@ -1014,7 +1010,6 @@ static void spsdc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		spsdc_select_mode(host);
 	}
 	mutex_unlock(&host->mrq_lock);
-
 }
 
 /**
@@ -1031,10 +1026,10 @@ int spsdc_get_cd(struct mmc_host *mmc)
 	if (mmc_can_gpio_cd(mmc))
 		ret = mmc_gpio_get_cd(mmc);
 	else
-		spsdc_pr(0,WARNING, "no gpio assigned for card detection\n");
+		spsdc_pr(0, WARNING, "no gpio assigned for card detection\n");
 
 	if (ret < 0) {
-		spsdc_pr(0,ERROR, "Failed to get card presence status\n");
+		spsdc_pr(0, ERROR, "Failed to get card presence status\n");
 		ret = 0;
 	}
 
@@ -1047,8 +1042,9 @@ static int spmmc_card_busy(struct mmc_host *mmc)
 {
 	struct spsdc_host *host = mmc_priv(mmc);
 
-	if(host->mode == SPSDC_MODE_SD)
-		spsdc_pr(host->mode, INFO, "card_busy! %d\n", !(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS));
+	if (host->mode == SPSDC_MODE_SD)
+		spsdc_pr(host->mode, INFO, "card_busy! %d\n", !(readl(&host->base->sd_status)
+			& SPSDC_SDSTATUS_DAT0_PIN_STATUS));
 	return !(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS);
 }
 
@@ -1057,11 +1053,12 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 	struct spsdc_host *host = mmc_priv(mmc);
 	u32 value;
 
-	spsdc_pr(host->mode, INFO, "signal_vol_sw: host->vol %d ios->vol %d!\n", host->signal_voltage, ios->signal_voltage);
+	spsdc_pr(host->mode, INFO, "signal_vol_sw: host->vol %d ios->vol %d!\n",
+		 host->signal_voltage, ios->signal_voltage);
 
 	if (host->signal_voltage == ios->signal_voltage) {
 		if (ios->signal_voltage == MMC_SIGNAL_VOLTAGE_180)
-		spsdc_txdummy(host, 400);
+			spsdc_txdummy(host, 400);
 		return 0;
 	}
 
@@ -1080,11 +1077,11 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 
 #ifdef HW_VOLTAGE_1V8
 
-	msleep(15);
+	msleep(20);
 	value = readl(&host->base->sd_ctrl);
 	value = bitfield_replace(value, SPSDC_sdctrl1_w01, 1, 1); /* trigger tx dummy */
 	writel(value, &host->base->sd_ctrl);
-	msleep(1);
+	msleep(20);
 
 	/* mmc layer has guaranteed that CMD11 had issued to SD card at
 	 * this time, so we can just continue to check the status.
@@ -1113,7 +1110,7 @@ static int spmmc_start_signal_voltage_switch(struct mmc_host *mmc, struct mmc_io
 
 	msleep(20);
 	spsdc_txdummy(host, 400);
-	msleep(1);
+	msleep(20);
 
 	#endif
 
@@ -1200,15 +1197,14 @@ static int spsdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	blksz = sizeof(tuning_blk_pattern_4bit);
 	blk_test = kmalloc(blksz, GFP_KERNEL);
 
-
 	if (host->tuning_info.tuning_finish)
 		return 0;
-	if(host->mode == SPSDC_MODE_SD)
+	if (host->mode == SPSDC_MODE_SD)
 		return 0;
 
-	if (!((mmc->ios.timing == MMC_TIMING_MMC_HS200) ||
-	      (mmc->ios.timing == MMC_TIMING_UHS_SDR104) ||
-	      (mmc->ios.timing == MMC_TIMING_UHS_SDR50)))
+	if (!(mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
+	      mmc->ios.timing == MMC_TIMING_UHS_SDR104 ||
+	      mmc->ios.timing == MMC_TIMING_UHS_SDR50))
 		return 0;
 
 	spsdc_pr(host->mode, INFO, "%s\n", __func__);
@@ -1254,7 +1250,7 @@ static int spsdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 					candidate_dly |= (1 << smpl_dly);
 			} else {
 				spsdc_pr(host->mode, DEBUG, "Tuning error: cmd.error:%d, data.error:%d\n",
-				cmd.error, data.error);
+					 cmd.error, data.error);
 			}
 		}
 		spsdc_pr(host->mode, DEBUG, "sampling delay candidates: %x\n", candidate_dly);
@@ -1262,7 +1258,7 @@ static int spsdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 			spmmc_find_best_delay(candidate_dly, 3, &smpl_dly);
 			//smpl_dly = __find_best_delay(candidate_dly);
 			spsdc_pr(host->mode, DEBUG, "set sampling delay to: %d\n", smpl_dly);
-	
+
 			timing.val = readl(&host->base->sd_timing_config0);
 			value = timing.val;
 			spsdc_dly_set(&timing, item, smpl_dly);
@@ -1271,7 +1267,7 @@ static int spsdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		}
 	}
 	host->tuning_info.enable_tuning = 1;
-	spsdc_pr(host->mode, DEBUG,"tuning: %#x old: %#x\n",  timing.val, value);
+	spsdc_pr(host->mode, DEBUG, "tuning: %#x old: %#x\n",  timing.val, value);
 	pr_info("tuning: %#x old: %#x\n",  timing.val, value);
 	timing.val = readl(&host->base->sd_timing_config0);
 	host->tuning_info.tuning_finish = 1;
@@ -1293,9 +1289,8 @@ static void spsdc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	writel(value, &host->base->sd_int);
 }
 
-static int spmmc_select_drive_strength(
-	struct mmc_card *card, unsigned int max_dtr,
-	int host_drv, int card_drv, int *drv_type)
+static int spmmc_select_drive_strength(struct mmc_card *card, unsigned int max_dtr,
+				       int host_drv, int card_drv, int *drv_type)
 {
 	struct spsdc_host *host = mmc_priv(card->host);
 
@@ -1310,11 +1305,13 @@ static const struct spsdc_compatible sp_sd_654_compat = {
 	.vol_mode = SPSDC_SWITCH_MODE,
 	.delay_val = 0x777110,
 };
+
 static const struct spsdc_compatible sp_sd_654_loscr_compat = {
 	.source_clk = SPSDC_CLK_360M,
 	.vol_mode = SPSDC_SWITCH_MODE,
 	.delay_val = 0x666330,
 };
+
 static const struct spsdc_compatible sp_sdio_1v8_654_compat = {
 	.source_clk = SPSDC_CLK_800M,
 	.vol_mode = SPSDC_1V8_MODE,
@@ -1378,7 +1375,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 
 	host = mmc_priv(mmc);
 	if (!of_property_read_u32(pdev->dev.of_node, "sunplus.driver-type", &host->target_drv))
-		host->target_drv = 0;	//0:TypeB 1:TypeA 2:TypeC 3:TypeD		
+		host->target_drv = 0;	//0:TypeB 1:TypeA 2:TypeC 3:TypeD
 
 	if (device_property_read_bool(&pdev->dev, "sunplus,high-segs"))
 		host->segs_no = SPSDC_MAX_SEGS;
@@ -1449,22 +1446,24 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto probe_free_host;
 	}
-	if (devm_request_irq(&pdev->dev, host->irq, spsdc_irq, IRQF_SHARED, dev_name(&pdev->dev), host)) {
+	if (devm_request_irq(&pdev->dev, host->irq, spsdc_irq, IRQF_SHARED,
+			     dev_name(&pdev->dev), host)) {
 		spsdc_pr(host->mode, ERROR, "Failed to request sd card interrupt.\n");
 		ret = -ENOENT;
 		goto probe_free_host;
 	}
-	spsdc_pr(host->mode, INFO, "spsdc driver probe, reg base:0x%08x, irq:%d\n", (unsigned int)(long)host->base, host->irq);
+	spsdc_pr(host->mode, INFO, "spsdc driver probe, reg base:0x%08x, irq:%d\n",
+		 (unsigned int)(long)host->base, host->irq);
 
 	host->dev = &pdev->dev;
 
-	if(host->segs_no > SPSDC_HW_SEGS) {
-		if(host->ram >= 8) {
+	if (host->segs_no > SPSDC_HW_SEGS) {
+		if (host->ram >= 8) {
 			/*
-			* When we just support one segment, we can get significant
-			* speedups by the help of a bounce buffer to group scattered
-			* reads/writes together.
-			*/
+			 * When we just support one segment, we can get significant
+			 * speedups by the help of a bounce buffer to group scattered
+			 * reads/writes together.
+			 */
 			ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(33));
 			if (ret)
 				pr_warn("%s: Failed to set 32-bit DMA mask.\n", mmc_hostname(mmc));
@@ -1473,21 +1472,20 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 			pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 		}
 
-		host->buffer = devm_kmalloc(&pdev->dev, SPSDC_MAX_BLK_CNT * 512, GFP_KERNEL | GFP_DMA);
+		host->buffer = devm_kmalloc(&pdev->dev, SPSDC_MAX_BLK_CNT * 512,
+					    GFP_KERNEL | GFP_DMA);
 		if (!host->buffer) {
-			pr_err("%s: failed to allocate bytes for bounce buffer, falling back to single segments\n",
-			mmc_hostname(mmc));
 			/*
-			* Exiting with zero here makes sure we proceed with
-			* mmc->max_segs == 128.
-			*/
+			 * Exiting with zero here makes sure we proceed with
+			 * mmc->max_segs == 128.
+			 */
 			goto probe_free_host;
 		}
 
 		host->buf_phys_addr = dma_map_single(&pdev->dev,
-					host->buffer,
-					SPSDC_MAX_BLK_CNT * 512,
-					DMA_BIDIRECTIONAL);
+						     host->buffer,
+						     SPSDC_MAX_BLK_CNT * 512,
+						     DMA_BIDIRECTIONAL);
 
 		ret = dma_mapping_error(&pdev->dev, host->buf_phys_addr);
 		if (ret)
@@ -1497,7 +1495,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	ret = reset_control_assert(host->rstc);
 	if (ret)
 		goto probe_free_host;
-	msleep(1);
+	msleep(20);
 	ret = reset_control_deassert(host->rstc);
 
 	ret = clk_prepare_enable(host->clk);
@@ -1527,7 +1525,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	//mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
 	mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
 	mmc->max_req_size = SPSDC_MAX_BLK_CNT * 512;
-	mmc->max_blk_size = 512; /* Limited by the max value of dma_size & data_length, set it to 512 bytes for now */
+	mmc->max_blk_size = 512; /* Limited by the max value of dma_size */
 	mmc->max_blk_count = SPSDC_MAX_BLK_CNT; /* Limited by sd_page_num */
 
 	dev_set_drvdata(&pdev->dev, host);
@@ -1564,7 +1562,6 @@ static int spsdc_drv_remove(struct platform_device *dev)
 	return 0;
 }
 
-
 static int spsdc_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct spsdc_host *host;
@@ -1597,8 +1594,8 @@ static int spsdc_pm_suspend(struct device *dev)
 	host = dev_get_drvdata(dev);
 	spsdc_pr(host->mode, INFO, "%s\n", __func__);
 	pm_runtime_force_suspend(dev);
-	clk_disable_unprepare(host->clk);	
-	reset_control_assert(host->rstc);	
+	clk_disable_unprepare(host->clk);
+	reset_control_assert(host->rstc);
 	return 0;
 }
 
@@ -1606,15 +1603,15 @@ static int spsdc_pm_resume(struct device *dev)
 {
 	struct spsdc_host *host;
 	int ret;
-	
+
 	host = dev_get_drvdata(dev);
-	spsdc_pr(host->mode, INFO, "%s\n", __func__);	
+	spsdc_pr(host->mode, INFO, "%s\n", __func__);
 	reset_control_deassert(host->rstc);
 	ret = clk_prepare_enable(host->clk);
 	if (ret)
 		return ret;
 	spsdc_controller_init(host);
-	if (host->mmc->pm_flags & MMC_PM_KEEP_POWER){
+	if (host->mmc->pm_flags & MMC_PM_KEEP_POWER) {
 		spsdc_set_ios(host->mmc, &host->mmc->ios);
 		spmmc_start_signal_voltage_switch(host->mmc, &host->mmc->ios);
 	}
@@ -1663,7 +1660,6 @@ static const struct dev_pm_ops spsdc_pm_ops = {
 #endif
 };
 #endif /* ifdef CONFIG_PM */
-
 
 static struct platform_driver spsdc_driver = {
 	.probe = spsdc_drv_probe,
