@@ -96,6 +96,11 @@ static int update_disc_vol(struct sp_usbphy *usbphy)
 	if (IS_ERR_OR_NULL(cell)) {
 		if (PTR_ERR(cell) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
+
+		pr_err("usb 2.0 phy failed to get NVMEM cell: %ld\n", PTR_ERR(cell));
+		set = OTP_DISC_LEVEL_DEFAULT;
+
+		goto config;
 	}
 
 	otp_v = nvmem_cell_read(cell, &otp_l);
@@ -107,6 +112,7 @@ static int update_disc_vol(struct sp_usbphy *usbphy)
 	if (IS_ERR(otp_v) || set == 0)
 		set = OTP_DISC_LEVEL_DEFAULT;
 
+config:
 	val = readl(usbphy->phy_regs + CONFIG7);
 	val = (val & ~J_DISC) | set;
 	writel(val, usbphy->phy_regs + CONFIG7);
