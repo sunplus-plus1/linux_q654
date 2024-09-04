@@ -32,7 +32,7 @@
 #define SP_ADC_EN			BIT(1)
 #define SP_ADC_SRFS			BIT(2)
 #define SP_ADC_BYPASS			BIT(5)
-#define SP_ADC_DATA_READY		BIT(15)  
+#define SP_ADC_DATA_READY		BIT(15)
 #define SP_ADC_CHAN_SEL			GENMASK(5, 3)
 #define SP_ADC_CHAN0_SEL		GENMASK(2, 0)
 #define SP_ADC_CHAN1_SEL		GENMASK(5, 3)
@@ -55,8 +55,8 @@ struct sp_adc_spec {
 };
 
 static const struct sp_adc_spec sp_adc_spec = {
-	.num_channels = 4, 
-	.resolution = 12, 
+	.num_channels = 4,
+	.resolution = 12,
 };
 
 /**
@@ -71,7 +71,7 @@ struct sp_adc_chip {
 	struct clk *clk;
 	struct reset_control *rstc;
 	struct hwspinlock *hwlock;
-	struct mutex lock;
+	struct mutex lock;		/* Protects access to ADC hardware */
 	struct iio_dev	*indio_dev;
 	void __iomem	*regs;
 	u8 resolution;
@@ -87,17 +87,17 @@ static int sp_adc_ini(struct sp_adc_chip *sp_adc)
 
 	reg_temp = readl(sp_adc->regs + SP_ADC_CFG02);
 	reg_temp |= FIELD_PREP(SP_ADC_CLK_DIV_MASK, 0);
-	writel(reg_temp, sp_adc->regs + SP_ADC_CFG02);	// set adc clk 
+	writel(reg_temp, sp_adc->regs + SP_ADC_CFG02);	// set adc clk
 
 	return 0;
 }
 
 static int sp_adc_read_channel(struct sp_adc_chip *sp_adc, int *val,
-				   unsigned int channel)
+			       unsigned int channel)
 {
 	int ret;
 	int mask = GENMASK(sp_adc->resolution - 1, 0);
-	u32 data,reg_temp;
+	u32 data, reg_temp;
 
 	if (sp_adc->hwlock) {
 		ret = hwspin_lock_timeout_raw(sp_adc->hwlock, SP_ADC_HWLOCK_TIMEOUT);
@@ -111,41 +111,40 @@ static int sp_adc_read_channel(struct sp_adc_chip *sp_adc, int *val,
 	reg_temp &= ~SP_ADC_CHAN_SEL;
 
 	switch (channel) {
-		case SP_ADC_CHAN0:
+	case SP_ADC_CHAN0:
 			reg_temp |= FIELD_PREP(SP_ADC_CHAN_SEL, SP_ADC_CHAN0);
-		break;
-		case SP_ADC_CHAN1:
+	break;
+	case SP_ADC_CHAN1:
 			reg_temp |= FIELD_PREP(SP_ADC_CHAN_SEL, SP_ADC_CHAN1);
-		break;
-		case SP_ADC_CHAN2:
+	break;
+	case SP_ADC_CHAN2:
 			reg_temp |= FIELD_PREP(SP_ADC_CHAN_SEL, SP_ADC_CHAN2);
-		break;
-		case SP_ADC_CHAN3:
+	break;
+	case SP_ADC_CHAN3:
 			reg_temp |= FIELD_PREP(SP_ADC_CHAN_SEL, SP_ADC_CHAN3);
-		break;
+	break;
 	}
 
 	reg_temp &= ~SP_ADC_SRFS;
 	writel(reg_temp, sp_adc->regs + SP_ADC_CFG0B);	// adc reset
 	reg_temp |= SP_ADC_SRFS;
 	writel(reg_temp, sp_adc->regs + SP_ADC_CFG0B);	// adc reset SRFS low-> high
-	msleep(1);
+	msleep(20);
 
 	reg_temp = readl(sp_adc->regs + SP_ADC_CFG02);
 	reg_temp |=  SP_ADC_BYPASS;
 	writel(reg_temp, sp_adc->regs + SP_ADC_CFG02);
 
 	reg_temp = readl(sp_adc->regs + SP_ADC_CFG0D);
-	while(!(reg_temp & SP_ADC_DATA_READY))
-	{
+
+	while (!(reg_temp & SP_ADC_DATA_READY))
 		reg_temp = readl(sp_adc->regs + SP_ADC_CFG0D);
-	}
 
 	data = readl(sp_adc->regs + SP_ADC_CFG0D);
 
 	*val = data & mask;
 
-	if(sp_adc->hwlock)
+	if (sp_adc->hwlock)
 		hwspin_unlock_raw(sp_adc->hwlock);
 
 	return 0;
@@ -167,8 +166,8 @@ static const struct iio_chan_spec sp_adc_channels[] = {
 };
 
 static int sp_read_raw(struct iio_dev *indio_dev,
-			   struct iio_chan_spec const *chan,
-			   int *val, int *val2, long mask)
+		       struct iio_chan_spec const *chan,
+		       int *val, int *val2, long mask)
 {
 	struct sp_adc_chip *sp_adc = iio_priv(indio_dev);
 	int ret;
@@ -239,7 +238,6 @@ static int sp_adc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "failed to enable clk\n");
 
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (IS_ERR(res))
 		return dev_err_probe(&pdev->dev, PTR_ERR(res), "resource get fail\n");
@@ -301,7 +299,7 @@ static int __maybe_unused sp_thermal_resume(struct device *dev)
 
 	reset_control_deassert(sp_adc->rstc);
 	clk_prepare_enable(sp_adc->clk);
-	msleep(1);
+	msleep(20);
 	return sp_adc_ini(sp_adc);
 }
 
