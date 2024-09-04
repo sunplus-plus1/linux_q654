@@ -1,0 +1,8 @@
+config RTL8188EU
+	tristate "Realtek 8188EU USB WiFi"
+	depends on USB
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  This is a driver for RTL8188EU based USB dognle.
+
