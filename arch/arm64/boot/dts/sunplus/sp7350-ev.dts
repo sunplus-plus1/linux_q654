@@ -445,7 +445,7 @@
 		regulator-always-on;
 	};
 
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
+#if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 	lt8912b_1p8v: lt8912b_1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "lt8912b_1v8";
@@ -1297,55 +1297,27 @@
 };
 
 &i2c6 {
-#if defined(LT8912B_HDMI_ENABLE) || defined(RASPBERRYPI_DSI_PANEL)
-	/* fix setting for lt8912b & raspberrypi_lcd */
-	//i2c-scl-rising-time-ns = <0>;
-	//i2c-scl-falling-time-ns = <0>;
 	i2c-sda-hold-time-ns = <2000>;
 	clock-frequency = <100000>;
-#else
-	//i2c-sda-hold-time-ns = <1000>;
-	//clock-frequency = <400000>;
-#endif
+
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo6_pins>;
 	status = "okay";
 
 	#address-cells = <1>;
 	#size-cells = <0>;
-
-#ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c6 */
+#if defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode in i2c6 */
 	raspberrypi_lcd: lcd@45 {
-		#if defined(CONFIG_DISP_DRM_SUPPORT)
-		compatible = "raspberrypi,7inch-touchscreen-panel";
-		#else
-		compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
-		#endif
 		reg = <0x45>;
-		status = "okay";
-		port {
-			panel_dsi_port: endpoint {
-			};
-		};
 	};
 	ft5x06_ts: touchscreen@38 {
 		compatible = "edt,edt-ft5406";
 		reg = <0x38>;
-		status = "okay";
-
-		touchscreen-size-x = <800>;
-		touchscreen-size-y = <480>;
-		touchscreen-inverted-x;
-		touchscreen-inverted-y;
+		status = "disable";
 	};
 #endif
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c6 */
+#if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode in i2c6 */
 	lontium_lt8912b: hdmi@48 {
-		#if defined(CONFIG_DISP_DRM_SUPPORT)
-		compatible = "lontium,lt8912b";
-		#else
-		compatible = "lontium,lt8912b-builtin";
-		#endif
 		reg = <0x48>;
 
 		vcchdmipll-supply = <&lt8912b_1p8v>;
@@ -1356,48 +1328,6 @@
 		vccsysclk-supply = <&lt8912b_1p8v>;
 		vdd-supply = <&lt8912b_1p8v>;
 		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
-
-		#if !defined(CONFIG_DISP_DRM_SUPPORT)
-		#if defined(LT8912B_HDMI_480X272)
-		hdmi-mode = <0x0>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x0>;
-		#elif defined(LT8912B_HDMI_480P)
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x0>;
-		#elif defined(LT8912B_HDMI_720P)
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x2>;
-		#elif defined(LT8912B_HDMI_1080P)
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x3>;
-		#else
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x2>;
-		#endif
-		/*
-		 * 0x0: 720x480
-		 * 0x2: 1280x720
-		 * 0x3: 1920x1080
-		 */
-		#endif
-		status = "okay";
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			port@0 {
-				reg = <0>;
-				lt8912b_in: endpoint {
-					data-lanes = <1 2 3 4>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				lt8912b_out: endpoint {
-					remote-endpoint = <&hdmi_con_out>;
-				};
-			};
-		};
 	};
 #endif
 };
@@ -2420,8 +2350,205 @@
 	};
 };
 
-#if !defined(CONFIG_DISP_DRM_SUPPORT)
+#if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
+&display { /* legacy display off */
+	status = "disabled";
+};
+&fb_disp_device { /* legacy fb off */
+	status = "disabled";
+};
+&display_subsystem { /* drm display on */
+	memory-region = <&disp_reserve>;
+	status = "okay";
+};
+&display_crtc0 { /* drm display on */
+	status = "okay";
+
+	port {
+		crtc0_out: endpoint {
+			remote-endpoint = <&dsi0_in0>;
+		};
+	};
+};
+&mipi_dsi0 { /* drm display on */
+	status = "okay";
+
+#if defined(DISP_MIPITX_DSI_PANEL_480X1280)  /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	hxm0686tft_lcd: mipi_dsi_lcd@0 {
+		compatible = "sunplus,lx-hxm0686tft-001";
+		reg = <0>;
+		status = "okay";
+		port {
+			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi0_out1>;
+			};
+		};
+	};
+#endif
+#if defined(DISP_MIPITX_DSI_PANEL_240X320)  /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	tcxd024iblon_lcd: mipi_dsi_lcd@1 {
+		compatible = "sunplus,xinli-tcxd024iblon-2";
+		reg = <1>;
+		status = "okay";
+		port {
+			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi0_out1>;
+			};
+		};
+	};
+#endif
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* dsi port 0 for input */
+		dsi0_in: port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			dsi0_in0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&crtc0_out>;
+			};
+		};
+
+		/* dsi port 1 for output */
+		dsi0_out: port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			/* dsi output port 0 for mipi lt8912b bridge */
+			#if defined(LT8912B_HDMI_ENABLE)
+			dsi0_out0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&lt8912b_in>;
+			};
+			#endif
+
+			/* dsi output port 0 for mipi panel */
+			#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_480X1280) || defined(DISP_MIPITX_DSI_PANEL_240X320)
+			dsi0_out1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&panel_dsi_port>;
+			};
+			#endif
+
+		};
+	};
+};
+#if defined(LT8912B_HDMI_ENABLE)
+&lontium_lt8912b {
+	compatible = "lontium,lt8912b";
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			lt8912b_in: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&dsi0_out0>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			lt8912b_out: endpoint {
+				remote-endpoint = <&hdmi_con_out>;
+			};
+		};
+	};
+};
+#endif
+#if defined(RASPBERRYPI_DSI_PANEL)
+&raspberrypi_lcd {
+	compatible = "raspberrypi,7inch-touchscreen-panel";
+	status = "okay";
+
+	port {
+		panel_dsi_port: endpoint {
+			remote-endpoint = <&dsi0_out1>;
+		};
+	};
+};
+&ft5x06_ts {
+	status = "okay";
+
+	touchscreen-size-x = <800>;
+	touchscreen-size-y = <480>;
+	touchscreen-inverted-x;
+	touchscreen-inverted-y;
+};
+#endif
+#else /* choose legacy display */
+#if defined(LT8912B_HDMI_ENABLE)
+&lontium_lt8912b {
+	compatible = "lontium,lt8912b-builtin";
+	status = "okay";
+
+	#if defined(LT8912B_HDMI_480X272)
+	hdmi-mode = <0x0>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
+	hdmi-timing = <0x0>;
+	#elif defined(LT8912B_HDMI_480P)
+	hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
+	hdmi-timing = <0x0>;
+	#elif defined(LT8912B_HDMI_720P)
+	hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
+	hdmi-timing = <0x2>;
+	#elif defined(LT8912B_HDMI_1080P)
+	hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
+	hdmi-timing = <0x3>;
+	#else
+	hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
+	hdmi-timing = <0x2>;
+	#endif
+	/*
+	* 0x0: 720x480
+	* 0x2: 1280x720
+	* 0x3: 1920x1080
+	*/
+	status = "okay";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			lt8912b_in: endpoint {
+				data-lanes = <1 2 3 4>;
+				remote-endpoint = <&disp_phy>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			lt8912b_out: endpoint {
+				remote-endpoint = <&hdmi_con_out>;
+			};
+		};
+	};
+};
+#endif
+#if defined(RASPBERRYPI_DSI_PANEL)
+&raspberrypi_lcd {
+	compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
+	status = "okay";
+
+	port {
+		panel_dsi_port: endpoint {
+			remote-endpoint = <&disp_phy>;
+		};
+	};
+};
+#endif
 &display {
+	status = "okay";
 #if defined(DISP_MIPITX_CSI)
 	#if defined(DISP_MIPITX_CSI_480P)
 	sunplus,dev_name = "MIPITX-CSI-TEST_480P";
@@ -2459,11 +2586,6 @@
 	sunplus,dev_name = "TCXD024IBLON-2";
 
 	sunplus,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	#ifdef CONFIG_DISP_DRM_SUPPORT
-	sunplus,osd1_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	sunplus,osd2_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	sunplus,osd3_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	#endif
 	sunplus,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
 
 	sunplus,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
@@ -2607,6 +2729,19 @@
 		};
 	};
 #endif
+};
+&fb_disp_device { /* legacy fb on */
+	memory-region = <&disp_reserve>;
+	status = "okay";
+};
+&display_subsystem { /* drm display off */
+	status = "disabled";
+};
+&display_crtc0 { /* drm display off */
+	status = "disabled";
+};
+&mipi_dsi0 { /* drm display off */
+	status = "disabled";
 };
 #endif
 
@@ -3453,116 +3588,3 @@
 		sunplus,ao-pins = < SPPCTL_AOIOPAD(31, 0) >;
 	};
 };
-
-#if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
-&display { /* legacy display off */
-	status = "disabled";
-};
-
-&fb_disp_device { /* legacy fb off */
-	status = "disabled";
-};
-
-&display_subsystem { /* drm display on */
-	memory-region = <&disp_reserve>;
-	status = "okay";
-};
-
-&drm_crtc0 { /* drm display on */
-	status = "okay";
-};
-
-&drm_dsi0 { /* drm display on */
-	status = "okay";
-};
-
-#ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
-&hxm0686tft_lcd {
-	status = "okay";
-	port {
-		panel_dsi_port: endpoint {};
-	};
-};
-#endif
-#ifdef DISP_MIPITX_DSI_PANEL_240X320 /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
-&tcxd024iblon_lcd {
-	status = "okay";
-	port {
-		panel_dsi_port: endpoint {};
-	};
-};
-#endif
-#if defined(LT8912B_HDMI_ENABLE)
-&lontium_lt8912b {
-	status = "okay";
-};
-
-&dsi0_out {
-	dsi0_out1: endpoint@1 {
-		reg = <1>;
-	};
-};
-
-&lt8912b_in {
-	remote-endpoint = <&dsi0_out1>;
-};
-
-&dsi0_out1 {
-	remote-endpoint = <&lt8912b_in>;
-};
-#endif
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
-	status = "okay";
-};
-#endif
-&panel_dsi_port {
-	remote-endpoint = <&dsi0_out0>;
-};
-
-&dsi0_out0 {
-	remote-endpoint = <&panel_dsi_port>;
-};
-#else /* choose legacy display */
-&fb_disp_device { /* legacy fb on */
-	memory-region = <&disp_reserve>;
-	status = "okay";
-};
-
-&display_subsystem { /* drm display off */
-	status = "disabled";
-};
-
-&drm_crtc0 { /* drm display off */
-	status = "disabled";
-};
-
-&drm_dsi0 { /* drm display off */
-	status = "disabled";
-};
-
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
-	status = "okay";
-};
-
-&panel_dsi_port {
-	remote-endpoint = <&disp_phy>;
-};
-#elif defined(LT8912B_HDMI_ENABLE)
-&lontium_lt8912b {
-	status = "okay";
-	#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
-	hdmi-timing = <0x0>;
-	#elif defined(LT8912B_HDMI_720P)
-	hdmi-timing = <0x2>;
-	#else
-	hdmi-timing = <0x3>;
-	#endif
-};
-
-&lt8912b_in {
-	remote-endpoint = <&disp_phy>;
-};
-#endif
-#endif

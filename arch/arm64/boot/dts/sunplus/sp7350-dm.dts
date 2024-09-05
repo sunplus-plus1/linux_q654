@@ -44,38 +44,11 @@
 #define AP6256_WIFI
 #define AP6256_BT
 
-/*choose legacy or drm display*/
-#define CONFIG_DISP_DRM_SUPPORT
 
-
-#if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
 //#define DISP_MIPITX_DSI_PANEL_240X320
 //#define DISP_MIPITX_DSI_PANEL_480X1280
 #define RASPBERRYPI_DSI_PANEL
 #define LT8912B_HDMI_ENABLE
-#else /* choose legacy display */
-//#define DISP_MIPITX_CSI
-//#define DISP_MIPITX_CSI_480P
-//#define DISP_MIPITX_CSI_720P
-//#define DISP_MIPITX_CSI_1080P
-//#define DISP_MIPITX_CSI_3840
-
-//#define DISP_MIPITX_DSI_PANEL_240X320
-
-//#define DISP_MIPITX_DSI_PANEL_480X1280
-//#define DISP_MIPITX_DSI_VPP_SRC_480P
-//#define DISP_MIPITX_DSI_VPP_SRC_720P
-//#define DISP_MIPITX_DSI_VPP_SRC_1080P
-//#define DISP_MIPITX_DSI_VPP_SRC_3840
-
-//#define RASPBERRYPI_DSI_PANEL
-
-#define LT8912B_HDMI_ENABLE
-//#define LT8912B_HDMI_480X272
-//#define LT8912B_HDMI_480P
-//#define LT8912B_HDMI_720P
-#define LT8912B_HDMI_1080P
-#endif
 
 #include "sp7350-common.dtsi"
 #include <dt-bindings/input/input.h>
@@ -396,7 +369,7 @@
 		regulator-always-on;
 	};
 
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode */
+#if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 	lt8912b_1p8v: lt8912b_1p8v {
 		compatible = "regulator-fixed";
 		regulator-name = "lt8912b_1v8";
@@ -1110,32 +1083,23 @@
 };
 
 &i2c4 {
-#if defined(LT8912B_HDMI_ENABLE) || defined(RASPBERRYPI_DSI_PANEL)
-	/* fix setting for lt8912b & raspberrypi_lcd */
-	//i2c-scl-rising-time-ns = <0>;
-	//i2c-scl-falling-time-ns = <0>;
-	i2c-sda-hold-time-ns = <2000>;
-	clock-frequency = <100000>;
-#else
 	i2c-sda-hold-time-ns = <1000>;
 	clock-frequency = <400000>;
-#endif
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo4_pins>;
 	status = "okay";
 
 	#address-cells = <1>;
 	#size-cells = <0>;
-#ifdef RASPBERRYPI_DSI_PANEL /* Add raspberrypi_lcd subnode in i2c4 */
+#if defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode in i2c4 */
 	raspberrypi_lcd: lcd@45 {
-		#if defined(CONFIG_DISP_DRM_SUPPORT)
 		compatible = "raspberrypi,7inch-touchscreen-panel";
-		#else
-		compatible = "raspberrypi,7inch-touchscreen-panel-builtin";
-		#endif
 		reg = <0x45>;
+
+		status = "okay";
 		port {
 			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi0_out1>;
 			};
 		};
 	};
@@ -1150,13 +1114,9 @@
 		touchscreen-inverted-y;
 	};
 #endif
-#ifdef LT8912B_HDMI_ENABLE /* Add lt8912b subnode in i2c4 */
+#if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode in i2c4 */
 	lontium_lt8912b: hdmi@48 {
-		#if defined(CONFIG_DISP_DRM_SUPPORT)
 		compatible = "lontium,lt8912b";
-		#else
-		compatible = "lontium,lt8912b-builtin";
-		#endif
 		reg = <0x48>;
 
 		vcchdmipll-supply = <&lt8912b_1p8v>;
@@ -1168,29 +1128,6 @@
 		vdd-supply = <&lt8912b_1p8v>;
 		//reset-gpios = <&pctl 74 GPIO_ACTIVE_LOW>;
 
-		#if !defined(CONFIG_DISP_DRM_SUPPORT)
-		#if defined(LT8912B_HDMI_480X272)
-		hdmi-mode = <0x0>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x0>;
-		#elif defined(LT8912B_HDMI_480P)
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x0>;
-		#elif defined(LT8912B_HDMI_720P)
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x2>;
-		#elif defined(LT8912B_HDMI_1080P)
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x3>;
-		#else
-		hdmi-mode = <0x1>; /* 0: DVI Mode , 1: HDMI Mode (for kernel) */
-		hdmi-timing = <0x2>;
-		#endif
-		/*
-		 * 0x0: 720x480
-		 * 0x2: 1280x720
-		 * 0x3: 1920x1080
-		 */
-		#endif
 		status = "okay";
 		ports {
 			#address-cells = <1>;
@@ -1199,6 +1136,7 @@
 				reg = <0>;
 				lt8912b_in: endpoint {
 					data-lanes = <1 2 3 4>;
+					remote-endpoint = <&dsi0_out0>;
 				};
 			};
 
@@ -1211,6 +1149,7 @@
 		};
 	};
 #endif
+
 	es8316: codec@11 {
 		compatible = "everest,es8316";
 		reg = <0x11>;
@@ -1233,7 +1172,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo5_pins>;
-#ifdef LT8912B_HDMI_ENABLE
+#if defined(LT8912B_HDMI_ENABLE)
 	status = "okay";
 #else
 	status = "disabled";
@@ -2221,190 +2160,96 @@
 	};
 };
 
-#if !defined(CONFIG_DISP_DRM_SUPPORT)
-&display {
-#if defined(DISP_MIPITX_CSI)
-	#if defined(DISP_MIPITX_CSI_480P)
-	sunplus,dev_name = "MIPITX-CSI-TEST_480P";
-	sunplus,osd0_layer = <0 0 720 480 0x4>; /* 0x4 = YUY2 */
-	sunplus,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <720 480 0x1>; /* 0x1:MIPITX CSI */
-	#elif defined(DISP_MIPITX_CSI_720P)
-	sunplus,dev_name = "MIPITX-CSI-TEST_720P";
-	sunplus,osd0_layer = <0 0 1280 720 0x4>; /* 0x4 = YUY2 */
-	sunplus,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <1280 720 0x1>; /* 0x1:MIPITX CSI */
-	#elif defined(DISP_MIPITX_CSI_1080P)
-	sunplus,dev_name = "MIPITX-CSI-TEST_1080P";
-	sunplus,osd0_layer = <0 0 1920 1080 0x4>; /* 0x4 = YUY2 */
-	sunplus,vpp0_layer = <0 0 1920 1080 1920 1080 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <1920 1080 0x1>; /* 0x1:MIPITX CSI */
-	#elif defined(DISP_MIPITX_CSI_3840)
-	sunplus,dev_name = "MIPITX-CSI-TEST_3840";
-	sunplus,osd0_layer = <0 0 3840 2880 0x4>; /* 0x4 = YUY2 */
-	sunplus,vpp0_layer = <0 0 3840 2880 3840 2880 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <3840 2880 0x1>; /* 0x1:MIPITX CSI */
-	#else
-	sunplus,dev_name = "MIPITX-CSI-TEST_720P";
-	sunplus,osd0_layer = <0 0 1280 720 0x4>; /* 0x4 = YUY2 */
-	sunplus,vpp0_layer = <0 0 1280 720 1280 720 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <1280 720 0x1>; /* 0x1:MIPITX CSI */
-	#endif
-
-	sunplus,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-	sunplus,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
-	sunplus,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
-	sunplus,disp_mipitx_format = <0x1>; /* 0x1:MIPITX format CSI_16BITS YUY2 */
-
-#elif defined(DISP_MIPITX_DSI_PANEL_240X320)
-	sunplus,dev_name = "TCXD024IBLON-2";
-
-	sunplus,osd0_layer = <0 0 240 320 0xe>; /* 0xe = ARGB8888 */
-	sunplus,vpp0_layer = <0 0 720 480 240 320 0x2>; /* 0x2 = YUY2 */
-
-	sunplus,disp_output = <240 320 0x0>; /* 0x0:MIPITX DSI */
-	sunplus,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
-	sunplus,disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-	sunplus,disp_mipitx_sync_timing = <0x0>; /* 0x1:Sync Pulse */
-	sunplus,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-
-#elif defined(DISP_MIPITX_DSI_PANEL_480X1280)
-	//reset-gpios = <&pctl 56 GPIO_ACTIVE_HIGH>;
-	sunplus,dev_name = "HXM0686TFT-001";
-	sunplus,osd0_layer = <0 0 480 1280 0xe>; /* 0xe = ARGB8888 */
-	sunplus,osd1_layer = <0 240 480 1280 0x2>; /* 0x2 = 8bpp */
-	sunplus,osd2_layer = <0 480 480 1280 0x2>; /* 0x2 = 8bpp */
-	sunplus,osd3_layer = <0 720 480 1280 0x2>; /* 0x2 = 8bpp */
-
-	//sunplus,osd0_layer = <0 0 200 200 0xe>; /* 0xe = ARGB8888 */
-	//sunplus,osd1_layer = <280 0 200 200 0xe>; /* 0xe = ARGB8888 */
-	//sunplus,osd2_layer = <0 1080 200 200 0xe>; /* 0xe = ARGB8888 */
-	//sunplus,osd3_layer = <280 1080 200 200 0xe>; /* 0xe = ARGB8888 */
-		/* 0x2 = 8bpp (ARGB)
-		 * 0x4 = YUY2
-		 * 0x8 = RGB565
-		 * 0x9 = ARGB1555
-		 * 0xa = RGBA4444
-		 * 0xb = ARGB4444
-		 * 0xd = RGBA8888
-		 * 0xe = ARGB8888
-		 */
-	#if defined(DISP_MIPITX_DSI_VPP_SRC_480P)
-	sunplus,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
-	#elif defined(DISP_MIPITX_DSI_VPP_SRC_720P)
-	sunplus,vpp0_layer = <0 0 1280 720 480 1280 0x2>; /* 0x2 = YUY2 */
-	#elif defined(DISP_MIPITX_DSI_VPP_SRC_1080P)
-	sunplus,vpp0_layer = <0 0 1920 1080 480 1280 0x2>; /* 0x2 = YUY2 */
-	#elif defined(DISP_MIPITX_DSI_VPP_SRC_3840)
-	sunplus,vpp0_layer = <0 0 3840 2880 480 1280 0x2>; /* 0x2 = YUY2 */
-	#else
-	sunplus,vpp0_layer = <0 0 720 480 480 1280 0x2>; /* 0x2 = YUY2 */
-		/* 0x1 = UYVY
-		 * 0x2 = YUY2
-		 * 0x3 = NV16
-		 * 0x6 = NV24
-		 * 0x7 = NV12
-		 * else YUY2
-		 */
-	#endif
-
-	sunplus,disp_output = <480 1280 0x0>; /* 0x0:MIPITX DSI */
-		/* 0x0:MIPITX DSI
-		 * 0x1:MIPITX CSI
-		 */
-	sunplus,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-		/* 0x1 = 1 lane
-		 * 0x2 = 2 lane
-		 * 0x4 = 4 lane
-		 */
-	sunplus,disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-		/* 0x0:Raising Edge
-		 * 0x1:Falling Edge
-		 */
-	sunplus,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
-		/* 0x0:Sync Pulse
-		 * 0x1:Sync Event
-		 */
-	sunplus,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-		/* 0x0 = DSI RGB565        / CSI_16BITS RGB565
-		 * 0x1 = DSI RGB666_18BITS / CSI_16BITS YUY2 8bit
-		 * 0x2 = DSI RGB666_24BITS / CSI_20BITS YUY2 10bit
-		 * 0x3 = DSI RGB888        / CSI_24BITS RGB888
-		 */
-
-#elif defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
-	sunplus,dev_name = "RASPBERRYPI_DSI_PANEL";
-	sunplus,osd0_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd1_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd2_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd3_layer = <0 0 800 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,vpp0_layer = <0 0 720 480 800 480 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <800 480 0x0>; /* 0x0:MIPITX DSI */
-	sunplus,disp_mipitx_lane = <0x1>; /* 0x0:MIPITX lane */
-	sunplus,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
-	sunplus,disp_mipitx_sync_timing = <0x0>; /* 0x0:Sync Pulse */
-	sunplus,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-#elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
-	sunplus,dev_name = "LT8912B-HDMI";
-	#if defined(LT8912B_HDMI_480X272)
-	sunplus,osd0_layer = <0 0 480 272 0x8>; /* 0x8 = RGB565 */
-	sunplus,vpp0_layer = <0 0 720 480 480 272 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
-	sunplus,lt8912b_hdmi_mode = <0x0>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
-	#elif defined(LT8912B_HDMI_480P)
-	sunplus,osd0_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd1_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd2_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd3_layer = <0 0 720 480 0x8>; /* 0x8 = RGB565 */
-	sunplus,vpp0_layer = <0 0 720 480 720 480 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <720 480 0x0>; /* 0x0:MIPITX DSI */
-	sunplus,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
-	#elif defined(LT8912B_HDMI_720P)
-	sunplus,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
-	sunplus,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
-	#elif defined(LT8912B_HDMI_1080P)
-	sunplus,osd0_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd1_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd2_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd3_layer = <0 0 1920 1080 0x8>; /* 0x8 = RGB565 */
-	sunplus,vpp0_layer = <0 0 720 480 1920 1080 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <1920 1080 0x0>; /* 0x0:MIPITX DSI */
-	sunplus,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
-	#else
-	sunplus,osd0_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd1_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd2_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,osd3_layer = <0 0 1280 720 0x8>; /* 0x8 = RGB565 */
-	sunplus,vpp0_layer = <0 0 720 480 1280 720 0x2>; /* 0x2 = YUY2 */
-	sunplus,disp_output = <1280 720 0x0>; /* 0x0:MIPITX DSI */
-	sunplus,lt8912b_hdmi_mode = <0x1>; /* 0: DVI Mode, 1: HDMI Mode (for uboot) */
-	#endif
-	sunplus,disp_mipitx_lane = <0x4>; /* 0x0:MIPITX lane */
-	sunplus,disp_mipitx_clk_edge = <0x0>; /* 0x0:Raising Edge */
-	sunplus,disp_mipitx_sync_timing = <0x1>; /* 0x1:Sync Event */
-	sunplus,disp_mipitx_format = <0x3>; /* 0x3:MIPITX DSI RGB888 */
-#endif
-
-#if defined(RASPBERRYPI_DSI_PANEL) /* Add raspberrypi_lcd subnode */
-	port {
-		disp_phy: endpoint {
-			remote-endpoint = <&panel_dsi_port>;
-		};
-	};
-#elif defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
-	port {
-		disp_phy: endpoint {
-			remote-endpoint = <&lt8912b_in>;
-		};
-	};
-#endif
+&display { /* legacy display off */
+	status = "disabled";
 };
+&fb_disp_device { /* legacy fb off */
+	status = "disabled";
+};
+&display_subsystem { /* drm display on */
+	memory-region = <&disp_reserve>;
+	status = "okay";
+};
+&display_crtc0 { /* drm display on */
+	status = "okay";
+
+	port {
+		crtc0_out: endpoint {
+			remote-endpoint = <&dsi0_in0>;
+		};
+	};
+};
+&mipi_dsi0 { /* drm display on */
+	status = "okay";
+
+#if defined(DISP_MIPITX_DSI_PANEL_480X1280)  /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	hxm0686tft_lcd: mipi_dsi_lcd@0 {
+		compatible = "sunplus,lx-hxm0686tft-001";
+		reg = <0>;
+		status = "okay";
+		port {
+			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi0_out1>;
+			};
+		};
+	};
 #endif
+#if defined(DISP_MIPITX_DSI_PANEL_240X320)  /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	tcxd024iblon_lcd: mipi_dsi_lcd@1 {
+		compatible = "sunplus,xinli-tcxd024iblon-2";
+		reg = <1>;
+		status = "okay";
+		port {
+			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi0_out1>;
+			};
+		};
+	};
+#endif
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* dsi port 0 for input */
+		dsi0_in: port@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+			dsi0_in0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&crtc0_out>;
+			};
+		};
+
+		/* dsi port 1 for output */
+		dsi0_out: port@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			/* dsi output port 0 for mipi lt8912b bridge */
+			#if defined(LT8912B_HDMI_ENABLE)
+			dsi0_out0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&lt8912b_in>;
+			};
+			#endif
+
+			/* dsi output port 0 for mipi panel */
+			#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_480X1280) || defined(DISP_MIPITX_DSI_PANEL_240X320)
+			dsi0_out1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&panel_dsi_port>;
+			};
+			#endif
+		};
+	};
+};
 
 &adc {
 	//status = "disabled";
@@ -3093,100 +2938,3 @@
 	};
 };
 
-#if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
-&display { /* legacy display off */
-	status = "disabled";
-};
-&fb_disp_device { /* legacy fb off */
-	status = "disabled";
-};
-&display_subsystem { /* drm display on */
-	memory-region = <&disp_reserve>;
-	status = "okay";
-};
-&drm_crtc0 { /* drm display on */
-	status = "okay";
-};
-&drm_dsi0 { /* drm display on */
-	status = "okay";
-};
-#ifdef DISP_MIPITX_DSI_PANEL_480X1280 /* Add DISP_MIPITX_DSI_PANEL_480X1280 subnode in mipidsi */
-&hxm0686tft_lcd {
-	status = "okay";
-	port {
-		panel_dsi_port: endpoint {};
-	};
-};
-#endif
-#ifdef DISP_MIPITX_DSI_PANEL_240X320 /* Add DISP_MIPITX_DSI_PANEL_240X320 subnode in mipidsi */
-&tcxd024iblon_lcd {
-	status = "okay";
-	port {
-		panel_dsi_port: endpoint {};
-	};
-};
-#endif
-#if defined(LT8912B_HDMI_ENABLE)
-&lontium_lt8912b {
-	status = "okay";
-};
-&dsi0_out {
-	dsi0_out1: endpoint@1 {
-		reg = <1>;
-	};
-};
-&lt8912b_in {
-	remote-endpoint = <&dsi0_out1>;
-};
-&dsi0_out1 {
-	remote-endpoint = <&lt8912b_in>;
-};
-#endif
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
-	status = "okay";
-};
-#endif
-&panel_dsi_port {
-	remote-endpoint = <&dsi0_out0>;
-};
-&dsi0_out0 {
-	remote-endpoint = <&panel_dsi_port>;
-};
-#else /* choose legacy display */
-&fb_disp_device { /* legacy fb on */
-	memory-region = <&disp_reserve>;
-	status = "okay";
-};
-&display_subsystem { /* drm display off */
-	status = "disabled";
-};
-&drm_crtc0 { /* drm display off */
-	status = "disabled";
-};
-&drm_dsi0 { /* drm display off */
-	status = "disabled";
-};
-#ifdef RASPBERRYPI_DSI_PANEL
-&raspberrypi_lcd {
-	status = "okay";
-};
-&panel_dsi_port {
-	remote-endpoint = <&disp_phy>;
-};
-#elif defined(LT8912B_HDMI_ENABLE)
-&lontium_lt8912b {
-	status = "okay";
-	#if defined(LT8912B_HDMI_480P) || defined(LT8912B_HDMI_480X272)
-	hdmi-timing = <0x0>;
-	#elif defined(LT8912B_HDMI_720P)
-	hdmi-timing = <0x2>;
-	#else
-	hdmi-timing = <0x3>;
-	#endif
-};
-&lt8912b_in {
-	remote-endpoint = <&disp_phy>;
-};
-#endif
-#endif
