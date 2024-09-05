@@ -1301,11 +1301,15 @@
 
 	spinand0: spinand@f8002b80 {
 		compatible = "sunplus,sp7350-spi-nand";
-		reg = <0x0 0xf8002b80 0x0 0x60>;
+		reg = <0x0 0xf8002b80 0x0 0x60>, <0x0 0xf8101000 0x0 0x30>;
+		reg-names = "nand", "bch";
 		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPIND>;
-		resets = <&rstc RST_SPIND>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "int_nand", "int_bch";
+		clocks = <&clkc SPIND>, <&clkc BCH>;
+		clock-names = "clk_nand", "clk_bch";
+		resets = <&rstc RST_SPIND>, <&rstc RST_BCH>;
+		reset-names = "rst_nand", "rst_bch";
 	};
 
 	bch0: bch@f8101000 {
