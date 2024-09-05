@@ -774,8 +774,10 @@ lt8912_bridge_detect(struct drm_bridge *bridge)
 {
 	struct lt8912 *lt = bridge_to_lt8912(bridge);
 
+	#if !defined(CONFIG_DRM_SP7350)
 	if (lt->hdmi_port->ops & DRM_BRIDGE_OP_DETECT)
 		return drm_bridge_detect(lt->hdmi_port);
+	#endif
 
 	return lt8912_check_cable_status(lt);
 }
