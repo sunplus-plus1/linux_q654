@@ -532,6 +532,12 @@
 &display {
 	status = "disabled";
 };
+&fb_disp_device {
+	status = "disabled";
+};
+&display_subsystem { /* drm display off */
+	status = "disabled";
+};
 
 &adc {
 	//status = "disabled";
@@ -1151,15 +1157,3 @@
 	};
 };
 
-&fb_disp_device {
-	status = "disabled";
-};
-&display_subsystem { /* drm display off */
-	status = "disabled";
-};
-&drm_crtc0 { /* drm display off */
-	status = "disabled";
-};
-&drm_dsi0 { /* drm display off */
-	status = "disabled";
-};
