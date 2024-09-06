@@ -34,7 +34,7 @@ enum loglevel {
 	SPMMC_LOG_MAX
 };
 static int loglevel = SPMMC_LOG_WARNING;
-static int CMD23_RECEIVED = 0;
+static int CMD23_RECEIVED;
 /**
  * we do not need `SPMMC_LOG_' prefix here, when specify @level.
  */
@@ -336,12 +336,12 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 	if (clk > f_max)
 		clk = f_max;
 
-	if(f_max == 200000000)
+	if (f_max == 200000000)
 		clk_set_rate(host->clk, 800000000);
 	//spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
 	spmmc_pr(INFO, "set bus clock to %d\n", clk);
 
-	if(clk_get_rate(host->clk) < SPMMC_SYS_CLK)
+	if (clk_get_rate(host->clk) < SPMMC_SYS_CLK)
 		clkdiv = (clk_get_rate(host->clk)+clk)/clk-1;
 	else
 		clkdiv = clk_get_rate(host->clk)/clk-1;
@@ -367,7 +367,7 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 
 static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 {
-	u32 hs400_value,i;
+	u32 hs400_value, i;
 	u32 value = readl(&host->base->sd_config1);
 	int clkdiv = readl(&host->base->sd_config0) >> 20;
 	int delay = clkdiv/2 < 7 ? clkdiv/2 : 7;
@@ -680,7 +680,7 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 		writel(dma_addr, &host->base->dma_base_addr);
 		writel(dma_size, &host->base->sdram_sector_0_size);
 #else
-		if(data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) {
+		if (data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) {
 			host->xfer_len = data->blocks * data->blksz;
 			count = 8;
 		}
@@ -692,7 +692,7 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 				writel(dma_addr, &host->base->dma_base_addr);
 				writel(dma_size, &host->base->sdram_sector_0_size);
 				host->xfer_len -= sg_xlen;
-			} else if(i < 7){
+			} else if (i < 7) {
 				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
 				writel(dma_addr, reg_addr);
 				writel(dma_size, reg_addr + 1);
@@ -854,11 +854,10 @@ static int spmmc_check_error(struct spmmc_host *host, struct mmc_request *mrq)
 
 	if ((cmd->opcode == MMC_READ_MULTIPLE_BLOCK)
 		|| (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)) {
-		if(CMD23_RECEIVED == 0){
+		if (CMD23_RECEIVED == 0) {
 			spmmc_pr(DEBUG, "CMD23_RECEIVED == 0\n");
 			__send_stop_cmd(host);
-		}
-		else {
+		} else {
 			spmmc_pr(DEBUG, "CMD23_RECEIVED == 1\n");
 			CMD23_RECEIVED = 0;
 		}
@@ -1017,8 +1016,8 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 	cmd = mrq->cmd;
 	data = mrq->data;
 
-	if(cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK){
- 		spmmc_get_rsp(host, cmd);
+	if (cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK) {
+		spmmc_get_rsp(host, cmd);
 	}
 
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
@@ -1026,7 +1025,7 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 
 #ifdef SPMMC_DMA_ALLOC
 #ifdef SPMMC_HIGH_MEM
-		if(data->flags & MMC_DATA_READ) {
+		if (data->flags & MMC_DATA_READ) {
 			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
 			dma_sync_single_for_cpu(host->dev,
 				host->buf_phys_addr,
@@ -1037,7 +1036,7 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 
 		}
 #else
-		if((data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
+		if ((data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
 			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
 			count = 8;
 			for_each_sg(data->sg, sg, count, i) {
@@ -1082,7 +1081,7 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 #ifdef SPMMC_HIGH_MEM
-			if(data->flags & MMC_DATA_READ) {
+			if (data->flags & MMC_DATA_READ) {
 				dma_sync_single_for_cpu(host->dev,
 					host->buf_phys_addr,
 					host->xfer_len,
@@ -1141,7 +1140,7 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->mrq = mrq;
 	data = mrq->data;
 
-	if(mrq->sbc){
+	if (mrq->sbc) {
 		/* Finished CMD23 */
 		u32 value;
 		cmd = mrq->sbc;
@@ -1196,8 +1195,8 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				spmmc_finish_request(host, mrq);
 			} else {
 				spmmc_trigger_transaction(host);
-				if(cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
- 					spmmc_get_rsp(host, cmd);
+				if (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
+					spmmc_get_rsp(host, cmd);
 			}
 		}
 	}
@@ -1946,7 +1945,7 @@ static int config_gpio_bypass_en_store(struct spmmc_host *host, const char *arg)
 	writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
 
 
-	if(val == 0){
+	if (val == 0) {
 		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
 		value = bitfield_replace(value, 20, 1, 0);//DI FF BYPASS TM:Don not bypass IP input data
 		for (i = 0; i < 9; i++)
@@ -1959,8 +1958,7 @@ static int config_gpio_bypass_en_store(struct spmmc_host *host, const char *arg)
 		writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
 
 		spmmc_pr(INFO, "Do not bypass IP input data\n");
-	}
-	else{
+	} else {
 		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
 		value = bitfield_replace(value, 20, 1, 1);//DI FF BYPASS TM:bypass IP input data
 		for (i = 0; i < 9; i++)
@@ -2022,7 +2020,7 @@ static int config_softpad_data_out_en_store(struct spmmc_host *host, const char 
 		return SPMMC_CFG_FAIL;
 
 	value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[0]);
-	if(val == 0)
+	if (val == 0)
 		value = bitfield_replace(value, 22, 8, 0);
 	else
 		value = bitfield_replace(value, 22, 8, 0xFF);
@@ -2048,7 +2046,7 @@ static int config_softpad_cmd_out_en_store(struct spmmc_host *host, const char *
 		return SPMMC_CFG_FAIL;
 
 	value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[0]);
-	if(val == 0)
+	if (val == 0)
 		value = bitfield_replace(value, 21, 1, 0);
 	else
 		value = bitfield_replace(value, 21, 1, 1);
@@ -2515,6 +2513,7 @@ ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
 	writel(x, &host->base->card_mediatype_srcdst);
 
 	mmc->caps |= MMC_CAP_CMD23;
+	CMD23_RECEIVED = 0;
 
 	return 0;
 
@@ -2545,7 +2544,6 @@ static int spmmc_drv_remove(struct platform_device *dev)
 
 	return 0;
 }
-
 
 static int spmmc_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
