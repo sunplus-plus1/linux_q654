@@ -2756,7 +2756,6 @@ static int sp_udc_probe(struct platform_device *pdev)
 	resource_size_t rsrc_len;
 	resource_size_t rsrc_start;
 	int retval;
-	typedef void (*pfunc)(unsigned long);
 
 	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
 	if (!udc) {
@@ -2889,7 +2888,7 @@ static int sp_udc_probe(struct platform_device *pdev)
 	spin_lock_init (&udc->lock);
 	init_ep_spin(udc);
 	platform_set_drvdata(pdev, udc);
-	tasklet_init(&udc->event_task, (pfunc) handle_event, (unsigned long)udc);
+	tasklet_init(&udc->event_task, (void *)handle_event, (unsigned long)udc);
 
 	timer_setup(&udc->sof_polling_timer, udc_sof_polling, 0);
 	udc->sof_polling_timer.expires = jiffies + HZ / 20;
