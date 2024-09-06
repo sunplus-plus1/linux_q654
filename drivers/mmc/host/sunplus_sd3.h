@@ -52,7 +52,7 @@
 #define SPSDC_HW_SEGS 8
 #define SPSDC_MAX_BLK_CNT 2560
 #define SPSDC_MAX_BLK_SIZE  512
-#define SPSDC_MAX_REQ_SIZE SPSDC_MAX_BLK_CNT * SPSDC_MAX_BLK_SIZE
+#define SPSDC_MAX_REQ_SIZE (SPSDC_MAX_BLK_CNT * SPSDC_MAX_BLK_SIZE)
 
 #define SPMMC_MAX_TUNABLE_DLY 7
 #define SPMMC_TIMEOUT_US 50000000
@@ -295,7 +295,7 @@ enum {
 struct spsdc_tuning_info {
 	int enable_tuning;
 	int need_tuning;
-	u32 tuning_finish  : 1;	
+	u32 tuning_finish  : 1;
 //#define SPSDC_MAX_RETRIES (8 * 8)
 #define SPSDC_MAX_RETRIES 8
 	int retried; /* how many times has been retried */

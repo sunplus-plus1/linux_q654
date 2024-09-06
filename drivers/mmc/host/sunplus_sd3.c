@@ -171,6 +171,7 @@ static inline __maybe_unused void spsdc_txdummy(struct spsdc_host *host, int cou
 	writel(value, &host->base->sd_ctrl);
 }
 
+#ifdef SPMMC_CHECK_DATA_BUSY
 static int spsdc_wait_card_unbusy(struct spsdc_host *host, int count)
 {
 	void *status = &host->base->sd_status;
@@ -186,6 +187,7 @@ static int spsdc_wait_card_unbusy(struct spsdc_host *host, int count)
 
 	return (readl(status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS) ? 0 : 1;
 }
+#endif
 
 static void spsdc_get_rsp(struct spsdc_host *host, struct mmc_command *cmd)
 {
@@ -875,7 +877,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 #endif
 
 	if (mrq->stop) {
-		if (spsdc_send_stop_cmd(host, mrq->stop))
+		if (spsdc_send_stop_cmd(host, mrq->stop)) {
 			spsdc_sw_reset(host);
 #ifdef SPMMC_CHECK_DATA_BUSY
 			for (i = 0; i <= 5; i++) {
@@ -889,13 +891,14 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 				spsdc_sw_reset(host);
 			}
 #endif
+		}
 	}
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
 	//if ((host->mode == SPSDC_MODE_SD && cmd->opcode != 13 && cmd->opcode != 18 &&
 	//     cmd->opcode != 25) && cmd->opcode != 52 && cmd->opcode != 53) {
 		spsdc_pr(host->mode, VERBOSE,  "request done > error:%d, cmd:%d, resp:0x%08x\n",
-			 __func__, cmd->error, cmd->opcode, cmd->resp[0]);
+			 cmd->error, cmd->opcode, cmd->resp[0]);
 	//}
 	mmc_request_done(host->mmc, mrq);
 }
