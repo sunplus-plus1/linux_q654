@@ -872,7 +872,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 #endif
 
 	if (mrq->stop) {
-		if (spsdc_send_stop_cmd(host, mrq->stop))
+		if (spsdc_send_stop_cmd(host, mrq->stop)) {
 			spsdc_sw_reset(host);
 #ifdef SPMMC_CHECK_DATA_BUSY	
 			spsdc_send_stop_cmd(host, mrq->stop);
@@ -881,6 +881,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 				spsdc_pr(host->mode, ERROR, "error and re-send stop\n");
 			}
 #endif
+	}
 	}
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
