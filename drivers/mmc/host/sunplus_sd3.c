@@ -330,7 +330,7 @@ static void spsdc_set_bus_timing(struct spsdc_host *host, unsigned int timing)
 	}
 
 	if (hs_en) {
-		value = bitfield_replace(value, SPSDC_sdhigh_speed_en_w01, 1, 1); /* sd_high_speed_en */
+		value = bitfield_replace(value, SPSDC_sdhigh_speed_en_w01, 1, 1); /*sd_high_speed_en*/
 		writel(value, &host->base->sd_config1);
 		spsdc_pr(host->mode, VERBOSE, "sd_timing_config0: 0x%08x\n", reg_timing.val);
 		writel(reg_timing.val, &host->base->sd_timing_config0);
@@ -377,6 +377,7 @@ static void spsdc_set_bus_width(struct spsdc_host *host, int width)
 	spsdc_pr(host->mode, INFO, "set bus width to %d bit(s)\n", bus_width);
 	writel(value, &host->base->sd_config0);
 }
+
 /**
  * select the working mode of controller: sd/sdio/emmc
  */
@@ -399,7 +400,7 @@ static void spsdc_select_mode(struct spsdc_host *host)
 		value = bitfield_replace(value, SPSDC_sdiomode_w01, 1, 1);
 		writel(value, &host->base->sd_config0);
 		value = readl(&host->base->sdio_ctrl);
-		value = bitfield_replace(value, SPSDC_INT_MULTI_TRIG_w01, 1, 1); /* int_multi_trig */
+		value = bitfield_replace(value, SPSDC_INT_MULTI_TRIG_w01, 1, 1); /*int_multi_trig*/
 		writel(value, &host->base->sdio_ctrl);
 		break;
 	case SPSDC_MODE_SD:
@@ -448,7 +449,8 @@ static void spsdc_prepare_cmd(struct spsdc_host *host, struct mmc_command *cmd)
 {
 	u32 value;
 
-	value = ((cmd->opcode | 0x40) << 24) | (cmd->arg >> 8); /* add start bit, according to spec, command format */
+	/* add start bit, according to spec, command format */
+	value = ((cmd->opcode | 0x40) << 24) | (cmd->arg >> 8);
 
 	writel(value, &host->base->sd_cmdbuf0_3);
 	writeb(cmd->arg & 0xff, &host->base->sd_cmdbuf4);
@@ -510,10 +512,11 @@ static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 		writel(srcdst, &host->base->card_mediatype_srcdst);
 	}
 
-	/* to prevent of the responses of CMD18/25 being overrided by CMD12's,
+	/* to prevent of the responses of CMD18/25 being overridden by CMD12's,
 	 * send CMD12 by ourself instead of by controller automatically
 	 *
-	 *	if ((cmd->opcode == MMC_READ_MULTIPLE_BLOCK) || (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK))
+	 *	if ((cmd->opcode == MMC_READ_MULTIPLE_BLOCK) ||
+	 *	     (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK))
 	 *	value = bitfield_replace(value, SPSDC_sd_len_mode_w01, 1, 0); // sd_len_mode
 	 *	else
 	 *	value = bitfield_replace(value, SPSDC_sd_len_mode_w01, 1, 1);
@@ -549,7 +552,6 @@ static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 			}
 			dma_addr = host->buf_phys_addr;
 			dma_size = data->blocks - 1;
-			//pr_info("c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
 			writel(dma_addr, &host->base->dma_base_addr);
 			writel(dma_size, &host->base->sdram_sector_0_size);
 		} else {
@@ -565,7 +567,8 @@ static void spsdc_prepare_data(struct spsdc_host *host, struct mmc_data *data)
 					writel(dma_addr, &host->base->dma_base_addr);
 					writel(dma_size, &host->base->sdram_sector_0_size);
 					host->xfer_len -= sg_xlen;
-				} else if ((i < 7) || (data->sg_len <= SPSDC_MAX_DMA_MEMORY_SECTORS)) {
+				} else if ((i < 7) ||
+					    (data->sg_len <= SPSDC_MAX_DMA_MEMORY_SECTORS)) {
 					reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
 					writel(dma_addr, reg_addr);
 					writel(dma_size, reg_addr + 1);
@@ -650,10 +653,11 @@ static int spsdc_check_error(struct spsdc_host *host, struct mmc_request *mrq)
 	int clkdiv = readl(&host->base->sd_config0) >> SPSDC_sdfqsel_w12;
 
 	if (unlikely(value & SPSDC_SDSTATE_ERROR)) {
-		spsdc_pr(host->mode, DEBUG, "%s cmd %d with data %08x error!\n", __func__, cmd->opcode, (unsigned int)(long)data);
-		spsdc_pr(host->mode, VERBOSE, "%s sd_state: 0x%08x\n", __func__, value);
+		spsdc_pr(host->mode, DEBUG, " cmd %d with data %08x error!\n",
+			 cmd->opcode, (unsigned int)(long)data);
+		spsdc_pr(host->mode, VERBOSE, "err sd_state: 0x%08x\n", value);
 		value = readl(&host->base->sd_status);
-		spsdc_pr(host->mode, VERBOSE, "%s sd_status: 0x%08x\n", __func__, value);
+		spsdc_pr(host->mode, VERBOSE, "err sd_status: 0x%08x\n", value);
 
 		if (host->tuning_info.enable_tuning)
 			timing.val = readl(&host->base->sd_timing_config0);
@@ -672,15 +676,18 @@ static int spsdc_check_error(struct spsdc_host *host, struct mmc_request *mrq)
 				ret = (host->tuning_info.enable_tuning) ? -ETIMEDOUT : -1;
 				timing.bits.sd_rd_dat_dly_sel++;
 			} else if (value & SPSDC_SDSTATUS_RDATA_CRC16_ERROR) {
-				spsdc_pr(host->mode, VERBOSE, "SPSDC_SDSTATUS_RDATA_CRC16_ERROR\n");
+				spsdc_pr(host->mode, VERBOSE,
+					 "SPSDC_SDSTATUS_RDATA_CRC16_ERROR\n");
 				ret = (host->tuning_info.enable_tuning) ? -EILSEQ : -1;
 				timing.bits.sd_rd_dat_dly_sel++;
 			} else if (value & SPSDC_SDSTATUS_CARD_CRC_CHECK_TIMEOUT) {
-				spsdc_pr(host->mode, VERBOSE, "SPSDC_SDSTATUS_CARD_CRC_CHECK_TIMEOUT\n");
+				spsdc_pr(host->mode, VERBOSE,
+					 "SPSDC_SDSTATUS_CARD_CRC_CHECK_TIMEOUT\n");
 				ret = (host->tuning_info.enable_tuning) ? -ETIMEDOUT : -1;
 				timing.bits.sd_rd_crc_dly_sel++;
 			} else if (value & SPSDC_SDSTATUS_CRC_TOKEN_CHECK_ERROR) {
-				spsdc_pr(host->mode, VERBOSE, "SPSDC_SDSTATUS_CRC_TOKEN_CHECK_ERROR\n");
+				spsdc_pr(host->mode, VERBOSE,
+					 "SPSDC_SDSTATUS_CRC_TOKEN_CHECK_ERROR\n");
 				ret = (host->tuning_info.enable_tuning) ? -EILSEQ : -1;
 				if (crc_token == 0x5)
 					timing.bits.sd_wr_dat_dly_sel++;
@@ -695,7 +702,8 @@ static int spsdc_check_error(struct spsdc_host *host, struct mmc_request *mrq)
 		}
 
 		//if (!host->tuning_info.need_tuning) {
-		if (!host->tuning_info.need_tuning && host->tuning_info.enable_tuning && data && clkdiv <= 10)
+		if (!host->tuning_info.need_tuning && host->tuning_info.enable_tuning &&
+		    data && clkdiv <= 10)
 			cmd->retries = SPSDC_MAX_RETRIES; /* retry it */
 
 		spsdc_sw_reset(host);
@@ -830,6 +838,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 
 	if (data && SPSDC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+
 		if (data->flags & MMC_DATA_READ && data->sg_len > SPSDC_HW_SEGS) {
 			if (host->ram >= 8) {
 				dma_sync_single_for_cpu(host->dev,
@@ -861,7 +870,7 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 #ifdef SPMMC_CHECK_DATA_BUSY
 	if ((cmd->error == -EILSEQ) && (cmd->flags & MMC_RSP_BUSY)) {
 		spsdc_wait_card_unbusy(host, 10);
-		spsdc_pr(host->mode, ERROR, "error wait unbusy\n");
+		spsdc_pr(host->mode, VERBOSE, "err wait unbusy\n");
 	}
 #endif
 
@@ -869,18 +878,25 @@ static void spsdc_finish_request(struct spsdc_host *host, struct mmc_request *mr
 		if (spsdc_send_stop_cmd(host, mrq->stop))
 			spsdc_sw_reset(host);
 #ifdef SPMMC_CHECK_DATA_BUSY
-			spsdc_send_stop_cmd(host, mrq->stop);
-			if (cmd->error != 0) {
-				spsdc_wait_card_unbusy(host, 5);
-				spsdc_pr(host->mode, ERROR, "error and re-send stop\n");
+			for (i = 0; i <= 5; i++) {
+				if (spsdc_send_stop_cmd(host, mrq->stop))  {
+					spsdc_wait_card_unbusy(host, 10);
+					if (i == 5)
+						spsdc_pr(host->mode, VERBOSE, "stop cmd err\n");
+				} else {
+					break;
+				}
+				spsdc_sw_reset(host);
 			}
 #endif
 	}
 	host->mrq = NULL;
 	mutex_unlock(&host->mrq_lock);
-	//	if(((host->mode == SPSDC_MODE_SD) && (cmd->opcode != 13) && (cmd->opcode != 18) && (cmd->opcode != 25)) && (cmd->opcode != 52) && (cmd->opcode != 53)){
-			spsdc_pr(host->mode, VERBOSE, "request done > error:%d, cmd:%d, resp:0x%08x\n", cmd->error, cmd->opcode, cmd->resp[0]);
-	//		}
+	//if ((host->mode == SPSDC_MODE_SD && cmd->opcode != 13 && cmd->opcode != 18 &&
+	//     cmd->opcode != 25) && cmd->opcode != 52 && cmd->opcode != 53) {
+		spsdc_pr(host->mode, VERBOSE,  "request done > error:%d, cmd:%d, resp:0x%08x\n",
+			 __func__, cmd->error, cmd->opcode, cmd->resp[0]);
+	//}
 	mmc_request_done(host->mmc, mrq);
 }
 
@@ -929,9 +945,10 @@ static void spsdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	data = mrq->data;
 	cmd = mrq->cmd;
 
-	//if(((host->mode == SPSDC_MODE_SD) && (cmd->opcode != 13) && (cmd->opcode != 18) && (cmd->opcode != 25)) && (cmd->opcode != 52) && (cmd->opcode != 53)){
-	spsdc_pr(host->mode, VERBOSE, "%s > cmd:%d, arg:0x%08x, data len:%d\n", __func__,
-		 cmd->opcode, cmd->arg, data ? (data->blocks * data->blksz) : 0);
+	//if ((host->mode == SPSDC_MODE_SD && cmd->opcode != 13 && cmd->opcode != 18 &&
+	//     cmd->opcode != 25) && cmd->opcode != 52 && cmd->opcode != 53) {
+		spsdc_pr(host->mode, VERBOSE, "%s > cmd:%d, arg:0x%08x, data len:%d\n", __func__,
+			 cmd->opcode, cmd->arg, data ? (data->blocks * data->blksz) : 0);
 	//}
 
 #ifdef HW_VOLTAGE_1V8
@@ -945,7 +962,8 @@ static void spsdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	else
 		value = bitfield_replace(value, SPSDC_hw_set_vol_w01, 1, 0);
 
-	//spsdc_pr(host->mode, WARNING, "base->sd_vol_ctrl!  0x%x\n",readl(&host->base->sd_vol_ctrl));
+	//spsdc_pr(host->mode, WARNING, "base->sd_vol_ctrl!  0x%x\n",
+	//	   readl(&host->base->sd_vol_ctrl));
 	writel(value, &host->base->sd_vol_ctrl);
 
 #endif
@@ -959,8 +977,10 @@ static void spsdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		spsdc_wait_finish(host);
 		spsdc_check_error(host, mrq);
 		host->mrq = NULL;
-		spsdc_pr(host->mode, VERBOSE, "request done > error:%d, cmd:%d, resp:%08x %08x %08x %08x\n",
-			 cmd->error, cmd->opcode, cmd->resp[0], cmd->resp[1], cmd->resp[2], cmd->resp[3]);
+		spsdc_pr(host->mode, VERBOSE,
+			 "request done > error:%d, cmd:%d, resp:%08x %08x %08x %08x\n",
+			 cmd->error, cmd->opcode, cmd->resp[0], cmd->resp[1], cmd->resp[2],
+			 cmd->resp[3]);
 		mutex_unlock(&host->mrq_lock);
 		mmc_request_done(host->mmc, mrq);
 	} else {
@@ -1249,7 +1269,8 @@ static int spsdc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 				if (!memcmp(blk_pattern, blk_test, blksz))
 					candidate_dly |= (1 << smpl_dly);
 			} else {
-				spsdc_pr(host->mode, DEBUG, "Tuning error: cmd.error:%d, data.error:%d\n",
+				spsdc_pr(host->mode, DEBUG,
+					 "Tuning error: cmd.error:%d, data.error:%d\n",
 					 cmd.error, data.error);
 			}
 		}
