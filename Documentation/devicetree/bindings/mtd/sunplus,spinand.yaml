@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2024
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/sunplus,spinand.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SPI-NAND Controller
+
+maintainers:
+  - Cheng Chung Ho <cc.ho@sunplus.com>
+
+description:
+  Sunplus SPI-NAND Controller DT Binding
+
+properties:
+  compatible:
+    const: sunplus,sp7350-para-nand
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    maxItems: 2
+
+  interrupts:
+    maxItems: 2
+
+  interrupt-names:
+    maxItems: 2
+
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    maxItems: 2
+
+  resets:
+    maxItems: 2
+
+  reset-names:
+    maxItems: 2
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+
+    spinand0: spinand@f8002b80 {
+        compatible = "sunplus,sp7350-spi-nand";
+        reg = <0x0 0xf8002b80 0x0 0x60>, <0x0 0xf8101000 0x0 0x30>;
+        reg-names = "nand", "bch";
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "int_nand", "int_bch";
+        clocks = <&clkc SPIND>, <&clkc BCH>;
+        clock-names = "clk_nand", "clk_bch";
+        resets = <&rstc RST_SPIND>, <&rstc RST_BCH>;
+        reset-names = "rst_nand", "rst_bch";
+    };
+...
