@@ -112,16 +112,15 @@ static void sp_ocotp_byte_swap_check(struct sp_otp_data_t *otp,
 	layout_np = of_get_child_by_name(parent, "nvmem-layout");
 
 	for_each_child_of_node(layout_np, child) {
-		if (!of_find_property(child, "sunplus,byte-swap", NULL))
-			continue;
-
 		addr = of_get_property(child, "reg", NULL);
 		if (!addr)
 			continue;
 
-		if (offset != be32_to_cpup(addr++) ||
-		    bytes != be32_to_cpup(addr))
+		if (offset != be32_to_cpup(addr++) || bytes != be32_to_cpup(addr))
 			continue;
+
+		if(!of_device_is_compatible(child, "mac-base"))
+			break;
 
 		for (i = 0; i < (bytes >> 1); i++) {
 			val[i] ^= val[bytes - 1 - i];
