@@ -8,6 +8,7 @@ title: Sunplus Video Input (VIN)
 
 maintainers:
   - JiaWei Li <jw.li@sunmedia.com.cn>
+  - Cheng Chung Ho <cc.ho@sunplus.com>
 
 description:
   The Video Input (VIN) device provides video input capabilities for the

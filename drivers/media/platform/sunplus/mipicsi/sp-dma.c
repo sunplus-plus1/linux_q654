@@ -821,6 +821,7 @@ static int vin_set_stream(struct vin_dev *vin, int on)
 	if (ret)
 		return ret;
 
+	dev_dbg(vin->dev, "%s, sd->entity.pipe: 0x%p\n", __func__, video_device_pipeline(&vin->vdev));
 	/*
 	 * The graph lock needs to be taken to protect concurrent
 	 * starts of multiple VIN instances as they might share

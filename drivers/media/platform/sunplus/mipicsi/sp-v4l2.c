@@ -429,9 +429,9 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 	if (IS_ERR(sd_state))
 		return PTR_ERR(sd_state);
 
-	//dev_dbg(vin->dev, "%s, pad_cfg: code: 0x%04x %ux%u\n",
-	//	__func__, pad_cfg->try_fmt.code, pad_cfg->try_fmt.width, pad_cfg->try_fmt.height);
-	//dev_dbg(vin->dev, "%s, pix->pixelformat: %s\n", __func__, fourcc_to_str(pix->pixelformat));
+	dev_dbg(vin->dev, "%s, pad_cfg: code: 0x%04x %ux%u\n",
+		__func__, sd_state->pads->try_fmt.code, sd_state->pads->try_fmt.width, sd_state->pads->try_fmt.height);
+	dev_dbg(vin->dev, "%s, pix->pixelformat: %s\n", __func__, fourcc_to_str(pix->pixelformat));
 
 	if (!vin_format_from_pixel(vin, pix->pixelformat))
 		pix->pixelformat = VIN_DEFAULT_FORMAT;
