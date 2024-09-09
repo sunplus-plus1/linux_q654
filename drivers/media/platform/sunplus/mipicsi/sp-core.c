@@ -979,7 +979,7 @@ static int vin_mc_parse_of_graph(struct vin_dev *vin)
 		}
 	}
 
-	dev_dbg(vin->dev, "vin->group->count: %d, count: %d\n", vin->group->count, i);
+	dev_dbg(vin->dev, "vin->group->count: %d, count: %d\n", vin->group->count, count);
 
 	if (vin->group->count != count) {
 		mutex_unlock(&vin->group->lock);

@@ -9,6 +9,7 @@ title: sunplus MIPI CSI-2 receiver
 
 maintainers:
   - JiaWei Li <jw.li@sunmedia.com.cn>
+  - Cheng Chung Ho <cc.ho@sunplus.com>
 
 description:
   The CSI-2 receiver device provides MIPI CSI-2 capabilities for the
@@ -52,7 +53,6 @@ properties:
 
   num_channels:
     $ref: /schemas/types.yaml#/definitions/uint32
-  
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
