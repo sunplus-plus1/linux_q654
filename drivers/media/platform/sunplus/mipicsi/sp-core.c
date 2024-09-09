@@ -621,16 +621,6 @@ static int vin_parse_of_endpoint(struct device *dev,
 		goto out;
 	}
 
-#if defined(MIPI_CSI_DYN_REG)
-	/* Check if the CSI2 device has a driver bound */
-	if (asc->match.fwnode->dev->driver == NULL) {
-		vin_err(vin, "OF device %pOF probe failed. Remove VIN%d from group\n",
-			to_of_node(asc->match.fwnode), vin->id);
-		vin->group->vin[vin->id] = NULL;
-		ret = -ENOTCONN;
-		goto out;
-	}
-#endif
 	vin->group->csi[vep->base.id].fwnode = asc->match.fwnode;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
@@ -651,6 +641,8 @@ static int vin_group_parse_of(struct vin_dev *vin, unsigned int port,
 	struct v4l2_async_connection *asc;
 	int ret;
 
+	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
+
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), port, id, 0);
 	if (!ep)
 		return 0;
@@ -663,6 +655,45 @@ static int vin_group_parse_of(struct vin_dev *vin, unsigned int port,
 		ret = -EINVAL;
 		goto out;
 	}
+#if defined(MIPI_CSI_DYN_REG)
+	/* Check if the CSI2 device has a driver bound */
+	struct fwnode_handle *camera_ep, *camera_fwnode;
+	struct device *camera_dev, *csi_dev;
+
+	csi_dev = fwnode_get_next_parent_dev(fwnode);
+	if (csi_dev == NULL) {
+		vin_err(vin, "get csi %p device failed\n",
+				to_of_node(fwnode));
+		goto out;
+	}
+	camera_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi_dev), 0, 0, 0);
+	put_device(csi_dev);
+	if (!camera_ep) {
+		vin_err(vin, "csi camera endpoint no found\n");
+		goto out;
+	}
+	camera_fwnode = fwnode_graph_get_remote_endpoint(camera_ep);
+	fwnode_handle_put(camera_ep);
+	if (!camera_fwnode) {
+		vin_err(vin, "camera endpoint no found\n");
+		goto out;
+	}
+	camera_dev = fwnode_get_next_parent_dev(camera_fwnode);
+	fwnode_handle_put(camera_fwnode);
+	if (camera_dev == NULL) {
+		vin_err(vin, "get camera device failed\n");
+		goto out;
+	}
+	if (camera_dev->driver == NULL) {
+		vin_err(vin, "OF device %pOF probe failed. Remove VIN%d from group\n",
+			to_of_node(fwnode), vin->id);
+		vin->group->vin[vin->id] = NULL;
+		ret = -ENOTCONN;
+		put_device(camera_dev);
+		goto out;
+	}
+	put_device(camera_dev);
+#endif
 
 	asc = v4l2_async_nf_add_fwnode(&vin->group->notifier, fwnode,
 				    struct v4l2_async_connection);
@@ -670,7 +701,9 @@ static int vin_group_parse_of(struct vin_dev *vin, unsigned int port,
 		ret = PTR_ERR(asc);
 		goto out;
 	}
-	vin_parse_of_endpoint(vin->dev, &vep, asc);
+	ret = vin_parse_of_endpoint(vin->dev, &vep, asc);
+	if (ret)
+		goto out;
 out:
 	fwnode_handle_put(fwnode);
 
@@ -718,9 +751,11 @@ static int vin_parse_of_graph(struct vin_dev *vin)
 		for (id = 0; id < VIN_CSI_MAX; id++) {
 			if (vin->group->csi[id].fwnode)
 				continue;
-			ret = vin_group_parse_of(vin->group->vin[i], 1, id);
-			if (ret)
-				return ret;
+			if (vin->group->vin[i] != NULL) {
+				ret = vin_group_parse_of(vin->group->vin[i], 1, id);
+				if (ret)
+					vin_err(vin, "vin->group->vin[%d] ret %d\n", i, ret);
+			}
 		}
 	}
 

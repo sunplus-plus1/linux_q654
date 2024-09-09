@@ -30,7 +30,7 @@ struct csi2_dev;
 //#define MIPI_CSI_XTOR		/* Import RAW10 pattern from MIPI XTOR */
 //#define MIPI_CSI_QUALITY	/* Import test patterns from MIPI PHY */
 //#define MIPI_CSI_VC_TEST	/* Set VC in DI with sysfs for testing */
-//#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
+#define MIPI_CSI_DYN_REG	/* Dynamically register video devices */
 
 /* Max number on CSI instances that can be in a system */
 #define CSI_MAX_NUM 6
