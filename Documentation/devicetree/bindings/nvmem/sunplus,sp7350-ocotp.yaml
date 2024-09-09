@@ -42,6 +42,8 @@ examples:
           reg = <0x9 0x3>;
         };
         mac_addr: mac-address@16 {
+          #nvmem-cell-cells = <1>;
+          compatible = "mac-base";
           reg = <0x16 0x6>;
         };
         disc_vol: disc_vol@2d {
@@ -49,5 +51,4 @@ examples:
         };
       };
     };
-
 ...
