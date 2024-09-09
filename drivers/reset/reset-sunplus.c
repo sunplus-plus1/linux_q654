@@ -128,4 +128,9 @@ static struct platform_driver sp_reset_driver = {
 		.suppress_bind_attrs	= true,
 	},
 };
-builtin_platform_driver(sp_reset_driver);
+
+static int __init sp_reset_init(void)
+{
+	return platform_driver_register(&sp_reset_driver);
+}
+arch_initcall(sp_reset_init);
