@@ -718,7 +718,6 @@ static uint32_t hal_udc_check_trb_type(struct trb_data *t_trb)
 static void hal_udc_transfer_event_handle(struct transfer_event_trb *transfer_evnet, struct sp_udc *udc)
 {
 	struct normal_trb *ep_trb = NULL;
-	uint32_t len_zh, len_yu;
 	struct sp_request *req;
 	uint32_t trans_len = 0;
 #if (TRANS_MODE == DMA_MODE)
@@ -763,17 +762,8 @@ static void hal_udc_transfer_event_handle(struct transfer_event_trb *transfer_ev
 		return;
 	}
 
-	if (!ep->is_in && trans_len) {
-		len_zh = trans_len / CACHE_LINE_SIZE;
-		len_yu = trans_len % CACHE_LINE_SIZE;
-
-		if (len_yu)
-			len_zh = (len_zh + 1) * CACHE_LINE_SIZE;
-		else
-			len_zh = len_zh * CACHE_LINE_SIZE;
-
-		dma_sync_single_for_cpu(udc->dev, ep_trb->ptr, len_zh, DMA_FROM_DEVICE);
-	}
+	if (!ep->is_in && trans_len)
+		dma_sync_single_for_cpu(udc->dev, ep_trb->ptr, trans_len, DMA_FROM_DEVICE);
 
 #ifdef CONFIG_USB_SUNPLUS_OTG
 	#if (TRANS_MODE == DMA_MODE)
@@ -1267,16 +1257,6 @@ static void fill_link_trb(struct trb_data *t_trb, dma_addr_t ring)
 static void hal_udc_fill_transfer_trb(struct trb_data *t_trb, struct udc_endpoint *ep, uint32_t ioc)
 {
 	struct normal_trb *tmp_trb = (struct normal_trb *)t_trb;
-	int len_zh = 0;
-	int len_yu = 0;
-
-	len_zh = ep->transfer_len / CACHE_LINE_SIZE;
-	len_yu = ep->transfer_len % CACHE_LINE_SIZE;
-
-	if (len_yu)
-		len_zh = (len_zh + 1) * CACHE_LINE_SIZE;
-	else
-		len_zh = len_zh * CACHE_LINE_SIZE;
 
 	tmp_trb->tlen = ep->transfer_len;
 	tmp_trb->ptr = (uint32_t)ep->transfer_buff_pa;
@@ -1286,12 +1266,14 @@ static void hal_udc_fill_transfer_trb(struct trb_data *t_trb, struct udc_endpoin
 		tmp_trb->dir = 0;	/* 0 is out */
 
 		if (ep->transfer_len)
-			dma_sync_single_for_cpu(ep->dev->dev, tmp_trb->ptr, len_zh, DMA_FROM_DEVICE);
+			dma_sync_single_for_cpu(ep->dev->dev, tmp_trb->ptr, ep->transfer_len,
+						DMA_FROM_DEVICE);
 	} else {
 		tmp_trb->dir = 1;	/* 1 is IN */
 
 		if (ep->transfer_len)
-			dma_sync_single_for_device(ep->dev->dev, tmp_trb->ptr, len_zh, DMA_TO_DEVICE);
+			dma_sync_single_for_device(ep->dev->dev, tmp_trb->ptr, ep->transfer_len,
+						   DMA_TO_DEVICE);
 	}
 
 	if (ep->type == UDC_EP_TYPE_ISOC)
@@ -1443,10 +1425,6 @@ int32_t hal_udc_endpoint_transfer(struct sp_udc	*udc, struct sp_request *req, ui
 					uint8_t *data, dma_addr_t data_pa, uint32_t length, uint32_t zero)
 {
 	struct udc_endpoint *ep;
-#if (TRANS_MODE == DMA_MODE)
-	int len_zh = 0;
-	int len_yu = 0;
-#endif
 
 	if (EP_NUM(ep_addr) > UDC_MAX_ENDPOINT_NUM) {
 		UDC_LOGE("ep_addr parameter error, max endpoint num is %d.\n", UDC_MAX_ENDPOINT_NUM);
@@ -1469,16 +1447,9 @@ int32_t hal_udc_endpoint_transfer(struct sp_udc	*udc, struct sp_request *req, ui
 
 #if (TRANS_MODE == DMA_MODE)
 	if (length != 0) {
-		len_zh = length / CACHE_LINE_SIZE;
-		len_yu = length % CACHE_LINE_SIZE;
-
-		if (len_yu)
-			len_zh = (len_zh + 1) * CACHE_LINE_SIZE;
-		else
-			len_zh = len_zh * CACHE_LINE_SIZE;
-
 		if (ep->is_in)
-			dma_sync_single_for_device(udc->dev, virt_to_phys(data), len_zh, DMA_TO_DEVICE);
+			dma_sync_single_for_device(udc->dev, virt_to_phys(data), length,
+						   DMA_TO_DEVICE);
 
 		ep->transfer_buff = data;
 		ep->transfer_buff_pa = virt_to_phys(data);
