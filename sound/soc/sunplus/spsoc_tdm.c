@@ -12,22 +12,22 @@
 
 void __iomem *tdmaudio_base;
 // Audio Registers
-#define	Main_PCM7		BIT(27)
-#define	Main_PCM6		BIT(26)
+#define	MAIN_PCM7		BIT(27)
+#define	MAIN_PCM6		BIT(26)
 #define	TDM_PDM_RX3		BIT(25)
 #define	TDM_PDM_RX2		BIT(24)
 #define	TDM_PDM_RX1		BIT(23)
 #define	TDM_PDM_RX0		BIT(22)
 #define	TDM_PDM_RX7		BIT(21)
-#define	Main_PCM5		BIT(20)
+#define	MAIN_PCM5		BIT(20)
 #define	TDM_PDM_RX6		BIT(18)
 #define	TDM_PDM_RX5		BIT(17)
 #define	TDM_PDM_RX4		BIT(14)
-#define	Main_PCM4		BIT(4)
-#define	Main_PCM3		BIT(3)
-#define	Main_PCM2		BIT(2)
-#define	Main_PCM1		BIT(1)
-#define	Main_PCM0		BIT(0)
+#define	MAIN_PCM4		BIT(4)
+#define	MAIN_PCM3		BIT(3)
+#define	MAIN_PCM2		BIT(2)
+#define	MAIN_PCM1		BIT(1)
+#define	MAIN_PCM0		BIT(0)
 
 #define	TDM_RX_SLAVE_ENABLE	BIT(8)
 #define	RX_PATH0_1_SELECT	BIT(4)
@@ -38,25 +38,31 @@ void __iomem *tdmaudio_base;
 
 void aud_tdm_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 	int capture = (source == SNDRV_PCM_STREAM_CAPTURE);
 
 	pr_debug("%s rate %d capture %d fmt 0x%x\n", __func__, SAMPLE_RATE, capture, source);
 	//147M settings
 	if (SAMPLE_RATE == 48000) {
 		if (source == SNDRV_PCM_FORMAT_S24_3LE)	{
-			regs0->tdm_tx_xck_cfg		= 0x6880; //PLLA 147M, 4 chs 128 bits 48k = 147M/6(3/2 xck)/4(bck)/128
-							  	  //	       8 chs 256 bits 48k = 147M/3(xck)/4(bck)/256
-							  	  //	      16 chs 512 bits 48k = 147M/3(xck)/2(bck)/512
-			regs0->tdm_tx_bck_cfg		= 0x6001; // 48k = 147M/xck/bck/256, (8	channels)
-			regs0->aud_ext_dac_xck_cfg	= 0x6883; // The ext_dac_xck/bck need to set to	48k.
+			regs0->tdm_tx_xck_cfg		= 0x6880;
+			//PLLA 147M, 4 chs 128 bits 48k = 147M/6(3/2 xck)/4(bck)/128
+			//	     8 chs 256 bits 48k = 147M/3(xck)/4(bck)/256
+			//	    16 chs 512 bits 48k = 147M/3(xck)/2(bck)/512
+			regs0->tdm_tx_bck_cfg		= 0x6001;
+			// 48k = 147M/xck/bck/256, (8 channels)
+			regs0->aud_ext_dac_xck_cfg	= 0x6883;
+			// The ext_dac_xck/bck need to set to 48k.
 			regs0->aud_ext_dac_bck_cfg	= 0x6003;
 		} else { //SNDRV_PCM_FORMAT_S16_LE
-			regs0->tdm_tx_xck_cfg		= 0x6880; //PLLA 147M, 4 chs  64 bits 48k = 147M/12(3/4 xck)/4(bck)/64
-							  	  //	       8 chs 128 bits 48k = 147M/6(3/2 xck)/4(bck)/128
-							  	  //	      16 chs 256 bits 48k = 147M/3(xck)/4(bck)/256
-			regs0->tdm_tx_bck_cfg		= 0x6003; // 48k = 147M/xck/bck/256, (8	channels)
-			regs0->aud_ext_dac_xck_cfg	= 0x6883; // The ext_dac_xck/bck need to set to	48k.
+			regs0->tdm_tx_xck_cfg		= 0x6880;
+			//PLLA 147M, 4 chs  64 bits 48k = 147M/12(3/4 xck)/4(bck)/64
+			//	     8 chs 128 bits 48k = 147M/6(3/2 xck)/4(bck)/128
+			//	    16 chs 256 bits 48k = 147M/3(xck)/4(bck)/256
+			regs0->tdm_tx_bck_cfg		= 0x6003;
+			// 48k = 147M/xck/bck/256, (8 channels)
+			regs0->aud_ext_dac_xck_cfg	= 0x6883;
+			// The ext_dac_xck/bck need to set to 48k.
 			regs0->aud_ext_dac_bck_cfg	= 0x6007;
 		}
 	} else {
@@ -71,15 +77,16 @@ void aud_tdm_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 
 static void sp_tdm_tx_en(bool on)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 	unsigned int val;
 
 	val = regs0->tdm_tx_cfg0;
 	if (on)	{
 		val |= TDM_TX_ENABLE;
 		regs0->tdmpdm_tx_sel = 0x01;
-	} else
+	} else {
 		val &= ~(TDM_TX_ENABLE);
+	}
 
 	regs0->tdm_tx_cfg0 = val;
 	regs0->tdm_rx_cfg0 = val;
@@ -89,15 +96,16 @@ static void sp_tdm_tx_en(bool on)
 
 static void sp_tdm_rx_en(bool on)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 	unsigned int val;
 
 	val = regs0->tdm_rx_cfg0;
 	if (on)	{
 		val |= TDM_RX_ENABLE;
 		regs0->tdmpdm_tx_sel = 0x01;
-	} else
+	} else {
 		val &= ~(TDM_RX_ENABLE);
+	}
 
 	regs0->tdm_rx_cfg0 = val;
 	regs0->tdm_tx_cfg0 = val;
@@ -107,7 +115,7 @@ static void sp_tdm_rx_en(bool on)
 
 static void sp_tdm_tx_dma_en(bool on)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile	RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 	unsigned int val;
 
 	val = regs0->aud_fifo_enable;
@@ -116,8 +124,9 @@ static void sp_tdm_tx_dma_en(bool on)
 			return;
 
 		val |= TDM_P_INC0;
-	} else
+	} else {
 		val &= ~TDM_P_INC0;
+	}
 
 	regs0->aud_fifo_enable = val;
 
@@ -142,7 +151,7 @@ static void sp_tdm_tx_dma_en(bool on)
 
 static void sp_tdm_rx_dma_en(bool on)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 	unsigned int val;
 
 	val = regs0->aud_fifo_enable;
@@ -172,17 +181,11 @@ static void sp_tdm_rx_dma_en(bool on)
 	pr_debug("aud_enable 0x%x\n", regs0->aud_enable);
 }
 
-//#if 0
-//#define	SP_TDM_RATES	SNDRV_PCM_RATE_44100//(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000)
-
-//#define	SP_TDM_FMTBIT	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FORMAT_MU_LAW | SNDRV_PCM_FORMAT_A_LAW)
-//#endif
-
 static int sp_tdm_dai_probe(struct snd_soc_dai *dai)
 {
 	struct sunplus_audio_base *sp_tdm = dev_get_drvdata(dai->dev);
 
-	dev_dbg(dai->dev, "%s \n", __func__);
+	dev_dbg(dai->dev, "%s\n", __func__);
 	sp_tdm->dma_playback.maxburst =	16;
 	sp_tdm->dma_capture.maxburst = 16;
 	snd_soc_dai_init_dma_data(dai, &sp_tdm->dma_playback, &sp_tdm->dma_capture);
@@ -193,7 +196,7 @@ static int sp_tdm_dai_probe(struct snd_soc_dai *dai)
 
 static int sp_tdm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned	int fmt)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 	//struct sunplus_audio_base *tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	//unsigned int val;
 
@@ -228,9 +231,10 @@ static int sp_tdm_set_fmt(struct snd_soc_dai *cpu_dai, unsigned	int fmt)
 	return 0;
 }
 
-static int sp_tdm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params, struct snd_soc_dai *socdai)
+static int sp_tdm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params,
+			    struct snd_soc_dai *socdai)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 	//struct snd_pcm_runtime *runtime	= substream->runtime;
 	//struct sp_tdm_info *tdm = snd_soc_dai_get_drvdata(socdai);
 	struct snd_dmaengine_dai_dma_data *dma_data;
@@ -268,7 +272,8 @@ static int sp_tdm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_
 		regs0->tdm_tx_cfg1 = 0x00100000;
 		regs0->tdm_rx_cfg2 = 0x00010000; // FSYNC_HI_WIDTH = 1
 		regs0->tdm_tx_cfg2 = 0x00010000; // FSYNC_HI_WIDTH = 1
-		val = (wd_width	<< 12) | (ts_width << 8) | 0x10; //ch_num;// bit# per word = 20, bit# per slot = 24, slot# per frame = 8
+		val = (wd_width	<< 12) | (ts_width << 8) | 0x10;
+		//ch_num;// bit# per word = 20, bit# per slot = 24, slot# per frame = 8
 		regs0->tdm_rx_cfg3 = val;
 		regs0->tdm_tx_cfg3 = val;
 
@@ -276,9 +281,13 @@ static int sp_tdm_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_
 		pr_debug("tdm_rx_cfg2 0x%x\n", regs0->tdm_rx_cfg2);
 		pr_debug("tdm_rx_cfg3 0x%x\n", regs0->tdm_rx_cfg3);
 	} else {
-		regs0->tdm_tx_cfg1 = 0x00100000; // slot delay = 1T, //0x00100110 word and slot right justify
+		regs0->tdm_tx_cfg1 = 0x00100000;
+		// slot delay = 1T,
+		// 0x00100110 word and slot right justify
 		regs0->tdm_tx_cfg2 = 0x00010000; // FSYNC_HI_WIDTH = 1
-		val = (wd_width	<< 12) | (ts_width << 8) | 0x10; //ch_num; hard code set	16 chs// bit# per word = 20, bit# per slot = 24, slot# per frame = 8
+		val = (wd_width	<< 12) | (ts_width << 8) | 0x10;
+		// ch_num; hard code set	16 chs
+		// bit# per word = 20, bit# per slot = 24, slot# per frame = 8
 		regs0->tdm_tx_cfg3 = val;
 
 		pr_debug("tdm_tx_cfg1 0x%x\n", regs0->tdm_tx_cfg1);
@@ -344,7 +353,7 @@ static void sp_tdm_shutdown(struct snd_pcm_substream *substream, struct	snd_soc_
 {
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 
-	pr_debug("%s \n", __func__);
+	pr_debug("%s\n", __func__);
 	if (capture)
 		sp_tdm_rx_en(false);
 	else
@@ -353,14 +362,15 @@ static void sp_tdm_shutdown(struct snd_pcm_substream *substream, struct	snd_soc_
 	aud_tdm_clk_cfg(0, 0, 0);
 }
 
-static int sp_tdm_set_pll(struct snd_soc_dai *dai, int pll_id, int source, unsigned int	freq_in, unsigned int freq_out)
+static int sp_tdm_set_pll(struct snd_soc_dai *dai, int pll_id, int source,
+			  unsigned int freq_in, unsigned int freq_out)
 {
 	pr_debug("%s IN, freq_out = %d\n", __func__, freq_out);
 	aud_tdm_clk_cfg(pll_id, freq_in, freq_out);
 	return 0;
 }
 
-static struct snd_soc_dai_ops sp_tdm_dai_ops = {
+static const struct snd_soc_dai_ops sp_tdm_dai_ops = {
 	.probe		= sp_tdm_dai_probe,
 	.trigger	= sp_tdm_trigger,
 	.hw_params	= sp_tdm_hw_params,
@@ -376,7 +386,7 @@ static const struct snd_soc_component_driver sp_tdm_component =	{
 
 static void sp_tdm_init_state(void)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
+	volatile register_audio *regs0 = tdmaudio_base;
 
 	regs0->tdm_rx_cfg0	= (0x0 << 8);
 	regs0->tdm_rx_cfg1	= 0x00100000;
@@ -414,7 +424,7 @@ int sunplus_tdm_register(struct	device *dev)
 	struct sunplus_audio_base *spauddata = dev_get_drvdata(dev);
 	int ret;
 
-	dev_info(dev, "%s \n", __func__);
+	dev_info(dev, "%s\n", __func__);
 	if (!of_device_is_available(dev->of_node)) {
 		dev_err(dev, "devicetree status	is not available\n");
 		return -ENODEV;

@@ -17,7 +17,7 @@ struct clk *cpudai_plla;
 void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 {
 	static int pre_plla;
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) i2saudio_base;
+	volatile register_audio *regs0 = i2saudio_base;
 	int err	= 0;
 
 	if (SAMPLE_RATE	== 44100) {
@@ -38,9 +38,9 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		if (pll_id == SP_I2S_0)	{
 			regs0->pcm_cfg			= 0x5d;	//tx0
 			regs0->ext_adc_cfg		= 0x5d;	//rx0
-		} else if (pll_id == SP_I2S_1)
+		} else if (pll_id == SP_I2S_1) {
 			regs0->int_adc_dac_cfg		= 0x005d005d;
-		else if	(pll_id	== SP_I2S_2) {
+		} else if (pll_id == SP_I2S_2) {
 			regs0->hdmi_tx_i2s_cfg		= 0x5d;	//tx2
 			regs0->hdmi_rx_i2s_cfg		= 0x5d;	//rx2
 		} // else {}
@@ -48,21 +48,24 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		if (pll_id == SP_I2S_0)	{
 			regs0->pcm_cfg			= 0x71; //tx0
 			regs0->ext_adc_cfg		= 0x71; //rx0
-		} else if (pll_id == SP_I2S_1)
+		} else if (pll_id == SP_I2S_1) {
 			regs0->int_adc_dac_cfg		= 0x00710071;
-		else if	(pll_id	== SP_I2S_2) {
+		} else if (pll_id	== SP_I2S_2) {
 			regs0->hdmi_tx_i2s_cfg		= 0x71;	//tx2
 			regs0->hdmi_rx_i2s_cfg		= 0x71;	//rx2
 		} // else {}
 	}
 	// 147M	Setting
-	if ((SAMPLE_RATE == 44100) || (SAMPLE_RATE == 48000)) {
-		regs0->aud_ext_dac_xck_cfg			= 0x6883; //If tx1, tx2	use xck	need to	set G62.0, xck1	need to	set G92.31
+	if (SAMPLE_RATE == 44100 || SAMPLE_RATE == 48000) {
+		regs0->aud_ext_dac_xck_cfg			= 0x6883;
+		//If tx1, tx2	use xck	need to	set G62.0, xck1	need to	set G92.31
 		if (pll_id == SP_I2S_0)	{
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
-				regs0->aud_ext_dac_bck_cfg	= 0x6003; //64FS. 48kHz	= 147Mhz/3/4/4/(64)
+				regs0->aud_ext_dac_bck_cfg	= 0x6003;
+				//64FS. 48kHz	= 147Mhz/3/4/4/(64)
 			else //SNDRV_PCM_FORMAT_S16_LE
-				regs0->aud_ext_dac_bck_cfg	= 0x6007; //32FS. 48kHz	= 147Mhz/3/4/8/(32)
+				regs0->aud_ext_dac_bck_cfg	= 0x6007;
+				//32FS. 48kHz	= 147Mhz/3/4/8/(32)
 		} else if (pll_id == SP_I2S_1) {
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
 				regs0->aud_int_dac_xck_cfg	= 0x6887;
@@ -84,9 +87,11 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		regs0->aud_ext_dac_xck_cfg			= 0x6881;
 		if (pll_id == SP_I2S_0)	{
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
-				regs0->aud_ext_dac_bck_cfg	= 0x6003; //64FS. 96kHz	= 147Mhz/3/2/4/(64)
+				regs0->aud_ext_dac_bck_cfg	= 0x6003;
+				//64FS. 96kHz	= 147Mhz/3/2/4/(64)
 			else //SNDRV_PCM_FORMAT_S16_LE
-				regs0->aud_ext_dac_bck_cfg	= 0x6007; //32FS. 96kHz	= 147Mhz/3/2/8/(32)
+				regs0->aud_ext_dac_bck_cfg	= 0x6007;
+				//32FS. 96kHz	= 147Mhz/3/2/8/(32)
 		} else if (pll_id == SP_I2S_1) {
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
 				regs0->aud_int_dac_xck_cfg	= 0x6883;
@@ -108,9 +113,11 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		regs0->aud_ext_dac_xck_cfg			= 0x6880; //PLLA.
 		if (pll_id == SP_I2S_0)	{
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
-				regs0->aud_ext_dac_bck_cfg	= 0x6003; //64FS. 192kHz = 147Mhz/3/1/4/(64)
+				regs0->aud_ext_dac_bck_cfg	= 0x6003;
+				//64FS. 192kHz = 147Mhz/3/1/4/(64)
 			else //SNDRV_PCM_FORMAT_S16_LE
-				regs0->aud_ext_dac_bck_cfg	= 0x6007; //32FS. 192kHz = 147Mhz/3/1/8/(32)
+				regs0->aud_ext_dac_bck_cfg	= 0x6007;
+				//32FS. 192kHz = 147Mhz/3/1/8/(32)
 		} else if (pll_id == SP_I2S_1) {
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
 				regs0->aud_int_dac_xck_cfg	= 0x6881;
@@ -132,9 +139,11 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		regs0->aud_ext_dac_xck_cfg			= 0x6981;
 		if (pll_id == SP_I2S_0)	{
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
-				regs0->aud_ext_dac_bck_cfg	= 0x600f; //64FS. 32kHz	= 147Mhz/9/2/4/(64)
+				regs0->aud_ext_dac_bck_cfg	= 0x600f;
+				//64FS. 32kHz	= 147Mhz/9/2/4/(64)
 			else //SNDRV_PCM_FORMAT_S16_LE
-				regs0->aud_ext_dac_bck_cfg	= 0x601f; //32FS. 32kHz	= 147Mhz/9/2/8/(32)
+				regs0->aud_ext_dac_bck_cfg	= 0x601f;
+				//32FS. 32kHz	= 147Mhz/9/2/8/(32)
 		} else if (pll_id == SP_I2S_1) {
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
 				regs0->aud_int_dac_xck_cfg	= 0x688f;
@@ -156,9 +165,11 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		regs0->aud_ext_dac_xck_cfg			= 0x6981;
 		if (pll_id == SP_I2S_0)	{
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
-				regs0->aud_ext_dac_bck_cfg	= 0x6007; //64FS. 32kHz	= 147Mhz/9/2/4/(64)
+				regs0->aud_ext_dac_bck_cfg	= 0x6007;
+				//64FS. 32kHz	= 147Mhz/9/2/4/(64)
 			else //SNDRV_PCM_FORMAT_S16_LE
-				regs0->aud_ext_dac_bck_cfg	= 0x600f; //32FS. 32kHz	= 147Mhz/9/2/8/(32)
+				regs0->aud_ext_dac_bck_cfg	= 0x600f;
+				//32FS. 32kHz	= 147Mhz/9/2/8/(32)
 		} else if (pll_id == SP_I2S_1) {
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
 				regs0->aud_int_dac_xck_cfg	= 0x6887;
@@ -180,9 +191,11 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		regs0->aud_ext_dac_xck_cfg			= 0x6981;
 		if (pll_id == SP_I2S_0)	{
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
-				regs0->aud_ext_dac_bck_cfg	= 0x6003; //64FS. 32kHz	= 147Mhz/9/2/4/(64)
+				regs0->aud_ext_dac_bck_cfg	= 0x6003;
+				//64FS. 32kHz	= 147Mhz/9/2/4/(64)
 			else //SNDRV_PCM_FORMAT_S16_LE
-				regs0->aud_ext_dac_bck_cfg	= 0x6007; //32FS. 32kHz	= 147Mhz/9/2/8/(32)
+				regs0->aud_ext_dac_bck_cfg	= 0x6007;
+				//32FS. 32kHz	= 147Mhz/9/2/8/(32)
 		} else if (pll_id == SP_I2S_1) {
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
 				regs0->aud_int_dac_xck_cfg	= 0x6883;
@@ -204,9 +217,11 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 		regs0->aud_ext_dac_xck_cfg			= 0x6980;
 		if (pll_id == SP_I2S_0)	{
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
-				regs0->aud_ext_dac_bck_cfg	= 0x6003; //64FS. 64kHz	= 147Mhz/9/1/4/(64)
+				regs0->aud_ext_dac_bck_cfg	= 0x6003;
+				//64FS. 64kHz	= 147Mhz/9/1/4/(64)
 			else //SNDRV_PCM_FORMAT_S16_LE
-				regs0->aud_ext_dac_bck_cfg	= 0x6007; //32FS. 64kHz	= 147Mhz/9/1/8/(32)
+				regs0->aud_ext_dac_bck_cfg	= 0x6007;
+				//32FS. 64kHz	= 147Mhz/9/1/8/(32)
 		} else if (pll_id == SP_I2S_1) {
 			if (source == SNDRV_PCM_FORMAT_S24_3LE)
 				regs0->aud_int_dac_xck_cfg	= 0x6981;
@@ -246,7 +261,7 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 
 void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) i2saudio_base;
+	volatile register_audio *regs0 = i2saudio_base;
 
 	if (dev_no == SP_I2S_0)	{
 		if (on)	{
@@ -308,12 +323,12 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 		pr_err("no support channel\n");
 	}
 
-	pr_debug("tx: aud_fifo_enable 0x%x aud_enable 0x%x\n", regs0->aud_fifo_enable, regs0->aud_enable);
+	pr_debug("tx:fifo_enable 0x%x enable 0x%x\n", regs0->aud_fifo_enable, regs0->aud_enable);
 }
 
 void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) i2saudio_base;
+	volatile register_audio *regs0 = i2saudio_base;
 
 	if (dev_no == SP_I2S_0)	{
 		if (on)	{
@@ -372,7 +387,7 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 			regs0->aud_enable	&= (~aud_enable_spdif_c);
 		}
 	}
-	pr_debug("rx: aud_fifo_enable 0x%x aud_enable 0x%x\n", regs0->aud_fifo_enable, regs0->aud_enable);
+	pr_debug("rx:fifo_enable 0x%x enable 0x%x\n", regs0->aud_fifo_enable, regs0->aud_enable);
 }
 
 static int aud_cpudai_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
@@ -385,7 +400,7 @@ static int aud_cpudai_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *socdai)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) i2saudio_base;
+	volatile register_audio *regs0 = i2saudio_base;
 
 	pr_debug("%s, params = %x\n", __func__, params_format(params));
 
@@ -394,8 +409,9 @@ static int aud_cpudai_hw_params(struct snd_pcm_substream *substream,
 			regs0->aud_asrc_ctrl = 0x4B0; //[7:4]	if0  [11:8] if1
 			regs0->aud_asrc_ctrl = regs0->aud_asrc_ctrl | 0x1; // enable
 		}
-	} else
+	} else {
 		sp_i2s_spdif_tx_dma_en(substream->pcm->device, true);
+	}
 
 	pr_debug("%s IN! aud_asrc_ctrl 0x%x\n", __func__, regs0->aud_asrc_ctrl);
 	return 0;
@@ -445,7 +461,7 @@ static int aud_cpudai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int spsoc_cpu_set_fmt(struct snd_soc_dai	*codec_dai, unsigned int fmt)
 {
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) i2saudio_base;
+	volatile register_audio *regs0 = i2saudio_base;
 
 	pr_debug("%s IN\n", __func__);
 	switch (fmt) {
@@ -491,7 +507,8 @@ static void aud_cpudai_shutdown(struct snd_pcm_substream *substream, struct snd_
 		aud_clk_cfg(substream->pcm->device, 0, 0);
 }
 
-static int spsoc_cpu_set_pll(struct snd_soc_dai	*dai, int pll_id, int source, unsigned int freq_in, unsigned int freq_out)
+static int spsoc_cpu_set_pll(struct snd_soc_dai	*dai, int pll_id, int source,
+			     unsigned int freq_in, unsigned int freq_out)
 {
 	dev_dbg(dai->dev, "%s IN %d %d\n", __func__, freq_out, pll_id);
 	aud_clk_cfg(pll_id, freq_in, freq_out);
@@ -583,7 +600,7 @@ int sunplus_i2s_register(struct	device *dev)
 	int ret	= 0;
 	struct sunplus_audio_base *spauddata = dev_get_drvdata(dev);
 
-	dev_info(dev, "%s \n", __func__);
+	dev_info(dev, "%s\n", __func__);
 	i2saudio_base =	spauddata->audio_base;
 	cpudai_plla = spauddata->aud_clocken;
 
@@ -593,7 +610,8 @@ int sunplus_i2s_register(struct	device *dev)
 	snd_aud_config(spauddata);
 	pr_debug("SP7350 aud set done\n");
 
-	ret = devm_snd_soc_register_component(dev, &sunplus_cpu_component, aud_cpu_dai,	ARRAY_SIZE(aud_cpu_dai));
+	ret = devm_snd_soc_register_component(dev, &sunplus_cpu_component, aud_cpu_dai,
+					      ARRAY_SIZE(aud_cpu_dai));
 	return ret;
 }
 EXPORT_SYMBOL_GPL(sunplus_i2s_register);
