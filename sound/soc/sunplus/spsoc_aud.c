@@ -62,7 +62,7 @@ static int spsoc_hw_params(struct snd_pcm_substream *substream,	struct snd_pcm_h
 	return 0;
 }
 
-static struct snd_soc_ops spsoc_aud_ops	= {
+static const struct snd_soc_ops spsoc_aud_ops	= {
 	.hw_params = spsoc_hw_params,
 };
 
@@ -169,12 +169,14 @@ static int __init snd_spsoc_audio_init(void)
 		else
 			pr_err("### No i2c device found\n");
 		//if (!of_property_read_string(np, "codec-name", &name))
-		//	printk("%s \n", name);
-	} else
+			//printk("%s\n", name);
+	} else {
 		pr_err("### No i2c device node found\n");
+	}
 
 	for_each_card_prelinks(card, i, dai_link) {
-		if (strstr(dai_link->codecs->name, client->name)) // Change default code name by i2c dev codec name.
+		// Change default code name by i2c dev codec name.
+		if (strstr(dai_link->codecs->name, client->name))
 			dai_link->codecs->name = component->name;
 	}
 #endif
