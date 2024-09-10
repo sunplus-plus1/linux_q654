@@ -23,7 +23,6 @@
 #define DMA_MODE			0			/* if all DRAMs locate within 4GB */
 #define DMA_MAP				1
 
-#define CACHE_LINE_SIZE 		64
 #define USB_PORT_NUM			3
 
 /* uphy0 */
