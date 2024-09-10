@@ -6,6 +6,7 @@ menu "USB Physical Layer drivers"
 
 config SUNPLUS_SYNOPSYS_USB3_PHY
 	bool "Sunplus Synopsys USB3 PHY"
+	select GENERIC_PHY
 	help
 	  Enable this to support Sunplus USB3 phy. This driver provides
 	  interface to interact with USB 3.0 PHY of Synopsys that is part

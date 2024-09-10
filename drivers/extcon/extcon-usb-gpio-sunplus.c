@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
+#include <linux/clk.h>
 
 #define USB_GPIO_DEBOUNCE_MS	20	/* ms */
 
@@ -53,6 +54,7 @@ struct usb_extcon_info {
 	struct gpio_desc *vbus_gpiod;
 	int id_irq;
 	int vbus_irq;
+	struct clk *u2phy_clk;
 
 	unsigned long debounce_jiffies;
 	struct delayed_work wq_detcable;
@@ -131,11 +133,12 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 
 		if (!id) {
 			/* Usb3 vbus eco solution */
-			phy_reg->cfg[29] |= (1 << 30);
+			phy_reg->cfg[29] |= (3 << 30);
 			extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
 		} else {
 			if (vbus) {
 				/* Usb3 vbus eco solution */
+				phy_reg->cfg[29] |= (1 << 31);
 				phy_reg->cfg[29] &= ~(1 << 30);
 				extcon_set_state_sync(info->edev, EXTCON_USB, true);
 			}
@@ -186,6 +189,11 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	info->u2phy_base_addr = devm_ioremap(&pdev->dev, u2phy_res_mem->start, resource_size(u2phy_res_mem));
 	if (IS_ERR(info->u2phy_base_addr))
 		return PTR_ERR(info->u2phy_base_addr);
+
+	info->u2phy_clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(info->u2phy_clk))
+		return PTR_ERR(info->u2phy_clk);
+	clk_prepare_enable(info->u2phy_clk);
 
 	info->edev = devm_extcon_dev_allocate(dev, usb_extcon_cable);
 	if (IS_ERR(info->edev)) {
