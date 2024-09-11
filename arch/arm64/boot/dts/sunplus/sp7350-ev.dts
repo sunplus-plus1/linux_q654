@@ -15,6 +15,7 @@
 //#define IMX219_IN3
 //#define IMX219_IN4
 //#define IMX219_IN5
+//#define IMX307_IN4
 //#define IMX415_IN2
 //#define IMX415_IN5
 //#define IMX708_IN4
@@ -246,6 +247,12 @@
 			clock-frequency = <24000000>;
 		};
 
+		imx307_clk: camera-imx708-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <24000000>;
+		};
+
 		ov5640_clk: camera-ov5640-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -334,6 +341,30 @@
 	imx219_vddl_1v2: imx219_vddl_1v2 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vddl";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+	};
+
+	imx307_vana_2v8: imx307_vana_2v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "imx307_vana";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		regulator-always-on;
+	};
+
+	imx307_vdig_1v8: imx307_vdig_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "imx307_vdig";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	imx307_vddl_1v2: imx307_vddl_1v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "imx307_vddl";
 		regulator-min-microvolt = <1200000>;
 		regulator-max-microvolt = <1200000>;
 		regulator-always-on;
@@ -1045,7 +1076,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(IMX307_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1073,6 +1104,32 @@
 				data-lanes = <1 2>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+#endif
+#ifdef IMX307_IN4 /* Add imx708 subnode in i2c2 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_4: imx307@3b {
+		compatible = "veye,csimx307";
+		reg = <0x3b>;
+		clocks = <&imx307_clk>;
+		clock-names = "xclk";
+		VANA-supply = <&imx307_vana_2v8>;
+		VDIG-supply = <&imx307_vdig_1v8>;
+		VDDL-supply = <&imx307_vddl_1v2>;
+		rotation = <0>;
+		orientation = <2>;
+
+		port {
+			imx307_4: endpoint {
+				remote-endpoint = <&csi2_4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <297000000>;
 			};
 		};
 	};
@@ -1970,7 +2027,7 @@
 };
 
 &mipicsirx4 {
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(IMX307_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1978,7 +2035,7 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4)
+#if defined(IMX219_IN4) || defined(IMX307_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4)
 	num_channels = <1>;
 #elif defined(TP2815_IN4)
 	#ifdef TP2815_IN4_2VC
@@ -2005,6 +2062,20 @@
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef IMX307_IN4 /* Add imx708 subnode in i2c2 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_4: endpoint {
+				remote-endpoint = <&imx307_4>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
 			};
 		};
 #endif
@@ -2086,7 +2157,7 @@
 
 &vin8 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
+#if defined(IMX219_IN4) || defined(IMX307_IN4) || defined(IMX708_IN4) || defined(OV5640_IN4) || defined(OV5647_IN4) || defined(TP2815_IN4)
 	status = "okay";
 #else
 	status = "disabled";
