@@ -214,6 +214,20 @@ config VIDEO_IMX708
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx708.
 
+config VIDEO_VEYE
+	tristate "VEYE sensor support"
+	depends on I2C && VIDEO_DEV
+	depends on OF
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select REGMAP_I2C
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the VEYE camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called veye.
+
 config VIDEO_MAX9271_LIB
 	tristate
 
