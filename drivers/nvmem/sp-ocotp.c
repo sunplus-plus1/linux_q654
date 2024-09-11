@@ -89,16 +89,18 @@ int sp_otp_read_real(struct sp_otp_data_t *_otp, int addr, char *value)
 /* The data read from OTP is in little-endian byte order, but for certain
  * data, it needs to be returned in big-endian byte order, such as MAC address.
  * if the data needs to be returned in big-endian byte order, simply add the
- * 'sunplus,byte-swap' property to the nvmem cell node in the device tree.
+ * generic compatible string: "mac-base" to the nvmem cell node in the device
+ * tree.
  *
  * For example:
  * A MAC address read from OTP as 0f:cd:f1:1e:50:1c is invalid, after
  * converting to big endian byte order, it becomes 1c:50:1e:f1:cd:0f,
  * which is valid.
  * The nvmem cell node is as follows:
- *	mac-address@16 {
+ *	mac_addr: mac-address@16 {
+ *		compatible = "mac-base";
  *		reg = <0x16 0x6>;
- *		sunplus,byte-swap;
+ *		#nvmem-cell-cells = <1>;
  *	};
  */
 static void sp_ocotp_byte_swap_check(struct sp_otp_data_t *otp,
