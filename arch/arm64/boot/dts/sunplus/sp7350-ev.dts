@@ -3085,9 +3085,6 @@
 	read-timing-selection = <2>;
 };
 
-&bch0 {
-};
-
 &paranand0 {
 	clock-frequency = <400000000>;
 	pinctrl-names = "default";
