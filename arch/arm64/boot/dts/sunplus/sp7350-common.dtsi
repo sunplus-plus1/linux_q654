@@ -1315,15 +1315,6 @@
 		reset-names = "rst_nand", "rst_bch";
 	};
 
-	bch0: bch@f8101000 {
-		compatible = "sunplus,sp7350-bch";
-		reg = <0x0 0xf8101000 0x0 0x30>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc BCH>;
-		resets = <&rstc RST_BCH>;
-	};
-
 	paranand0: paranand@f8120000 {
 		compatible = "sunplus,sp7350-para-nand";
 		reg = <0x0 0xf8120000 0x0 0x3000>, <0x0 0xfb000000 0x0 0x4000000>;

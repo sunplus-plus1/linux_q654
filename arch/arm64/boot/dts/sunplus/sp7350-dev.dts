@@ -714,9 +714,6 @@
 	status = "disabled";
 };
 
-&bch0 {
-};
-
 &paranand0 {
 	status = "disabled";
 };

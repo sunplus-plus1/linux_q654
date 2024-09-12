@@ -2496,10 +2496,6 @@
 	status = "disabled";
 };
 
-&bch0 {
-	status = "disabled";
-};
-
 &paranand0 {
 	status = "disabled";
 };
