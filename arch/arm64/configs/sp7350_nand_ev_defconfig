@@ -246,7 +246,8 @@ CONFIG_PWM_SUNPLUS=y
 #
 CONFIG_VIP9000_NPU_DRIVERS=m
 # CONFIG_v6_4_13_8 is not set
-CONFIG_v6_4_15_9=y
+# CONFIG_v6_4_15_9 is not set
+CONFIG_v6_4_18_5=y
 #
 # VIDEO CODEC support
 #
