@@ -365,7 +365,7 @@ static void vin_format_align(struct vin_dev *vin, struct v4l2_pix_format *pix)
 
 	/* Limit to VIN capabilities */
 	v4l_bound_align_image(&pix->width, 2, vin->info->max_width, walign,
-			      &pix->height, 4, vin->info->max_height, 2, 0);
+			      &pix->height, 4, vin->info->max_height, 0, 0);
 
 	pix->bytesperline = vin_format_bytesperline(vin, pix);
 	pix->sizeimage = vin_format_sizeimage(pix);
