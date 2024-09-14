@@ -144,7 +144,14 @@
 			reg = <0x0 0x80000000 0x0 0x18000000>;
 			reusable;
 		};
-
+		
+		/* gdc reserve memory 0x98000000~0x9fffffff, total 128M */
+		gdc_reserve: gdc@98000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x98000000 0x0 0x8000000>;
+			reusable;
+		};
+		
 		/* CM4 reserve memory: 0xfa240000 ~ 0xfa29ffff, total 384K */
 		rproc0runaddr: cm4runaddr@fa240000 {
 			compatible = "shared-dma-pool";

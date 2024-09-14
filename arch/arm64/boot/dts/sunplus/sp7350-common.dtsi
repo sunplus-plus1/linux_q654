@@ -1368,7 +1368,7 @@
 	vcodec_v4l2_mem: video_codec_v4l2 {
 		compatible = "sunplus,sp7350-hantro-vsiv4l2";
 	};
-
+	
 	galcore: galcore@f8140000 {
 		compatible = "galcore";
 		reg = <0x0 0xf8140000 0x0 0x20000>, <0x0 0xf880125c 0x0 0xff>;
@@ -1383,7 +1383,21 @@
 		resets = <&rstc RST_NPU>;
 		reset-names = "rstc_npu";
 	};
-
+	
+	gdc: gdc@f8c09000 {
+		compatible = "sunplus,sp7350-gdc";
+		reg = <0x0 0xf8c09000 0x0 0xff>;
+		memory-region = <&gdc_reserve>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 108 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc VCL>, <&clkc VCL5>, <&clkc VCL3>;
+		clock-names = "sys", "axi", "apb";
+		resets = <&rstc RST_VCL>, <&rstc RST_VCL5>, <&rstc RST_VCL3>;
+		reset-names = "sys", "axi", "apb";
+		sunplus,max_config_size = <0x100000>;
+		sunplus,devnode_number = <96>;
+	};
+	
 	dummymaster: dm@f8000700 {
 		compatible = "sunplus,sp7350-dm-test";
 		reg = <0x0 0xf8800100 0x0 0x80>, <0x0 0xf8000700 0x0 0x80>,
