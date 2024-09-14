@@ -1746,34 +1746,18 @@ static int sp7350_dsi_dev_suspend(struct platform_device *pdev, pm_message_t sta
 	 * phy power off, disable clock, disable irq...
 	 */
 
+	#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 	if (sp_dsi_host->encoder) {
 		struct sp7350_dsi_encoder *sp_dsi_encoder = to_sp7350_dsi_encoder(sp_dsi_host->encoder);
 
 		if (sp_dsi_encoder->is_enabled) {
-			#if defined(DSI_BRIDGE_OPERATION_MANUALLY)
 			if (sp_dsi_host->bridge->funcs->disable)
 				sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
 			if (sp_dsi_host->bridge->funcs->post_disable)
 				sp_dsi_host->bridge->funcs->post_disable(sp_dsi_host->bridge);
-			#else
-			/* TODO: disbale output display device, because some output display device
-			 *        not any suspend/resume function.
-			 */
-			 //temporary off, i2c issue.
-			//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
-			//	drm_panel_disable(sp_dsi_host->panel);
-			//	drm_panel_unprepare(sp_dsi_host->panel);
-			//}
-			//else {  /* for bridge, ex.HDMI/DVI... */
-			//	/* todo: how to support atomic_xxx hook? */
-			//	if (sp_dsi_host->bridge->funcs->disable)
-			//		sp_dsi_host->bridge->funcs->disable(sp_dsi_host->bridge);
-			//	if (sp_dsi_host->bridge->funcs->post_disable)
-			//		sp_dsi_host->bridge->funcs->post_disable(sp_dsi_host->bridge);
-			//}
-			#endif
 		}
 	}
+	#endif
 
 	return 0;
 }
@@ -1814,23 +1798,7 @@ static int sp7350_dsi_dev_resume(struct platform_device *pdev)
 			if (sp_dsi_host->bridge->funcs->enable)
 				sp_dsi_host->bridge->funcs->enable(sp_dsi_host->bridge);
 			#else
-			/* TODO: enable output display device, because some output display device
-			 *        not any suspend/resume function.
-			 */
-			//temporary off, i2c issue.
-			//if (drm_bridge_is_panel(sp_dsi_host->bridge)) {
-			//	drm_panel_prepare(sp_dsi_host->panel);
-			//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
-			//	drm_panel_enable(sp_dsi_host->panel);
-			//}
-			//else {  /* for bridge, ex.HDMI/DVI... */
-			//	/* todo: how to support atomic_xxx hook? */
-			//	if (sp_dsi_host->bridge->funcs->pre_enable)
-			//		sp_dsi_host->bridge->funcs->pre_enable(sp_dsi_host->bridge);
-			//	sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
-			//	if (sp_dsi_host->bridge->funcs->enable)
-			//		sp_dsi_host->bridge->funcs->enable(sp_dsi_host->bridge);
-			//}
+			sp7350_mipitx_dsi_video_mode_on(sp_dsi_host);
 			#endif
 		}
 	}

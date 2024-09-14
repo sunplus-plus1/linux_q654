@@ -1470,6 +1470,11 @@ static int edt_ft5x06_ts_suspend(struct device *dev)
 	if (device_may_wakeup(dev))
 		return 0;
 
+	#if defined(FT5X06_POLLING_MODE)
+	del_timer(&tsdata->timer);
+	cancel_work_sync(&tsdata->work_i2c_poll);
+	#endif
+
 	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
 		return 0;
 
@@ -1511,6 +1516,10 @@ static int edt_ft5x06_ts_resume(struct device *dev)
 
 	if (device_may_wakeup(dev))
 		return 0;
+
+	#if defined(FT5X06_POLLING_MODE)
+	add_timer(&tsdata->timer);
+	#endif
 
 	if (tsdata->suspend_mode == EDT_PMODE_NOT_SUPPORTED)
 		return 0;

@@ -192,6 +192,13 @@ struct rpi_touchscreen {
 	struct drm_panel base;
 	struct mipi_dsi_device *dsi;
 	struct i2c_client *i2c;
+	#if defined(CONFIG_DRM_SP7350)
+	unsigned short flags;		/* driver status., see below */
+#define FLAG_BUS_I2C_READY   0x01	/* driver status flag, i2c_bus_ready */
+#define FLAG_BUS_DSI_READY   0x02	/* driver status flag, dsi_bus_ready */
+#define FLAG_PANEL_PREPARED  0x10	/* driver status flag, panel_prepared */
+#define FLAG_PANEL_ENABLED   0x20	/* driver status flag, panel_enabled */
+	#endif
 };
 
 static const struct drm_display_mode rpi_touchscreen_modes[] = {
@@ -243,6 +250,10 @@ static void rpi_touchscreen_i2c_write(struct rpi_touchscreen *ts,
 {
 	int ret;
 
+	/* fix random failure with error -121. */
+	#if defined(CONFIG_DRM_SP7350)
+	msleep(10);
+	#endif
 	ret = i2c_smbus_write_byte_data(ts->i2c, reg, val);
 	if (ret)
 		dev_err(&ts->i2c->dev, "I2C write failed: %d\n", ret);
@@ -273,11 +284,20 @@ static int rpi_touchscreen_disable(struct drm_panel *panel)
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
 	udelay(1);
 
+	#if defined(CONFIG_DRM_SP7350)
+	ts->flags &= ~FLAG_PANEL_ENABLED;
+	#endif
+
 	return 0;
 }
 
 static int rpi_touchscreen_noop(struct drm_panel *panel)
 {
+	#if defined(CONFIG_DRM_SP7350)
+	struct rpi_touchscreen *ts = panel_to_ts(panel);
+	ts->flags &= ~FLAG_PANEL_PREPARED;
+	#endif
+
 	return 0;
 }
 
@@ -311,6 +331,10 @@ static int rpi_touchscreen_prepare(struct drm_panel *panel)
 	rpi_touchscreen_write(ts, DSI_STARTDSI, 0x01);
 	msleep(100);
 
+	#if defined(CONFIG_DRM_SP7350)
+	ts->flags |= FLAG_PANEL_PREPARED;
+	#endif
+
 	return 0;
 }
 
@@ -327,6 +351,10 @@ static int rpi_touchscreen_enable(struct drm_panel *panel)
 	 * orientation bits.
 	 */
 	rpi_touchscreen_i2c_write(ts, REG_PORTA, BIT(2));
+
+	#if defined(CONFIG_DRM_SP7350)
+	ts->flags |= FLAG_PANEL_ENABLED;
+	#endif
 
 	return 0;
 }
@@ -377,6 +405,91 @@ static const struct drm_panel_funcs rpi_touchscreen_funcs = {
 	.get_modes = rpi_touchscreen_get_modes,
 };
 
+#if defined(CONFIG_DRM_SP7350)
+static int rpi_touchscreen_resume(struct device *dev)
+{
+	struct rpi_touchscreen *ts = dev_get_drvdata(dev);
+
+	if (ts->flags & FLAG_BUS_DSI_READY) {
+		if (ts->flags & FLAG_PANEL_PREPARED) {
+			rpi_touchscreen_prepare(&ts->base);
+		}
+		if (ts->flags & FLAG_PANEL_ENABLED) {
+			rpi_touchscreen_enable(&ts->base);
+		}
+	}
+
+	if (!(ts->flags & FLAG_PANEL_PREPARED)) {
+		/* Turn on touchscreen, so we can use others device such as touch. */
+		rpi_touchscreen_i2c_write(ts, REG_PWM, 0);
+		rpi_touchscreen_i2c_write(ts, REG_POWERON, 1);
+	}
+
+	ts->flags |= FLAG_BUS_I2C_READY;
+
+	return 0;
+}
+
+static int rpi_touchscreen_suspend(struct device *dev)
+{
+	struct rpi_touchscreen *ts = dev_get_drvdata(dev);
+
+	if (ts->flags & FLAG_PANEL_ENABLED) {
+		/* no mipi bus date transfer, no need to check FLAG_BUS_DSI_READY */
+		rpi_touchscreen_disable(&ts->base);
+		/* reset for resume. */
+		ts->flags |= FLAG_PANEL_ENABLED;
+	}
+	if (ts->flags & FLAG_PANEL_PREPARED) {
+		/* no mipi bus date transfer, no need to check FLAG_BUS_DSI_READY */
+		rpi_touchscreen_noop(&ts->base);
+		/* reset for resume. */
+		ts->flags |= FLAG_PANEL_PREPARED;
+	}
+	ts->flags &= ~FLAG_BUS_I2C_READY;
+
+	return 0;
+}
+static const struct dev_pm_ops rpi_touchscreen_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rpi_touchscreen_suspend, rpi_touchscreen_resume)
+};
+
+static int rpi_touchscreen_dsi_resume(struct device *dev)
+{
+	//struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
+	//struct rpi_touchscreen *ts = mipi_dsi_get_drvdata(dsi);
+	struct rpi_touchscreen *ts = dev_get_drvdata(dev);
+
+	if (ts->flags & FLAG_BUS_I2C_READY) {
+		if (ts->flags & FLAG_PANEL_PREPARED) {
+			rpi_touchscreen_prepare(&ts->base);
+		}
+		if (ts->flags & FLAG_PANEL_ENABLED) {
+			rpi_touchscreen_enable(&ts->base);
+		}
+	}
+
+	ts->flags |= FLAG_BUS_DSI_READY;
+
+	return 0;
+}
+
+static int rpi_touchscreen_dsi_suspend(struct device *dev)
+{
+	struct rpi_touchscreen *ts = dev_get_drvdata(dev);
+
+	/* no mipi bus date transfer. */
+
+	ts->flags &= ~FLAG_BUS_DSI_READY;
+
+	return 0;
+}
+
+static const struct dev_pm_ops rpi_touchscreen_dsi_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rpi_touchscreen_dsi_suspend, rpi_touchscreen_dsi_resume)
+};
+#endif
+
 static int rpi_touchscreen_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
@@ -413,8 +526,14 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c)
 		return -ENODEV;
 	}
 
+	#if defined(CONFIG_DRM_SP7350)
+	/* Turn on touchscreen, so we can use others device such as touch. */
+	rpi_touchscreen_i2c_write(ts, REG_PWM, 0);
+	rpi_touchscreen_i2c_write(ts, REG_POWERON, 1);
+	#else
 	/* Turn off at boot, so we can cleanly sequence powering on. */
 	rpi_touchscreen_i2c_write(ts, REG_POWERON, 0);
+	#endif
 
 	/* Look up the DSI host.  It needs to probe before we do. */
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
@@ -444,6 +563,11 @@ static int rpi_touchscreen_probe(struct i2c_client *i2c)
 			PTR_ERR(ts->dsi));
 		return PTR_ERR(ts->dsi);
 	}
+
+	#if defined(CONFIG_DRM_SP7350)
+	mipi_dsi_set_drvdata(ts->dsi, ts);
+	ts->flags |= (FLAG_BUS_I2C_READY | FLAG_BUS_DSI_READY);
+	#endif
 
 	drm_panel_init(&ts->base, dev, &rpi_touchscreen_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
@@ -491,6 +615,9 @@ static int rpi_touchscreen_dsi_probe(struct mipi_dsi_device *dsi)
 
 static struct mipi_dsi_driver rpi_touchscreen_dsi_driver = {
 	.driver.name = RPI_DSI_DRIVER_NAME,
+	#if defined(CONFIG_DRM_SP7350)
+	.driver.pm	= &rpi_touchscreen_dsi_pm_ops,
+	#endif
 	.probe = rpi_touchscreen_dsi_probe,
 };
 
@@ -504,6 +631,9 @@ static struct i2c_driver rpi_touchscreen_driver = {
 	.driver = {
 		.name = "rpi_touchscreen",
 		.of_match_table = rpi_touchscreen_of_ids,
+		#if defined(CONFIG_DRM_SP7350)
+		.pm	= &rpi_touchscreen_pm_ops,
+		#endif
 	},
 	.probe = rpi_touchscreen_probe,
 	.remove = rpi_touchscreen_remove,

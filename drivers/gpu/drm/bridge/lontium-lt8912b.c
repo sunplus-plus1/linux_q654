@@ -51,6 +51,9 @@ struct lt8912 {
 	#if defined(CONFIG_DRM_SP7350)
 	u32 mode_sel;
 	u32 hdmi_dvi_sel;
+	unsigned short flags;		/* driver status., see below */
+#define FLAG_BRIDGE_ATTACHED   0x01	/* driver status flag */
+#define FLAG_BRIDGE_ENABLED   0x20	/* driver status flag */
 	#endif
 
 	u8 data_lanes;
@@ -644,6 +647,10 @@ static void lt8912_bridge_enable(struct drm_bridge *bridge)
 	struct lt8912 *lt = bridge_to_lt8912(bridge);
 
 	lt8912_video_on(lt);
+
+	#if defined(CONFIG_DRM_SP7350)
+	lt->flags |= FLAG_BRIDGE_ENABLED;
+	#endif
 }
 
 static int lt8912_attach_dsi(struct lt8912 *lt)
@@ -752,6 +759,10 @@ static int lt8912_bridge_attach(struct drm_bridge *bridge,
 	if (ret)
 		goto error;
 
+	#if defined(CONFIG_DRM_SP7350)
+	lt->flags |= FLAG_BRIDGE_ATTACHED;
+	#endif
+
 	return 0;
 
 error:
@@ -767,6 +778,10 @@ static void lt8912_bridge_detach(struct drm_bridge *bridge)
 
 	if (lt->connector.dev && lt->hdmi_port->ops & DRM_BRIDGE_OP_HPD)
 		drm_bridge_hpd_disable(lt->hdmi_port);
+
+	#if defined(CONFIG_DRM_SP7350)
+	lt->flags &= ~FLAG_BRIDGE_ATTACHED;
+	#endif
 }
 
 static enum drm_connector_status
@@ -806,6 +821,44 @@ static const struct drm_bridge_funcs lt8912_bridge_funcs = {
 	.detect = lt8912_bridge_detect,
 	.get_edid = lt8912_bridge_get_edid,
 };
+
+#if defined(CONFIG_DRM_SP7350)
+static int lt8912_bridge_resume(struct device *dev)
+{
+	struct lt8912 *lt = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (lt->flags & FLAG_BRIDGE_ATTACHED) {
+		ret = lt8912_hard_power_on(lt);
+		if (ret)
+			return ret;
+
+		ret = lt8912_soft_power_on(lt);
+		if (ret)
+			return ret;
+	}
+	if (lt->flags & FLAG_BRIDGE_ENABLED) {
+		ret = lt8912_video_on(lt);
+	}
+
+	return ret;
+}
+
+static int lt8912_bridge_suspend(struct device *dev)
+{
+	struct lt8912 *lt = dev_get_drvdata(dev);
+
+	if (lt->flags & FLAG_BRIDGE_ATTACHED) {
+		lt8912_hard_power_off(lt);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops lt8912_bridge_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(lt8912_bridge_suspend, lt8912_bridge_resume)
+};
+#endif
 
 static int lt8912_parse_dt(struct lt8912 *lt)
 {
@@ -952,6 +1005,9 @@ static struct i2c_driver lt8912_i2c_driver = {
 	.driver = {
 		.name = "lt8912",
 		.of_match_table = lt8912_dt_match,
+		#if defined(CONFIG_DRM_SP7350)
+		.pm	= &lt8912_bridge_pm_ops,
+		#endif
 	},
 	.probe = lt8912_probe,
 	.remove = lt8912_remove,
