@@ -227,7 +227,9 @@ int sp7350_vpp_plane_imgread_set(struct drm_plane *plane, u32 data_addr1,
 	return 0;
 }
 
-int sp7350_vpp_plane_vscl_set(struct drm_plane *plane, int x, int y, int img_src_w, int img_src_h, int img_dest_x, int img_dest_y, int img_dest_w, int img_dest_h, int output_w, int output_h)
+int sp7350_vpp_plane_vscl_set(struct drm_plane *plane, int x, int y, int img_src_w, int img_src_h,
+							  int img_dest_x, int img_dest_y, int img_dest_w, int img_dest_h,
+							  int output_w, int output_h)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -374,7 +376,8 @@ int sp7350_vpp_plane_vscl_set(struct drm_plane *plane, int x, int y, int img_src
 #define SP7350_VPP_VPOST_WIN_ALPHA_VALUE	0xff
 #define SP7350_VPP_VPOST_VPP_ALPHA_VALUE	0xff
 
-int sp7350_vpp_plane_vpost_opif_set(struct drm_plane *plane, int act_x, int act_y, int act_w, int act_h, int output_w, int output_h)
+int sp7350_vpp_plane_vpost_opif_set(struct drm_plane *plane, int act_x, int act_y,
+									 int act_w, int act_h, int output_w, int output_h)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -423,7 +426,8 @@ int sp7350_vpp_plane_vpost_opif_set(struct drm_plane *plane, int act_x, int act_
 	return 0;
 }
 
-void sp7350_drm_plane_alpha_config(struct drm_plane *plane, int layer, int enable, int fix_alpha, int alpha_value)
+void sp7350_drm_plane_alpha_config(struct drm_plane *plane, int layer, int enable,
+								    int fix_alpha, int alpha_value)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_device *drm = sp_plane->base.dev;
@@ -481,7 +485,7 @@ void sp7350_osd_plane_init(struct drm_plane *plane)
 	u32 value = 0;
 
 	DRM_DEBUG_DRIVER("plane-%d init with osd-%d\n", plane->index, sp_plane->osd_layer_sel);
-	//DRM_WARN("osd plane init(%dx%d).\n", plane->crtc->mode.hdisplay, plane->crtc->mode.vdisplay);
+	//DRM_WARN("osd plane init(%dx%d)\n", plane->crtc->mode.hdisplay, plane->crtc->mode.vdisplay);
 
 	/*
 	 * update sp7350 osd layer register
@@ -641,7 +645,8 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct sp7350_plane_state *sp_state = to_sp7350_plane_state(state);
 
-	DRM_DEBUG_ATOMIC("Set plane-%d property.name:%s val:%llu\n", plane->index, property->name, val);
+	DRM_DEBUG_ATOMIC("Set plane-%d property.name:%s val:%llu\n",
+					 plane->index, property->name, val);
 	//DRM_INFO("%s property.values:%d\n", __func__, *property->values);
 
 	if (sp_plane->type != DRM_PLANE_TYPE_OVERLAY) {
@@ -723,7 +728,8 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 			return -EINVAL;
 		}
 
-		DRM_DEBUG_ATOMIC("Set plane[%d] color keying: 0x%08x\n", plane->index, global_color_keying_val);
+		DRM_DEBUG_ATOMIC("Set plane[%d] color keying: 0x%08x\n",
+						  plane->index, global_color_keying_val);
 
 		if (sp_plane->is_media_plane) {
 			DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
@@ -825,7 +831,8 @@ static int sp7350_plane_atomic_get_property(struct drm_plane *plane,
 		}
 	}
 
-	DRM_DEBUG_ATOMIC("the property \"%s\" isn't implemented for plane-%d!\n", property->name, plane->index);
+	DRM_DEBUG_ATOMIC("the property \"%s\" isn't implemented for plane-%d!\n",
+					 property->name, plane->index);
 	return -EINVAL;
 }
 
@@ -966,12 +973,6 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *old_state = NULL;
 	struct drm_plane_state *new_state = NULL;
 	struct sp7350_plane_state *sp_state = NULL;
-	#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
-	int32_t dst_w;
-	int32_t dst_h;
-	int32_t dst_x;
-	int32_t dst_y;
-	#endif
 
 	if (state) {
 		old_state = drm_atomic_get_old_plane_state(state, plane);
@@ -1008,16 +1009,19 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 			return;
 		}
 
-		DRM_DEBUG_ATOMIC("plane-%d\n  src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+		DRM_DEBUG_ATOMIC("plane-%d\n  src x,y:(%d, %d)  w,h:(%d, %d)\n"
+						 " crtc x,y:(%d, %d)  w,h:(%d, %d)",
 				 plane->index,
-				 new_state->src_x >> 16, new_state->src_y >> 16, new_state->src_w >> 16, new_state->src_h >> 16,
-				 new_state->crtc_x, new_state->crtc_y, new_state->crtc_w, new_state->crtc_h);
+				 new_state->src_x >> 16, new_state->src_y >> 16,
+				 new_state->src_w >> 16, new_state->src_h >> 16,
+				 new_state->crtc_x, new_state->crtc_y,
+				 new_state->crtc_w, new_state->crtc_h);
 
 		sp7350_vpp_plane_imgread_set(plane, (u32)paddr,
-				       new_state->src_x >> 16, new_state->src_y >> 16,
-				       new_state->src_w >> 16, new_state->src_h >> 16,
-				       new_state->fb->width, new_state->fb->height,
-				       sp7350_get_plane_format(new_state->fb->format->format, SP7350_PLANE_TYPE_VPP));
+				 new_state->src_x >> 16, new_state->src_y >> 16,
+				 new_state->src_w >> 16, new_state->src_h >> 16,
+				 new_state->fb->width, new_state->fb->height,
+				 sp7350_get_plane_format(new_state->fb->format->format, SP7350_PLANE_TYPE_VPP));
 	}
 
 	/* for scale state check */
@@ -1028,24 +1032,15 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		|| (old_state->crtc && (new_state->crtc->mode.hdisplay != old_state->crtc->mode.hdisplay
 		     || new_state->crtc->mode.vdisplay != old_state->crtc->mode.vdisplay))) {
 		#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
-		dst_x = new_state->crtc_x;
-		dst_y = new_state->crtc_y;
-		dst_w = new_state->crtc_w;
-		dst_h = new_state->crtc_h;
-
 		sp7350_scl_coordinate_adjust(new_state->src_w >> 16, new_state->src_h >> 16,
-			  &dst_x, &dst_y, &dst_w, &dst_h);
-		DRM_DEBUG_ATOMIC("plane-%d vscl adjust dst[%d, %d]\n", plane->index, dst_w, dst_h);
+			  &new_state->crtc_x, &new_state->crtc_y, &new_state->crtc_w, &new_state->crtc_h);
+		DRM_DEBUG_ATOMIC("plane-%d vscl adjust dst[%d, %d]\n",
+				 plane->index, new_state->crtc_w, new_state->crtc_h);
 		#endif
 		sp7350_vpp_plane_vscl_set(plane, new_state->src_x >> 16, new_state->src_y >> 16,
 				    new_state->src_w >> 16, new_state->src_h >> 16,
-				    #if SP7350_DRM_VPP_SCL_AUTO_ADJUST
-				    dst_x, dst_y,
-				    dst_w, dst_h,
-				    #else
 				    new_state->crtc_x, new_state->crtc_y,
 				    new_state->crtc_w, new_state->crtc_h,
-				    #endif
 				    new_state->crtc->mode.hdisplay, new_state->crtc->mode.vdisplay);
 
 		/* default setting for VPP OPIF(MASK function) */
@@ -1114,7 +1109,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	if (!new_state || !new_state->fb || !new_state->crtc) {
 		/* disable this plane */
 		DRM_DEBUG_ATOMIC("plane-%d SP7350_DMIX_TRANSPARENT.\n", plane->index);
-		sp7350_drm_plane_set(plane, SP7350_DMIX_OSD0 + sp_plane->osd_layer_sel, SP7350_DMIX_TRANSPARENT);
+		sp7350_drm_plane_set(plane, SP7350_DMIX_OSD0 + sp_plane->osd_layer_sel,
+							 SP7350_DMIX_TRANSPARENT);
 		return;
 	}
 	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
@@ -1149,10 +1145,14 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	if (!old_state
 		|| new_state->src_x != old_state->src_x || new_state->src_y != old_state->src_y
 		|| new_state->src_w != old_state->src_w || new_state->src_h != old_state->src_h) {
-		DRM_DEBUG_ATOMIC("plane-%d:\n  src x,y:(%d, %d)  w,h:(%d, %d)\n crtc x,y:(%d, %d)  w,h:(%d, %d)",
+		DRM_DEBUG_ATOMIC("plane-%d:\n  src x,y:(%d, %d)  w,h:(%d, %d)\n"
+						 "crtc x,y:(%d, %d)  w,h:(%d, %d)",
 				 plane->index,
-				 new_state->src_x >> 16, new_state->src_y >> 16, new_state->src_w >> 16, new_state->src_h >> 16,
-				 new_state->crtc_x, new_state->crtc_y, new_state->crtc_w, new_state->crtc_h);
+				 new_state->src_x >> 16, new_state->src_y >> 16,
+				 new_state->src_w >> 16, new_state->src_h >> 16,
+				 new_state->crtc_x, new_state->crtc_y,
+				 new_state->crtc_w, new_state->crtc_h);
+
 		updated = true;
 		info->region_info.start_x = new_state->src_x >> 16;
 		info->region_info.start_y = new_state->src_y >> 16;
@@ -1188,9 +1188,11 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	if (sp_plane->region_color_keying_blob) {
 		/* color_key from region_color_keying */
-		if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING)
-			&& (sp_state->region_color_keying.regionid != sp_plane->updated_region_color_keying.regionid
-			  || sp_state->region_color_keying.keying != sp_plane->updated_region_color_keying.keying)) {
+		if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING) &&
+			(sp_state->region_color_keying.regionid !=
+			   sp_plane->updated_region_color_keying.regionid ||
+			 sp_state->region_color_keying.keying !=
+			    sp_plane->updated_region_color_keying.keying)) {
 			DRM_DEBUG_ATOMIC("Set plane[%d] region color keying: regionid:%d, keying:0x%08x\n",
 					 plane->index, sp_state->region_color_keying.regionid,
 					 sp_state->region_color_keying.keying);
@@ -1227,7 +1229,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 												   SP7350_PLANE_TYPE_OSD);
 		sp7350_osd_plane_set_by_region(plane, info);
 
-		DRM_DEBUG_ATOMIC("plane-%d set osd region\n buf x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
+		DRM_DEBUG_ATOMIC("plane-%d set osd region\n"
+						 "buf x,y:(%d, %d)  w,h:(%d, %d)\n act x,y:(%d, %d)  w,h:(%d, %d)",
 				 plane->index,
 				 info->region_info.start_x, info->region_info.start_y,
 				 info->region_info.buf_width, info->region_info.buf_height,
@@ -1284,7 +1287,8 @@ static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
 		|| ((new_state->src_h >> 16) + (new_state->src_y >> 16)) > YRES_VIMGREAD_MAX) {
 		DRM_DEBUG_ATOMIC("plane-%d Check fail[src(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
 				plane->index,
-				new_state->src_x >> 16, new_state->src_y >> 16, new_state->src_w >> 16, new_state->src_h >> 16,
+				new_state->src_x >> 16, new_state->src_y >> 16,
+				new_state->src_w >> 16, new_state->src_h >> 16,
 				XRES_VIMGREAD_MAX, YRES_VIMGREAD_MAX);
 		return -EINVAL;
 	}
@@ -1294,10 +1298,13 @@ static int sp7350_kms_plane_vpp_atomic_check(struct drm_plane *plane,
 				new_state->src_x >> 16, new_state->src_w >> 16, XRES_VSCL_MAX, YRES_VSCL_MAX);
 		return -EINVAL;
 	}
-	if ((new_state->crtc_w + new_state->crtc_x) > XRES_VSCL_MAX || (new_state->crtc_h + new_state->crtc_y) > YRES_VSCL_MAX) {
+	if ((new_state->crtc_w + new_state->crtc_x) > XRES_VSCL_MAX
+		|| (new_state->crtc_h + new_state->crtc_y) > YRES_VSCL_MAX) {
 		DRM_DEBUG_ATOMIC("plane-%d Check fail[crtc(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
 				plane->index,
-				new_state->crtc_x, new_state->crtc_y, new_state->crtc_w, new_state->crtc_h, XRES_VSCL_MAX, YRES_VSCL_MAX);
+				new_state->crtc_x, new_state->crtc_y,
+				new_state->crtc_w, new_state->crtc_h,
+				XRES_VSCL_MAX, YRES_VSCL_MAX);
 		return -EINVAL;
 	}
 
@@ -1334,21 +1341,27 @@ static int sp7350_kms_plane_osd_atomic_check(struct drm_plane *plane,
 		|| ((new_state->src_h >> 16) + (new_state->src_y >> 16)) > YRES_OSD_MAX) {
 		DRM_DEBUG_ATOMIC("plane-%d Check fail[src(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
 				plane->index,
-				new_state->src_x >> 16, new_state->src_y >> 16, new_state->src_w >> 16, new_state->src_h >> 16,
+				new_state->src_x >> 16, new_state->src_y >> 16,
+				new_state->src_w >> 16, new_state->src_h >> 16,
 				XRES_OSD_MAX, YRES_OSD_MAX);
 		return -EINVAL;
 	}
-	if ((new_state->crtc_w + new_state->crtc_x) > XRES_OSD_MAX || (new_state->crtc_h + new_state->crtc_y) > YRES_OSD_MAX) {
+	if ((new_state->crtc_w + new_state->crtc_x) > XRES_OSD_MAX
+		|| (new_state->crtc_h + new_state->crtc_y) > YRES_OSD_MAX) {
 		DRM_DEBUG_ATOMIC("plane-%d Check fail[crtc(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
 				plane->index,
-				new_state->crtc_x, new_state->crtc_y, new_state->crtc_w, new_state->crtc_h, XRES_OSD_MAX, YRES_OSD_MAX);
+				new_state->crtc_x, new_state->crtc_y,
+				new_state->crtc_w, new_state->crtc_h,
+				XRES_OSD_MAX, YRES_OSD_MAX);
 		return -EINVAL;
 	}
 
-	if (new_state->crtc_w != new_state->src_w >> 16 || new_state->crtc_h != new_state->src_h >> 16) {
-		DRM_DEBUG_ATOMIC("plane-%d Check fail[src(%d, %d), crtc(%d,%d)], scale function unsuppord for OSD HW.\n",
+	if (new_state->crtc_w != new_state->src_w >> 16
+		|| new_state->crtc_h != new_state->src_h >> 16) {
+		DRM_DEBUG_ATOMIC("plane-%d Check fail[src(%d, %d), crtc(%d,%d)],scale function unsuppord for OSD HW.\n",
 				plane->index,
-				 new_state->src_w >> 16, new_state->src_h >> 16, new_state->crtc_w, new_state->crtc_h);
+				 new_state->src_w >> 16, new_state->src_h >> 16,
+				 new_state->crtc_w, new_state->crtc_h);
 		return -EINVAL;
 	}
 
