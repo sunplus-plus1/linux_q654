@@ -5,3 +5,4 @@
 
 obj-y += display/sp7350/
 obj-y += mipicsi/
+obj-$(CONFIG_VIDEO_SUNPLUS_GDC)		+= gdc/
