@@ -87,7 +87,7 @@
 		ranges;
 
 		/* Null-pointer protection reserve memory: 0x0-0x100000, total 1M */
-		null_pointer_prot_reserve@0 {
+		null_pointer_prot_reserve: null_pointer@0 {
 			reg = <0x0 0x0 0x0 0x100000>;
 			no-map;
 		};
@@ -100,13 +100,13 @@
 		};
 
 		/* TF-A reserve memory: 0x200000-0x2fffff, total 1M */
-		tfa_reserve@200000 {
+		tfa_reserve: tfa@200000 {
 			reg = <0x0 0x200000 0x0 0x100000>;
 			no-map;
 		};
 
 		/*OP-TEE reserve memory: 0x300000-0x4fffff, total 2M */
-		optee_reserve@300000 {
+		optee_reserve: optee@300000 {
 			reg = <0x0 0x300000 0x0 0x200000>;
 			no-map;
 		};
@@ -173,14 +173,14 @@
 			reg = <0x0 0x80000000 0x0 0x18000000>;
 			reusable;
 		};
-		
+
 		/* gdc reserve memory 0x98000000~0x9fffffff, total 128M */
 		gdc_reserve: gdc@98000000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x98000000 0x0 0x8000000>;
 			reusable;
 		};
-		
+
 		/* CM4 reserve memory: 0xfa240000 ~ 0xfa29ffff, total 384K */
 		rproc0runaddr: cm4runaddr@fa240000 {
 			compatible = "shared-dma-pool";
@@ -480,6 +480,7 @@
 };
 
 &remoteproc0 {
+	memory-region = <&rproc_0_reserved>, <&rproc0runaddr>, <&vdev0buffer>, <&vdev0vring0>, <&vdev0vring1>;
 	firmware = "firmware";
 };
 
@@ -2522,8 +2523,14 @@
 };
 
 &galcore {
+	memory-region = <&npu_reserve>;
 	npu_core-supply = <&npu_core_0v8>;
 	status = "okay";
+};
+
+&gdc {
+	memory-region = <&gdc_reserve>;
+	status = "disabled";
 };
 
 &watchdog {
