@@ -5,17 +5,15 @@
 
 config VIDEO_SUNPLUS_GDC
 	bool "Sunplus Geometric Distortion Correction Driver"
-	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV
-	default y
+	select V4L_MEM2MEM_DRIVERS
 	help
 	  Support for the Sunplus Geometric Distortion Correction driver
 
 config VIDEO_SUNPLUS_GDC_SP7350
 	bool "Geometric Distortion Correction Driver for SP7350"
 	depends on VIDEO_SUNPLUS_GDC
-	default y
 	help
 	  Support for the Sunplus SP7350 Geometric Distortion Correction driver
