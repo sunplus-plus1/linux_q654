@@ -204,6 +204,26 @@ static const struct panel_init_cmd xinli_tcxd024iblon_n2_init_cmd[] = {
 	{},
 };
 
+static const struct panel_init_cmd wks_wks70wv055_wct_init_cmd[] = {
+	/* dsi 1-lane */
+	_INIT_DCS_CMD(0x10, 0x02, 0x03),
+
+	_INIT_DCS_CMD(0x64, 0x01, 0x05),
+	_INIT_DCS_CMD(0x44, 0x01, 0x00),
+	_INIT_DCS_CMD(0x48, 0x01, 0x00),
+	_INIT_DCS_CMD(0x14, 0x01, 0x03),
+
+	_INIT_DCS_CMD(0x50, 0x04, 0x00),
+	_INIT_DCS_CMD(0x20, 0x04, 0x50, 0x01, 0x10, 0x00),
+	_INIT_DCS_CMD(0x64, 0x04, 0x0f, 0x04),
+	_INIT_DELAY_CMD(100),
+
+	_INIT_DCS_CMD(0x04, 0x01, 0x01),
+	_INIT_DCS_CMD(0x04, 0x02, 0x01),
+	_INIT_DELAY_CMD(100),
+	{},
+};
+
 static const struct drm_display_mode lx_hxm0686tft_001_modes[] = {
 	{
 		/* from specification typical values adjustment. */
@@ -299,6 +319,38 @@ static const struct sp7350_dsi_panel_desc xinli_tcxd024iblon_n2_desc = {
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 		      MIPI_DSI_MODE_LPM,
 	.init_cmds = xinli_tcxd024iblon_n2_init_cmd,
+};
+
+static const struct drm_display_mode wks_wks70wv055_wct_mode[] = {
+	{
+		/* Modeline comes from the SP7350 firmware, with HFP=0
+		 * plugged in and clock re-computed from that.
+		 */
+		.clock = 28060200 / 1000,
+		.hdisplay = 800,
+		.hsync_start = 800 + 0,
+		.hsync_end = 800 + 0 + 112,
+		.htotal = 800 + 0 + 112 + 5,
+		.vdisplay = 480,
+		.vsync_start = 480 + 7,
+		.vsync_end = 480 + 7 + 2,
+		.vtotal = 480 + 7 + 2 + 21,
+	}
+};
+
+static const struct sp7350_dsi_panel_desc wks_wks70wv055_wct_desc = {
+	.modes = wks_wks70wv055_wct_mode,
+	.num_modes = ARRAY_SIZE(wks_wks70wv055_wct_mode),
+	.bpc = 8,
+	.size = {
+		.width_mm = 154,
+		.height_mm = 86,
+	},
+	.lanes = 1,
+	.format = MIPI_DSI_FMT_RGB888,
+	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
+		      MIPI_DSI_MODE_LPM,
+	.init_cmds = wks_wks70wv055_wct_init_cmd,
 };
 
 static inline struct sp7350_panel_simple_dsi *to_simple_panel(struct drm_panel *panel)
@@ -670,6 +722,8 @@ static const struct of_device_id panel_simple_dsi_of_match[] = {
 		.compatible = "sunplus,lx-hxm0686tft-001", .data = &lx_hxm0686tft_001_desc
 	}, {
 		.compatible = "sunplus,xinli-tcxd024iblon-2", .data = &xinli_tcxd024iblon_n2_desc
+	}, {
+		.compatible = "sunplus,wks-wks70wv055-wct", .data = &wks_wks70wv055_wct_desc
 	}, {
 		/* sentinel */
 	}
