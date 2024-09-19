@@ -54,6 +54,7 @@
 #if defined(CONFIG_DISP_DRM_SUPPORT) /* choose drm display */
 //#define DISP_MIPITX_DSI_PANEL_240X320
 //#define DISP_MIPITX_DSI_PANEL_480X1280
+//#define DISP_MIPITX_DSI_PANEL_800x480
 #define RASPBERRYPI_DSI_PANEL
 #define LT8912B_HDMI_ENABLE
 #else /* choose legacy display */
@@ -1375,6 +1376,8 @@
 	raspberrypi_lcd: lcd@45 {
 		reg = <0x45>;
 	};
+#endif
+#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_800x480)
 	ft5x06_ts: touchscreen@38 {
 		compatible = "edt,edt-ft5406";
 		reg = <0x38>;
@@ -2480,6 +2483,20 @@
 		};
 	};
 #endif
+#if defined(DISP_MIPITX_DSI_PANEL_800x480)  /* Add DISP_MIPITX_DSI_PANEL_800x480 subnode in mipidsi */
+	#address-cells = <1>;
+	#size-cells = <0>;
+	mipi_dsi_lcd@2 {
+		compatible = "sunplus,wks-wks70wv055-wct";
+		reg = <2>;
+		status = "okay";
+		port {
+			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi0_out1>;
+			};
+		};
+	};
+#endif
 
 	ports {
 		#address-cells = <1>;
@@ -2511,7 +2528,8 @@
 			#endif
 
 			/* dsi output port 0 for mipi panel */
-			#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_480X1280) || defined(DISP_MIPITX_DSI_PANEL_240X320)
+			#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_480X1280) || \
+				defined(DISP_MIPITX_DSI_PANEL_240X320) || defined(DISP_MIPITX_DSI_PANEL_800x480)
 			dsi0_out1: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&panel_dsi_port>;
@@ -2557,6 +2575,8 @@
 		};
 	};
 };
+#endif
+#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_800x480)
 &ft5x06_ts {
 	status = "okay";
 
