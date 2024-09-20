@@ -953,6 +953,11 @@ static int lt8912_probe(struct i2c_client *client)
 		ret = regmap_read(lt->regmap[I2C_MAIN], 0xC1, &reg_val);
 		if (ret)
 			goto err_i2c;
+
+		if (reg_val & BIT(7)) {
+			/* chip initialized by boot flow. */
+			lt->is_power_on = 1;
+		}
 	}
 	#endif
 
