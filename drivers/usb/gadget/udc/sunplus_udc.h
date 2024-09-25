@@ -450,6 +450,7 @@ void __iomem 			*moon4_reg;
 
 struct sp_udc {
 	enum usb_dr_mode		dr_mode;
+	bool				first_enum_xfer;
 	bool 				aset_flag; 			/* auto set flag, If this flag is true, zero packet will not be sent */
 	struct phy			*uphy[USB_PORT_NUM];
 	struct reset_control 		*rstc;
