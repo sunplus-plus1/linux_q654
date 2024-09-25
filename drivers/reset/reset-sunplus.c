@@ -72,7 +72,7 @@ static const struct reset_control_ops sp_reset_ops = {
 	.status   = sp_reset_status,
 };
 
-static int sp_restart(struct notifier_block *nb, unsigned long mode,
+int sp_restart(struct notifier_block *nb, unsigned long mode,
 		      void *cmd)
 {
 	struct sp_reset *reset = container_of(nb, struct sp_reset, notifier);
@@ -108,10 +108,7 @@ static int sp_reset_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	reset->notifier.notifier_call = sp_restart;
-	reset->notifier.priority = 192;
-
-	return register_restart_handler(&reset->notifier);
+	return 0;
 }
 
 static const struct of_device_id sp_reset_dt_ids[] = {
