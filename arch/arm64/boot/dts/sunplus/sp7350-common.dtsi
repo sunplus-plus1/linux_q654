@@ -1158,6 +1158,12 @@
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	nic: nic@f8012b80 {
+		compatible = "sunplus,sp7350-nic";
+		reg = <0x0 0xf815a000 0x0 0x2E8>, <0x0 0xf815b000 0x0 0x33c>, <0x0 0xf815c000 0x0 0x4fc>;
+		reg-names = "nic_main", "nic_pai", "nic_paii";
+	};
+	
 	mmc1: mmc@f8003e80 {
 		compatible = "sunplus,sp7350-sd";
 		reg = <0x0 0xf8003e80 0x0 0x180>;
