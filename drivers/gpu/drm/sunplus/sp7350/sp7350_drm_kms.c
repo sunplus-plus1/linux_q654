@@ -65,6 +65,7 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	drm->mode_config.preferred_depth = 16;
 	drm->mode_config.async_page_flip = true;
 	//drm->mode_config.allow_fb_modifiers = true;
+	drm->mode_config.normalize_zpos = true;
 
 	drm_mode_config_reset(drm);
 
