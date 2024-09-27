@@ -124,11 +124,11 @@ struct sunplus_nic {
 
 struct sunplus_nic sp_nic;
 
-static struct timer_list my_timer;
+static struct timer_list nic_timer;
 unsigned char counter = 10;
 u64 select_ports = 0x000000100001;
 
-void my_timer_callback(struct timer_list *timer)
+void nic_timer_callback(struct timer_list *timer)
 {
 	u8 i;
 	u64 r_value, w_value;
@@ -153,23 +153,20 @@ void my_timer_callback(struct timer_list *timer)
 	}
 	DBG_INFO("========================================\n\n\n");
 	hal_nic_reset_all_captured_data(0);
-	mod_timer(&my_timer, jiffies + msecs_to_jiffies(counter * 100));
+	mod_timer(&nic_timer, jiffies + msecs_to_jiffies(counter * 100));
 }
 
-static int __init my_module_init(void)
+static int __init nic_module_init(void)
 {
-	FUNC_DEBUG();
-
-	timer_setup(&my_timer, my_timer_callback, 0);
-	mod_timer(&my_timer, jiffies + msecs_to_jiffies(counter * 100));
+	timer_setup(&nic_timer, nic_timer_callback, 0);
+	mod_timer(&nic_timer, jiffies + msecs_to_jiffies(counter * 100));
 
 	return 0;
 }
 
-static void __exit my_module_exit(void)
+static void __exit nic_module_exit(void)
 {
-	FUNC_DEBUG();
-	del_timer(&my_timer);
+	del_timer(&nic_timer);
 }
 
 static int _sp_nic_get_register_base(struct platform_device *pdev, unsigned long long *membase, const char *res_name)
@@ -232,7 +229,6 @@ static ssize_t bw_monitor_show(struct device *dev, struct device_attribute *attr
 {
 	unsigned char ret = 0;
 
-	my_module_init();
 	return ret;
 }
 
@@ -246,7 +242,13 @@ static ssize_t bw_monitor_store(struct device *dev, struct device_attribute *att
 	if (status)
 		return status;
 	counter = val;
-	DBG_INFO("set sample time %10lld ms\n", (counter * 100));
+	if (counter == 0) {
+		DBG_INFO("stop bw_monitor\n");
+		nic_module_exit();
+	} else {	
+		DBG_INFO("set sample time %10lld ms\n", (counter * 100));
+		nic_module_init();
+	}
 	return ret;
 }
 
@@ -281,6 +283,7 @@ static ssize_t bw_help_show(struct device *dev, struct device_attribute *attr, c
 	DBG_INFO("Usage:\n");
 	DBG_INFO("echo <time> > bw_monitor                 : set sample time\n");
 	DBG_INFO("                                           <time>  : in units of 100 ms\n");
+	DBG_INFO("                                              0    : stop bw monitor\n");
 	DBG_INFO("echo <hwid> > mon_port                   : monitor bandwidth of specified ports\n");
 	DBG_INFO("                                           <hwid>  : specified ports\n");
 	for (i = 0; i < MASTER_MAX_CNT; i++)
