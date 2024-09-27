@@ -73,7 +73,7 @@ static struct drm_driver sp7350_drm_driver = {
 	.name			= "sp7350-drm",
 	.desc			= "Sunplus SP7350 DRM",
 	.date			= "20240828",
-	.major			= 1,
+	.major			= 2,
 	.minor			= 0,
 };
 

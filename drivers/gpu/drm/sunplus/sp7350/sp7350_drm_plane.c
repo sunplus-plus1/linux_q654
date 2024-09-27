@@ -741,12 +741,6 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 			return -EINVAL;
 		}
 
-		/*
-		 * TODO:
-		 * osd plane region alpha setting by osd region header.
-		 * So support muti-region, the parameter "regionid" is related to osd region.
-		 *  BUT now, only one osd region support, so the parameter "regionid" is invalid now.
-		 */
 		DRM_DEBUG_ATOMIC("update color keying value by the property!\n");
 
 		sp_state->color_keying = global_color_keying_val;
@@ -781,7 +775,7 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 
 		/*
 		 * TODO:
-		 * osd plane region alpha setting by osd region header.
+		 * osd plane color keying setting by osd region header.
 		 * So support muti-region, the parameter "regionid" is related to osd region.
 		 *  BUT now, only one osd region support, so the parameter "regionid" is invalid now.
 		 */
@@ -841,21 +835,63 @@ static int sp7350_plane_atomic_get_property(struct drm_plane *plane,
 	return -EINVAL;
 }
 
+/**
+ * sp7350_plane_atomic_duplicate_state - sp7350 state duplicate hook
+ * @plane: drm plane
+ */
+static struct drm_plane_state *
+sp7350_plane_atomic_duplicate_state(struct drm_plane *plane)
+{
+	struct sp7350_plane_state *sp_state;
+
+	if (WARN_ON(!plane->state))
+		return NULL;
+
+	DRM_DEBUG_ATOMIC("plane-%d atomic_duplicate_state.\n", plane->index);
+	sp_state = kmemdup(to_sp7350_plane_state(plane->state),
+			sizeof(*sp_state), GFP_KERNEL);
+	if (!sp_state)
+		return NULL;
+
+	__drm_atomic_helper_plane_duplicate_state(plane, &sp_state->base);
+
+	WARN_ON(sp_state->base.plane != plane);
+
+	return &sp_state->base;
+}
+
+/**
+ * sp7350_plane_atomic_destroy_state - sp7350 state destroy hook
+ * @plane: drm plane
+ * @state: plane state object to release
+ */
+static void sp7350_plane_atomic_destroy_state(struct drm_plane *plane,
+					   struct drm_plane_state *state)
+{
+	struct sp7350_plane_state *sp_state = to_sp7350_plane_state(state);
+
+	DRM_DEBUG_ATOMIC("plane-%d atomic_destroy_state.\n", plane->index);
+	__drm_atomic_helper_plane_destroy_state(state);
+	kfree(sp_state);
+}
+
 static void sp7350_plane_reset(struct drm_plane *plane)
 {
 	struct sp7350_plane_state *sp_state;
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 
-	DRM_DEBUG_DRIVER("reset plane state.\n");
+	DRM_DEBUG_DRIVER("reset plane-%d state.\n", plane->index);
 
-	if (plane->state && plane->state->fb)
-		drm_framebuffer_put(plane->state->fb);
+	WARN_ON(plane->state);
 
-	kfree(to_sp7350_plane_state(plane->state));
-	plane->state = NULL;
+	if (plane->state)
+		sp7350_plane_atomic_destroy_state(plane, plane->state);
+
 	sp_state = kzalloc(sizeof(*sp_state), GFP_KERNEL);
 	if (!sp_state)
 		return;
+
+	__drm_atomic_helper_plane_reset(plane, &sp_state->base);
 
 	/* reset to default plane property parameters */
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
@@ -889,48 +925,6 @@ static void sp7350_plane_reset(struct drm_plane *plane)
 		drm_property_blob_put(sp_plane->region_color_keying_blob);
 		sp_plane->region_color_keying_blob = NULL;
 	}
-
-	sp_state->base.plane = plane;
-
-	plane->state = &sp_state->base;
-}
-
-/**
- * sp7350_plane_atomic_duplicate_state - sp7350 state duplicate hook
- * @plane: drm plane
- */
-static struct drm_plane_state *
-sp7350_plane_atomic_duplicate_state(struct drm_plane *plane)
-{
-	struct sp7350_plane_state *sp_state;
-
-	DRM_DEBUG_ATOMIC("plane-%d atomic_duplicate_state.\n", plane->index);
-	sp_state = kmemdup(to_sp7350_plane_state(plane->state),
-			sizeof(*sp_state), GFP_KERNEL);
-	if (!sp_state)
-		return NULL;
-
-
-	__drm_atomic_helper_plane_duplicate_state(plane, &sp_state->base);
-
-	WARN_ON(sp_state->base.plane != plane);
-
-	return &sp_state->base;
-}
-
-/**
- * sp7350_plane_atomic_destroy_state - sp7350 state destroy hook
- * @plane: drm plane
- * @state: plane state object to release
- */
-static void sp7350_plane_atomic_destroy_state(struct drm_plane *plane,
-					   struct drm_plane_state *state)
-{
-	struct sp7350_plane_state *sp_state = to_sp7350_plane_state(state);
-
-	DRM_DEBUG_ATOMIC("plane-%d atomic_destroy_state.\n", plane->index);
-	__drm_atomic_helper_plane_destroy_state(state);
-	kfree(sp_state);
 }
 
 static const struct drm_plane_funcs sp7350_plane_funcs = {
@@ -1310,15 +1304,14 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 					sp_plane->scl_w_max, sp_plane->scl_h_max);
 			return -EINVAL;
 		}
-	}
-	else {
+	} else {
 		if (new_state->crtc_w != new_state->src_w >> 16
 			|| new_state->crtc_h != new_state->src_h >> 16) {
-			DRM_DEBUG_ATOMIC("plane-%d Check VSCL fail[src(%d, %d), crtc(%d,%d)],"
-							 "scale function unsuppord.\n",
+			DRM_DEBUG_ATOMIC("plane-%d Check VSCL fail[src(%d, %d), crtc(%d,%d)]",
 					 plane->index,
 					 new_state->src_w >> 16, new_state->src_h >> 16,
 					 new_state->crtc_w, new_state->crtc_h);
+			DRM_DEBUG_ATOMIC("plane-%d scale function unsuppord.\n", plane->index);
 			return -EINVAL;
 		}
 	}
@@ -1333,7 +1326,7 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	//DRM_DEBUG_ATOMIC("plane-%d Pixel format %4.4s, %s, Block %dx%d, subsampling factor (%u, %u) \n",
+	//DRM_DEBUG_ATOMIC("plane-%d Pixel format %4.4s, %s, Block %dx%d, subsampling factor (%u, %u)\n",
 	//		 plane->index, (char *)&new_state->fb->format->format,
 	//		 new_state->fb->format->is_yuv ? "YUV" : "RGB",
 	//		 drm_format_info_block_width(new_state->fb->format,0),
