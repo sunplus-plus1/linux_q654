@@ -1413,6 +1413,14 @@ static void sp7350_crtc_disable_vblank(struct drm_crtc *crtc)
 	spin_unlock(&sp_crtc->irq_lock);
 }
 
+static void sp7350_crtc_atomic_print_state(struct drm_printer *p,
+					 const struct drm_crtc_state *state)
+{
+	const struct drm_display_mode *mode = &state->adjusted_mode;
+
+	drm_printf(p, "\tPixel clock = %uKHz\n", mode->clock);
+}
+
 static enum drm_mode_status sp7350_crtc_mode_valid(struct drm_crtc *crtc,
 						const struct drm_display_mode *mode)
 {
@@ -1653,6 +1661,56 @@ static void sp7350_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
+static bool sp7350_crtc_get_scanout_position(struct drm_crtc *crtc,
+					   bool in_vblank_irq,
+					   int *vpos,
+					   int *hpos,
+					   ktime_t *stime,
+					   ktime_t *etime,
+					   const struct drm_display_mode *mode)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+	int vsw, vbp, vactive_start, vactive_end, vfp_end;
+	int x, y;
+	u32 value;
+
+	vsw = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	vbp = mode->crtc_vtotal - mode->crtc_vsync_end;
+	//WARN_ON(!vsw);
+	//WARN_ON(!vbp);
+
+	vactive_start = vsw + vbp + 1;
+	vactive_end = vactive_start + mode->crtc_vdisplay;
+
+	/* last scan line before VSYNC */
+	vfp_end = mode->crtc_vtotal;
+
+	if (stime)
+		*stime = ktime_get();
+
+	/* [TODO]HOW do for DRM_MODE_FLAG_INTERLACE? */
+	WARN_ON(mode->flags & DRM_MODE_FLAG_INTERLACE);
+
+	value = SP7350_CRTC_READ(TGEN_DTG_STATUS1);
+	y = value & 0xfff;  /* DTG_LINE_CNT[11:0] */
+	value = SP7350_CRTC_READ(TGEN_DTG_STATUS2);
+	x = value & 0x1fff;  /* DTG_PIX_CNT[12:0] */
+
+	if (y > vactive_end)
+		y = y - vfp_end - vactive_start;
+	else
+		y -= vactive_start;
+
+	*vpos = y;
+	//*hpos = 0; /* [TODO]WHY? */
+	*hpos = x;
+
+	if (etime)
+		*etime = ktime_get();
+
+	return true;
+}
+
 static const struct drm_crtc_funcs sp7350_crtc_funcs = {
 	.destroy	= drm_crtc_cleanup,
 	.set_config	= drm_atomic_helper_set_config,
@@ -1664,6 +1722,8 @@ static const struct drm_crtc_funcs sp7350_crtc_funcs = {
 	.atomic_get_property = sp7350_crtc_atomic_get_property,
 	.enable_vblank = sp7350_crtc_enable_vblank,
 	.disable_vblank = sp7350_crtc_disable_vblank,
+	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+	.atomic_print_state = sp7350_crtc_atomic_print_state,
 };
 
 static const struct drm_crtc_helper_funcs sp7350_crtc_helper_funcs = {
@@ -1674,6 +1734,7 @@ static const struct drm_crtc_helper_funcs sp7350_crtc_helper_funcs = {
 	.atomic_flush	= sp7350_crtc_atomic_flush,
 	.atomic_enable	= sp7350_crtc_atomic_enable,
 	.atomic_disable	= sp7350_crtc_atomic_disable,
+	.get_scanout_position = sp7350_crtc_get_scanout_position,
 };
 
 static void sp7350_set_crtc_possible_masks(struct drm_device *drm,
@@ -2092,7 +2153,7 @@ static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 			#endif
 			value = 0;
 			value |= sp_crtc->background_color;
-			SP7350_CRTC_WRITE(DMIX_PTG_CONFIG_2, value); //black for BackGround
+			SP7350_CRTC_WRITE(DMIX_PTG_CONFIG_2, value);
 		}
 		drm_for_each_plane(plane, sp_crtc->drm_dev) {
 			if (plane->possible_crtcs != drm_crtc_mask(&sp_crtc->base))
