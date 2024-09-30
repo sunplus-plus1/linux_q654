@@ -964,7 +964,8 @@ static void sp7350_crtc_dmix_init(struct drm_crtc *crtc)
 	//	SP7350_DMIX_L1_FG_SEL(SP7350_DMIX_OSD3_SEL) |
 	//	SP7350_DMIX_BG_FG_SEL(SP7350_DMIX_PTG_SEL);
 	//SP7350_CRTC_WRITE(DMIX_LAYER_CONFIG_0, value); //(drm setting)
-	sp7350_crtc_dmix_layer_setting(crtc);
+	if (crtc && crtc->dev)
+		sp7350_crtc_dmix_layer_setting(crtc);
 
 	/* DMIX setting MODE_SEL
 	 * L6   L5   L4   L3   L2   L1   BG
@@ -1637,7 +1638,7 @@ static void sp7350_crtc_atomic_flush(struct drm_crtc *crtc,
 		/* DMIX PTG(BackGround Color Setting)
 		 */
 		value = 0;
-		value |= sp_state->background_color;
+		value |= (sp_state->background_color & 0xFFFFFF);
 		SP7350_CRTC_WRITE(DMIX_PTG_CONFIG_2, value); //black for BackGround
 
 		sp_state->background_changed = false;
@@ -1941,6 +1942,7 @@ static void sp7350_crtc_unbind(struct device *dev, struct device *master,
 
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "drm_crtc_cleanup\n");
 	drm_crtc_cleanup(&sp_crtc->base);
+	sp_crtc->drm_dev = NULL;
 
 	/* TODO Set S3V SOC DISPLAY REG, disable crtc things... */
 
@@ -2122,6 +2124,8 @@ static int sp7350_crtc_dev_suspend(struct platform_device *pdev, pm_message_t st
 	DRM_DEV_DEBUG_DRIVER(&pdev->dev, "[TODO]crtc driver suspend.\n");
 
 	/* do nothing? */
+	if (!sp_crtc->drm_dev || !sp_crtc->base.dev)
+		return 0;
 
 	drm_for_each_plane(plane, sp_crtc->drm_dev) {
 		if (plane->possible_crtcs != drm_crtc_mask(&sp_crtc->base))
@@ -2152,13 +2156,15 @@ static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 			sp7350_crtc_tcon_tpg_setting(&sp_crtc->base, &sp_crtc->base.mode);
 			#endif
 			value = 0;
-			value |= sp_crtc->background_color;
+			value |= (sp_crtc->background_color & 0xFFFFFF);
 			SP7350_CRTC_WRITE(DMIX_PTG_CONFIG_2, value);
 		}
-		drm_for_each_plane(plane, sp_crtc->drm_dev) {
-			if (plane->possible_crtcs != drm_crtc_mask(&sp_crtc->base))
-				continue;
-			sp7350_plane_dev_resume(&pdev->dev, plane);
+		if (sp_crtc->drm_dev && sp_crtc->base.dev) {
+			drm_for_each_plane(plane, sp_crtc->drm_dev) {
+				if (plane->possible_crtcs != drm_crtc_mask(&sp_crtc->base))
+					continue;
+				sp7350_plane_dev_resume(&pdev->dev, plane);
+			}
 		}
 	}
 
