@@ -136,8 +136,8 @@ void nic_timer_callback(struct timer_list *timer)
 	struct timespec64 ts;
 
 	ktime_get_real_ts64(&ts);
-	DBG_INFO("Port             Read(MB/s)  Write(MB/s)  Read(B/s)  Write(B/s)  Time: %lld.%09ld\n", (long long)ts.tv_sec, ts.tv_nsec);
-	DBG_INFO("===============================================================\n");
+	DBG_INFO("Port              Read(MB/s)  Write(MB/s)  Read(B/s)  Write(B/s)  Time: %lld.%09ld\n", (long long)ts.tv_sec, ts.tv_nsec);
+	DBG_INFO("================================================================\n");
 	for (i = 0; i < MASTER_MAX_CNT; i++) {
 		if (((select_ports >> i) & 0x01) == 0x01) {
 			r_value = hal_nic_get_captured_data(i, CAP_READ);
@@ -154,7 +154,7 @@ void nic_timer_callback(struct timer_list *timer)
 			DBG_INFO("%-16s  %10lld  %10lld  %10lld  %10lld\n", PORT_INFO[i].c_name, r_value, w_value, r_value_byte, w_value_byte);
 		}
 	}
-	DBG_INFO("===============================================================\n\n\n");
+	DBG_INFO("================================================================\n\n\n");
 	hal_nic_reset_all_captured_data(0);
 	mod_timer(&nic_timer, jiffies + msecs_to_jiffies(counter * 100));
 }
