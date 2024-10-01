@@ -25,7 +25,6 @@
 #include "axi_monitor.h"
 #include "hal_axi_monitor_reg.h"
 #include "hal_axi_monitor_sub_reg.h"
-#include "regmap_q628.h"
 #include "reg_axi.h"
 
 
@@ -103,11 +102,6 @@
 struct sp_axi_t {
 	struct miscdevice dev;
 	struct mutex write_lock;
-	//void __iomem *iop_regs;
-	//void __iomem *moon0_regs;
-	//void __iomem *qctl_regs;
-	//void __iomem *pmc_regs;
-	//void __iomem *rtc_regs;
 	/*for AXI monitor*/
 	void __iomem *axi_mon_regs;
 	void __iomem *axi_id0_regs;
