@@ -510,7 +510,7 @@
 	bcmdhd_wlan {
 		compatible = "android,bcmdhd_wlan";
 		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_int0_pins>;
+		pinctrl-0 = <&gpio_int0_pins &ap6256_ctrl_pins>;
 		gpio_wl_reg_on = <&pctl 56 GPIO_ACTIVE_LOW>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
@@ -3687,5 +3687,10 @@
 		function = "GPIO_AO_INT3";
 		groups = "GPIO_AO_INT3_X1";
 		sunplus,ao-pins = < SPPCTL_AOIOPAD(31, 0) >;
+	};
+
+	ap6256_ctrl_pins: ap6256_ctrl-pins {
+		function = "GPIO";
+		pins = "GPIO56", "GPIO57";
 	};
 };
