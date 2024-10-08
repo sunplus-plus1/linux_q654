@@ -10,6 +10,7 @@
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
 
+#include <drm/drm_file.h>
 #include "sp7350_drm_drv.h"
 #include "sp7350_drm_regs.h"
 

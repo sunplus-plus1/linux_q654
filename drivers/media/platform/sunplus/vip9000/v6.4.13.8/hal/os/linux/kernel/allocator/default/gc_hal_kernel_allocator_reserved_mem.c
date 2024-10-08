@@ -227,7 +227,12 @@ reserved_mem_mmap(gckALLOCATOR Allocator, PLINUX_MDL Mdl, gctBOOL Cacheable,
     pfn = (res->start >> PAGE_SHIFT) + skipPages;
 
     /* Make this mapping non-cached. */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) || \
+    ((LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 26)) && defined(CONFIG_ANDROID))
+    vm_flags_set(vma, gcdVM_FLAGS);
+#else
     vma->vm_flags |= gcdVM_FLAGS;
+#endif
 
 #if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
     vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);

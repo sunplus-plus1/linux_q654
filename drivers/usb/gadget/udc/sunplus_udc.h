@@ -23,7 +23,6 @@
 #define DMA_MODE			0			/* if all DRAMs locate within 4GB */
 #define DMA_MAP				1
 
-#define CACHE_LINE_SIZE 		64
 #define USB_PORT_NUM			3
 
 /* uphy0 */
@@ -421,27 +420,27 @@ struct sp_request {
 
 /* USB Device endpoint struct */
 struct udc_endpoint {
-	bool			 is_in;			/* Endpoint direction */
-	#define			 ENDPOINT_HALT	(1)
-	#define			 ENDPOINT_READY	(0)
-	uint16_t		 status;		/* Endpoint status */
-	uint8_t			 num;			/* Endpoint number 0~15*/
-	uint8_t			 type;			/* Endpoint type 0~3,totle is 4 kind of types*/
-	uint8_t			 *transfer_buff;	/* Pointer to transfer buffer */
-	dma_addr_t 		 transfer_buff_pa;
-	uint32_t		 transfer_len;		/* transfer length */
-	uint16_t		 maxpacket;		/* Endpoint Max packet size */
+	bool			is_in;			/* Endpoint direction */
+	#define			ENDPOINT_HALT	(1)
+	#define			ENDPOINT_READY	(0)
+	uint16_t		status;			/* Endpoint status */
+	uint8_t			num;			/* Endpoint number 0~15*/
+	uint8_t			type;			/* Endpoint type 0~3,totle is 4 kind of types*/
+	uint8_t			*transfer_buff;		/* Pointer to transfer buffer */
+	dma_addr_t 		transfer_buff_pa;
+	uint32_t		transfer_len;		/* transfer length */
+	uint16_t		maxpacket;		/* Endpoint Max packet size */
 
-	uint8_t			 bEndpointAddress;
-	uint8_t 		 bmAttributes;
+	uint8_t			bEndpointAddress;
+	uint8_t 		bmAttributes;
 
-	struct usb_ep 		 ep;
-	struct sp_udc 		 *dev;
-	struct usb_gadget 	 *gadget;
-	struct udc_ring 	 ep_transfer_ring;	/* One transfer ring per ep */
-	struct trb_data		 *ep_trb_ring_dq;	/* transfer ring dequeue */
-	spinlock_t 		 lock;
-	struct list_head	 queue;
+	struct usb_ep 		ep;
+	struct sp_udc 		*dev;
+	struct usb_gadget 	*gadget;
+	struct udc_ring 	ep_transfer_ring;	/* One transfer ring per ep */
+	struct trb_data		*ep_trb_ring_dq;	/* transfer ring dequeue */
+	spinlock_t 		lock;
+	struct list_head	queue;
 };
 
 extern void __iomem 		*uphy0_regs;
@@ -450,6 +449,7 @@ void __iomem 			*moon4_reg;
 
 struct sp_udc {
 	enum usb_dr_mode		dr_mode;
+	bool				first_enum_xfer;
 	bool 				aset_flag; 			/* auto set flag, If this flag is true, zero packet will not be sent */
 	struct phy			*uphy[USB_PORT_NUM];
 	struct reset_control 		*rstc;
@@ -475,7 +475,7 @@ struct sp_udc {
 	struct sp_desc 		 	*ep_desc;			/* ep description pointer */
 	dma_addr_t 		 	ep_desc_pa;			/* ep desc phy address */
 	uint8_t			 	event_ccs;			/* Consumer Cycle state */
-	uint8_t			 	current_event_ring_seg;	/* current event ring segment index */
+	uint8_t			 	current_event_ring_seg;		/* current event ring segment index */
 	uint8_t			 	event_ring_seg_total;		/* Total number of event ring seg */
 	struct segment_table 	 	*event_seg_table;		/* evnet seg */
 	dma_addr_t 		 	event_seg_table_pa;

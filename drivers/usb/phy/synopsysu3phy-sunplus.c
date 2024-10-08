@@ -2,8 +2,12 @@
 
 #include <linux/clk.h>
 #include <linux/platform_device.h>
-#include <linux/usb/sp_usb.h>
+//#include <linux/usb/sp_usb.h>
 #include <linux/reset.h>
+#include <linux/interrupt.h>
+#include <linux/gpio.h>
+#include <linux/phy/phy.h>
+#include <linux/delay.h>
 
 struct u3phy_regs {
 	unsigned int cfg[32];		       // 189.0
@@ -52,8 +56,8 @@ static void typec_gpio(struct work_struct *work)
 		struct u3c_regs *dwc3portsc_reg;
 		unsigned int result;
 
-		dwc3phy_reg = (struct u3phy_regs *) u3phy->u3phy_base_addr;
-		dwc3portsc_reg = (struct u3c_regs *) u3phy->u3_portsc_addr;
+		dwc3phy_reg = (struct u3phy_regs *)u3phy->u3phy_base_addr;
+		dwc3portsc_reg = (struct u3c_regs *)u3phy->u3_portsc_addr;
 
 		result = readl(&dwc3portsc_reg->cfg[0]);
 		writel(result | 0x2, &dwc3portsc_reg->cfg[0]);
@@ -76,11 +80,12 @@ static void typec_gpio(struct work_struct *work)
 				//return -ETIME;
 			u3phy->dir = 0;
 		}
-		result = readl(&dwc3portsc_reg->cfg[0]) & ~((0xf<<5) | (0x1<<16));
-		writel(result | (0x1<<16) | (0x5<<5), &dwc3portsc_reg->cfg[0]);
+		result = readl(&dwc3portsc_reg->cfg[0]) & ~((0xf << 5) | (0x1 << 16));
+		writel(result | (0x1 << 16) | (0x5 << 5), &dwc3portsc_reg->cfg[0]);
 	}
 	schedule_delayed_work(&u3phy->typecdir, msecs_to_jiffies(10));
 }
+
 #if 0
 static void synopsys_u3phy_init(struct platform_device *pdev)
 {
@@ -95,7 +100,7 @@ static void synopsys_u3phy_init(struct platform_device *pdev)
 	mdelay(1);
 	reset_control_deassert(u3phy->u3phy_rst);
 
-	dwc3phy_reg = (struct u3phy_regs *) u3phy->u3phy_base_addr;
+	dwc3phy_reg = (struct u3phy_regs *)u3phy->u3phy_base_addr;
 
 	result = readl(&dwc3phy_reg->cfg[1]);
 	writel(result | 0x3, &dwc3phy_reg->cfg[1]);
@@ -134,8 +139,8 @@ static int sp_u3phy_power_on(struct phy *phy)
 	clk_prepare_enable(u3phy->u3_clk);
 	clk_prepare_enable(u3phy->u3phy_clk);
 
-	dwc3phy_reg = (struct u3phy_regs *) u3phy->u3phy_base_addr;
-	dwc3portsc_reg = (struct u3c_regs *) u3phy->u3_portsc_addr;
+	dwc3phy_reg = (struct u3phy_regs *)u3phy->u3phy_base_addr;
+	dwc3portsc_reg = (struct u3c_regs *)u3phy->u3_portsc_addr;
 
 	for (i = 0; i < 3; i++) {
 		reset_control_assert(u3phy->u3phy_rst);
@@ -173,8 +178,8 @@ static int sp_u3phy_power_on(struct phy *phy)
 			//return -ETIME;
 		u3phy->dir = 0;
 	}
-	result = readl(&dwc3portsc_reg->cfg[0]) & ~((0xf<<5) | (0x1<<16));
-	writel(result | (0x1<<16) | (0x5<<5), &dwc3portsc_reg->cfg[0]);
+	result = readl(&dwc3portsc_reg->cfg[0]) & ~((0xf << 5) | (0x1 << 16));
+	writel(result | (0x1 << 16) | (0x5 << 5), &dwc3portsc_reg->cfg[0]);
 
 	schedule_delayed_work(&u3phy->typecdir, msecs_to_jiffies(100));
 
@@ -248,12 +253,14 @@ static int sunplus_usb_synopsys_u3phy_probe(struct platform_device *pdev)
 		return PTR_ERR(u3phy->u3phy_base_addr);
 
 	u3phy_res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	u3phy->u3_portsc_addr = devm_ioremap(&pdev->dev, u3phy_res_mem->start, resource_size(u3phy_res_mem));
+	u3phy->u3_portsc_addr = devm_ioremap(&pdev->dev, u3phy_res_mem->start,
+					     resource_size(u3phy_res_mem));
 	if (IS_ERR(u3phy->u3_portsc_addr))
 		return PTR_ERR(u3phy->u3_portsc_addr);
 
 	u3phy_res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	u3phy->u3_blkdev_addr = devm_ioremap(&pdev->dev, u3phy_res_mem->start, resource_size(u3phy_res_mem));
+	u3phy->u3_blkdev_addr = devm_ioremap(&pdev->dev, u3phy_res_mem->start,
+					     resource_size(u3phy_res_mem));
 	if (IS_ERR(u3phy->u3_blkdev_addr))
 		return PTR_ERR(u3phy->u3_blkdev_addr);
 
@@ -304,6 +311,7 @@ static int sunplus_usb_synopsys_u3phy_remove(struct platform_device *pdev)
 
 	return 0;
 }
+
 static const struct of_device_id synopsys_u3phy_sunplus_dt_ids[] = {
 	{ .compatible = "sunplus,usb3-phy" },
 	{ }

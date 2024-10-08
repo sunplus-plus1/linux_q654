@@ -73,8 +73,6 @@ struct sp_rproc_pdata {
 #endif
 };
 
-static bool autoboot __read_mostly;
-
 /* Store rproc for IPI handler */
 static struct rproc *rproc;
 static struct work_struct workqueue;
@@ -84,8 +82,8 @@ static struct work_struct workqueue;
 
 static void mbox_rx_callback(struct mbox_client *cl, void *data)
 {
-	// for (int i = 0; i < MBOX_DATA_SIZE; i++)
-	// 	dev_info(cl->dev, "RX[%02d] %08x\n", i, ((u32 *)data)[i]);
+	//for (int i = 0; i < MBOX_DATA_SIZE; i++)
+	//	dev_info(cl->dev, "RX[%02d] %08x\n", i, ((u32 *)data)[i]);
 }
 
 static void mbox_tx_test(u32 arg)
@@ -105,43 +103,38 @@ static void mbox_tx_test(u32 arg)
 }
 #endif
 
-static int remoteproc_power_event(struct notifier_block *this, unsigned long event,void *ptr)
-{
-	char *envp[] = {
-		"DEVICE=wlan0",
-		NULL
-	};
+static char *envp[] = {
+	"DEVICE=wlan0",
+	NULL
+};
 
-    switch (event)
-	{
-        case PM_POST_SUSPEND:
-			kobject_uevent_env(&rproc->dev.kobj, KOBJ_ONLINE,envp);
-			break;
-        case PM_SUSPEND_PREPARE:
-             break;
-        default:
-            return NOTIFY_DONE;
-      }
+static int remoteproc_power_event(struct notifier_block *this, unsigned long event, void *ptr)
+{
+	switch (event) {
+	case PM_POST_SUSPEND:
+		kobject_uevent_env(&rproc->dev.kobj, KOBJ_ONLINE, envp);
+		break;
+	case PM_SUSPEND_PREPARE:
+		break;
+	}
+
 	return NOTIFY_DONE;
 }
 
 static struct notifier_block remoteproc_power_notifier = {
-        .notifier_call = remoteproc_power_event,
+	.notifier_call = remoteproc_power_event,
 };
 
 void suspend_work_func(struct work_struct *work)
 {
-	char *envp[] = {
-		"DEVICE=wlan0",
-		NULL
-	};
-	kobject_uevent_env(&rproc->dev.kobj, KOBJ_OFFLINE,envp);
+	kobject_uevent_env(&rproc->dev.kobj, KOBJ_OFFLINE, envp);
 }
 
 static void sp7350_request_firmware_callback(const struct firmware *fw, void *context)
 {
 	struct rproc *rproc = context;
-	rproc_elf_load_segments(rproc,fw);
+
+	rproc_elf_load_segments(rproc, fw);
 	release_firmware(fw);
 }
 
@@ -149,7 +142,7 @@ static int sp7350_load_warmboot_firmware(struct rproc *rproc)
 {
 	int ret;
 
-	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
+	ret = request_firmware_nowait(THIS_MODULE, FW_ACTION_UEVENT,
 				      FIRMWARE_WARMBOOT_NAME, &rproc->dev, GFP_KERNEL,
 				      rproc, sp7350_request_firmware_callback);
 	if (ret < 0)
@@ -174,6 +167,7 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 		u32 filesz = phdr->p_filesz;
 		u32 offset = phdr->p_offset;
 		void *ptr;
+
 		if (phdr->p_type != PT_LOAD)
 			continue;
 		dev_dbg(dev, "phdr: type %d memsz 0x%x filesz 0x%x\n",
@@ -193,9 +187,9 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 
 		/* grab the kernel address for this device address */
 		if (da > local->bootaddr)
-			ptr = rproc_da_to_va(rproc, da, memsz);
+			ptr = rproc_da_to_va(rproc, da, memsz, NULL);
 		else
-			ptr = rproc_da_to_va(rproc, local->bootaddr + (da & 0xFFFFF), memsz);
+			ptr = rproc_da_to_va(rproc, local->bootaddr + (da & 0xFFFFF), memsz, NULL);
 		if (!ptr) {
 			dev_err(dev, "bad phdr da 0x%llx mem 0x%x\n", local->bootaddr, memsz);
 			ret = -EINVAL;
@@ -245,21 +239,19 @@ static void kick_pending_ipi(struct rproc *rproc)
 
 static int sp_rproc_start(struct rproc *rproc)
 {
-	struct device *dev = rproc->dev.parent;
 	struct sp_rproc_pdata *local = rproc->priv;
 
-	dev_dbg(dev, "%s\n", __func__);
 	INIT_WORK(&workqueue, handle_event);
 
 	/* Trigger pending kicks */
 	kick_pending_ipi(rproc);
 
 	// set remote start addr to boot register,
-	writel(0xFFFF0000|(local->bootaddr >> 16), local->boot);
+	writel(0xFFFF0000 | (local->bootaddr >> 16), local->boot);
 	reset_control_deassert(local->rstc);
 	/* for (echo mem) into deepsleep. load warmboot firmware to dram first. */
 	sp7350_load_warmboot_firmware(rproc);
-	INIT_WORK(&local->suspend_work,suspend_work_func);
+	INIT_WORK(&local->suspend_work, suspend_work_func);
 
 	return 0;
 }
@@ -293,23 +285,21 @@ static void sp_rproc_kick(struct rproc *rproc, int vqid)
 	}
 }
 
+void sp7350_dvfs_unlock(void);
+
 /* power off the remote processor */
 static int sp_rproc_stop(struct rproc *rproc)
 {
 	struct sp_rproc_pdata *local = rproc->priv;
-	struct device *dev = rproc->dev.parent;
 
-	dev_dbg(dev, "%s\n", __func__);
 #ifdef CONFIG_SUNPLUS_MBOX_TEST
 	mbox_tx_test(0x00000000);
 	mbox_tx_test(0xdeadc0de);
 #endif
 	reset_control_assert(local->rstc);
 #ifdef CONFIG_ARM_SP7350_CPUFREQ
-	{ // FIXME: force unlock hwspin locked by CM4
-		extern void sp7350_dvfs_unlock(void);
-		sp7350_dvfs_unlock();
-	}
+	// FIXME: force unlock hwspin locked by CM4
+	sp7350_dvfs_unlock();
 #endif
 
 	return 0;
@@ -341,15 +331,15 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 
 		if (strstr(node->name, "vdev"))
 			mem = rproc_mem_entry_init(dev, NULL,
-					(dma_addr_t)rmem->base,
-					rmem->size, rmem->base,
-					NULL, NULL,
-					node->name);
+						   (dma_addr_t)rmem->base,
+						   rmem->size, rmem->base,
+						   NULL, NULL,
+						   node->name);
 		else
 			mem = rproc_of_resm_mem_entry_init(dev, i,
-					rmem->size,
-					rmem->base,
-					node->name);
+							   rmem->size,
+							   rmem->base,
+							   node->name);
 		if (!mem) {
 			dev_err(dev, "unable to initialize memory-region %s\n", node->name);
 			return -ENOMEM;
@@ -360,13 +350,13 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 				devm_iounmap(dev, va[i]);
 			if (strstr(node->name, "cm4runaddr")) {
 				local->bootaddr = rmem->base;
-				va[i] = mem->va = devm_ioremap(dev, rmem->base, rmem->size);
+				mem->va = devm_ioremap(dev, rmem->base, rmem->size);
 			} else {
-				va[i] = mem->va = devm_ioremap_wc(dev, rmem->base, rmem->size);
+				mem->va = devm_ioremap_wc(dev, rmem->base, rmem->size);
 			}
 			if (!mem->va)
 				return -ENOMEM;
-			//printk("!!![%s] %08x:%08x -> %px\n", node->name, rmem->base, rmem->size, mem->va);
+			va[i] = mem->va;
 		}
 
 		rproc_add_carveout(rproc, mem);
@@ -392,8 +382,8 @@ static irqreturn_t sp_remoteproc_interrupt(int irq, void *dev_id)
 {
 	struct sp_rproc_pdata *local = rproc->priv;
 
-	if(readl(local->mbox2to0) == MAILBOX_CM4_TO_CA55_SUSPEND) { // read to clear intr
-		dev_info(&rproc->dev, "Ca55 in suspend start \n");
+	if (readl(local->mbox2to0) == MAILBOX_CM4_TO_CA55_SUSPEND) { // read to clear intr
+		dev_info(&rproc->dev, "Ca55 in suspend start\n");
 		schedule_work(&local->suspend_work);
 	} else {
 		ipi_kick();
@@ -415,7 +405,7 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_irq(dev, ret, sp_remoteproc_interrupt,
-							IRQF_TRIGGER_NONE, dev_name(dev), NULL);
+			       IRQF_TRIGGER_NONE, dev_name(dev), NULL);
 	if (ret) {
 		dev_err(dev, "request rproc irq failed: %d\n", ret);
 		return ret;
@@ -441,7 +431,7 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 
 	local->chan = mbox_request_channel(&local->cl, 0);
 	if (IS_ERR(local->chan)) {
-		int ret = PTR_ERR(local->chan);
+		ret = PTR_ERR(local->chan);
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Failed to get mbox channel: %d\n", ret);
 		return ret;
@@ -482,7 +472,7 @@ static int sp_remoteproc_probe(struct platform_device *pdev)
 		goto probe_failed;
 	}
 
-	rproc->auto_boot = autoboot;
+	rproc->auto_boot = false;
 
 	ret = rproc_add(local->rproc);
 	if (ret) {
@@ -505,8 +495,6 @@ static int sp_remoteproc_remove(struct platform_device *pdev)
 {
 	struct rproc *rproc = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-
-	dev_info(dev, "%s\n", __func__);
 
 	rproc_del(rproc);
 	of_reserved_mem_device_release(dev);
@@ -531,10 +519,6 @@ static struct platform_driver sp_remoteproc_driver = {
 	},
 };
 module_platform_driver(sp_remoteproc_driver);
-
-module_param_named(autoboot, autoboot, bool, 0444);
-MODULE_PARM_DESC(autoboot,
-		 "enable | disable autoboot. (default: false)");
 
 MODULE_AUTHOR("qinjian@sunmedia.com.cn");
 MODULE_LICENSE("GPL v2");

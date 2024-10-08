@@ -28,26 +28,25 @@ struct sp_aes_ctx {
 };
 
 struct sp_aes_priv {
-	u8* va;
+	u8 *va;
 	dma_addr_t pa;
-	volatile bool done;
-	struct mutex lock;
+	bool done;
+	struct mutex lock; // hw lock
 } sp_aes;
 
 static struct sp_crypto_dev *crypto;
 static struct device *dev;
 static struct sp_crypto_reg *reg;
 
-static int sp_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-		unsigned int key_len)
+static int sp_aes_set_key(struct crypto_tfm *tfm, const u8 *key, unsigned int key_len)
 {
 	struct sp_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	int err;
 
-	SP_CRYPTO_DBG("[%s:%d] %px %px %u", __FUNCTION__, __LINE__, ctx, in_key, key_len);
+	//SP_CRYPTO_DBG("[%s:%d] %px %px %u", __func__, __LINE__, ctx, key, key_len);
 	err = aes_check_keylen(key_len);
 	if (!err) {
-		memcpy(ctx->key, in_key, key_len);
+		memcpy(ctx->key, key, key_len);
 		ctx->keysize = key_len;
 	}
 
@@ -62,7 +61,8 @@ static void sp_aes_hw_exec(u32 src, u32 dst, u32 bytes)
 	sp_aes.done = false;
 	smp_wmb(); /* memory barrier */
 	W(AESDMACS, SEC_DMA_SIZE(bytes) | SEC_DMA_ENABLE);
-	while (!sp_aes.done); // busy wait, can't schedule
+	while (!sp_aes.done)
+		smp_wmb(); // busy wait, can't schedule
 }
 
 static void sp_aes_exec(struct crypto_tfm *tfm, u8 *out, const u8 *in, u32 mode)
@@ -70,7 +70,7 @@ static void sp_aes_exec(struct crypto_tfm *tfm, u8 *out, const u8 *in, u32 mode)
 	struct sp_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 	const u32 bytes = AES_BLOCK_SIZE;
 
-	//SP_CRYPTO_DBG("[%s:%d] %px %px %px %u %u\n", __FUNCTION__, __LINE__, ctx, in, out, mode, blksize);
+	//SP_CRYPTO_DBG("[%s] %px %px %px %u %u\n", __func__, ctx, in, out, mode, blksize);
 	mutex_lock(&sp_aes.lock);
 
 	// mode
@@ -99,13 +99,12 @@ static void sp_aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 	return sp_aes_exec(tfm, out, in, M_DEC);
 }
 
-static int sp_skcipher_set_key(struct crypto_skcipher *tfm,
-	const u8 *in_key, unsigned int key_len)
+static int sp_skcipher_set_key(struct crypto_skcipher *tfm, const u8 *key, unsigned int key_len)
 {
-	return sp_aes_set_key(&tfm->base, in_key, key_len);
+	return sp_aes_set_key(&tfm->base, key, key_len);
 }
 
-#define IV ((u32*)(sp_aes.va + IV_OFFSET))
+#define IV ((u32 *)(sp_aes.va + IV_OFFSET))
 
 static int sp_skcipher_crypt(struct skcipher_request *req, u32 mode)
 {
@@ -327,7 +326,8 @@ int sp_aes_init(void)
 		mutex_init(&sp_aes.lock);
 		sp_aes.va = dma_alloc_coherent(dev, WORK_BUF_SIZE, &sp_aes.pa, GFP_KERNEL);
 	}
-	return crypto_register_alg(&sp_aes_generic_alg) || crypto_register_skciphers(algs, ARRAY_SIZE(algs));
+	return crypto_register_alg(&sp_aes_generic_alg) ||
+	       crypto_register_skciphers(algs, ARRAY_SIZE(algs));
 }
 EXPORT_SYMBOL(sp_aes_init);
 
@@ -341,8 +341,7 @@ EXPORT_SYMBOL(sp_aes_finit);
 
 void sp_aes_irq(void *devid, u32 flag)
 {
-	if (flag & AES_DMA_IF) {
+	if (flag & AES_DMA_IF)
 		sp_aes.done = true;
-	}
 }
 EXPORT_SYMBOL(sp_aes_irq);

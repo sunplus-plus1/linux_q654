@@ -7,9 +7,9 @@
 extern struct dev_pm_ops const ehci_sunplus_pm_ops;
 #endif
 
-extern int ehci_sunplus_probe(struct platform_device *dev);
-extern int ehci_sunplus_remove(struct platform_device *dev);
+int ehci_sunplus_probe(struct platform_device *dev);
+int ehci_sunplus_remove(struct platform_device *dev);
 
-extern void usb_hcd_platform_shutdown(struct platform_device *dev);
+void usb_hcd_platform_shutdown(struct platform_device *dev);
 #endif
 

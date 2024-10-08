@@ -212,7 +212,7 @@ static int dmem_chrdev_probe(struct platform_device *dev)
   }
 
   // create the device class
-  dec_mem_chrdev_class = class_create(THIS_MODULE, DEC_MEM_CHRDEV_NAME);
+  dec_mem_chrdev_class = class_create(DEC_MEM_CHRDEV_NAME);
   if (IS_ERR(dec_mem_chrdev_class))
   {
     dev_err(&dev->dev, "class_create failed!\n");

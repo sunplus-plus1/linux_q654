@@ -73,7 +73,7 @@ static int sp_bch_reset(struct sp_bch_chip *chip)
 	}
 
 	/* reset interrupts */
-	writel(~(IER_FAIL|IER_DONE), &regs->ier);
+	writel((u32)(~(IER_FAIL|IER_DONE)), &regs->ier);
 	writel(SR_DONE|SR_FAIL, &regs->sr);
 	writel(ISR_BCH, &regs->isr);
 
@@ -297,7 +297,7 @@ ecc_detected:
 		*parity_sector_sz = pssz;
 
 	/* sanity check */
-	if (nand->ecc.steps > MTD_MAX_OOBFREE_ENTRIES_LARGE)
+	if (nand->ecc.steps > 32)
 		BUG();
 
 	if (free * nrps < rsvd)
@@ -335,7 +335,7 @@ int sp_bch_encode(struct mtd_info *mtd, dma_addr_t buf, dma_addr_t ecc)
 	writel(SRR_RESET, &regs->srr);
 	writel(buf, &regs->buf);
 	writel(ecc, &regs->ecc);
-	writel(~(IER_FAIL|IER_DONE), &regs->ier);
+	writel((u32)(~(IER_FAIL|IER_DONE)), &regs->ier);
 
 	chip->busy = 1;
 	writel(CR0_START | CR0_ENCODE | chip->cr0, &regs->cr0);
@@ -370,7 +370,7 @@ int sp_bch_decode(struct mtd_info *mtd, dma_addr_t buf, dma_addr_t ecc)
 	writel(SRR_RESET, &regs->srr);
 	writel(buf, &regs->buf);
 	writel(ecc, &regs->ecc);
-	writel(~(IER_FAIL|IER_DONE), &regs->ier);
+	writel((u32)(~(IER_FAIL|IER_DONE)), &regs->ier);
 
 	chip->busy = 1;
 	writel(CR0_START | CR0_DECODE | chip->cr0, &regs->cr0);
@@ -499,7 +499,7 @@ static long sp_bch_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		writel(buf_phys, &regs->buf);
 		writel(ecc_phys, &regs->ecc);
-		writel(~(IER_FAIL|IER_DONE), &regs->ier);
+		writel((u32)(~(IER_FAIL|IER_DONE)), &regs->ier);
 
 		chip->busy = 1;
 		writel(CR0_BMODE(5) | CR0_START | CR0_ENCODE | CR0_CMODE_1024x60, &regs->cr0);
@@ -530,7 +530,7 @@ static long sp_bch_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		writel(buf_phys, &regs->buf);
 		writel(ecc_phys, &regs->ecc);
-		writel(~(IER_FAIL|IER_DONE), &regs->ier);
+		writel((u32)(~(IER_FAIL|IER_DONE)), &regs->ier);
 
 		chip->busy = 1;
 		writel(CR0_BMODE(5) | CR0_START | CR0_DECODE | CR0_CMODE_1024x60, &regs->cr0);
@@ -571,22 +571,21 @@ static struct miscdevice sp_bch_dev = {
 };
 #endif
 
-static int sp_bch_probe(struct platform_device *pdev)
+int sp_bch_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sp_bch_chip *chip = &__this;
 	struct resource *res_mem;
-	struct resource *res_irq;
 	struct clk *clk;
 	int ret = 0;
 
-	dev_info(dev, "probed\n");
+	dev_info(dev, "%s in\n", __func__);
 
 	memset(chip, 0, sizeof(*chip));
 	mutex_init(&chip->lock);
 	init_waitqueue_head(&chip->wq);
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "bch");
 	if (!res_mem) {
 		dev_err(dev, "failed to get memory\n");
 		ret = -ENXIO;
@@ -601,14 +600,14 @@ static int sp_bch_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res_irq <= 0) {
+	chip->irq = platform_get_irq_byname(pdev, "int_bch");
+	if (chip->irq < 0) {
 		dev_err(dev, "failed to get irq resource\n");
-		ret = -ENXIO;
+		ret = chip->irq;
 		goto err;
 	}
 
-	chip->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	chip->rstc = devm_reset_control_get(&pdev->dev, "rst_bch");
 	if (IS_ERR(chip->rstc)) {
 		dev_err(dev, "failed to get reset control\n");
 		goto err;
@@ -620,7 +619,7 @@ static int sp_bch_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	clk = devm_clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get(&pdev->dev, "clk_bch");
 	if (!IS_ERR(clk)) {
 		ret = clk_prepare(clk);
 		if (ret) {
@@ -642,16 +641,14 @@ static int sp_bch_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = request_irq(res_irq->start, sp_bch_irq, IRQF_SHARED, "sp_bch", chip);
+	ret = devm_request_irq(dev, chip->irq, sp_bch_irq,
+					IRQF_SHARED, "sp_bch", chip);
 	if (ret) {
 		dev_err(dev, "failed to request irq\n");
 		goto err;
 	}
 
-	chip->irq = res_irq->start;
 	chip->dev = &pdev->dev;
-
-	platform_set_drvdata(pdev, chip);
 
 #ifdef CONFIG_SPBCH_SUPPORT_IOCTL
 	misc_register(&sp_bch_dev);
@@ -675,10 +672,11 @@ err:
 
 	return ret;
 }
+EXPORT_SYMBOL(sp_bch_probe);
 
-static int sp_bch_remove(struct platform_device *pdev)
+int sp_bch_remove(struct platform_device *pdev)
 {
-	struct sp_bch_chip *chip = platform_get_drvdata(pdev);
+	struct sp_bch_chip *chip = &__this;
 
 #ifdef CONFIG_SPBCH_SUPPORT_IOCTL
 	misc_deregister(&sp_bch_dev);
@@ -689,7 +687,6 @@ static int sp_bch_remove(struct platform_device *pdev)
 
 	wake_up(&chip->wq);
 	mutex_destroy(&chip->lock);
-	platform_set_drvdata(pdev, NULL);
 
 	if (chip->clk) {
 		clk_disable(chip->clk);
@@ -704,10 +701,11 @@ static int sp_bch_remove(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL(sp_bch_remove);
 
-static int sp_bch_suspend(struct device *dev)
+int sp_bch_suspend(struct device *dev)
 {
-	struct sp_bch_chip *chip = dev_get_drvdata(dev);
+	struct sp_bch_chip *chip = &__this;
 	int ret;
 
 	clk_disable_unprepare(chip->clk);
@@ -720,10 +718,11 @@ static int sp_bch_suspend(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(sp_bch_suspend);
 
-static int sp_bch_resume(struct device *dev)
+int sp_bch_resume(struct device *dev)
 {
-	struct sp_bch_chip *chip = dev_get_drvdata(dev);
+	struct sp_bch_chip *chip = &__this;
 	int ret;
 
 	ret = reset_control_deassert(chip->rstc);
@@ -740,6 +739,7 @@ static int sp_bch_resume(struct device *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(sp_bch_resume);
 
 #ifndef CONFIG_SPBCH_DEV_IN_DTS
 static struct resource sp_bch_res[] = {
@@ -762,48 +762,6 @@ static struct platform_device sp_bch_device = {
 	.resource  = sp_bch_res,
 };
 #endif
-
-static const struct dev_pm_ops sp_bch_pm_ops = {
-	.suspend	= sp_bch_suspend,
-	.resume		= sp_bch_resume,
-};
-
-static const struct of_device_id sp_bch_of_match[] = {
-	{ .compatible = "sunplus,sp7350-bch" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, sp_bch_of_match);
-
-static struct platform_driver sp_bch_driver = {
-	.probe = sp_bch_probe,
-	.remove = sp_bch_remove,
-	.driver = {
-		.name = "sunplus,sp_bch",
-		.owner = THIS_MODULE,
-		.of_match_table = sp_bch_of_match,
-		.pm = &sp_bch_pm_ops,
-	},
-};
-
-static int __init sp_bch_module_init(void)
-{
-	#ifndef CONFIG_SPBCH_DEV_IN_DTS
-	platform_device_register(&sp_bch_device);
-	#endif
-	platform_driver_register(&sp_bch_driver);
-	return 0;
-}
-
-static void __exit sp_bch_module_exit(void)
-{
-	platform_driver_unregister(&sp_bch_driver);
-	#ifndef CONFIG_SPBCH_DEV_IN_DTS
-	platform_device_unregister(&sp_bch_device);
-	#endif
-}
-
-arch_initcall(sp_bch_module_init);
-module_exit(sp_bch_module_exit);
 
 MODULE_AUTHOR("Cheng Chung Ho <cc.ho@sunplus.com>");
 MODULE_DESCRIPTION("Sunplus BCH engine driver");

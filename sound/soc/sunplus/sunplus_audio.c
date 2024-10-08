@@ -42,7 +42,7 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 	struct sunplus_audio_base *spauddata;
 	int err	= 0;
 
-	dev_info(&pdev->dev, "%s ", __func__);
+	dev_info(&pdev->dev, "%s\n", __func__);
 	spauddata = devm_kzalloc(&pdev->dev, sizeof(*spauddata), GFP_KERNEL);
 	if (!spauddata)
 		return -ENOMEM;
@@ -96,19 +96,12 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 	if (err)
 		dev_err(&pdev->dev, "reset deassert fail\n");
 
-	//plla setting
-	//spauddata->plla_clocken	= devm_clk_get(&pdev->dev, "pll_a");
-	//if (IS_ERR(spauddata->plla_clocken)) {
-	//	dev_err(&pdev->dev, "get clock from devicetree node 2.\n");
-	//	return PTR_ERR(spauddata->plla_clocken);
-	//}
-	// For plla initial turn off on uboot/xboot/iboot
-	// plla has no turn on/off function, it need to use diff frequency settings to update register
 	err = clk_get_rate(spauddata->aud_clocken);
 	if (err == 147456000)
 		err = clk_set_rate(spauddata->aud_clocken, 135475200);
 	else
-		err = clk_set_rate(spauddata->aud_clocken, 147456000);	//135475200, 147456000,	196608000 Hz,
+		err = clk_set_rate(spauddata->aud_clocken, 147456000);
+		// 135475200, 147456000, 196608000 Hz,
 	if (err) {
 		dev_err(&pdev->dev, "plla set rate false.\n");
 		return err;

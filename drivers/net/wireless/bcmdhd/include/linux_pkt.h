@@ -1,7 +1,26 @@
 /*
  * Linux Packet (skb) interface
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -141,6 +160,14 @@ extern void osl_pkt_orphan_partial(struct sk_buff *skb, int tsq);
 #define PKTORPHAN(skb, tsq)          ({BCM_REFERENCE(skb); 0;})
 #endif /* Linux Version >= 3.6 */
 
+#ifdef RX_PKT_POOL
+#ifdef DHD_USE_ATOMIC_PKTGET
+#error "Don't enable both DHD_USE_ATOMIC_PKTGET and RX_PKT_POOL, "
+		"as RX_PKT_POOL runs in non atomic context"
+#endif /* DHD_USE_ATOMIC_PKTGET */
+#define	PKTGET_RX_POOL(osh, dhd, len, send) dhd_rxpool_pktget((osh), (dhd), (len))
+#endif /* RX_PKT_POOL */
+
 #ifdef BCMDBG_CTRACE
 #define	DEL_CTRACE(zosh, zskb) { \
 	unsigned long zflags; \
@@ -180,26 +207,40 @@ extern void osl_pkt_orphan_partial(struct sk_buff *skb, int tsq);
 #define PKTCALLER(zskb)	UPDATE_CTRACE((struct sk_buff *)zskb, (char *)__FUNCTION__, __LINE__)
 #endif /* BCMDBG_CTRACE */
 
-#define	PKTSETFAST(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTCLRFAST(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTISFAST(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
-#define PKTLITIDX(skb)		({BCM_REFERENCE(skb); 0;})
-#define PKTSETLITIDX(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
-#define PKTRESETLITIDX(skb)	({BCM_REFERENCE(skb);})
-#define PKTRITIDX(skb)		({BCM_REFERENCE(skb); 0;})
-#define PKTSETRITIDX(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
-#define PKTRESETRITIDX(skb)	({BCM_REFERENCE(skb);})
+#define	PKTSETFAST(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTCLRFAST(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTISFAST(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb); FALSE;})
 
-#define	PKTSETSKIPCT(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTCLRSKIPCT(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTSKIPCT(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define PKTLITIDX(skb)			({BCM_REFERENCE(skb); 0;})
+#define PKTSETLITIDX(skb, idx)		({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETLITIDX(skb)		({BCM_REFERENCE(skb);})
+#define PKTLITIDX_1(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETLITIDX_1(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETLITIDX_1(skb)		({BCM_REFERENCE(skb);})
+#define PKTLITIDX_2(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETLITIDX_2(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETLITIDX_2(skb)		({BCM_REFERENCE(skb);})
 
-#define PKTFRAGLEN(osh, lb, ix)			(0)
-#define PKTSETFRAGLEN(osh, lb, ix, len)		BCM_REFERENCE(osh)
+#define PKTRITIDX(skb)			({BCM_REFERENCE(skb); 0;})
+#define PKTSETRITIDX(skb, idx)		({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETRITIDX(skb)		({BCM_REFERENCE(skb);})
+#define PKTRITIDX_1(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETRITIDX_1(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETRITIDX_1(skb)		({BCM_REFERENCE(skb);})
+#define PKTRITIDX_2(skb)		({BCM_REFERENCE(skb); 0;})
+#define PKTSETRITIDX_2(skb, idx)	({BCM_REFERENCE(skb); BCM_REFERENCE(idx);})
+#define PKTRESETRITIDX_2(skb)		({BCM_REFERENCE(skb);})
 
-#define	PKTSETTOBR(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTCLRTOBR(osh, skb)	({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
-#define	PKTISTOBR(skb)	({BCM_REFERENCE(skb); FALSE;})
+#define	PKTSETSKIPCT(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTCLRSKIPCT(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTSKIPCT(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+
+#define PKTFRAGLEN(osh, lb, ix)		(0)
+#define PKTSETFRAGLEN(osh, lb, ix, len)	BCM_REFERENCE(osh)
+
+#define	PKTSETTOBR(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTCLRTOBR(osh, skb)		({BCM_REFERENCE(osh); BCM_REFERENCE(skb);})
+#define	PKTISTOBR(skb)			({BCM_REFERENCE(skb); FALSE;})
 
 #ifdef BCMFA
 #ifdef BCMFA_HW_HASH

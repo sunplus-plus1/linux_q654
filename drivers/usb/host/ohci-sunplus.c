@@ -51,10 +51,10 @@ struct ohci_hcd_sp {
 
 	u32 flag;
 
-#define RESET_UPHY_SIGN	(1<<0)
-#define RESET_HC_SIGN		(1<<1)
-#define RESET_SENDER		(1<<31)
-#define FASTBOOT_FG			(1<<30)
+#define RESET_UPHY_SIGN		BIT(0)
+#define RESET_HC_SIGN		BIT(1)
+#define RESET_SENDER		BIT(31)
+#define FASTBOOT_FG		BIT(30)
 };
 
 #elif defined CONFIG_USB_SP_UDC_HOST
@@ -132,7 +132,6 @@ static int ohci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 			otg0_vbus_off = 1;
 		else if (pdev->id == 2)
 			otg1_vbus_off = 1;
-
 	}
 
 	return 0;
@@ -175,18 +174,6 @@ static const struct hc_driver ohci_platform_hc_driver = {
 };
 
 #ifdef CONFIG_USB_HOST_RESET
-#define RESET_UPHY(x, ret, addr) {					\
-				ret = ioread32(addr);			\
-				ret |= (1<<(9+x))|(1<<(12+x));		\
-				iowrite32(ret, addr);			\
-				ret &= ~((1<<(9+x))|(1<<(12+x)));	\
-				iowrite32(ret, addr);			\
-}
-
-#define	REG_UPHY_RESET_OFFSET	(18)
-#endif
-
-#ifdef CONFIG_USB_HOST_RESET
 static int ohci_reset_thread(void *arg)
 {
 	struct ohci_hcd_sp *sp_ohci = (struct ohci_hcd_sp *)arg;
@@ -197,9 +184,7 @@ static int ohci_reset_thread(void *arg)
 	int i;
 
 	while (1) {
-
 		if (sp_ohci->flag & (RESET_UPHY_SIGN | RESET_HC_SIGN)) {
-
 			while (hcd->self.devmap.devicemap[0] != 2)
 				fsleep(1000);
 
@@ -218,14 +203,16 @@ static int ohci_reset_thread(void *arg)
 				i = SP_IRQ_OHCI_USB1;
 
 			if (sp_ohci->flag & RESET_UPHY_SIGN) {
-				writel(RF_MASK_V_SET(1 << (12 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
+				writel(RF_MASK_V_SET(1 << (12 + (pdev->id - 1)),
+						     1 << (12 + (pdev->id - 1))),
+				       ohci_res_moon0 + USBC0_RESET_OFFSET);
 				writel(RF_MASK_V_CLR(1 << (12 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
-				writel(RF_MASK_V_SET(1 << (15 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
+				       ohci_res_moon0 + USBC0_RESET_OFFSET);
+				writel(RF_MASK_V_SET(1 << (15 + (pdev->id - 1)),
+						     1 << (15 + (pdev->id - 1))),
+				       ohci_res_moon0 + USBC0_RESET_OFFSET);
 				writel(RF_MASK_V_CLR(1 << (15 + (pdev->id - 1))),
-							ohci_res_moon0 + USBC0_RESET_OFFSET);
+				       ohci_res_moon0 + USBC0_RESET_OFFSET);
 
 				sp_ohci->flag = RESET_SENDER;
 			} else {
@@ -265,18 +252,15 @@ static int ohci_notifier_call(struct notifier_block *self, unsigned long action,
 	pr_debug("notifier ohci\n");
 
 	if (action == USB_DEVICE_ADD) {
-
 		if (!udev->parent) {	// roothub add
-
 			hcd_e = bus_to_hcd(udev->bus);
 			pdev_e = to_platform_device(hcd_e->self.controller);
-			ptr = (u32 *) ((u8 *) hcd_e->hcd_priv +
-						hcd_e->driver->hcd_priv_size -
-						sizeof(u32));
+			ptr = (u32 *)((u8 *)hcd_e->hcd_priv + hcd_e->driver->hcd_priv_size -
+					    sizeof(u32));
 			pr_debug("notifier ohci %p 0x%x\n", ptr, *ptr);
 
 			// EHCI&OHCI on one port
-			if ((pdev_e != pdev_o) && (pdev_e->id == pdev_o->id)) {
+			if (pdev_e != pdev_o && pdev_e->id == pdev_o->id) {
 				if (ptr && (*ptr & RESET_SENDER)) {
 					sp_ohci->flag =
 					    RESET_HC_SIGN & (~RESET_UPHY_SIGN);
@@ -321,7 +305,7 @@ static int udc_notifier_call(struct notifier_block *self, unsigned long action, 
 
 /* fix ohci msi */
 static ssize_t get_td_retry_time_show(struct device *dev,
-					struct device_attribute *attr, char *buf)
+				      struct device_attribute *attr, char *buf)
 {
 	pr_debug("get get_td_retry_time\n");
 
@@ -450,7 +434,7 @@ int ohci_sunplus_probe(struct platform_device *pdev)
 	}
 
 	hcd = usb_create_hcd(&ohci_platform_hc_driver, &pdev->dev,
-			     				dev_name(&pdev->dev));
+			     dev_name(&pdev->dev));
 	if (!hcd) {
 		err = -ENOMEM;
 		goto err_power;
@@ -503,11 +487,11 @@ int ohci_sunplus_probe(struct platform_device *pdev)
 
 	ohci_sp->flag = 0;
 	pr_debug("flag *** %d %d %p\n", sizeof(struct ohci_hcd_sp),
-				hcd->driver->hcd_priv_size, &ohci_sp->flag);
+		 hcd->driver->hcd_priv_size, &ohci_sp->flag);
 
 	ohci_sp->reset_thread = kthread_create(ohci_reset_thread,
-						hcd_to_ohci(hcd),
-						"ohci_reset_polling");
+					       hcd_to_ohci(hcd),
+					       "ohci_reset_polling");
 
 	if (IS_ERR(ohci_sp->reset_thread)) {
 		pr_err("Create OHCI(%d) reset thread fail!\n", pdev->id);

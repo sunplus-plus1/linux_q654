@@ -25,12 +25,10 @@ sp7350_drm_gem_fb_create(struct drm_device *dev, struct drm_file *file_priv,
 	if (!drm_any_plane_has_format(dev,
 				      mode_cmd->pixel_format,
 				      mode_cmd->modifier[0])) {
-		struct drm_format_name_buf format_name;
 
-		DRM_DEV_DEBUG_DRIVER(dev->dev,
-				     "unsupported pixel format %s / modifier 0x%llx\n",
-				     drm_get_format_name(mode_cmd->pixel_format, &format_name),
-				     mode_cmd->modifier[0]);
+		DRM_DEV_DEBUG_DRIVER(dev->dev, "unsupported pixel format: %4.4s / modifier 0x%llx\n",
+			(char *)&mode_cmd->pixel_format, mode_cmd->modifier[0]);
+
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -50,7 +48,7 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	/* Set support for vblank irq fast disable, before drm_vblank_init() */
 	drm->vblank_disable_immediate = true;
 
-	drm->irq_enabled = true;
+	//drm->irq_enabled = true;
 	//drm->irq_enabled = false;
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
@@ -66,7 +64,8 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	//drm->mode_config.helper_private = &vkms_mode_config_helpers;
 	drm->mode_config.preferred_depth = 16;
 	drm->mode_config.async_page_flip = true;
-	drm->mode_config.allow_fb_modifiers = true;
+	//drm->mode_config.allow_fb_modifiers = true;
+	drm->mode_config.normalize_zpos = true;
 
 	drm_mode_config_reset(drm);
 

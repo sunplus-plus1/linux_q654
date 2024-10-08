@@ -2231,6 +2231,7 @@ gckVIDMEM_Lock(gckKERNEL Kernel,
         default:
             gcmkASSERT(Node->VidMem.pool == gcvPOOL_SYSTEM);
             /* FALLTHRU */
+            gcmkFALLTHRU;
         case gcvPOOL_SYSTEM:
             address = Kernel->contiguousBaseAddresses[Kernel->device->memIndex] + offset;
             break;

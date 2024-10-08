@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0
+ * ALSA SoC SP7350 pcm driver
+ * Author: ChingChou Huang <chingchouhuang@sunplus.com>
+ */
 #ifndef __AUD_HW_H__
 #define __AUD_HW_H__
 

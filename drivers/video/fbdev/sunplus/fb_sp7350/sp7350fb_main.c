@@ -263,7 +263,7 @@ static int sp7350fb_create_device(struct platform_device *pdev,
 
 	/* assign fb info for sp7350fb */
 	info->fbops = &framebuffer_ops;
-	info->flags = FBINFO_FLAG_DEFAULT;
+	//info->flags = FBINFO_FLAG_DEFAULT;
 
 	info->pseudo_palette	= fbdev->pal;
 	info->screen_base	= fbdev->buf_mem_total;

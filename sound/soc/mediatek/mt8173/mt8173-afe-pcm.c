@@ -286,10 +286,8 @@ static int mt8173_afe_dais_set_clks(struct mtk_base_afe *afe,
 static void mt8173_afe_dais_disable_clks(struct mtk_base_afe *afe,
 					 struct clk *m_ck, struct clk *b_ck)
 {
-	if (m_ck)
-		clk_disable_unprepare(m_ck);
-	if (b_ck)
-		clk_disable_unprepare(b_ck);
+	clk_disable_unprepare(m_ck);
+	clk_disable_unprepare(b_ck);
 }
 
 static int mt8173_afe_i2s_startup(struct snd_pcm_substream *substream,
@@ -571,7 +569,7 @@ static struct snd_soc_dai_driver mt8173_afe_pcm_dais[] = {
 			.formats = SNDRV_PCM_FMTBIT_S16_LE,
 		},
 		.ops = &mt8173_afe_i2s_ops,
-		.symmetric_rates = 1,
+		.symmetric_rate = 1,
 	},
 };
 
@@ -926,14 +924,14 @@ static irqreturn_t mt8173_afe_irq_handler(int irq, void *dev_id)
 
 	for (i = 0; i < MT8173_AFE_MEMIF_NUM; i++) {
 		struct mtk_base_afe_memif *memif = &afe->memif[i];
-		struct mtk_base_afe_irq *irq;
+		struct mtk_base_afe_irq *irq_p;
 
 		if (memif->irq_usage < 0)
 			continue;
 
-		irq = &afe->irqs[memif->irq_usage];
+		irq_p = &afe->irqs[memif->irq_usage];
 
-		if (!(reg_value & (1 << irq->irq_data->irq_clr_shift)))
+		if (!(reg_value & (1 << irq_p->irq_data->irq_clr_shift)))
 			continue;
 
 		snd_pcm_period_elapsed(memif->substream);
@@ -1198,14 +1196,13 @@ err_pm_disable:
 	return ret;
 }
 
-static int mt8173_afe_pcm_dev_remove(struct platform_device *pdev)
+static void mt8173_afe_pcm_dev_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		mt8173_afe_runtime_suspend(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id mt8173_afe_pcm_dt_match[] = {
@@ -1226,7 +1223,7 @@ static struct platform_driver mt8173_afe_pcm_driver = {
 		   .pm = &mt8173_afe_pm_ops,
 	},
 	.probe = mt8173_afe_pcm_dev_probe,
-	.remove = mt8173_afe_pcm_dev_remove,
+	.remove_new = mt8173_afe_pcm_dev_remove,
 };
 
 module_platform_driver(mt8173_afe_pcm_driver);

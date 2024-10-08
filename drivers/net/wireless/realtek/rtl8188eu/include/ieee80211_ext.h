@@ -1,10 +1,25 @@
-/* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright(c) 2007 - 2016 Realtek Corporation. All rights reserved. */
-
+/******************************************************************************
+ *
+ * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ *
+ ******************************************************************************/
 #ifndef __IEEE80211_EXT_H
 #define __IEEE80211_EXT_H
 
-#include <drv_conf.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 
@@ -23,54 +38,53 @@
 #define WPA_KEY_MGMT_IEEE8021X_NO_WPA BIT(3)
 #define WPA_KEY_MGMT_WPA_NONE BIT(4)
 
-
 #define WPA_CAPABILITY_PREAUTH BIT(0)
 #define WPA_CAPABILITY_MGMT_FRAME_PROTECTION BIT(6)
 #define WPA_CAPABILITY_PEERKEY_ENABLED BIT(9)
 
-
 #define PMKID_LEN 16
-
 
 struct wpa_ie_hdr {
 	u8 elem_id;
 	u8 len;
 	u8 oui[4]; /* 24-bit OUI followed by 8-bit OUI type */
 	u8 version[2]; /* little endian */
-} __attribute__((packed));
+} __packed;
 
 struct rsn_ie_hdr {
 	u8 elem_id; /* WLAN_EID_RSN */
 	u8 len;
 	u8 version[2]; /* little endian */
-} __attribute__((packed));
+} __packed;
 
 struct wme_ac_parameter {
 #if defined(__LITTLE_ENDIAN)
 	/* byte 1 */
 	u8	aifsn:4,
-	     acm:1,
-	     aci:2,
-	     reserved:1;
+		acm:1,
+		aci:2,
+		reserved:1;
 
 	/* byte 2 */
 	u8	eCWmin:4,
-	     eCWmax:4;
-#else
+		eCWmax:4;
+#elif defined(__BIG_ENDIAN)
 	/* byte 1 */
 	u8	reserved:1,
-	     aci:2,
-	     acm:1,
-	     aifsn:4;
+		aci:2,
+		acm:1,
+		aifsn:4;
 
 	/* byte 2 */
 	u8	eCWmax:4,
-	     eCWmin:4;
+		eCWmin:4;
+#else
+#error	"Please fix <endian.h>"
 #endif
 
 	/* bytes 3 & 4 */
 	u16 txopLimit;
-} __attribute__((packed));
+} __packed;
 
 struct wme_parameter_element {
 	/* required fields for WME version 1 */
@@ -82,7 +96,7 @@ struct wme_parameter_element {
 	u8 reserved;
 	struct wme_ac_parameter ac[4];
 
-} __attribute__((packed));
+} __packed;
 
 #define WPA_PUT_LE16(a, val)			\
 	do {					\
@@ -106,10 +120,7 @@ struct wme_parameter_element {
 		(a)[0] = (u8) (((u32) (val)) & 0xff);		\
 	} while (0)
 
-#define RSN_SELECTOR_PUT(a, val) WPA_PUT_BE32((u8 *) (a), (val))
-/* #define RSN_SELECTOR_PUT(a, val) WPA_PUT_LE32((u8 *) (a), (val)) */
-
-
+#define RSN_SELECTOR_PUT(a, val) WPA_PUT_BE32((u8 *)(a), (val))
 
 /* Action category code */
 enum ieee80211_category {
@@ -167,58 +178,58 @@ struct ieee80211_mgmt {
 	u16 seq_ctrl;
 	union {
 		struct {
-			__le16 auth_alg;
-			__le16 auth_transaction;
-			__le16 status_code;
+			u16 auth_alg;
+			u16 auth_transaction;
+			u16 status_code;
 			/* possibly followed by Challenge text */
 			u8 variable[0];
-		}  __attribute__((packed)) auth;
+		}  __packed auth;
 		struct {
-			__le16 reason_code;
-		}  __attribute__((packed)) deauth;
+			u16 reason_code;
+		}  __packed deauth;
 		struct {
-			__le16 capab_info;
-			__le16 listen_interval;
+			u16 capab_info;
+			u16 listen_interval;
 			/* followed by SSID and Supported rates */
 			u8 variable[0];
-		}  __attribute__((packed)) assoc_req;
+		}  __packed assoc_req;
 		struct {
-			__le16 capab_info;
-			__le16 status_code;
-			__le16 aid;
+			u16 capab_info;
+			u16 status_code;
+			u16 aid;
 			/* followed by Supported rates */
 			u8 variable[0];
-		}  __attribute__((packed)) assoc_resp, reassoc_resp;
+		}  __packed assoc_resp, reassoc_resp;
 		struct {
-			__le16 capab_info;
-			__le16 listen_interval;
+			u16 capab_info;
+			u16 listen_interval;
 			u8 current_ap[6];
 			/* followed by SSID and Supported rates */
 			u8 variable[0];
-		}  __attribute__((packed)) reassoc_req;
+		}  __packed reassoc_req;
 		struct {
-			__le16 reason_code;
-		}  __attribute__((packed)) disassoc;
+			u16 reason_code;
+		}  __packed disassoc;
 		struct {
 			__le64 timestamp;
-			__le16 beacon_int;
-			__le16 capab_info;
+			u16 beacon_int;
+			u16 capab_info;
 			/* followed by some of SSID, Supported rates,
 			 * FH Params, DS Params, CF Params, IBSS Params, TIM */
 			u8 variable[0];
-		}  __attribute__((packed)) beacon;
+		}  __packed beacon;
 		struct {
 			/* only variable items: SSID, Supported rates */
 			u8 variable[0];
-		}  __attribute__((packed)) probe_req;
+		}  __packed probe_req;
 		struct {
 			__le64 timestamp;
-			__le16 beacon_int;
-			__le16 capab_info;
+			u16 beacon_int;
+			u16 capab_info;
 			/* followed by some of SSID, Supported rates,
 			 * FH Params, DS Params, CF Params, IBSS Params */
 			u8 variable[0];
-		}  __attribute__((packed)) probe_resp;
+		}  __packed probe_resp;
 		struct {
 			u8 category;
 			union {
@@ -227,51 +238,50 @@ struct ieee80211_mgmt {
 					u8 dialog_token;
 					u8 status_code;
 					u8 variable[0];
-				}  __attribute__((packed)) wme_action;
+				}  __packed wme_action;
 				struct {
 					u8 action_code;
 					u8 dialog_token;
-					__le16 capab;
-					__le16 timeout;
-					__le16 start_seq_num;
-				}  __attribute__((packed)) addba_req;
+					u16 capab;
+					u16 timeout;
+					u16 start_seq_num;
+				}  __packed addba_req;
 				struct {
 					u8 action_code;
 					u8 dialog_token;
-					__le16 status;
-					__le16 capab;
-					__le16 timeout;
-				}  __attribute__((packed)) addba_resp;
+					u16 status;
+					u16 capab;
+					u16 timeout;
+				}  __packed addba_resp;
 				struct {
 					u8 action_code;
-					__le16 params;
-					__le16 reason_code;
-				}  __attribute__((packed)) delba;
-				struct {
+					u16 params;
+					u16 reason_code;
+				}  __packed delba;
+				structi {
 					u8 action_code;
 					/* capab_info for open and confirm,
 					 * reason for close
 					 */
-					___le16 aux;
+					u16 aux;
 					/* Followed in plink_confirm by status
 					 * code, AID and supported rates,
 					 * and directly by supported rates in
 					 * plink_open and plink_close
 					 */
 					u8 variable[0];
-				}  __attribute__((packed)) plink_action;
-				struct {
+				}  __packed plink_action;
+				struct{
 					u8 action_code;
 					u8 variable[0];
-				}  __attribute__((packed)) mesh_action;
-			} __attribute__((packed)) u;
-		}  __attribute__((packed)) action;
-	} __attribute__((packed)) u;
-} __attribute__((packed));
+				}  __packed mesh_action;
+			} __packed u;
+		}  __packed action;
+	} __packed u;
+} __packed;
 
 /* mgmt header + 1 byte category code */
-#define IEEE80211_MIN_ACTION_SIZE FIELD_OFFSET(struct ieee80211_mgmt, u.action.u)
-
-
+#define IEEE80211_MIN_ACTION_SIZE				\
+	 FIELD_OFFSET(struct ieee80211_mgmt, u.action.u)
 
 #endif

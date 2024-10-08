@@ -87,7 +87,11 @@ struct dvb_frontend;
  * @device:		pointer to struct device
  * @module:		pointer to struct module
  * @mfe_shared:		indicates mutually exclusive frontends.
- *			Use of this flag is currently deprecated.
+ *			1 = legacy exclusion behavior: blocking any open() call
+ *			2 = enhanced exclusion behavior, emulating the standard
+ *			behavior of busy frontends: allowing read-only sharing
+ *			and otherwise returning immediately with -EBUSY when any
+ *			of the frontends is already opened with write access.
  * @mfe_dvbdev:		Frontend device in use, in the case of MFE
  * @mfe_lock:		Lock to prevent using the other frontends when MFE is
  *			used.
@@ -126,7 +130,7 @@ struct dvb_adapter {
  * struct dvb_device - represents a DVB device node
  *
  * @list_head:	List head with all DVB devices
- * @ref:	reference counter
+ * @ref:	reference count for this device
  * @fops:	pointer to struct file_operations
  * @adapter:	pointer to the adapter that holds this device node
  * @type:	type of the device, as defined by &enum dvb_device_type.
@@ -262,10 +266,10 @@ int dvb_register_device(struct dvb_adapter *adap,
 /**
  * dvb_remove_device - Remove a registered DVB device
  *
+ * @dvbdev:	pointer to struct dvb_device
+ *
  * This does not free memory. dvb_free_device() will do that when
  * reference counter is empty
- *
- * @dvbdev:	pointer to struct dvb_device
  */
 void dvb_remove_device(struct dvb_device *dvbdev);
 
@@ -340,7 +344,7 @@ int dvb_create_media_graph(struct dvb_adapter *adap,
 int dvb_generic_open(struct inode *inode, struct file *file);
 
 /**
- * dvb_generic_close - Digital TV close function, used by DVB devices
+ * dvb_generic_release - Digital TV close function, used by DVB devices
  *
  * @inode: pointer to &struct inode.
  * @file: pointer to &struct file.
@@ -440,7 +444,7 @@ void dvb_module_release(struct i2c_client *client);
  * dvb_attach - attaches a DVB frontend into the DVB core.
  *
  * @FUNCTION:	function on a frontend module to be called.
- * @ARGS...:	@FUNCTION arguments.
+ * @ARGS:	@FUNCTION arguments.
  *
  * This ancillary function loads a frontend module in runtime and runs
  * the @FUNCTION function there, with @ARGS.

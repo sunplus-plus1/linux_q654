@@ -228,6 +228,8 @@ static int _chip_version_get(void){
 }
 
 void vc_regulator_control(struct platform_device *dev, int ctrl){
+    int ret;
+
     if(!_vc_regl){
         _vc_regl = devm_regulator_get(&dev->dev, "video_codec");
 
@@ -238,7 +240,7 @@ void vc_regulator_control(struct platform_device *dev, int ctrl){
 
         /* To avoid regulator late cleanup */
         if(regulator_is_enabled(_vc_regl)){
-            regulator_enable(_vc_regl);
+            ret = regulator_enable(_vc_regl);
             _vc_pwr_on = true;
         }
     }
@@ -253,6 +255,7 @@ void vc_regulator_control(struct platform_device *dev, int ctrl){
         _vc_pwr_control(ctrl);
     }
 #endif
+    return;
 }
 
 void vc_power_on(void){

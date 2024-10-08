@@ -17,25 +17,26 @@
  */
 
 /* MIPI-CSI-IW registers */
-#define CSIIW_LATCH_MODE			0x00 	/* 171.0 CSIIW latch mode (csiiw_latch_mode) */
-#define CSIIW_CONFIG0				0x04 	/* 171.1 CSIIW config register 0 (csiiw_config0) */
-#define CSIIW_BASE_ADDR				0x08 	/* 171.2 CSIIW base address (csiiw_base_addr) */
-#define CSIIW_STRIDE				0x0C 	/* 171.3 CSIIW line stride (csiiw_stride) */
-#define CSIIW_FRAME_SIZE			0x10 	/* 171.4 CSIIW frame size (csiiw_frame_size) */
-#define CSIIW_FRAME_BUF				0x14 	/* 171.5 CSIIW frame buffer rorate (csiiw_frame_buf) */
-#define CSIIW_CONFIG1				0x18 	/* 171.6 CSIIW config register 1 (csiiw_config1) */
-#define CSIIW_FRAME_SIZE_RO			0x1C 	/* 171.7 CSIIW frame size of HW automatic detection (csiiw_frame_size_ro) */
-#define CSIIW_DEBUG_INFO			0x20 	/* 171.8 CSIIW debug info (csiiw_debug_info) */
-#define CSIIW_CONFIG2				0x24 	/* 171.9 CSIIW config register 2 (csiiw_config2) */
-#define CSIIW_INTERRUPT				0x28 	/* 171.10 CSIIW interrupt (csiiw_interrupt) */
-#define CSIIW_RESERVED				0x2C 	/* 171.11 CSIIW reserved (csiiw_reserved) */
-#define CSIIW_TIMESTAMP_FRAMECNT	0x30 	/* 171.12 CSIIW time stamp frame count (csiiw_timestamp_framecnt) */
-#define CSIIW_TIMESTAMP_FRAME0		0x34 	/* 171.13 CSIIW time stamp frame 0 (csiiw_timestamp_frame0) */
-#define CSIIW_TIMESTAMP_FRAME1		0x38 	/* 171.14 CSIIW time stamp frame 1 (csiiw_timestamp_frame1) */
-#define CSIIW_TIMESTAMP_FRAME2		0x3C 	/* 171.15 CSIIW time stamp frame 2 (csiiw_timestamp_frame2) */
-#define CSIIW_TIMESTAMP_FRAME3		0x40 	/* 171.16 CSIIW time stamp frame 3 (csiiw_timestamp_frame3) */
-#define CSIIW_VERSION				0x44 	/* 171.17 CSIIW IP version (csiiw_version) */
-
+#define CSIIW_LATCH_MODE	0x00	/* 171.0 CSIIW latch mode (csiiw_latch_mode) */
+#define CSIIW_CONFIG0		0x04	/* 171.1 CSIIW config register 0 (csiiw_config0) */
+#define CSIIW_BASE_ADDR		0x08	/* 171.2 CSIIW base address (csiiw_base_addr) */
+#define CSIIW_STRIDE		0x0C	/* 171.3 CSIIW line stride (csiiw_stride) */
+#define CSIIW_FRAME_SIZE	0x10	/* 171.4 CSIIW frame size (csiiw_frame_size) */
+#define CSIIW_FRAME_BUF		0x14	/* 171.5 CSIIW frame buffer rorate (csiiw_frame_buf) */
+#define CSIIW_CONFIG1		0x18	/* 171.6 CSIIW config register 1 (csiiw_config1) */
+#define CSIIW_FRAME_SIZE_RO	0x1C	// 171.7 CSIIW frame size of HW
+					// automatic detection (csiiw_frame_size_ro)
+#define CSIIW_DEBUG_INFO	0x20	/* 171.8 CSIIW debug info (csiiw_debug_info) */
+#define CSIIW_CONFIG2	0x24	/* 171.9 CSIIW config register 2 (csiiw_config2) */
+#define CSIIW_INTERRUPT	0x28	/* 171.10 CSIIW interrupt (csiiw_interrupt) */
+#define CSIIW_RESERVED	0x2C	/* 171.11 CSIIW reserved (csiiw_reserved) */
+#define CSIIW_TIMESTAMP_FRAMECNT	0x30	// 171.12 CSIIW time stamp frame count
+						// (csiiw_timestamp_framecnt)
+#define CSIIW_TIMESTAMP_FRAME0	0x34	/*171.13 CSIIW time stamp frame 0 (csiiw_timestamp_frame0)*/
+#define CSIIW_TIMESTAMP_FRAME1	0x38	/*171.14 CSIIW time stamp frame 1 (csiiw_timestamp_frame1)*/
+#define CSIIW_TIMESTAMP_FRAME2	0x3C	/*171.15 CSIIW time stamp frame 2 (csiiw_timestamp_frame2)*/
+#define CSIIW_TIMESTAMP_FRAME3	0x40	/*171.16 CSIIW time stamp frame 3 (csiiw_timestamp_frame3)*/
+#define CSIIW_VERSION				0x44 /* 171.17 CSIIW IP version (csiiw_version) */
 
 struct vin_buffer {
 	struct vb2_v4l2_buffer vb;
@@ -46,8 +47,7 @@ struct vin_buffer {
 					       struct vin_buffer, \
 					       vb)->list)
 
-#define mEXTENDED_ALIGNED(w, n)	((w%n) ? ((w/n)*n+n) : (w))
-
+#define M_EXTENDED_ALIGNED(w, n)	((w % n) ? ((w / n) * n + n) : (w))
 
 static inline void set_field(u32 *valp, u32 field, u32 mask)
 {
@@ -75,44 +75,43 @@ static void csiiw_dt_config(struct vin_dev *vin)
 	config0 = csiiw_readl(vin, CSIIW_CONFIG0);
 	config2 = csiiw_readl(vin, CSIIW_CONFIG2);
 
-
 	dev_dbg(vin->dev, "%s, %d, config0: %08x, config2: %08x\n",
-			__FUNCTION__, __LINE__, config0, config2);
+		__func__, __LINE__, config0, config2);
 
 	switch (vin->vin_fmt->bpc) {
 	default:
 	case 8:
-		set_field(&config0, 0, 0x3<<4);     /* Source is 8 bits per pixel */
-		set_field(&config0, 0, 0x1<<16);	/* Disable packed mode */
+		set_field(&config0, 0, 0x3 << 4);     /* Source is 8 bits per pixel */
+		set_field(&config0, 0, 0x1 << 16);	/* Disable packed mode */
 		break;
 
 	case 10:
-		set_field(&config0, 1, 0x3<<4);     /* Source is 10 bits per pixel */
+		set_field(&config0, 1, 0x3 << 4);     /* Source is 10 bits per pixel */
 
 		if (vin->vin_fmt->bpp == vin->vin_fmt->bpc)
-			set_field(&config0, 1, 0x1<<16); 	/* Enable packed mode */
+			set_field(&config0, 1, 0x1 << 16);	/* Enable packed mode */
 		else
-			set_field(&config0, 0, 0x1<<16); 	/* Disable packed mode */
+			set_field(&config0, 0, 0x1 << 16);	/* Disable packed mode */
 		break;
 
 	case 12:
-		set_field(&config0, 2, 0x3<<4);     /* Source is 12 bits per pixel */
+		set_field(&config0, 2, 0x3 << 4);     /* Source is 12 bits per pixel */
 
 		if (vin->vin_fmt->bpp == vin->vin_fmt->bpc)
-			set_field(&config0, 1, 0x1<<16); 	/* Enable packed mode */
+			set_field(&config0, 1, 0x1 << 16);	/* Enable packed mode */
 		else
-			set_field(&config0, 0, 0x1<<16); 	/* Disable packed mode */
+			set_field(&config0, 0, 0x1 << 16);	/* Disable packed mode */
 		break;
 	}
 
 	/* Packed mode does not support stride mode for DRAM DMA writes */
 	if (config0 & 0x00010000)
-		set_field(&config2, 1, 0x1<<0);		/* Set NO_STRIDE_EN to 1 for packed mode */
+		set_field(&config2, 1, 0x1 << 0);	/* Set NO_STRIDE_EN to 1 for packed mode */
 	else
-		set_field(&config2, 0, 0x1<<0);		/* Set NO_STRIDE_EN to 0 for unpacked mode */
+		set_field(&config2, 0, 0x1 << 0);/* Set NO_STRIDE_EN to 0 for unpacked mode */
 
 	dev_dbg(vin->dev, "%s, %d, config0: %08x, config2: %08x\n",
-			__FUNCTION__, __LINE__, config0, config2);
+		__func__, __LINE__, config0, config2);
 
 	csiiw_writel(vin, CSIIW_CONFIG0, config0);
 	csiiw_writel(vin, CSIIW_CONFIG2, config2);
@@ -131,8 +130,8 @@ static void csiiw_fs_config(struct vin_dev *vin)
 	frame_size = csiiw_readl(vin, CSIIW_FRAME_SIZE);
 
 	/* Set LINE_STRIDE field of csiiw_stride */
-	val = mEXTENDED_ALIGNED(pix->bytesperline, 16);
-	set_field(&stride, val, 0x3fff<<0);
+	val = M_EXTENDED_ALIGNED(pix->bytesperline, 16);
+	set_field(&stride, val, 0x3fff << 0);
 
 	/* Set XLEN field of csiiw_frame_size */
 	switch (vin->mbus_code) {
@@ -175,13 +174,13 @@ static void csiiw_fs_config(struct vin_dev *vin)
 		break;
 	}
 
-	set_field(&frame_size, val, 0x1fff<<0);
+	set_field(&frame_size, val, 0x1fff << 0);
 
 	/* Set YLEN field of csiiw_frame_size */
-	set_field(&frame_size, pix->height, 0xfff<<16);
+	set_field(&frame_size, pix->height, 0xfff << 16);
 
 	dev_dbg(vin->dev, "%s, %d: stride: %08x, frame_size: %08x\n",
-		 __func__, __LINE__, stride, frame_size);
+		__func__, __LINE__, stride, frame_size);
 
 	csiiw_writel(vin, CSIIW_STRIDE, stride);
 	csiiw_writel(vin, CSIIW_FRAME_SIZE, frame_size);
@@ -210,9 +209,9 @@ static void csiiw_init(struct vin_dev *vin)
 	csiiw_writel(vin, CSIIW_FRAME_SIZE, 0x03200500);
 #endif
 	csiiw_writel(vin, CSIIW_FRAME_BUF, 0x00000100);	/* set offset to trigger DRAM write */
-	csiiw_writel(vin, CSIIW_CONFIG0, 0xf02700);		/* Disable csiiw, unpacked mode */
-	csiiw_writel(vin, CSIIW_INTERRUPT, 0x1111);		/* Disable and clean fs_irq and fe_irq */
-	//csiiw_writel(vin, CSIIW_CONFIG2, 0x0001);		/* NO_STRIDE_EN = 1 */
+	csiiw_writel(vin, CSIIW_CONFIG0, 0xf02700);	/* Disable csiiw, unpacked mode */
+	csiiw_writel(vin, CSIIW_INTERRUPT, 0x1111);	/* Disable and clean fs_irq and fe_irq */
+	//csiiw_writel(vin, CSIIW_CONFIG2, 0x0001);	/* NO_STRIDE_EN = 1 */
 }
 
 static void csiiw_enable(struct vin_dev *vin)
@@ -223,27 +222,27 @@ static void csiiw_enable(struct vin_dev *vin)
 
 	/* Clean CMD_ERROR and LB_FATAL fields of csiiw_debug_info register */
 	val = 0;
-	set_field(&val, 0x1, 0x1<<3);		/* Clean CMD_ERROR flag */
-	set_field(&val, 0x1, 0x1<<2);		/* Clean LB_FATAL flag */
+	set_field(&val, 0x1, 0x1 << 3);		/* Clean CMD_ERROR flag */
+	set_field(&val, 0x1, 0x1 << 2);		/* Clean LB_FATAL flag */
 	csiiw_writel(vin, CSIIW_DEBUG_INFO, val);
 
-	dev_dbg(vin->dev, "%s, %d: debug_info: %08x\n", __FUNCTION__, __LINE__, val);
+	dev_dbg(vin->dev, "%s, %d: debug_info: %08x\n", __func__, __LINE__, val);
 
 	/* Configure csiiw_interrupt register */
 	val = 0;
-	set_field(&val, 0x0, 0x1<<12);		/* Disable Frame End IRQ mask */
-	set_field(&val, 0x1, 0x1<<8);		/* Clean Frame End interrupt */
-	set_field(&val, 0x1, 0x1<<4);		/* Enable Frame Start IRQ mask */
-	set_field(&val, 0x1, 0x1<<0);		/* Clean Frame Start interrupt */
+	set_field(&val, 0x0, 0x1 << 12);		/* Disable Frame End IRQ mask */
+	set_field(&val, 0x1, 0x1 << 8);		/* Clean Frame End interrupt */
+	set_field(&val, 0x1, 0x1 << 4);		/* Enable Frame Start IRQ mask */
+	set_field(&val, 0x1, 0x1 << 0);		/* Clean Frame Start interrupt */
 	csiiw_writel(vin, CSIIW_INTERRUPT, val);
 
-	dev_dbg(vin->dev, "%s, %d: interrupt: %08x\n", __FUNCTION__, __LINE__, val);
+	dev_dbg(vin->dev, "%s, %d: interrupt: %08x\n", __func__, __LINE__, val);
 
 	/* Configure csiiw_config0 register */
 	val = csiiw_readl(vin, CSIIW_CONFIG0);
-	set_field(&val, 0x2, 0xf<<12);		/* Bus urgent command threshold */
-	set_field(&val, 0x7, 0x7<<8);		/* Bus command queue for rate control */
-	set_field(&val, 0x1, 0x1<<0);		/* Enable CSIIW function */
+	set_field(&val, 0x2, 0xf << 12);		/* Bus urgent command threshold */
+	set_field(&val, 0x7, 0x7 << 8);		/* Bus command queue for rate control */
+	set_field(&val, 0x1, 0x1 << 0);		/* Enable CSIIW function */
 	csiiw_writel(vin, CSIIW_CONFIG0, val);
 
 	dev_dbg(vin->dev, "%s, %d: config0: 0x%08x\n", __func__, __LINE__, val);
@@ -258,15 +257,15 @@ static void csiiw_disable(struct vin_dev *vin)
 	/* Configure csiiw_interrupt register */
 	val = csiiw_readl(vin, CSIIW_INTERRUPT);
 	val = val & 0x00001111;
-	set_field(&val, 0x1, 0x1<<12);	/* Enable Frame End IRQ mask */
-	set_field(&val, 0x1, 0x1<<4);	/* Enable Frame Start IRQ mask */
+	set_field(&val, 0x1, 0x1 << 12);	/* Enable Frame End IRQ mask */
+	set_field(&val, 0x1, 0x1 << 4);	/* Enable Frame Start IRQ mask */
 	csiiw_writel(vin, CSIIW_INTERRUPT, val);
 
-	dev_dbg(vin->dev, "%s, %d: interrupt: %08x\n", __FUNCTION__, __LINE__, val);
+	dev_dbg(vin->dev, "%s, %d: interrupt: %08x\n", __func__, __LINE__, val);
 
 	/* Configure csiiw_config0 register */
 	val = csiiw_readl(vin, CSIIW_CONFIG0);
-	set_field(&val, 0x0, 0x1<<0);	/* Disable CSIIW function */
+	set_field(&val, 0x0, 0x1 << 0);	/* Disable CSIIW function */
 	csiiw_writel(vin, CSIIW_CONFIG0, val);
 
 	dev_dbg(vin->dev, "%s, %d: config0: 0x%08x\n", __func__, __LINE__, val);
@@ -279,8 +278,10 @@ static void vin_crop_scale_comp_gen2(struct vin_dev *vin)
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 	//dev_dbg(vin->dev, "%s, vin->format.field: %d\n", __func__, vin->format.field);
-	//dev_dbg(vin->dev, "%s, vin->crop.height: 0x%x, vin->crop.width: 0x%x\n",__func__, vin->crop.height, vin->crop.width);
-	//dev_dbg(vin->dev, "%s, vin->compose.height: 0x%x, vin->compose.width: 0x%x\n",__func__, vin->compose.height, vin->compose.width);
+	//dev_dbg(vin->dev, "%s, vin->crop.height: 0x%x, vin->crop.width: 0x%x\n",
+	//	__func__, vin->crop.height, vin->crop.width);
+	//dev_dbg(vin->dev, "%s, vin->compose.height: 0x%x, vin->compose.width: 0x%x\n",
+	//	__func__, vin->compose.height, vin->compose.width);
 
 	/* Set scaling coefficient */
 	crop_height = vin->crop.height;
@@ -482,8 +483,6 @@ static int vin_capture_start(struct vin_dev *vin)
 		return ret;
 
 	vin_dbg(vin, "Starting to capture\n");
-
-
 	vin->state = STARTING;
 
 	return 0;
@@ -507,12 +506,12 @@ static void vin_capture_stop(struct vin_dev *vin)
 static irqreturn_t vin_fs_irq(int irq, void *data)
 {
 	struct vin_dev *vin = data;
-	u32 interupt = 0;
+	u32 interrupt = 0;
 
 	/* Clean Frame Start interrupt */
-	interupt = csiiw_readl(vin, CSIIW_INTERRUPT);
-	interupt = interupt & 0x00001011;		/* Clean FIELD_START_INT */
-	csiiw_writel(vin, CSIIW_INTERRUPT, interupt);
+	interrupt = csiiw_readl(vin, CSIIW_INTERRUPT);
+	interrupt = interrupt & 0x00001011;		/* Clean FIELD_START_INT */
+	csiiw_writel(vin, CSIIW_INTERRUPT, interrupt);
 
 	return IRQ_HANDLED;
 }
@@ -523,11 +522,11 @@ static irqreturn_t vin_fe_irq(int irq, void *data)
 	int slot;
 	unsigned int handled = 0;
 	unsigned long flags;
-	u32 interupt = 0, debbug_info = 0;
+	u32 interrupt = 0, debbug_info = 0;
 
 	dev_dbg(vin->dev, "%s, vin->id: %d, vin->state: %d\n", __func__, vin->id, vin->state);
 
-	interupt = csiiw_readl(vin, CSIIW_INTERRUPT);
+	interrupt = csiiw_readl(vin, CSIIW_INTERRUPT);
 	debbug_info = csiiw_readl(vin, CSIIW_DEBUG_INFO);
 
 	spin_lock_irqsave(&vin->qlock, flags);
@@ -602,8 +601,8 @@ done:
 	spin_unlock_irqrestore(&vin->qlock, flags);
 
 	/* Clean Frame End interrupt */
-	interupt = interupt & 0x00001110;		/* Clean FIELD_END_INT */
-	csiiw_writel(vin, CSIIW_INTERRUPT, interupt);
+	interrupt = interrupt & 0x00001110;		/* Clean FIELD_END_INT */
+	csiiw_writel(vin, CSIIW_INTERRUPT, interrupt);
 
 	/* Clean csiiw_debug_info register */
 	debbug_info = 0x0000000c;				/* Clean CMD_ERROR and LB_FATAL */
@@ -644,8 +643,8 @@ static void return_all_buffers(struct vin_dev *vin,
 }
 
 static int vin_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
-			    unsigned int *nplanes, unsigned int sizes[],
-			    struct device *alloc_devs[])
+			   unsigned int *nplanes, unsigned int sizes[],
+			   struct device *alloc_devs[])
 
 {
 	struct vin_dev *vin = vb2_get_drv_priv(vq);
@@ -698,7 +697,7 @@ static void vin_buffer_queue(struct vb2_buffer *vb)
 }
 
 static int vin_mc_validate_format(struct vin_dev *vin, struct v4l2_subdev *sd,
-				   struct media_pad *pad)
+				  struct media_pad *pad)
 {
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -801,22 +800,20 @@ static int vin_mc_validate_format(struct vin_dev *vin, struct v4l2_subdev *sd,
 
 static int vin_set_stream(struct vin_dev *vin, int on)
 {
-	struct media_pipeline *pipe;
-	struct media_device *mdev;
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d, on: %d\n", __func__, __LINE__, on);
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
 	if (!on) {
-		media_pipeline_stop(&vin->vdev.entity);
+		video_device_pipeline_stop(&vin->vdev);
 		return v4l2_subdev_call(sd, video, s_stream, 0);
 	}
 
@@ -824,19 +821,14 @@ static int vin_set_stream(struct vin_dev *vin, int on)
 	if (ret)
 		return ret;
 
-	dev_dbg(vin->dev, "%s, sd->entity.pipe: 0x%px\n", __func__, sd->entity.pipe);
-
+	dev_dbg(vin->dev, "%s, sd->entity.pipe: 0x%p\n", __func__, video_device_pipeline(&vin->vdev));
 	/*
 	 * The graph lock needs to be taken to protect concurrent
 	 * starts of multiple VIN instances as they might share
 	 * a common subdevice down the line and then should use
 	 * the same pipe.
 	 */
-	mdev = vin->vdev.entity.graph_obj.mdev;
-	mutex_lock(&mdev->graph_mutex);
-	pipe = sd->entity.pipe ? sd->entity.pipe : &vin->vdev.pipe;
-	ret = __media_pipeline_start(&vin->vdev.entity, pipe);
-	mutex_unlock(&mdev->graph_mutex);
+	ret = video_device_pipeline_alloc_start(&vin->vdev);
 	if (ret)
 		return ret;
 
@@ -846,7 +838,7 @@ static int vin_set_stream(struct vin_dev *vin, int on)
 	if (ret == -ENOIOCTLCMD)
 		ret = 0;
 	if (ret)
-		media_pipeline_stop(&vin->vdev.entity);
+		video_device_pipeline_stop(&vin->vdev);
 
 	dev_dbg(vin->dev, "%s, %d, ret: %d\n", __func__, __LINE__, ret);
 
@@ -916,7 +908,6 @@ static void vin_stop_streaming(struct vb2_queue *vq)
 
 	/* Wait for streaming to stop */
 	while (retries++ < VIN_RETRIES) {
-
 		vin_capture_stop(vin);
 
 		/* Check if HW is stopped */
@@ -1018,14 +1009,14 @@ int vin_dma_register(struct vin_dev *vin, int fs_irq, int fe_irq)
 
 	/* irq */
 	ret = devm_request_irq(vin->dev, fs_irq, vin_fs_irq, IRQF_SHARED,
-				   KBUILD_MODNAME, vin);
+			       KBUILD_MODNAME, vin);
 	if (ret) {
 		vin_err(vin, "failed to request fs irq\n");
 		goto error;
 	}
 
 	ret = devm_request_irq(vin->dev, fe_irq, vin_fe_irq, IRQF_SHARED,
-				   KBUILD_MODNAME, vin);
+			       KBUILD_MODNAME, vin);
 	if (ret) {
 		vin_err(vin, "failed to request fe irq\n");
 		goto error;

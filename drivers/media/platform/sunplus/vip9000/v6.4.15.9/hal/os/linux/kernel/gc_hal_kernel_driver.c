@@ -1010,7 +1010,11 @@ gceSTATUS viv_char_device_node_create(uint32_t dev_index)
             major = result;
 
         /* Create the device class. */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
+        gpu_class = class_create(CLASS_NAME);
+#else
         gpu_class = class_create(THIS_MODULE, CLASS_NAME);
+#endif
 
         if (IS_ERR(gpu_class)) {
             gpu_class = gcvNULL;

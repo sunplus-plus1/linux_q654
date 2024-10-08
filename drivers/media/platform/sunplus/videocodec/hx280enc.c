@@ -418,7 +418,7 @@ static int enc_chrdev_probe(struct platform_device *dev)
     }  
       
     // create the device class  
-    enc_chrdev_class = class_create(THIS_MODULE, ENC_CHRDEV_NAME);  
+    enc_chrdev_class = class_create(ENC_CHRDEV_NAME);  
     if (IS_ERR(enc_chrdev_class)) {  
         dev_err(&dev->dev, " class_create failed!\n");  
         goto PROBE_ERR;  

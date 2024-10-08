@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/sunplus,sp7350-npu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ML Inference Processor NPU
+
+maintainers:
+  - Luo Yang <yang.luo@sunmedia.com.cn>
+
+description: |
+  - ML Inference Processor NPU hardware in Sunplus SoCs
+
+properties:
+  compatible:
+    const: galcore
+
+  reg:
+    maxItems: 2
+
+  reg-names:
+    items:
+      - const: galcore
+      - const: gal_ios
+
+  memory-region:
+    maxItems: 1
+    description: Reference to the reserved-memory for the npu core
+
+  dev_name:
+    const: galcore
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: clk_npu
+
+  clock-frequency:
+    description: Frequency of clock in Hz
+    default: 900000000
+
+  resets:
+    maxItems: 1
+
+  reset-names:
+    const: rstc_npu
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - dev_name
+  - memory-region
+  - interrupts
+  - clocks
+  - clock-names
+  - clock-frequency
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    galcore: galcore@f8140000 {
+      compatible = "galcore";
+      reg = <0xf8140000 0x20000>, <0xf880125c 0xff>;
+      reg-names = "galcore","gal_ios";
+      dev_name = "galcore";
+      memory-region = <&npu_reserve>;
+      interrupt-parent = <&gic>;
+      interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&clkc NPU>;
+      clock-names = "clk_npu";
+      clock-frequency = <900000000>;
+      resets = <&rstc RST_NPU>;
+      reset-names = "rstc_npu";
+    };

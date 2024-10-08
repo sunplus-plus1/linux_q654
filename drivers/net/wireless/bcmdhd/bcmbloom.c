@@ -1,7 +1,26 @@
 /*
  * Bloom filter support
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,16 +43,13 @@
 #include <typedefs.h>
 #include <bcmdefs.h>
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0))
-#include <stdarg.h>
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 16, 0) */
-
 #ifdef BCMDRIVER
 #include <osl.h>
 #include <bcmutils.h>
 #else /* !BCMDRIVER */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #ifndef ASSERT
 #define ASSERT(exp)
 #endif
@@ -71,7 +87,7 @@ bcm_bloom_create(bcm_bloom_alloc_t alloc_cb,
 		err = BCME_NOMEM;
 		goto done;
 	}
-	memset(bp, 0, sizeof(*bp));
+	bzero(bp, sizeof(*bp));
 
 	bp->cb_ctx = cb_ctx;
 	bp->max_hash = max_hash;
@@ -80,7 +96,7 @@ bcm_bloom_create(bcm_bloom_alloc_t alloc_cb,
 		err = BCME_NOMEM;
 		goto done;
 	}
-	memset(bp->hash, 0, sizeof(*bp->hash) * max_hash);
+	bzero(bp->hash, sizeof(*bp->hash) * max_hash);
 
 	if (filter_size > 0) {
 		bp->filter = (*alloc_cb)(cb_ctx, filter_size);
@@ -89,7 +105,7 @@ bcm_bloom_create(bcm_bloom_alloc_t alloc_cb,
 			goto done;
 		}
 		bp->filter_size = filter_size;
-		memset(bp->filter, 0, filter_size);
+		bzero(bp->filter, filter_size);
 	}
 
 	*bloom = bp;

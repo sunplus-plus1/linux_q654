@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Ltd. Co. 2024
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/sunplus,sp7350-mmc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus MMC Controller
+
+maintainers:
+  - Tony Huang <tonyhuang.sunplus@gmail.com>
+
+allOf:
+  - $ref: mmc-controller.yaml
+
+properties:
+  compatible:
+    enum:
+      - sunplus,sp7350-emmc
+
+  reg:
+    maxItems: 3
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>  
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    mmc0: mmc@f8003b00 {
+        compatible = "sunplus,sp7350-emmc";
+        reg = <0xf8003b00 0x180>, <0xf8803280 0x80>, <0xf8803354 0x0C>;
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&clkc CARD_CTL0>;
+        resets = <&rstc RST_CARD_CTL0>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&emmc_pins>;
+        bus-width = <8>;
+        non-removable;
+        disable-wp;
+        cap-mmc-highspeed;
+        no-sdio;
+        no-sd;
+    };

@@ -16,9 +16,11 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
-static void sunplus_fix_mac_speed(void *priv, unsigned int speed)
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+static void sunplus_fix_mac_speed(void *priv, unsigned int speed,
+				unsigned int mode)
 {
-	struct stmmac_priv *stmmac = (struct stmmac_priv*)priv;
+	struct stmmac_priv *stmmac = (struct stmmac_priv *)priv;
 	unsigned long rate;
 	int ret;
 
@@ -59,6 +61,7 @@ static void sunplus_fix_mac_speed(void *priv, unsigned int speed)
 		dev_err(stmmac->device, "Failed to configure stmmac clock rate!\n");
 	clk_prepare_enable(stmmac->plat->stmmac_clk);
 }
+#endif
 
 static int dwmac_generic_probe(struct platform_device *pdev)
 {
@@ -71,7 +74,7 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 		return ret;
 
 	if (pdev->dev.of_node) {
-		plat_dat = stmmac_probe_config_dt(pdev, &stmmac_res.mac);
+		plat_dat = stmmac_probe_config_dt(pdev, stmmac_res.mac);
 		if (IS_ERR(plat_dat)) {
 			dev_err(&pdev->dev, "dt configuration failed\n");
 			return PTR_ERR(plat_dat);
@@ -90,24 +93,16 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 		plat_dat->unicast_filter_entries = 1;
 	}
 
+#if IS_ENABLED(CONFIG_SOC_SP7350)
 	plat_dat->fix_mac_speed = sunplus_fix_mac_speed;
+#endif
 
-	/* Custom initialisation (if needed) */
-	if (plat_dat->init) {
-		ret = plat_dat->init(pdev, plat_dat->bsp_priv);
-		if (ret)
-			goto err_remove_config_dt;
-	}
-
-	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
+	ret = stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
 	if (ret)
-		goto err_exit;
+		goto err_remove_config_dt;
 
 	return 0;
 
-err_exit:
-	if (plat_dat->exit)
-		plat_dat->exit(pdev, plat_dat->bsp_priv);
 err_remove_config_dt:
 	if (pdev->dev.of_node)
 		stmmac_remove_config_dt(pdev, plat_dat);
@@ -117,6 +112,7 @@ err_remove_config_dt:
 
 static const struct of_device_id dwmac_generic_match[] = {
 	{ .compatible = "st,spear600-gmac"},
+	{ .compatible = "snps,dwmac-3.40a"},
 	{ .compatible = "snps,dwmac-3.50a"},
 	{ .compatible = "snps,dwmac-3.610"},
 	{ .compatible = "snps,dwmac-3.70a"},
@@ -132,11 +128,11 @@ MODULE_DEVICE_TABLE(of, dwmac_generic_match);
 
 static struct platform_driver dwmac_generic_driver = {
 	.probe  = dwmac_generic_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove_new = stmmac_pltfr_remove,
 	.driver = {
 		.name           = STMMAC_RESOURCE_NAME,
 		.pm		= &stmmac_pltfr_pm_ops,
-		.of_match_table = of_match_ptr(dwmac_generic_match),
+		.of_match_table = dwmac_generic_match,
 	},
 };
 module_platform_driver(dwmac_generic_driver);
