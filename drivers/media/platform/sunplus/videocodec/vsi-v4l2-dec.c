@@ -1130,7 +1130,7 @@ static int v4l2_dec_open(struct file *filp)
 	ctx->dev = dev;
 	mutex_init(&ctx->ctxlock);
 	ctx->flag = CTX_FLAG_DEC;
- 
+
 	ctx->frameidx = 0;
 	q = &ctx->input_que;
 	q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
@@ -1269,7 +1269,7 @@ struct video_device *vsi_v4l2_probe_dec(struct platform_device *pdev, struct vsi
 	vdec->vfl_type = VSI_DEVTYPE;
 	vpu->vdec = vdec;
 	vdec->queue = NULL;
-	
+
 	video_set_drvdata(vdec, vpu);
 
 	ret = video_register_device(vdec, VSI_DEVTYPE, VIDEO_NODE_OFFSET);
