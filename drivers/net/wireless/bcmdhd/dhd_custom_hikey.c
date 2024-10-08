@@ -1,7 +1,26 @@
 /*
  * Platform Dependent file for Hikey
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -47,6 +66,9 @@ extern int dhd_init_wlan_mem(void);
 extern void *dhd_wlan_mem_prealloc(int section, unsigned long size);
 #endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
 
+#define HIKEY_PCIE_VENDOR_ID 0x19e5
+#define HIKEY_PCIE_DEVICE_ID 0x3660
+
 #define WLAN_REG_ON_GPIO		491
 #define WLAN_HOST_WAKE_GPIO		493
 
@@ -57,6 +79,30 @@ static int wlan_reg_on = -1;
 static int wlan_host_wake_up = -1;
 static int wlan_host_wake_irq = 0;
 #define WIFI_WLAN_HOST_WAKE_PROPNAME    "wl_host_wake"
+
+extern void kirin_pcie_power_on_atu_fixup(void) __attribute__ ((weak));
+extern int kirin_pcie_lp_ctrl(u32 enable) __attribute__ ((weak));
+
+void
+dhd_wifi_deinit_gpio(void)
+{
+	/* Disable ASPM before powering off */
+	if (kirin_pcie_lp_ctrl) {
+		kirin_pcie_lp_ctrl(0);
+	} else {
+		DHD_ERROR(("[%s] kirin_pcie_lp_ctrl is NULL. "
+			"ASPM may not work\n", __func__));
+	}
+	if (gpio_direction_output(wlan_reg_on, 0)) {
+		DHD_ERROR(("%s: WL_REG_ON is failed to pull up\n", __FUNCTION__));
+	}
+	if (gpio_get_value(wlan_reg_on)) {
+		DHD_INFO(("WL_REG_ON on-step-2 : [%d]\n",
+			gpio_get_value(wlan_reg_on)));
+	}
+	gpio_free(wlan_host_wake_up);
+	gpio_free(wlan_reg_on);
+}
 
 int
 dhd_wifi_init_gpio(void)
@@ -83,7 +129,7 @@ dhd_wifi_init_gpio(void)
 	 * For reg_on, gpio_request will fail if the gpio is configured to output-high
 	 * in the dts using gpio-hog, so do not return error for failure.
 	 */
-	if (gpio_request_one(wlan_reg_on, GPIOF_OUT_INIT_HIGH, "WL_REG_ON")) {
+	if (gpio_request_one(wlan_reg_on, GPIOF_DIR_OUT, "WL_REG_ON")) {
 		DHD_ERROR(("%s: Failed to request gpio %d for WL_REG_ON, "
 			"might have configured in the dts\n",
 			__FUNCTION__, wlan_reg_on));
@@ -93,7 +139,7 @@ dhd_wifi_init_gpio(void)
 	}
 
 	gpio_reg_on_val = gpio_get_value(wlan_reg_on);
-	DHD_INFO(("%s: Initial WL_REG_ON: [%d]\n",
+	DHD_ERROR(("%s: Initial WL_REG_ON: [%d]\n",
 		__FUNCTION__, gpio_get_value(wlan_reg_on)));
 
 	if (gpio_reg_on_val == 0) {
@@ -102,10 +148,27 @@ dhd_wifi_init_gpio(void)
 			DHD_ERROR(("%s: WL_REG_ON is failed to pull up\n", __FUNCTION__));
 			return -EIO;
 		}
-	}
+		/* Wait for WIFI_TURNON_DELAY due to power stability */
+		msleep(WIFI_TURNON_DELAY);
 
-	/* Wait for WIFI_TURNON_DELAY due to power stability */
-	msleep(WIFI_TURNON_DELAY);
+		/*
+		 * Call Kiric RC ATU fixup else si_attach will fail due to
+		 * improper BAR0/1 address translations
+		 */
+		if (kirin_pcie_power_on_atu_fixup) {
+			kirin_pcie_power_on_atu_fixup();
+		} else {
+			DHD_ERROR(("[%s] kirin_pcie_power_on_atu_fixup is NULL. "
+				"REG_ON may not work\n", __func__));
+		}
+		/* Enable ASPM after powering ON */
+		if (kirin_pcie_lp_ctrl) {
+			kirin_pcie_lp_ctrl(1);
+		} else {
+			DHD_ERROR(("[%s] kirin_pcie_lp_ctrl is NULL. "
+				"ASPM may not work\n", __func__));
+		}
+	}
 
 	/* ========== WLAN_HOST_WAKE ============ */
 	DHD_INFO(("%s: gpio_wlan_host_wake : %d\n", __FUNCTION__, wlan_host_wake_up));
@@ -129,9 +192,6 @@ dhd_wifi_init_gpio(void)
 
 	return 0;
 }
-
-extern void kirin_pcie_power_on_atu_fixup(void) __attribute__ ((weak));
-extern int kirin_pcie_lp_ctrl(u32 enable) __attribute__ ((weak));
 
 int
 dhd_wlan_power(int onoff)
@@ -254,6 +314,15 @@ dhd_wlan_init(void)
 	int ret;
 
 	DHD_INFO(("%s: START.......\n", __FUNCTION__));
+#ifdef CONFIG_BROADCOM_WIFI_RESERVED_MEM
+	ret = dhd_init_wlan_mem();
+	if (ret < 0) {
+		DHD_ERROR(("%s: failed to alloc reserved memory,"
+				" ret=%d\n", __FUNCTION__, ret));
+		goto fail;
+	}
+#endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
+
 	ret = dhd_wifi_init_gpio();
 	if (ret < 0) {
 		DHD_ERROR(("%s: failed to initiate GPIO, ret=%d\n",
@@ -264,14 +333,6 @@ dhd_wlan_init(void)
 	dhd_wlan_resources.start = wlan_host_wake_irq;
 	dhd_wlan_resources.end = wlan_host_wake_irq;
 
-#ifdef CONFIG_BROADCOM_WIFI_RESERVED_MEM
-	ret = dhd_init_wlan_mem();
-	if (ret < 0) {
-		DHD_ERROR(("%s: failed to alloc reserved memory,"
-				" ret=%d\n", __FUNCTION__, ret));
-	}
-#endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
-
 fail:
 	DHD_INFO(("%s: FINISH.......\n", __FUNCTION__));
 	return ret;
@@ -280,10 +341,20 @@ fail:
 int
 dhd_wlan_deinit(void)
 {
-	gpio_free(wlan_host_wake_up);
-	gpio_free(wlan_reg_on);
+	dhd_wifi_deinit_gpio();
 	return 0;
 }
+
+uint32 dhd_plat_get_rc_vendor_id(void)
+{
+	return HIKEY_PCIE_VENDOR_ID;
+}
+
+uint32 dhd_plat_get_rc_device_id(void)
+{
+	return HIKEY_PCIE_DEVICE_ID;
+}
+
 #ifndef BCMDHD_MODULAR
 /* Required only for Built-in DHD */
 device_initcall(dhd_wlan_init);

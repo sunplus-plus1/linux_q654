@@ -1,7 +1,26 @@
 /*
  * Private header file for Linux OS Independent Layer
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -145,10 +164,6 @@ struct osl_cmn_info {
 };
 typedef struct osl_cmn_info osl_cmn_t;
 
-#if defined(AXI_TIMEOUTS_NIC)
-typedef uint32 (*bpt_cb_fn)(void *ctx, void *addr);
-#endif	/* AXI_TIMEOUTS_NIC */
-
 struct osl_info {
 	osl_pubinfo_t pub;
 	uint32  flags;		/* If specific cases to be handled in the OSL */
@@ -168,10 +183,6 @@ struct osl_info {
 	struct list_head ctrace_list;
 	int ctrace_num;
 #endif /* BCMDBG_CTRACE */
-#if defined(AXI_TIMEOUTS_NIC)
-	bpt_cb_fn bpt_cb;
-	void *sih;
-#endif	/* AXI_TIMEOUTS_NIC */
 #ifdef USE_DMA_LOCK
 	spinlock_t dma_lock;
 	bool dma_lock_bh;

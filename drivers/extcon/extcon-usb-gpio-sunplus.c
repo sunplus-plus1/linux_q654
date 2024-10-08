@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/of_platform.h>
+#include <linux/clk.h>
 
 #define USB_GPIO_DEBOUNCE_MS	20	/* ms */
 
@@ -46,19 +47,20 @@ struct usb3_phy {
 };
 
 struct usb_extcon_info {
-	struct device *dev;
-	struct extcon_dev *edev;
-	void __iomem *u2phy_base_addr;
-	struct gpio_desc *id_gpiod;
-	struct gpio_desc *vbus_gpiod;
-	int id_irq;
-	int vbus_irq;
+	struct device		*dev;
+	struct extcon_dev	*edev;
+	void __iomem		*u2phy_base_addr;
+	struct gpio_desc	*id_gpiod;
+	struct gpio_desc	*vbus_gpiod;
+	int			id_irq;
+	int			vbus_irq;
 
-	unsigned long debounce_jiffies;
-	struct delayed_work wq_detcable;
-	struct usb3_phy *spphydata;
+	unsigned long		debounce_jiffies;
+	struct delayed_work	wq_detcable;
+	struct usb3_phy		*spphydata;
 	/* Usb3 vbus eco solution */
-	int chip_version;
+	int			chip_version;
+	struct clk		*u2phy_clk;
 };
 
 static const unsigned int usb_extcon_cable[] = {
@@ -83,9 +85,9 @@ static const unsigned int usb_extcon_cable[] = {
  * In case we have only one of these signals:
  * - VBUS only - we want to distinguish between [1] and [2], so ID is always 1.
  * - ID only - we want to distinguish between [1] and [4], so VBUS = ID.
-*/
+ */
 static int pre_id = 2;
-static int pre_u3linkstate = 0;
+static int pre_u3linkstate = 0xff;
 static void usb_extcon_detect_cable(struct work_struct *work)
 {
 	int id, vbus, u3linkstate;
@@ -94,7 +96,7 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 						    wq_detcable);
 	struct u2phy_regs *phy_reg;
 
-	phy_reg = (struct u2phy_regs *) info->u2phy_base_addr;
+	phy_reg = (struct u2phy_regs *)info->u2phy_base_addr;
 	/* check ID and VBUS and update cable state */
 	id = info->id_gpiod ?
 		gpiod_get_value_cansleep(info->id_gpiod) : 1;
@@ -121,24 +123,30 @@ static void usb_extcon_detect_cable(struct work_struct *work)
 	}
 
 	if (id != pre_id) {
-		pre_id = id;
-		//printk("usb_extcon_detect_cable id 0x%x vbus 0x%x\n", id, vbus);
-		/* at first we clean states which are no longer active */
-		if (id)
-			extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
-		if (!vbus)
-			extcon_set_state_sync(info->edev, EXTCON_USB, false);
+		if (info->spphydata->dir == gpiod_get_value(info->spphydata->gpiodir)) {
+			pre_id = id;
+			//printk("@@@usb_extcon_detect_cable id 0x%x vbus 0x%x\n", id, vbus);
+			/* at first we clean states which are no longer active */
+			if (id)
+				extcon_set_state_sync(info->edev, EXTCON_USB_HOST, false);
+			if (!vbus)
+				extcon_set_state_sync(info->edev, EXTCON_USB, false);
 
-		if (!id) {
-			/* Usb3 vbus eco solution */
-			phy_reg->cfg[29] |= (1 << 30);
-			extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
-		} else {
-			if (vbus) {
+			if (!id) {
 				/* Usb3 vbus eco solution */
-				phy_reg->cfg[29] &= ~(1 << 30);
-				extcon_set_state_sync(info->edev, EXTCON_USB, true);
+				phy_reg->cfg[29] |= (3 << 30);
+				extcon_set_state_sync(info->edev, EXTCON_USB_HOST, true);
+			} else {
+				if (vbus) {
+					/* Usb3 vbus eco solution */
+					phy_reg->cfg[29] |= (1 << 31);
+					phy_reg->cfg[29] &= ~(1 << 30);
+					extcon_set_state_sync(info->edev, EXTCON_USB, true);
+				}
 			}
+		} else {
+			schedule_delayed_work(&info->wq_detcable, msecs_to_jiffies(10));
+			return;
 		}
 	}
 	schedule_delayed_work(&info->wq_detcable, msecs_to_jiffies(150));
@@ -176,16 +184,24 @@ static int usb_extcon_probe(struct platform_device *pdev)
 
 	if (IS_ERR(info->vbus_gpiod))
 		return PTR_ERR(info->vbus_gpiod);
-
 	/* Usb3 vbus eco solution */
 	stamp = ioremap(0xf8800000, 1);
 	info->chip_version = readl(stamp);
 	iounmap(stamp);
 
 	u2phy_res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	info->u2phy_base_addr = devm_ioremap(&pdev->dev, u2phy_res_mem->start, resource_size(u2phy_res_mem));
+	info->u2phy_base_addr = devm_ioremap(&pdev->dev, u2phy_res_mem->start,
+					     resource_size(u2phy_res_mem));
 	if (IS_ERR(info->u2phy_base_addr))
 		return PTR_ERR(info->u2phy_base_addr);
+
+	/*enable u2 phy system clock*/
+	info->u2phy_clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(info->u2phy_clk)) {
+		dev_err(dev, "not found clk source\n");
+		return PTR_ERR(info->u2phy_clk);
+	}
+	clk_prepare_enable(info->u2phy_clk);
 
 	info->edev = devm_extcon_dev_allocate(dev, usb_extcon_cable);
 	if (IS_ERR(info->edev)) {
@@ -193,9 +209,9 @@ static int usb_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (!phynp)
+	if (!phynp) {
 		dev_err(dev, "!!!no phy\n");
-	else {
+	} else {
 		info->spphydata = dev_get_drvdata(&spphypdev->dev);
 		if (!info->spphydata)
 			dev_err(dev, "!!!no phy data\n");
@@ -221,10 +237,9 @@ static int usb_extcon_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 	device_set_wakeup_capable(&pdev->dev, true);
-
 	/* Perform initial detection */
 	usb_extcon_detect_cable(&info->wq_detcable.work);
-	pr_info("*****usb_extcon_probe end\n");
+	//pr_info("%s end\n", __func__);
 	return 0;
 }
 

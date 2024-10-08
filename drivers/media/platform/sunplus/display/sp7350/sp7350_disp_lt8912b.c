@@ -593,8 +593,7 @@ err_free_host_node:
 	return ret;
 }
 
-static int lt8912_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int lt8912_probe(struct i2c_client *client)
 {
 	static struct lt8912 *lt;
 	int ret = 0;
@@ -632,12 +631,11 @@ err_dt_parse:
 	return ret;
 }
 
-static int lt8912_remove(struct i2c_client *client)
+static void lt8912_remove(struct i2c_client *client)
 {
 	struct lt8912 *lt = i2c_get_clientdata(client);
 
 	lt8912_free_i2c(lt);
-	return 0;
 }
 
 static const struct of_device_id lt8912_dt_match[] = {

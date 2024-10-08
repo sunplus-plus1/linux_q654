@@ -34,7 +34,7 @@ enum loglevel {
 	SPMMC_LOG_MAX
 };
 static int loglevel = SPMMC_LOG_WARNING;
-static int CMD23_RECEIVED = 0;
+static int CMD23_RECEIVED;
 /**
  * we do not need `SPMMC_LOG_' prefix here, when specify @level.
  */
@@ -336,12 +336,12 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 	if (clk > f_max)
 		clk = f_max;
 
-	if(f_max == 200000000)
+	if (f_max == 200000000)
 		clk_set_rate(host->clk, 800000000);
 	//spmmc_pr(INFO, "clk_get_rate(host->clk) %d\n", clk_get_rate(host->clk));
 	spmmc_pr(INFO, "set bus clock to %d\n", clk);
 
-	if(clk_get_rate(host->clk) < SPMMC_SYS_CLK)
+	if (clk_get_rate(host->clk) < SPMMC_SYS_CLK)
 		clkdiv = (clk_get_rate(host->clk)+clk)/clk-1;
 	else
 		clkdiv = clk_get_rate(host->clk)/clk-1;
@@ -367,7 +367,7 @@ static void spmmc_set_bus_clk(struct spmmc_host *host, int clk)
 
 static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 {
-	u32 hs400_value,i;
+	u32 hs400_value, i;
 	u32 value = readl(&host->base->sd_config1);
 	int clkdiv = readl(&host->base->sd_config0) >> 20;
 	int delay = clkdiv/2 < 7 ? clkdiv/2 : 7;
@@ -415,7 +415,6 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 			hs400_value = bitfield_replace(hs400_value, 21 + i, 1, 1);//DO FF BYPASS TM:Don not bypass IP input data
 		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[1]);
 		mdelay(1);
-		spmmc_pr(WARNING, "Do not bypass IP input data\n");
 		break;
 	case MMC_TIMING_MMC_HS400:
 		host->ddr_enabled = 1;
@@ -424,12 +423,10 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 		hs400_value = readl(&host->base->sd_config0);
 		hs400_value = bitfield_replace(hs400_value, 19, 1, 1);//sdhs400mode
 		writel(hs400_value, &host->base->sd_config0);
-		//spmmc_pr(WARNING, "sdhs400mode=1\n");
 		mdelay(1);
 		hs400_value = readl(&host->base->card_mediatype_srcdst);
 		hs400_value = bitfield_replace(hs400_value, 11, 1, 1);
 		writel(hs400_value, &host->base->card_mediatype_srcdst);
-		//spmmc_pr(WARNING, "enhanced_strobe=1\n");
 		mdelay(1);
 		hs400_value = readl(&host->base->sd_vol_ctrl);
 		hs400_value = bitfield_replace(hs400_value, 31, 1, 0);
@@ -449,7 +446,6 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 		hs400_value = bitfield_replace(hs400_value, 13, 1, 1);//EMMC_DS_DO_FF_BYPASS_TM: Do not bypass IP input data.
 		hs400_value = bitfield_replace(hs400_value, 14, 2, 2);//EMMC_DS_DI_DEL_SEL.
 		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
-		//spmmc_pr(WARNING, "Do not bypass IP input data\n");
 		mdelay(1);
 		break;
 	default:
@@ -511,17 +507,16 @@ static void spmmc_set_bus_width(struct spmmc_host *host, int width)
 /**
  * select the working mode of controller: sd/sdio/emmc
  */
-static void spmmc_select_mode(struct spmmc_host *host, int mode)
+static void spmmc_select_mode(struct spmmc_host *host)
 {
 	u32 value = readl(&host->base->sd_config0);
 
-	host->mode = mode;
 	/* set `sdmmcmode', as it will sample data at fall edge */
 	/* of SD bus clock if `sdmmcmode' is not set when */
 	/* `sd_high_speed_en' is not set, which is not compliant */
 	/* with SD specification */
 	value = bitfield_replace(value, 10, 1, 1);
-	switch (mode) {
+	switch (host->mode) {
 	case SPMMC_MODE_EMMC:
 		value = bitfield_replace(value, 9, 1, 0);
 		writel(value, &host->base->sd_config0);
@@ -633,15 +628,20 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 	}
 	value = bitfield_replace(value, 2, 1, 1);
 	if (likely(host->dmapio_mode == SPMMC_DMA_MODE)) {
-		struct scatterlist *sg;
 		dma_addr_t dma_addr;
 		unsigned int dma_size;
 		#ifdef SPMMC_DMA_ALLOC
+		#ifndef SPMMC_HIGH_MEM
 		unsigned int sg_xlen;
 		#endif
-		u32 *reg_addr;
+		#endif
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		int i, count = 1;
+		#ifndef SPMMC_HIGH_MEM
+		struct scatterlist *sg;
+		int i;
+		u32 *reg_addr;
+		#endif
+		int count = 1;
 
 		count = dma_map_sg(host->mmc->parent, data->sg, data->sg_len, dma_direction);
 #ifndef SPMMC_DMA_ALLOC
@@ -676,7 +676,7 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 		writel(dma_addr, &host->base->dma_base_addr);
 		writel(dma_size, &host->base->sdram_sector_0_size);
 #else
-		if(data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) {
+		if (data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) {
 			host->xfer_len = data->blocks * data->blksz;
 			count = 8;
 		}
@@ -688,7 +688,7 @@ static void spmmc_prepare_data(struct spmmc_host *host, struct mmc_data *data)
 				writel(dma_addr, &host->base->dma_base_addr);
 				writel(dma_size, &host->base->sdram_sector_0_size);
 				host->xfer_len -= sg_xlen;
-			} else if(i < 7){
+			} else if (i < 7) {
 				reg_addr = &host->base->sdram_sector_1_addr + (i - 1) * 2;
 				writel(dma_addr, reg_addr);
 				writel(dma_size, reg_addr + 1);
@@ -850,11 +850,10 @@ static int spmmc_check_error(struct spmmc_host *host, struct mmc_request *mrq)
 
 	if ((cmd->opcode == MMC_READ_MULTIPLE_BLOCK)
 		|| (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)) {
-		if(CMD23_RECEIVED == 0){
+		if (CMD23_RECEIVED == 0) {
 			spmmc_pr(DEBUG, "CMD23_RECEIVED == 0\n");
 			__send_stop_cmd(host);
-		}
-		else {
+		} else {
 			spmmc_pr(DEBUG, "CMD23_RECEIVED == 1\n");
 			CMD23_RECEIVED = 0;
 		}
@@ -1001,8 +1000,10 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 	struct mmc_command *cmd;
 	struct mmc_data *data;
 #ifdef SPMMC_DMA_ALLOC
+#ifndef SPMMC_HIGH_MEM
 	struct scatterlist *sg;
 	int i, count;
+#endif
 #endif
 
 	if (!mrq)
@@ -1011,8 +1012,8 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 	cmd = mrq->cmd;
 	data = mrq->data;
 
-	if(cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK){
- 		spmmc_get_rsp(host, cmd);
+	if (cmd->opcode != MMC_WRITE_MULTIPLE_BLOCK) {
+		spmmc_get_rsp(host, cmd);
 	}
 
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
@@ -1020,7 +1021,7 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 
 #ifdef SPMMC_DMA_ALLOC
 #ifdef SPMMC_HIGH_MEM
-		if(data->flags & MMC_DATA_READ) {
+		if (data->flags & MMC_DATA_READ) {
 			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
 			dma_sync_single_for_cpu(host->dev,
 				host->buf_phys_addr,
@@ -1031,7 +1032,7 @@ static void spmmc_finish_request_for_irq(struct spmmc_host *host, struct mmc_req
 
 		}
 #else
-		if((data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
+		if ((data->sg_len >= SPMMC_MAX_DMA_MEMORY_SECTORS) && (data->flags & MMC_DATA_READ)) {
 			//pr_info("r c %d l %d s %d addr %x\n", data->sg_len,data->blocks*data->blksz,host->xfer_len,host->buf_phys_addr);
 			count = 8;
 			for_each_sg(data->sg, sg, count, i) {
@@ -1076,7 +1077,7 @@ static void spmmc_finish_request(struct spmmc_host *host, struct mmc_request *mr
 	if (data && SPMMC_DMA_MODE == host->dmapio_mode) {
 		int dma_direction = data->flags & MMC_DATA_READ ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 #ifdef SPMMC_HIGH_MEM
-			if(data->flags & MMC_DATA_READ) {
+			if (data->flags & MMC_DATA_READ) {
 				dma_sync_single_for_cpu(host->dev,
 					host->buf_phys_addr,
 					host->xfer_len,
@@ -1129,12 +1130,13 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct spmmc_host *host = mmc_priv(mmc);
 	struct mmc_data *data;
 	struct mmc_command *cmd;
+	int ret = 0;
 
-	mutex_lock_interruptible(&host->mrq_lock);
+	ret = mutex_lock_interruptible(&host->mrq_lock);
 	host->mrq = mrq;
 	data = mrq->data;
 
-	if(mrq->sbc){
+	if (mrq->sbc) {
 		/* Finished CMD23 */
 		u32 value;
 		cmd = mrq->sbc;
@@ -1189,8 +1191,8 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 				spmmc_finish_request(host, mrq);
 			} else {
 				spmmc_trigger_transaction(host);
-				if(cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
- 					spmmc_get_rsp(host, cmd);
+				if (cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK)
+					spmmc_get_rsp(host, cmd);
 			}
 		}
 	}
@@ -1206,7 +1208,7 @@ static void spmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	spmmc_set_bus_timing(host, ios->timing);
 	spmmc_set_bus_width(host, ios->bus_width);
 	/* ensure mode is correct, because we might have hw reset the controller */
-	spmmc_select_mode(host, host->mode);
+	spmmc_select_mode(host);
 	mutex_unlock(&host->mrq_lock);
 	//return;
 }
@@ -1489,15 +1491,15 @@ static int config_mode_show(struct spmmc_host *host, char *buf)
 static int config_mode_store(struct spmmc_host *host, const char *arg)
 {
 	if (!strcasecmp("sd", arg)) {
-		spmmc_select_mode(host, SPMMC_MODE_SD);
+		spmmc_select_mode(host);
 		return SPMMC_CFG_REINIT;
 	}
 	if (!strcasecmp("sdio", arg)) {
-		spmmc_select_mode(host, SPMMC_MODE_SDIO);
+		spmmc_select_mode(host);
 		return SPMMC_CFG_REINIT;
 	}
 	if (!strcasecmp("emmc", arg)) {
-		spmmc_select_mode(host, SPMMC_MODE_EMMC);
+		spmmc_select_mode(host);
 		return SPMMC_CFG_REINIT;
 	}
 	return SPMMC_CFG_FAIL;
@@ -1939,7 +1941,7 @@ static int config_gpio_bypass_en_store(struct spmmc_host *host, const char *arg)
 	writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
 
 
-	if(val == 0){
+	if (val == 0) {
 		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
 		value = bitfield_replace(value, 20, 1, 0);//DI FF BYPASS TM:Don not bypass IP input data
 		for (i = 0; i < 9; i++)
@@ -1952,8 +1954,7 @@ static int config_gpio_bypass_en_store(struct spmmc_host *host, const char *arg)
 		writel(value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
 
 		spmmc_pr(INFO, "Do not bypass IP input data\n");
-	}
-	else{
+	} else {
 		value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[1]);
 		value = bitfield_replace(value, 20, 1, 1);//DI FF BYPASS TM:bypass IP input data
 		for (i = 0; i < 9; i++)
@@ -2015,7 +2016,7 @@ static int config_softpad_data_out_en_store(struct spmmc_host *host, const char 
 		return SPMMC_CFG_FAIL;
 
 	value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[0]);
-	if(val == 0)
+	if (val == 0)
 		value = bitfield_replace(value, 22, 8, 0);
 	else
 		value = bitfield_replace(value, 22, 8, 0xFF);
@@ -2041,7 +2042,7 @@ static int config_softpad_cmd_out_en_store(struct spmmc_host *host, const char *
 		return SPMMC_CFG_FAIL;
 
 	value = readl(&host->pad_ctl2_base->emmc_sftpad_ctl[0]);
-	if(val == 0)
+	if (val == 0)
 		value = bitfield_replace(value, 21, 1, 0);
 	else
 		value = bitfield_replace(value, 21, 1, 1);
@@ -2320,9 +2321,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	struct resource *res_driving;
 	struct resource *res_pad_ctl2;
 	#endif
-
 	struct spmmc_host *host;
-	unsigned int mode;
 	u32 x;
 
 	ret = spmmc_device_create_sysfs(pdev);
@@ -2342,6 +2341,7 @@ static int spmmc_drv_probe(struct platform_device *pdev)
 	host->power_state = MMC_POWER_OFF;
 	host->dma_int_threshold = 1024;
 	host->dmapio_mode = SPMMC_DMA_MODE;
+	host->mode = SPMMC_MODE_EMMC;
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
@@ -2498,8 +2498,7 @@ ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
 
 	dev_set_drvdata(&pdev->dev, host);
 	spmmc_controller_init(host);
-	mode = (int)of_device_get_match_data(&pdev->dev);
-	spmmc_select_mode(host, mode);
+	spmmc_select_mode(host);
 	mmc_add_host(mmc);
 	host->tuning_info.enable_tuning = 1;
 	pm_runtime_set_active(&pdev->dev);
@@ -2510,6 +2509,7 @@ ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
 	writel(x, &host->base->card_mediatype_srcdst);
 
 	mmc->caps |= MMC_CAP_CMD23;
+	CMD23_RECEIVED = 0;
 
 	return 0;
 
@@ -2540,7 +2540,6 @@ static int spmmc_drv_remove(struct platform_device *dev)
 
 	return 0;
 }
-
 
 static int spmmc_drv_suspend(struct platform_device *dev, pm_message_t state)
 {

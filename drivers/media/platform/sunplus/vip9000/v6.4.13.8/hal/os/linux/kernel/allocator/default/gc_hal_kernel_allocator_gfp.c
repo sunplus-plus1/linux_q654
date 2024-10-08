@@ -381,7 +381,7 @@ _GFPAlloc(gckALLOCATOR Allocator, PLINUX_MDL Mdl, gctSIZE_T NumPages, gctUINT32 
     gceSTATUS status;
     gctSIZE_T i = 0;
     gctBOOL contiguous = Flags & gcvALLOC_FLAG_CONTIGUOUS;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0)
     u32 normal_gfp = __GFP_HIGH | __GFP_ATOMIC | __GFP_NORETRY | gcdNOWARN;
 #else
     u32 normal_gfp = __GFP_HIGH | __GFP_NORETRY | gcdNOWARN;
@@ -728,7 +728,12 @@ _GFPMmap(gckALLOCATOR Allocator, PLINUX_MDL Mdl, gctBOOL Cacheable,
 
     gcmkHEADER_ARG("Allocator=%p Mdl=%p vma=%p", Allocator, Mdl, vma);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) || \
+    ((LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 26)) && defined(CONFIG_ANDROID))
+    vm_flags_set(vma, gcdVM_FLAGS);
+#else
     vma->vm_flags |= gcdVM_FLAGS;
+#endif
 
     if (Cacheable == gcvFALSE) {
         /* Make this mapping non-cached. */

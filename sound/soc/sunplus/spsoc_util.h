@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0
+ * ALSA SoC SP7350 pcm driver
+ * Author: ChingChou Huang <chingchouhuang@sunplus.com>
+ */
 #ifndef	_SPSOC_UTIL_H
 #define	_SPSOC_UTIL_H
 
@@ -38,8 +42,7 @@ extern void __iomem *audio_base;
 /**********************************************************
  *			Register Definition
  **********************************************************/
-typedef	struct
-{
+typedef	struct {
 	// Group 009 : AUD_REG_G0
 	unsigned int  audif_ctrl		; // 00
 	unsigned int  aud_enable		; // 01
@@ -100,11 +103,11 @@ typedef	struct
 	unsigned int  aud_delta_0		; // 22, Delta Value
 	unsigned int  aud_fifo_enable		; // 23, Audio FIFO	Enable
 	unsigned int  aud_fifo_mode		; // 24, FIFO Mode Control
-	unsigned int  aud_fifo_support		; // 25, Supported FIFOs ( Debug Function )
+	unsigned int  aud_fifo_support		; // 25, Supported FIFOs (Debug Function)
 	unsigned int  aud_fifo_reset		; // 26, Host FIFO Reset
-	unsigned int  aud_chk_ctrl		; // 27, Checksum Control (	Debug Function )
-	unsigned int  aud_checksum_data		; // 28, Checksum Data ( Debug Function ) aud_new_pts
-	unsigned int  aud_chk_tcnt		; // 29, Target Count of Checksum (	Debug Function ) aud_new_pts_ptr
+	unsigned int  aud_chk_ctrl		; // 27, Checksum Control (Debug Function)
+	unsigned int  aud_checksum_data		; // 28, Checksum Data (Debug Function) aud_new_pts
+	unsigned int  aud_chk_tcnt		; // 29, Target Count of Checksum aud_new_pts_ptr
 	unsigned int  aud_embedded_input_ctrl	; // 30, Embedded Input Control ( Debug Function )
 	unsigned int  aud_misc_ctrl		; // 31, Miscellaneous Control
 
@@ -313,7 +316,7 @@ typedef	struct
 	unsigned int  G016_reserved_31		; // 31
 
 	// Group 017 : AUD_MONITOR
-	unsigned int  G017_AUD[32]		;
+	unsigned int  G017_AUD[32];
 
 	// Group 018 : AUD_REG_G4
 	unsigned int  G018_reserved_00		; // 00
@@ -350,7 +353,7 @@ typedef	struct
 	unsigned int  G018_reserved_31		; // 31 iec2_par5_in
 
 	// Group 019 : AUD_REG_G5
-	unsigned int  G019_RESERVED[32]		;
+	unsigned int  G019_RESERVED[32];
 
 	// Group 020 : AUD_DMA_G3
 	unsigned int  aud_a24_base		; // 00
@@ -421,8 +424,8 @@ typedef	struct
 	unsigned int  aud_ext_dac_xck1_cfg	; //31 aud_ext_dac_xck1_cfg
 
 	// Group 022 : AUD_REG_G7
-	unsigned int  G022_RESERVED[32]		;
-} RegisterFile_Audio;
+	unsigned int G022_RESERVED[32];
+} register_audio;
 
 #define	reg_aud_grm_master_gain		6700
 #define	reg_aud_grm_gain_control_0	6701

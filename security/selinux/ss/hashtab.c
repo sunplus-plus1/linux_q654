@@ -2,18 +2,19 @@
 /*
  * Implementation of the hash table type.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include "hashtab.h"
+#include "security.h"
 
-static struct kmem_cache *hashtab_node_cachep;
+static struct kmem_cache *hashtab_node_cachep __ro_after_init;
 
 /*
  * Here we simply round the number of elements up to the nearest power of two.
- * I tried also other options like rouding down or rounding to the closest
+ * I tried also other options like rounding down or rounding to the closest
  * power of two (up or down based on which is closer), but I was unable to
  * find any significant difference in lookup/insert performance that would
  * justify switching to a different (less intuitive) formula. It could be that
@@ -102,7 +103,7 @@ int hashtab_map(struct hashtab *h,
 	return 0;
 }
 
-
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 {
 	u32 i, chain_len, slots_used, max_chain_len;
@@ -128,6 +129,7 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 	info->slots_used = slots_used;
 	info->max_chain_len = max_chain_len;
 }
+#endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		int (*copy)(struct hashtab_node *new,
@@ -136,7 +138,8 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		void *args)
 {
 	struct hashtab_node *cur, *tmp, *tail;
-	int i, rc;
+	u32 i;
+	int rc;
 
 	memset(new, 0, sizeof(*new));
 

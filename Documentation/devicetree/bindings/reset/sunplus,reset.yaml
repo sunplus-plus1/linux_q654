@@ -2,8 +2,8 @@
 # Copyright (C) Sunplus Co., Ltd. 2021
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/reset/sunplus,reset.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/reset/sunplus,reset.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Sunplus SoC Reset Controller
 
@@ -13,26 +13,27 @@ maintainers:
 properties:
   compatible:
     enum:
-      - sunplus,sp7350-reset # Reset Controller on SP7350 and compatible SoCs
-
-  "#reset-cells":
-    const: 1
+      - sunplus,sp7021-reset
+      - sunplus,sp7350-reset
 
   reg:
     maxItems: 1
 
+  "#reset-cells":
+    const: 1
+
 required:
   - compatible
-  - "#reset-cells"
   - reg
+  - "#reset-cells"
 
 additionalProperties: false
 
 examples:
   - |
-    rstc: reset@f8800004 {
-      compatible = "sunplus,sp7350-reset";
-      reg = <0x00 0xf8800004 0x00 0x3c>;
+    rstc: reset@9c000054 {
+      compatible = "sunplus,sp7021-reset";
+      reg = <0x9c000054 0x28>;
       #reset-cells = <1>;
     };
 

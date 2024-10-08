@@ -1075,12 +1075,13 @@ static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
 };
 
 static const struct v4l2_rect *
-__ov5647_get_pad_crop(struct ov5647 *ov5647, struct v4l2_subdev_pad_config *cfg,
+__ov5647_get_pad_crop(struct ov5647 *ov5647,
+		      struct v4l2_subdev_state *sd_state,
 		      unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov5647->sd, cfg, pad);
+		return v4l2_subdev_get_try_crop(&ov5647->sd, sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &ov5647->mode->crop;
 	}
@@ -1089,7 +1090,7 @@ __ov5647_get_pad_crop(struct ov5647 *ov5647, struct v4l2_subdev_pad_config *cfg,
 }
 
 static int ov5647_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	switch (sel->target) {
@@ -1097,7 +1098,7 @@ static int ov5647_get_selection(struct v4l2_subdev *sd,
 		struct ov5647 *state = to_state(sd);
 
 		mutex_lock(&state->lock);
-		sel->r = *__ov5647_get_pad_crop(state, cfg, sel->pad,
+		sel->r = *__ov5647_get_pad_crop(state, sd_state, sel->pad,
 						sel->which);
 		mutex_unlock(&state->lock);
 
@@ -1173,8 +1174,8 @@ static u32 ov5647_get_mbus_code(struct v4l2_subdev *sd, int mode_8bit)
 }
 
 static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
-				struct v4l2_subdev_mbus_code_enum *code)
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->index == 0 && ARRAY_SIZE(supported_modes_8bit))
 		code->code = ov5647_get_mbus_code(sd, 1);
@@ -1191,7 +1192,7 @@ static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov5647_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct ov5647_mode *mode = NULL;
@@ -1217,7 +1218,7 @@ static int ov5647_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int ov5647_set_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -1263,7 +1264,7 @@ static int ov5647_set_fmt(struct v4l2_subdev *sd,
 	/* The mbus code we pass back must reflect the current H/VFLIP settings. */
 	fmt->code = ov5647_get_mbus_code(sd, mode == mode_8bit);
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
 		*framefmt = format->format;
 	} else {
 		/*
@@ -1308,7 +1309,7 @@ static int ov5647_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int ov5647_get_fmt(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_state *sd_state,
 			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
@@ -1320,7 +1321,7 @@ static int ov5647_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&state->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*fmt = *v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		*fmt = *v4l2_subdev_get_try_format(sd, sd_state, format->pad);
 	else
 		*fmt = state->mode->format;
 	/* The mbus code we pass back must reflect the current H/VFLIP settings. */
@@ -1379,9 +1380,8 @@ static int ov5647_detect(struct v4l2_subdev *sd)
 static int ov5647_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->pad, 0);
-	struct v4l2_rect *crop =
-				v4l2_subdev_get_try_crop(sd, fh->pad, 0);
+				v4l2_subdev_get_try_format(sd, fh->state, 0);
+	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, fh->state, 0);
 	struct ov5647 *state = to_state(sd);
 
 	crop->left = OV5647_PIXEL_ARRAY_LEFT;
@@ -1778,7 +1778,7 @@ mutex_remove:
 	return ret;
 }
 
-static int ov5647_remove(struct i2c_client *client)
+static void ov5647_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5647 *ov5647 = to_state(sd);
@@ -1788,8 +1788,6 @@ static int ov5647_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&ov5647->ctrls);
 	v4l2_device_unregister_subdev(sd);
 	mutex_destroy(&ov5647->lock);
-
-	return 0;
 }
 
 static const struct i2c_device_id ov5647_id[] = {
@@ -1811,7 +1809,7 @@ static struct i2c_driver ov5647_driver = {
 		.of_match_table = of_match_ptr(ov5647_of_match),
 		.name	= SENSOR_NAME,
 	},
-	.probe_new	= ov5647_probe,
+	.probe	= ov5647_probe,
 	.remove		= ov5647_remove,
 	.id_table	= ov5647_id,
 };

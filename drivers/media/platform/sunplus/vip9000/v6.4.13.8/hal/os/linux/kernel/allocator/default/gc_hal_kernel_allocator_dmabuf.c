@@ -65,6 +65,9 @@
 #include <linux/dma-mapping.h>
 
 #include <linux/dma-buf.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
+#include <linux/dma-resv.h>
+#endif
 #include <linux/platform_device.h>
 
 #define _GC_OBJ_ZONE gcvZONE_OS
@@ -119,7 +122,11 @@ dma_buf_info_show(struct seq_file *m, void *data)
     list_for_each_entry(buf_desc, &priv->buf_list, list) {
         struct dma_buf *buf_obj = buf_desc->dmabuf;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
+        ret = dma_resv_lock_interruptible(buf_obj->resv, NULL);
+#else
         ret = mutex_lock_interruptible(&buf_obj->lock);
+#endif
 
         if (ret) {
             seq_puts(m, "ERROR locking buffer object: skipping\n");
@@ -144,7 +151,11 @@ dma_buf_info_show(struct seq_file *m, void *data)
         size += buf_obj->size;
         npages += buf_desc->npages;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 2, 0)
+        dma_resv_unlock(buf_obj->resv);
+#else
         mutex_unlock(&buf_obj->lock);
+#endif
     }
 
     seq_printf(m, "\nTotal %d objects, %d pages, %zu bytes\n", count, npages, size);

@@ -12,17 +12,17 @@
 #include <linux/gpio.h>
 #include <linux/usb/otg.h>
 
-#define RF_MASK_V(_mask, _val)			(((_mask) << 16) | (_val))
-#define RF_MASK_V_SET(_mask)			(((_mask) << 16) | (_mask))
-#define RF_MASK_V_CLR(_mask)			(((_mask) << 16) | 0)
+#define RF_MASK_V(mask, val)			(((mask) << 16) | (val))
+#define RF_MASK_V_SET(mask0, mask1)		(((mask0) << 16) | (mask1))
+#define RF_MASK_V_CLR(mask)			(((mask) << 16) | 0)
 
 #define USB_PORT0_ID				0
 #define USB_PORT1_ID				1
 #define USB_PORT_NUM				3
 
-#define PORT0_ENABLED				(1 << 0)
-#define PORT1_ENABLED				(1 << 1)
-#define PORT2_ENABLED				(1 << 3)
+#define PORT0_ENABLED				BIT(0)
+#define PORT1_ENABLED				BIT(1)
+#define PORT2_ENABLED				BIT(2)
 
 #define	VBUS_GPIO_CTRL_0			90
 #define	VBUS_GPIO_CTRL_1			91
@@ -37,9 +37,9 @@
 #define GET_BC_MODE				0xff00
 #define APHY_PROBE_CTRL				0x38
 
-#define POWER_SAVING_SET			(1 << 5)
-#define ECO_PATH_SET				(1 << 6)
-#define	UPHY_DISC_0				(1 << 2)
+#define POWER_SAVING_SET			BIT(5)
+#define ECO_PATH_SET				BIT(6)
+#define	UPHY_DISC_0				BIT(2)
 #define APHY_PROBE_CTRL_MASK			0x38
 
 #define USB_RESET_OFFSET			0x5c
@@ -90,7 +90,6 @@
 #define SEND_SOF_TIME_BEFORE_SUSPEND		15000
 #define SEND_SOF_TIME_BEFORE_SEND_IN_PACKET	15000
 
-
 extern u32 bc_switch;
 extern u32 cdp_cfg16_value;
 extern u32 cdp_cfg17_value;
@@ -120,21 +119,21 @@ extern struct timer_list hnp_polling_timer;
 extern u8 otg0_vbus_off;
 extern u8 otg1_vbus_off;
 
-extern void phy0_otg_ctrl(void);
-extern void phy1_otg_ctrl(void);
+void phy0_otg_ctrl(void);
+void phy1_otg_ctrl(void);
 
-extern void udc_otg_ctrl(void);
-extern void usb_switch(int device);
-extern void detech_start(void);
+void udc_otg_ctrl(void);
+void usb_switch(int device);
+void detech_start(void);
 
-extern void sp_accept_b_hnp_en_feature(struct usb_otg *otg);
+void sp_accept_b_hnp_en_feature(struct usb_otg *otg);
 
 #define	ENABLE_VBUS_POWER(port)
 #define	DISABLE_VBUS_POWER(port)
 
 #define UHPOWERCS_PORT		0x10
-#define	UPHY_SUSP_EN		(1<<10)
-#define UPHY_SUSP_CTRL		(1<<8)
+#define	UPHY_SUSP_EN		BIT(10)
+#define UPHY_SUSP_CTRL		BIT(8)
 
 static inline void uphy_force_disc(int en, int port)
 {
@@ -154,14 +153,6 @@ static inline void uphy_force_disc(int en, int port)
 	writel(uphy_val, reg_addr + UPHY_DISC_OFFSET);
 }
 
-#define Reset_Usb_Power(port) do {	\
-	DISABLE_VBUS_POWER(port);	\
-	uphy_force_disc(1, (port));	\
-	msleep(500);			\
-	uphy_force_disc(0, (port));	\
-	ENABLE_VBUS_POWER(port);	\
-} while (0)
-
 static inline int get_uphy_swing(int port)
 {
 	void __iomem *uphy_ctl2_addr = port ? (uphy1_res_moon4 + UPHY1_CTL2_OFFSET)
@@ -179,8 +170,8 @@ static inline int set_uphy_swing(u32 swing, int port)
 						: (uphy0_res_moon4 + UPHY0_CTL2_OFFSET);
 
 	writel(RF_MASK_V_CLR(0x3f << 8), uphy_ctl2_addr);
-	writel(RF_MASK_V_SET((swing & 0x3f) << 8), uphy_ctl2_addr);
-	writel(RF_MASK_V_SET(1 << 15), uphy_ctl2_addr);
+	writel(RF_MASK_V_SET((swing & 0x3f) << 8, (swing & 0x3f) << 8), uphy_ctl2_addr);
+	writel(RF_MASK_V_SET(1 << 15, 1 << 15), uphy_ctl2_addr);
 
 	return 0;
 }

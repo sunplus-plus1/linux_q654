@@ -317,7 +317,9 @@ static void fill_diag(struct sthyi_sctns *sctns)
 	if (pages <= 0)
 		return;
 
-	diag204_buf = vmalloc(array_size(pages, PAGE_SIZE));
+	diag204_buf = __vmalloc_node(array_size(pages, PAGE_SIZE),
+				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
+				     __builtin_return_address(0));
 	if (!diag204_buf)
 		return;
 
@@ -395,19 +397,18 @@ out:
 
 static int sthyi(u64 vaddr, u64 *rc)
 {
-	register u64 code asm("0") = 0;
-	register u64 addr asm("2") = vaddr;
-	register u64 rcode asm("3");
+	union register_pair r1 = { .even = 0, }; /* subcode */
+	union register_pair r2 = { .even = vaddr, };
 	int cc;
 
 	asm volatile(
-		".insn   rre,0xB2560000,%[code],%[addr]\n"
+		".insn   rre,0xB2560000,%[r1],%[r2]\n"
 		"ipm     %[cc]\n"
 		"srl     %[cc],28\n"
-		: [cc] "=d" (cc), "=d" (rcode)
-		: [code] "d" (code), [addr] "a" (addr)
+		: [cc] "=&d" (cc), [r2] "+&d" (r2.pair)
+		: [r1] "d" (r1.pair)
 		: "memory", "cc");
-	*rc = rcode;
+	*rc = r2.odd;
 	return cc;
 }
 

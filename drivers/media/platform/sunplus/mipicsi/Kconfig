@@ -5,7 +5,7 @@
 
 config VIDEO_SUNPLUS_SP7350_CSI2
 	tristate "Sunplus SP7350 MIPI CSI-2 RX Driver"
-	depends on VIDEO_V4L2 && OF
+	depends on VIDEO_DEV && OF
 	depends on SOC_SP7350
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
@@ -20,7 +20,7 @@ config VIDEO_SUNPLUS_SP7350_CSI2
 
 config VIDEO_SUNPLUS_SP7350_VIN
 	tristate "Sunplus SP7350 Video Input (VIN) Driver"
-	depends on VIDEO_V4L2 && OF
+	depends on VIDEO_DEV && OF
 	depends on SOC_SP7350
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API

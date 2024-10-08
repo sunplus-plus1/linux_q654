@@ -324,7 +324,7 @@ static struct i2c_driver sti8070x_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(sti8070x_device_table),
 	},
-	.probe_new = sti8070x_probe,
+	.probe = sti8070x_probe,
 };
 module_i2c_driver(sti8070x_driver);
 

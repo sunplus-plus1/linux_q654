@@ -13,7 +13,7 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
+#include <linux/of_clk.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/time.h>
@@ -121,10 +121,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	set_linux_timer(get_linux_timer());
 	evt->event_handler(evt);
-
-	/* Allow platform to do something useful (Wdog). */
-	platform_heartbeat();
-
 	return IRQ_HANDLED;
 }
 

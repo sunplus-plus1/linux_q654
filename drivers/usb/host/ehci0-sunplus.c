@@ -5,6 +5,8 @@
 #include <linux/platform_device.h>
 #include "ehci-sunplus.h"
 
+u8 sp_port0_enabled = PORT0_ENABLED;
+
 static int ehci0_sunplus_platform_probe(struct platform_device *dev)
 {
 	dev->id = 1;
@@ -34,12 +36,13 @@ static struct platform_driver ehci0_hcd_sunplus_driver = {
 /* ---------------------------------------------------------------------------------------------- */
 static int __init ehci0_sunplus_init(void)
 {
-	if (sp_port0_enabled & PORT0_ENABLED) {
+	if (sp_port0_enabled == PORT0_ENABLED) {
 		pr_notice("register ehci0_hcd_sunplus_driver\n");
 		return platform_driver_register(&ehci0_hcd_sunplus_driver);
 	}
 
 	pr_notice("warn,port0 not enable,not register ehci0 sunplus hcd driver\n");
+
 	return -1;
 }
 module_init(ehci0_sunplus_init);

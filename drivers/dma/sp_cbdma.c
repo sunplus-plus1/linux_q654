@@ -2016,7 +2016,7 @@ static int sp_cbdma_probe(struct platform_device *pdev)
 	if (xdev->dma_config->dmatype == DMA_TYPE_DMA)
 		xdev->mcdma = of_property_read_bool(node, "mcdma");
 
-	err = of_property_read_u32(node, "addrwidth", &addr_width);
+	err = of_property_read_u32(node, "sunplus,addrwidth", &addr_width);
 	if (err < 0)
 		dev_warn(xdev->dev, "missing addrwidth property\n");
 

@@ -4,7 +4,7 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -111,7 +111,6 @@ static int rt5759_get_error_flags(struct regulator_dev *rdev,
 	return 0;
 }
 
-#ifdef REGULATOR_SEVERITY_PROT
 static int rt5759_set_ocp(struct regulator_dev *rdev, int lim_uA, int severity,
 			  bool enable)
 {
@@ -177,60 +176,6 @@ static int rt5759_set_otp(struct regulator_dev *rdev, int lim, int severity,
 	return regmap_update_bits(regmap, RT5759_REG_DCDCSET, RT5957_OTLVL_MASK,
 				  otp_regval << RT5759_OTLVL_SHIFT);
 }
-#endif
-
-static int find_closest_bigger(unsigned int target, const unsigned int *table,
-			       unsigned int num_sel, unsigned int *sel)
-{
-	unsigned int s, tmp, max, maxsel = 0;
-	bool found = false;
-
-	max = table[0];
-
-	for (s = 0; s < num_sel; s++) {
-		if (table[s] > max) {
-			max = table[s];
-			maxsel = s;
-		}
-		if (table[s] >= target) {
-			if (!found || table[s] - target < tmp - target) {
-				tmp = table[s];
-				*sel = s;
-				found = true;
-				if (tmp == target)
-					break;
-			}
-		}
-	}
-
-	if (!found) {
-		*sel = maxsel;
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int rt5759_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
-{
-	static const unsigned int rt5759_ramp_table[] = { 20000, 15000, 10000, 5000 };
-	int ret;
-	unsigned int sel;
-
-	ret = find_closest_bigger(ramp_delay, rt5759_ramp_table,
-				  ARRAY_SIZE(rt5759_ramp_table), &sel);
-
-	if (ret) {
-		dev_warn(rdev_get_dev(rdev),
-			 "Can't set ramp-delay %u, setting %u\n", ramp_delay,
-			 rt5759_ramp_table[sel]);
-	}
-
-	sel <<= ffs(RT5759_TSTEP_MASK) - 1;
-
-	return regmap_update_bits(rdev->regmap, RT5759_REG_FREQ,
-				  RT5759_TSTEP_MASK, sel);
-}
 
 static const struct regulator_ops rt5759_regulator_ops = {
 	.list_voltage = regulator_list_voltage_linear,
@@ -242,12 +187,10 @@ static const struct regulator_ops rt5759_regulator_ops = {
 	.set_active_discharge = regulator_set_active_discharge_regmap,
 	.set_mode = rt5759_set_mode,
 	.get_mode = rt5759_get_mode,
-	.set_ramp_delay = rt5759_set_ramp_delay,
+	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 	.get_error_flags = rt5759_get_error_flags,
-#ifdef REGULATOR_SEVERITY_PROT
 	.set_over_current_protection = rt5759_set_ocp,
 	.set_thermal_protection = rt5759_set_otp,
-#endif
 };
 
 static unsigned int rt5759_of_map_mode(unsigned int mode)
@@ -261,6 +204,8 @@ static unsigned int rt5759_of_map_mode(unsigned int mode)
 		return REGULATOR_MODE_INVALID;
 	}
 }
+
+static const unsigned int rt5759_ramp_table[] = { 20000, 15000, 10000, 5000 };
 
 static int rt5759_regulator_register(struct rt5759_priv *priv)
 {
@@ -284,6 +229,10 @@ static int rt5759_regulator_register(struct rt5759_priv *priv)
 	reg_desc->active_discharge_reg = RT5759_REG_DCDCCTRL;
 	reg_desc->active_discharge_mask = RT5759_DISCHARGE_MASK;
 	reg_desc->active_discharge_on = RT5759_DISCHARGE_MASK;
+	reg_desc->ramp_reg = RT5759_REG_FREQ;
+	reg_desc->ramp_mask = RT5759_TSTEP_MASK;
+	reg_desc->ramp_delay_table = rt5759_ramp_table;
+	reg_desc->n_ramp_values = ARRAY_SIZE(rt5759_ramp_table);
 	reg_desc->enable_time = RT5759_MINSS_TIMEUS;
 	reg_desc->of_map_mode = rt5759_of_map_mode;
 
@@ -413,7 +362,7 @@ static struct i2c_driver rt5759_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(rt5759_device_table),
 	},
-	.probe_new = rt5759_probe,
+	.probe = rt5759_probe,
 };
 module_i2c_driver(rt5759_driver);
 

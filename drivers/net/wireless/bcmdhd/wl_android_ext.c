@@ -560,23 +560,8 @@ void
 wl_ext_bss_iovar_war(struct net_device *ndev, s32 *val)
 {
 	dhd_pub_t *dhd = dhd_get_pub(ndev);
-	uint chip;
-	bool need_war = false;
 
-	chip = dhd_conf_get_chip(dhd);
-
-	if (chip == BCM43362_CHIP_ID || chip == BCM4330_CHIP_ID ||
-		chip == BCM4354_CHIP_ID || chip == BCM4356_CHIP_ID ||
-		chip == BCM4371_CHIP_ID ||
-		chip == BCM43430_CHIP_ID ||
-		chip == BCM4345_CHIP_ID || chip == BCM43454_CHIP_ID ||
-		chip == BCM4359_CHIP_ID ||
-		chip == BCM43143_CHIP_ID || chip == BCM43242_CHIP_ID ||
-		chip == BCM43569_CHIP_ID) {
-		need_war = true;
-	}
-
-	if (need_war) {
+	if (dhd_conf_legacy_chip_check(dhd)) {
 		/* Few firmware branches have issues in bss iovar handling and
 		 * that can't be changed since they are in production.
 		 */
@@ -919,9 +904,6 @@ wl_ext_connect(struct net_device *dev, struct wl_conn_info *conn_info)
 	u32 chan_cnt = 0;
 	s8 *iovar_buf = NULL;
 	char sec[64];
-
-	if (dhd->conf->chip == BCM43362_CHIP_ID)
-		goto set_ssid;
 
 	if (conn_info->channel) {
 		chan_cnt = 1;
@@ -2861,7 +2843,17 @@ wl_ext_conf_iovar(struct net_device *dev, char *command, int total_len)
 			bytes_written = snprintf(command, total_len, "%d", dhd->conf->pm);
 			ret = bytes_written;
 		}
-	} else {
+	}
+	else if (!strcmp(name, "tput_monitor_ms")) {
+		if (data) {
+			dhd->conf->tput_monitor_ms = simple_strtol(data, NULL, 0);
+			ret = 0;
+		} else {
+			bytes_written = snprintf(command, total_len, "%d", dhd->conf->tput_monitor_ms);
+			ret = bytes_written;
+		}
+	}
+	else {
 		AEXT_ERROR(dev->name, "no config parameter found\n");
 	}
 
@@ -2895,11 +2887,12 @@ wl_android_ext_priv_cmd(struct net_device *net, char *command,
 		*bytes_written = wl_ext_btc_war(net, command, total_len);
 	}
 #endif /* BTC_WAR */
+#ifdef WL_CFG80211
 	else if (strnicmp(command, CMD_SET_SUSPEND_BCN_LI_DTIM, strlen(CMD_SET_SUSPEND_BCN_LI_DTIM)) == 0) {
-		int bcn_li_dtim;
-		bcn_li_dtim = (int)simple_strtol((command + strlen(CMD_SET_SUSPEND_BCN_LI_DTIM) + 1), NULL, 10);
-		*bytes_written = net_os_set_suspend_bcn_li_dtim(net, bcn_li_dtim);
+		struct bcm_cfg80211 *cfg = wl_get_cfg(net);
+		cfg->suspend_bcn_li_dtim = (int)simple_strtol((command + strlen(CMD_SET_SUSPEND_BCN_LI_DTIM) + 1), NULL, 10);
 	}
+#endif /* WL_CFG80211 */
 #ifdef WL_EXT_IAPSTA
 	else if (strnicmp(command, CMD_IAPSTA_INIT, strlen(CMD_IAPSTA_INIT)) == 0 ||
 			strnicmp(command, CMD_ISAM_INIT, strlen(CMD_ISAM_INIT)) == 0) {
@@ -3109,7 +3102,6 @@ wl_ext_get_best_channel(struct net_device *net,
 {
 	struct dhd_pub *dhd = dhd_get_pub(net);
 	struct wl_bss_info *bi = NULL;	/* must be initialized */
-	struct wl_chan_info chan_info;
 	s32 i, j;
 #if defined(BSSCACHE)
 	wl_bss_cache_t *node;
@@ -3150,8 +3142,6 @@ wl_ext_get_best_channel(struct net_device *net,
 		for (i = 0; i < list->count; i++) {
 			chspec = list->element[i];
 			channel = wf_chspec_ctlchan(chspec);
-			chan_info.band = CHSPEC2WLC_BAND(chspec);
-			chan_info.chan = channel;
 			if (CHSPEC_IS2G(chspec) && (channel >= CH_MIN_2G_CHANNEL) &&
 					(channel <= CH_MAX_2G_CHANNEL)) {
 				b_band[channel-1] = 0;

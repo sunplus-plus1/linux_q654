@@ -30,10 +30,11 @@ struct rsa_para {
 	__u32	crp_bytes;
 };
 
-#define BITS2BYTES(bits)	((bits)/(BITS_PER_BYTE))
-#define BITS2LONGS(bits)	((bits)/(BITS_PER_LONG))
+#define BITS2BYTES(bits)	((bits) / (BITS_PER_BYTE))
+#define BITS2LONGS(bits)	((bits) / (BITS_PER_LONG))
 
-int sp_powm(struct rsa_para *res, struct rsa_para *base, struct rsa_para *exp, struct rsa_para *mod);
+int sp_powm(struct rsa_para *res, struct rsa_para *base,
+	    struct rsa_para *exp, struct rsa_para *mod);
 void sp_rsa_finit(void);
 int sp_rsa_init(void);
 void sp_rsa_irq(void *devid, u32 flag);

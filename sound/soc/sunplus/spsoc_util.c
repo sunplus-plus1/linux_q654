@@ -15,7 +15,7 @@
 //#define SYNCHRONIZE_IO		__asm__ __volatile__ ("dmb" : : : "memory")
 #define SYNCHRONIZE_IO	(__asm__ __volatile__ ("" : : : "memory"))
 
-void delay_ms(UINT32 ms_count)
+void delay_ms(u32 ms_count)
 {
 //#if 0
 	// can not be used in interrupt (very important)
@@ -25,7 +25,3 @@ void delay_ms(UINT32 ms_count)
 	mdelay(ms_count);
 //#endif
 }
-
-
-
-

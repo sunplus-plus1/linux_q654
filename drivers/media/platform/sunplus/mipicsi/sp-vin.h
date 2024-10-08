@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Driver for VIN
  *
@@ -15,7 +15,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/videobuf2-v4l2.h>
-
 
 /* Compliler switch */
 //#define MC_MODE_DEFAULT	/* Set link by default to test MC mode */
@@ -206,13 +205,12 @@ struct vin_dev {
 	struct vin_group *group;
 	unsigned int id;
 	struct media_pad pad;
-
-	struct mutex lock;
+	struct mutex lock; // protects @queue
 	struct vb2_queue queue;
 	void *scratch;
 	dma_addr_t scratch_phys;
 
-	spinlock_t qlock;
+	spinlock_t qlock; // protects @buf_hw, @buf_list, @sequence and @state
 	struct {
 		struct vb2_v4l2_buffer *buffer;
 		enum vin_buffer_type type;
@@ -242,6 +240,8 @@ struct vin_dev {
 	unsigned int alpha;
 };
 
+#define V4L2_FWNODE_CSI2_MAX_DATA_LANES	4
+
 /* Debug */
 #define vin_dbg(d, fmt, arg...)		dev_dbg(d->dev, fmt, ##arg)
 #define vin_info(d, fmt, arg...)	dev_info(d->dev, fmt, ##arg)
@@ -266,7 +266,7 @@ struct vin_group {
 
 	struct media_device mdev;
 
-	struct mutex lock;
+	struct mutex lock; //protects the count, notifier, vin and csi members
 	unsigned int count;
 	struct v4l2_async_notifier notifier;
 	struct vin_dev *vin[VIN_MAX_NUM];
@@ -288,12 +288,10 @@ int vin_v4l2_register(struct vin_dev *vin);
 void vin_v4l2_unregister(struct vin_dev *vin);
 
 const struct vin_video_format *vin_format_from_pixel(struct vin_dev *vin,
-						       u32 pixelformat);
-
+						     u32 pixelformat);
 
 /* Cropping, composing and scaling */
 void vin_crop_scale_comp(struct vin_dev *vin);
-
 int vin_set_channel_routing(struct vin_dev *vin, u8 chsel);
 void vin_set_alpha(struct vin_dev *vin, unsigned int alpha);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -30,7 +31,7 @@ static int sp_hwspinlock_trylock(struct hwspinlock *lock)
 {
 	void __iomem *lock_addr = lock->priv;
 	/* attempt to acquire the lock by reading its value */
-	return (SPINLOCK_UNLOCKED == readl(lock_addr));
+	return (readl(lock_addr) == SPINLOCK_UNLOCKED);
 }
 
 static void sp_hwspinlock_unlock(struct hwspinlock *lock)
@@ -54,7 +55,6 @@ static const struct hwspinlock_ops sp_hwspinlock_ops = {
 
 static int sp_hwspinlock_probe(struct platform_device *pdev)
 {
-
 	struct sp_hwspinlock *hw;
 	void __iomem *io_base;
 	size_t array_size;
@@ -110,37 +110,11 @@ static int sp_hwspinlock_remove(struct platform_device *pdev)
 
 static int __maybe_unused sp_hwspinlock_runtime_suspend(struct device *dev)
 {
-	#if 0
-	int i;
-	struct sp_hwspinlock *hw = dev_get_drvdata(dev);
-
-	for (i = 0; i < SP_MUTEX_NUM_LOCKS; i++){
-		void __iomem *lock_addr = hw->bank.lock[i].priv;
-		if(SPINLOCK_UNLOCKED == readl(lock_addr))
-			writel(RESET_SEMAPHORE, lock_addr);
-		else
-			hw->reg_status[i] = 1; /*flag this hwspin status, re-set in resume*/
-	}
-
-	clk_disable_unprepare(hw->clk);
-	#endif
 	return 0;
 }
 
 static int __maybe_unused sp_hwspinlock_runtime_resume(struct device *dev)
 {
-	#if 0
-	int i;
-	struct sp_hwspinlock *hw = dev_get_drvdata(dev);
-
-	clk_prepare_enable(hw->clk);
-
-	for (i = 0; i < SP_MUTEX_NUM_LOCKS; i++){
-		void __iomem *lock_addr = hw->bank.lock[i].priv;
-		if(hw->reg_status[i])
-			readl(lock_addr);
-	}
-	#endif
 	return 0;
 }
 
@@ -148,8 +122,9 @@ static const struct dev_pm_ops sp_hwspinlock_pm_ops = {
 	.suspend	= sp_hwspinlock_runtime_suspend,
 	.resume		= sp_hwspinlock_runtime_resume,
 };
+
 static const struct of_device_id sp_hwspinlock_of_match[] = {
-	{ .compatible = "sp,sunplus-hwspinlock", },
+	{ .compatible = "sunplus,sp-hwspinlock", },
 	{ /* end */ },
 };
 MODULE_DEVICE_TABLE(of, sp_hwspinlock_of_match);
@@ -168,7 +143,7 @@ static int __init sp_hwspinlock_init(void)
 {
 	return platform_driver_register(&sp_hwspinlock_driver);
 }
-/* board init code might need to reserve hwspinlocks for predefined purposes */
+
 postcore_initcall(sp_hwspinlock_init);
 
 static void __exit sp_hwspinlock_exit(void)
@@ -176,5 +151,3 @@ static void __exit sp_hwspinlock_exit(void)
 	platform_driver_unregister(&sp_hwspinlock_driver);
 }
 module_exit(sp_hwspinlock_exit);
-
-

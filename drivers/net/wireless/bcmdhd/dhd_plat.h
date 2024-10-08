@@ -1,7 +1,26 @@
 /*
  * DHD Linux platform header file
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,6 +44,8 @@
 
 #ifndef __DHD_PLAT_H__
 #define __DHD_PLAT_H__
+
+#if defined(__linux__)
 
 #include <linuxver.h>
 
@@ -53,6 +74,49 @@ struct wifi_platform_data {
 	void *(*get_country_code)(char *ccode);
 #endif
 };
-#endif /* CONFIG_WIFI_CONTROL_FUNC */
+#endif
 
+#include <linux/pci.h>
+
+/*
+ * Plat Layer defines the interfaces that the BSP specific file should override
+ * The default implementation of the interfaces are present in dhd_linux_platdev.c
+ * The data structure/handle to be passed by the DHD to BSP specific file is opaque
+ * called plat_info. The data structure is to be maintained purely inside the
+ * BSP specific file and hence its kept opaque.
+ *
+ * There are two types of interface functions
+ * 1) Functions that need the interface structure plat_info to be passed down
+ *    from DHD.
+ * 2) Functions that queries for certain information in BSP specific way and just
+ *    returns to DHD - These functions does not take the plat_info as argument.
+ *
+ * The declarations are grouped accordingly. While adding a new interface function
+ * declaration based on the group it belongs to add it in the appropriate section
+ */
+
+typedef void (*dhd_pcie_event_cb_t) (struct pci_dev *pdev);
+extern int dhd_plat_pcie_register_event(void *plat_info,
+		struct pci_dev *pdev, dhd_pcie_event_cb_t pfn);
+extern void dhd_plat_pcie_deregister_event(void *plat_info);
+extern void dhd_plat_report_bh_sched(void *plat_info, int resched);
+extern int dhd_plat_pcie_suspend(void *plat_info);
+extern int dhd_plat_pcie_resume(void *plat_info);
+extern void dhd_plat_pcie_register_dump(void *plat_info);
+extern void dhd_plat_pin_dbg_show(void *plat_info);
+
+extern uint32 dhd_plat_get_info_size(void);
+extern void dhd_plat_l1ss_ctrl(bool ctrl);
+
+/* To be called when we intend to exit L1 while performing wreg, rreg operations */
+extern void dhd_plat_l1_exit_io(void);
+
+/* To be called when we intend to exit L1 in non-io case */
+extern void dhd_plat_l1_exit(void);
+
+extern uint32 dhd_plat_get_rc_vendor_id(void);
+extern uint32 dhd_plat_get_rc_device_id(void);
+
+extern uint16 dhd_plat_align_rxbuf_size(uint16 rxbufpost_sz);
+#endif /* __linux__ */
 #endif /* __DHD_PLAT_H__ */

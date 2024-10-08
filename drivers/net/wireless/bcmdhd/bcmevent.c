@@ -1,7 +1,26 @@
 /*
  * bcmevent read-only data shared by kernel or app layers
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -28,6 +47,7 @@
 #include <bcmeth.h>
 #include <bcmevent.h>
 #include <802.11.h>
+#include <802.11brcm.h>
 
 /* Table of event name strings for UIs and debugging dumps */
 typedef struct {
@@ -179,9 +199,6 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 #endif
 	BCMEVENT_NAME(WLC_E_PSTA_PRIMARY_INTF_IND),
 	BCMEVENT_NAME(WLC_E_TXFAIL_THRESH),
-#ifdef WLAIBSS
-	BCMEVENT_NAME(WLC_E_AIBSS_TXFAIL),
-#endif /* WLAIBSS */
 #ifdef GSCAN_SUPPORT
 	BCMEVENT_NAME(WLC_E_PFN_GSCAN_FULL_RESULT),
 	BCMEVENT_NAME(WLC_E_PFN_SSID_EXT),
@@ -189,20 +206,11 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 #ifdef WLBSSLOAD_REPORT
 	BCMEVENT_NAME(WLC_E_BSS_LOAD),
 #endif
-#if defined(BT_WIFI_HANDOVER) || defined(WL_TBOW)
-	BCMEVENT_NAME(WLC_E_BT_WIFI_HANDOVER_REQ),
-#endif
 #ifdef WLFBT
 	BCMEVENT_NAME(WLC_E_FBT),
 #endif /* WLFBT */
 	BCMEVENT_NAME(WLC_E_AUTHORIZED),
 	BCMEVENT_NAME(WLC_E_PROBREQ_MSG_RX),
-
-#ifdef WLAWDL
-	BCMEVENT_NAME(WLC_E_AWDL_AW),
-	BCMEVENT_NAME(WLC_E_AWDL_ROLE),
-	BCMEVENT_NAME(WLC_E_AWDL_EVENT),
-#endif /* WLAWDL */
 
 	BCMEVENT_NAME(WLC_E_CSA_START_IND),
 	BCMEVENT_NAME(WLC_E_CSA_DONE_IND),
@@ -237,9 +245,6 @@ static const bcmevent_name_str_t bcmevent_names[] = {
 	BCMEVENT_NAME(WLC_E_ROAM_CACHE_UPDATE),
 	BCMEVENT_NAME(WLC_E_AP_BCN_DRIFT),
 	BCMEVENT_NAME(WLC_E_PFN_SCAN_ALLGONE_EXT),
-#ifdef WL_CLIENT_SAE
-	BCMEVENT_NAME(WLC_E_AUTH_START),
-#endif /* WL_CLIENT_SAE */
 #ifdef WL_TWT
 	BCMEVENT_NAME(WLC_E_TWT),
 #endif /* WL_TWT */
@@ -412,7 +417,8 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 
 		if (out_event) {
 			/* ensure BRCM event pkt aligned */
-			memcpy(&out_event->event, &bcm_event->event, sizeof(wl_event_msg_t));
+			(void)memcpy_s(&out_event->event, sizeof(out_event->event),
+				&bcm_event->event, sizeof(out_event->event));
 		}
 
 		break;
@@ -440,8 +446,9 @@ is_wlc_event_frame(void *pktdata, uint pktlen, uint16 exp_usr_subtype,
 
 		if (out_event) {
 			/* ensure BRCM dngl event pkt aligned */
-			memcpy(&out_event->dngl_event, &((bcm_dngl_event_t *)pktdata)->dngl_event,
-				sizeof(bcm_dngl_event_msg_t));
+			(void)memcpy_s(&out_event->dngl_event, sizeof(out_event->dngl_event),
+				&((bcm_dngl_event_t *)pktdata)->dngl_event,
+				sizeof(out_event->dngl_event));
 		}
 
 		break;

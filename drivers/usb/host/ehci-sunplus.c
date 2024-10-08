@@ -128,11 +128,11 @@ static ssize_t usb_role_switch_show(struct device *dev, struct device_attribute 
 }
 
 static ssize_t usb_role_switch_store(struct device *dev, struct device_attribute *attr,
-							const char *buf, size_t count)
+				     const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	u32 switch_usb_role;
-	u32 *grop1 = (u32 *) VA_IOB_ADDR(2 * 32 * 4);
+	u32 *grop1 = (u32 *)VA_IOB_ADDR(2 * 32 * 4);
 	u32 ret;
 
 	/* 0:host , 1:device */
@@ -144,8 +144,9 @@ static ssize_t usb_role_switch_store(struct device *dev, struct device_attribute
 		if (switch_usb_role & 0x1) {
 			ret &= ~(1 << ((pdev->id - 1) * 8 + 5));
 			ret |= (1 << ((pdev->id - 1) * 8 + 6));
-		} else
+		} else {
 			ret |= (3 << ((pdev->id - 1) * 8 + 5));
+		}
 
 		pr_debug("usb ret -> %x\n", ret);
 		iowrite32(ret, grop1 + USB_UPHY_REG);
@@ -158,7 +159,7 @@ static DEVICE_ATTR_RW(usb_role_switch);
 
 /* switch usb speed ( fs/hs ) */
 static ssize_t usb_speed_switch_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+				     struct device_attribute *attr, char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct usb_hcd *hcd = (struct usb_hcd *)platform_get_drvdata(pdev);
@@ -175,7 +176,7 @@ static ssize_t usb_speed_switch_show(struct device *dev,
 #define ENABLE_FORCE_HOST_DISCONNECT		1
 #define DISABLE_FORCE_HOST_DISCONNECT		0
 static ssize_t usb_speed_switch_store(struct device *dev, struct device_attribute *attr,
-							const char *buf, size_t count)
+				      const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct usb_hcd *hcd = (struct usb_hcd *)platform_get_drvdata(pdev);
@@ -191,14 +192,14 @@ static ssize_t usb_speed_switch_store(struct device *dev, struct device_attribut
 			uphy_force_disc(ENABLE_FORCE_HOST_DISCONNECT, port_num);
 			msleep(POWER_RESET_TIME);
 			ehci_writel(ehci, FLAG_CF & usb_host_owner,
-						&ehci->regs->configured_flag);
+				    &ehci->regs->configured_flag);
 			uphy_force_disc(DISABLE_FORCE_HOST_DISCONNECT,
 					port_num);
 			ENABLE_VBUS_POWER(port_num);
 		} else if (port_num == MAX_PORT_NUM) {
 			pr_notice("warning,port 2 is not supported to power reset\n");
 			ehci_writel(ehci, FLAG_CF & usb_host_owner,
-						&ehci->regs->configured_flag);
+				    &ehci->regs->configured_flag);
 		} else {
 			pr_notice("error port num:%d\n", port_num);
 		}
@@ -217,7 +218,7 @@ static ssize_t usb_uphy_swing_show(struct device *dev, struct device_attribute *
 }
 
 static ssize_t usb_uphy_swing_store(struct device *dev, struct device_attribute *attr,
-							const char *buf, size_t count)
+				    const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	u32 swing_val;
@@ -231,7 +232,7 @@ static ssize_t usb_uphy_swing_store(struct device *dev, struct device_attribute 
 static DEVICE_ATTR_RW(usb_uphy_swing);
 
 static ssize_t usb_disconnect_level_show(struct device *dev, struct device_attribute *attr,
-										char *buf)
+					 char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	u32 disc_level;
@@ -242,9 +243,8 @@ static ssize_t usb_disconnect_level_show(struct device *dev, struct device_attri
 	return sprintf(buf, "0x%x\n", disc_level);
 }
 
-static ssize_t usb_disconnect_level_store(struct device *dev,
-						struct device_attribute *attr,
-						const char *buf, size_t count)
+static ssize_t usb_disconnect_level_store(struct device *dev, struct device_attribute *attr,
+					  const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	u32 disc_level;
@@ -260,14 +260,13 @@ static ssize_t usb_disconnect_level_store(struct device *dev,
 static DEVICE_ATTR_RW(usb_disconnect_level);
 
 static ssize_t usb_ctrl_reset_show(struct device *dev, struct device_attribute *attr,
-										char *buf)
+				   char *buf)
 {
 	return 0;
 }
 
-static ssize_t usb_ctrl_reset_store(struct device *dev,
-						struct device_attribute *attr,
-						const char *buf, size_t count)
+static ssize_t usb_ctrl_reset_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct usb_hcd *hcd = (struct usb_hcd *)platform_get_drvdata(pdev);
@@ -276,7 +275,7 @@ static ssize_t usb_ctrl_reset_store(struct device *dev,
 	if (kstrtouint(buf, 0, &val))
 		return 1;
 
-	if (hcd == NULL) {
+	if (!hcd) {
 		pr_notice("store_usb_ctrl_reset: usb controller invalid\n");
 		return count;
 	}
@@ -333,7 +332,7 @@ int ehci_sunplus_probe(struct platform_device *pdev)
 	struct resource *res_mem;
 	int irq;
 	int err = -ENOMEM;
-#if defined (CONFIG_USB_SUNPLUS_OTG)
+#if defined CONFIG_USB_SUNPLUS_OTG
 	struct usb_phy *otg_phy;
 #endif
 
@@ -393,8 +392,7 @@ int ehci_sunplus_probe(struct platform_device *pdev)
 		goto err_power;
 	}
 
-	hcd = usb_create_hcd(&ehci_platform_hc_driver, &pdev->dev,
-							dev_name(&pdev->dev));
+	hcd = usb_create_hcd(&ehci_platform_hc_driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		err = -ENOMEM;
 		goto err_power;
@@ -423,7 +421,7 @@ int ehci_sunplus_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hcd);
 
 /**************************************************************************************************/
-#if defined (CONFIG_USB_SUNPLUS_OTG)
+#if defined CONFIG_USB_SUNPLUS_OTG
 	if (pdev->id < 3) {
 		otg_phy = usb_get_transceiver_sp(pdev->id - 1);
 		if (otg_phy) {

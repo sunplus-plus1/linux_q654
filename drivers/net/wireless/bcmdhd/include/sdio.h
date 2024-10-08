@@ -2,7 +2,26 @@
  * SDIO spec header file
  * Protocol and standard (common) device definitions
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -112,7 +131,7 @@ typedef volatile struct {
 /* io_en */
 #define SDIO_FUNC_ENABLE_1	0x02	/* function 1 I/O enable */
 #define SDIO_FUNC_ENABLE_2	0x04	/* function 2 I/O enable */
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 #define SDIO_FUNC_ENABLE_3	0x08	/* function 2 I/O enable */
 #define SDIO_FUNC_DISABLE_3	0xF0	/* function 2 I/O enable */
 #endif /* defined (BT_OVER_SDIO) */
@@ -125,7 +144,7 @@ typedef volatile struct {
 #define INTR_CTL_MASTER_EN	0x1	/* interrupt enable master */
 #define INTR_CTL_FUNC1_EN	0x2	/* interrupt enable for function 1 */
 #define INTR_CTL_FUNC2_EN	0x4	/* interrupt enable for function 2 */
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 #define INTR_CTL_FUNC3_EN	0x8	/* interrupt enable for function 3 */
 #endif /* defined (BT_OVER_SDIO) */
 /* intr_status */

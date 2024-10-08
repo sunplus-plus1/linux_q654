@@ -427,11 +427,11 @@ _QueryProcessPageTable(gctPOINTER Logical, gctPHYS_ADDR_T *Address)
         /* vmalloc area. */
         *Address = page_to_phys(vmalloc_to_page(Logical)) | offset;
         return gcvSTATUS_OK;
-    } else if (virt_addr_valid(logical)) {
+    } else if (virt_addr_valid(Logical)) {
         /* Kernel logical address. */
         *Address = virt_to_phys(Logical);
         return gcvSTATUS_OK;
-#if gcdUSING_PFN_FOLLOW
+#if gcdUSING_PFN_FOLLOW || (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0))
     } else {
         struct vm_area_struct *vma;
         unsigned long pfn = 0;
