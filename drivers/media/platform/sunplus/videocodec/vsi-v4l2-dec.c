@@ -1094,7 +1094,7 @@ static int vsi_dec_setup_ctrls(struct v4l2_ctrl_handler *handler)
 			ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 		if (handler->error) {
-			v4l2_klog(LOGLVL_ERROR, "%s fail to set ctrl %d:%d", __func__, i, handler->error);
+			v4l2_klog(LOGLVL_WARNING, "%s fail to set ctrl %d:%d", __func__, i, handler->error);
 			handler->error = 0;
 		}
 	}
