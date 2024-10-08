@@ -179,6 +179,7 @@ struct csi2_dev {
 	/* Virtual channel support */
 	unsigned int max_channels;
 	unsigned int num_channels;
+	unsigned int iw_in[4];
 };
 
 static inline struct csi2_dev *sd_to_csi2(struct v4l2_subdev *sd)
@@ -450,10 +451,10 @@ static void csi2_vc_config(struct csi2_dev *priv)
 	/* Configure the connection between CSI-IW channels and Virtual channels
 	 * Note: This connection shoud be based on the routing.
 	 */
-	csi_writel(priv, MIPI_CH0_CONFIG, 0x00<<30);		/* Connect CSI-IW0 to VC0 */
-	csi_writel(priv, MIPI_CH1_CONFIG, 0x01<<30);		/* Connect CSI-IW1 to VC1 */
-	csi_writel(priv, MIPI_CH2_CONFIG, 0x02<<30);		/* Connect CSI-IW2 to VC2 */
-	csi_writel(priv, MIPI_CH3_CONFIG, 0x03<<30);		/* Connect CSI-IW3 to VC3 */
+	csi_writel(priv, MIPI_CH0_CONFIG, priv->iw_in[0]<<30);		/* Configure the input of CSI-IW0 */
+	csi_writel(priv, MIPI_CH1_CONFIG, priv->iw_in[1]<<30);		/* Configure the input of CSI-IW1 */
+	csi_writel(priv, MIPI_CH2_CONFIG, priv->iw_in[2]<<30);		/* Configure the input of CSI-IW2 */
+	csi_writel(priv, MIPI_CH3_CONFIG, priv->iw_in[3]<<30);		/* Configure the input of CSI-IW3 */
 
 	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3.
 	 * Configure MIPICSI23_SEL (G164) to select the virtual channel source
@@ -1142,7 +1143,7 @@ static int csi2_parse_dt(struct csi2_dev *priv)
 	struct fwnode_handle *fwnode;
 	struct device_node *ep;
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
-	u32 id;
+	u32 i, id;
 	int ret;
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
@@ -1181,6 +1182,18 @@ static int csi2_parse_dt(struct csi2_dev *priv)
 
 	dev_dbg(priv->dev, "%s, max_channels: %d, num_channels: %d\n",
 		__func__, priv->max_channels, priv->num_channels);
+
+	/* Configure virtual channels as the input of CSI-IWs */
+	ret = of_property_read_u32_array(priv->dev->of_node, "csiiw_input", priv->iw_in, 4);
+	if (ret) {
+		dev_warn(priv->dev, "Use increasing sequence as CSIIW input setting\n");
+		for (i = 0; i < 4; i++) {
+			priv->iw_in[i] = i;
+		}
+	}
+
+	dev_dbg(priv->dev, "%s, iw_in[0]: %d, iw_in[1]: %d, iw_in[2]: %d, iw_in[3]: %d\n",
+		__func__, priv->iw_in[0], priv->iw_in[1], priv->iw_in[2], priv->iw_in[3]);
 
 #if defined(MIPI_CSI_BIST)
 	/* For BIST test, skip bounding a sensor */
