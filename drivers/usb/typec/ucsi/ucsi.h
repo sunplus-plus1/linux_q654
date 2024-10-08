@@ -9,11 +9,13 @@
 #include <linux/types.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/pd.h>
+#include <linux/usb/role.h>
 
 /* -------------------------------------------------------------------------- */
 
 struct ucsi;
 struct ucsi_altmode;
+struct dentry;
 
 /* UCSI offsets (Bytes) */
 #define UCSI_VERSION			0
@@ -21,6 +23,17 @@ struct ucsi_altmode;
 #define UCSI_CONTROL			8
 #define UCSI_MESSAGE_IN			16
 #define UCSI_MESSAGE_OUT		32
+#define UCSIv2_MESSAGE_OUT		272
+
+/* UCSI versions */
+#define UCSI_VERSION_1_2	0x0120
+#define UCSI_VERSION_2_0	0x0200
+#define UCSI_VERSION_2_1	0x0210
+#define UCSI_VERSION_3_0	0x0300
+
+#define UCSI_BCD_GET_MAJOR(_v_)		(((_v_) >> 8) & 0xFF)
+#define UCSI_BCD_GET_MINOR(_v_)		(((_v_) >> 4) & 0x0F)
+#define UCSI_BCD_GET_SUBMINOR(_v_)	((_v_) & 0x0F)
 
 /* Command Status and Connector Change Indication (CCI) bits */
 #define UCSI_CCI_CONNECTOR(_c_)		(((_c_) & GENMASK(7, 1)) >> 1)
@@ -219,12 +232,12 @@ struct ucsi_cable_property {
 #define UCSI_CABLE_PROP_FLAG_VBUS_IN_CABLE	BIT(0)
 #define UCSI_CABLE_PROP_FLAG_ACTIVE_CABLE	BIT(1)
 #define UCSI_CABLE_PROP_FLAG_DIRECTIONALITY	BIT(2)
-#define UCSI_CABLE_PROP_FLAG_PLUG_TYPE(_f_)	((_f_) & GENMASK(3, 0))
+#define UCSI_CABLE_PROP_FLAG_PLUG_TYPE(_f_)	(((_f_) & GENMASK(4, 3)) >> 3)
 #define   UCSI_CABLE_PROPERTY_PLUG_TYPE_A	0
 #define   UCSI_CABLE_PROPERTY_PLUG_TYPE_B	1
 #define   UCSI_CABLE_PROPERTY_PLUG_TYPE_C	2
 #define   UCSI_CABLE_PROPERTY_PLUG_OTHER	3
-#define UCSI_CABLE_PROP_MODE_SUPPORT		BIT(5)
+#define UCSI_CABLE_PROP_FLAG_MODE_SUPPORT	BIT(5)
 	u8 latency;
 } __packed;
 
@@ -276,6 +289,16 @@ struct ucsi_connector_status {
 
 /* -------------------------------------------------------------------------- */
 
+struct ucsi_debugfs_entry {
+	u64 command;
+	struct ucsi_data {
+		u64 low;
+		u64 high;
+	} response;
+	u32 status;
+	struct dentry *dentry;
+};
+
 struct ucsi {
 	u16 version;
 	struct device *dev;
@@ -285,8 +308,14 @@ struct ucsi {
 
 	struct ucsi_capability cap;
 	struct ucsi_connector *connector;
+	struct ucsi_debugfs_entry *debugfs;
 
-	struct work_struct work;
+	struct work_struct resume_work;
+	struct delayed_work work;
+	int work_count;
+#define UCSI_ROLE_SWITCH_RETRY_PER_HZ	10
+#define UCSI_ROLE_SWITCH_INTERVAL	(HZ / UCSI_ROLE_SWITCH_RETRY_PER_HZ)
+#define UCSI_ROLE_SWITCH_WAIT_COUNT	(10 * UCSI_ROLE_SWITCH_RETRY_PER_HZ)
 
 	/* PPM Communication lock */
 	struct mutex ppm_lock;
@@ -299,7 +328,6 @@ struct ucsi {
 #define EVENT_PENDING	0
 #define COMMAND_PENDING	1
 #define ACK_PENDING	2
-#define EVENT_PROCESSING	3
 };
 
 #define UCSI_MAX_SVID		5
@@ -316,6 +344,8 @@ struct ucsi_connector {
 	struct mutex lock; /* port lock */
 	struct work_struct work;
 	struct completion complete;
+	struct workqueue_struct *wq;
+	struct list_head partner_tasks;
 
 	struct typec_port *port;
 	struct typec_partner *partner;
@@ -325,7 +355,6 @@ struct ucsi_connector {
 
 	struct typec_capability typec_cap;
 
-	u16 unprocessed_changes;
 	struct ucsi_connector_status status;
 	struct ucsi_connector_capability cap;
 	struct power_supply *psy;
@@ -333,6 +362,16 @@ struct ucsi_connector {
 	u32 rdo;
 	u32 src_pdos[PDO_MAX_OBJECTS];
 	int num_pdos;
+
+	/* USB PD objects */
+	struct usb_power_delivery *pd;
+	struct usb_power_delivery_capabilities *port_source_caps;
+	struct usb_power_delivery_capabilities *port_sink_caps;
+	struct usb_power_delivery *partner_pd;
+	struct usb_power_delivery_capabilities *partner_source_caps;
+	struct usb_power_delivery_capabilities *partner_sink_caps;
+
+	struct usb_role_switch *usb_role_sw;
 };
 
 int ucsi_send_command(struct ucsi *ucsi, u64 command,
@@ -371,6 +410,18 @@ ucsi_register_displayport(struct ucsi_connector *con,
 static inline void
 ucsi_displayport_remove_partner(struct typec_altmode *adev) { }
 #endif /* CONFIG_TYPEC_DP_ALTMODE */
+
+#ifdef CONFIG_DEBUG_FS
+void ucsi_debugfs_init(void);
+void ucsi_debugfs_exit(void);
+void ucsi_debugfs_register(struct ucsi *ucsi);
+void ucsi_debugfs_unregister(struct ucsi *ucsi);
+#else
+static inline void ucsi_debugfs_init(void) { }
+static inline void ucsi_debugfs_exit(void) { }
+static inline void ucsi_debugfs_register(struct ucsi *ucsi) { }
+static inline void ucsi_debugfs_unregister(struct ucsi *ucsi) { }
+#endif /* CONFIG_DEBUG_FS */
 
 /*
  * NVIDIA VirtualLink (svid 0x955) has two altmode. VirtualLink

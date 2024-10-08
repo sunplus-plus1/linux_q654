@@ -34,40 +34,40 @@ static const struct vin_video_format vin_formats[] = {
 		.fourcc			= V4L2_PIX_FMT_YVYU,
 		.mbus_code		= MEDIA_BUS_FMT_YVYU8_2X8,
 		.bpp			= 16,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_UYVY,
+		.fourcc			= V4L2_PIX_FMT_UYVY,
 		.mbus_code		= MEDIA_BUS_FMT_UYVY8_2X8,
 		.bpp			= 16,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_VYUY,
+		.fourcc			= V4L2_PIX_FMT_VYUY,
 		.mbus_code		= MEDIA_BUS_FMT_VYUY8_2X8,
 		.bpp			= 16,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_YUYV,
+		.fourcc			= V4L2_PIX_FMT_YUYV,
 		.mbus_code		= MEDIA_BUS_FMT_YUYV8_1X16,
 		.bpp			= 16,
 		.bpc			= 8,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_YVYU,
+		.fourcc			= V4L2_PIX_FMT_YVYU,
 		.mbus_code		= MEDIA_BUS_FMT_YVYU8_1X16,
 		.bpp			= 16,
 		.bpc			= 8,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_UYVY,
+		.fourcc			= V4L2_PIX_FMT_UYVY,
 		.mbus_code		= MEDIA_BUS_FMT_UYVY8_1X16,
 		.bpp			= 16,
 		.bpc			= 8,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_VYUY,
+		.fourcc			= V4L2_PIX_FMT_VYUY,
 		.mbus_code		= MEDIA_BUS_FMT_VYUY8_1X16,
 		.bpp			= 16,
 		.bpc			= 8,
@@ -103,48 +103,48 @@ static const struct vin_video_format vin_formats[] = {
 		.fourcc			= V4L2_PIX_FMT_SBGGR8,
 		.mbus_code		= MEDIA_BUS_FMT_SBGGR8_1X8,
 		.bpp			= 8,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
 	{
 		.fourcc			= V4L2_PIX_FMT_SGBRG8,
 		.mbus_code		= MEDIA_BUS_FMT_SGBRG8_1X8,
 		.bpp			= 8,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
 	{
 		.fourcc			= V4L2_PIX_FMT_SGRBG8,
 		.mbus_code		= MEDIA_BUS_FMT_SGRBG8_1X8,
 		.bpp			= 8,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
 	{
 		.fourcc			= V4L2_PIX_FMT_SRGGB8,
 		.mbus_code		= MEDIA_BUS_FMT_SRGGB8_1X8,
 		.bpp			= 8,
-		.bpc 			= 8,
+		.bpc			= 8,
 	},
 
 	/* RAW10 */
 	{
-		.fourcc 		= V4L2_PIX_FMT_SBGGR10,
+		.fourcc			= V4L2_PIX_FMT_SBGGR10,
 		.mbus_code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 		.bpp			= 16,
 		.bpc			= 10,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGBRG10,
+		.fourcc			= V4L2_PIX_FMT_SGBRG10,
 		.mbus_code		= MEDIA_BUS_FMT_SGBRG10_1X10,
 		.bpp			= 16,
 		.bpc			= 10,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGRBG10,
+		.fourcc			= V4L2_PIX_FMT_SGRBG10,
 		.mbus_code		= MEDIA_BUS_FMT_SGRBG10_1X10,
 		.bpp			= 16,
 		.bpc			= 10,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SRGGB10,
+		.fourcc			= V4L2_PIX_FMT_SRGGB10,
 		.mbus_code		= MEDIA_BUS_FMT_SRGGB10_1X10,
 		.bpp			= 16,
 		.bpc			= 10,
@@ -152,25 +152,25 @@ static const struct vin_video_format vin_formats[] = {
 
 	/* RAW10 packed mode */
 	{
-		.fourcc 		= V4L2_PIX_FMT_SBGGR10P,
+		.fourcc			= V4L2_PIX_FMT_SBGGR10P,
 		.mbus_code		= MEDIA_BUS_FMT_SBGGR10_1X10,
 		.bpp			= 10,
 		.bpc			= 10,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGBRG10P,
+		.fourcc			= V4L2_PIX_FMT_SGBRG10P,
 		.mbus_code		= MEDIA_BUS_FMT_SGBRG10_1X10,
 		.bpp			= 10,
 		.bpc			= 10,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGRBG10P,
+		.fourcc			= V4L2_PIX_FMT_SGRBG10P,
 		.mbus_code		= MEDIA_BUS_FMT_SGRBG10_1X10,
 		.bpp			= 10,
 		.bpc			= 10,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SRGGB10P,
+		.fourcc			= V4L2_PIX_FMT_SRGGB10P,
 		.mbus_code		= MEDIA_BUS_FMT_SRGGB10_1X10,
 		.bpp			= 10,
 		.bpc			= 10,
@@ -178,25 +178,25 @@ static const struct vin_video_format vin_formats[] = {
 
 	/* RAW12 */
 	{
-		.fourcc 		= V4L2_PIX_FMT_SBGGR12,
+		.fourcc			= V4L2_PIX_FMT_SBGGR12,
 		.mbus_code		= MEDIA_BUS_FMT_SBGGR12_1X12,
 		.bpp			= 16,
 		.bpc			= 12,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGBRG12,
+		.fourcc			= V4L2_PIX_FMT_SGBRG12,
 		.mbus_code		= MEDIA_BUS_FMT_SGBRG12_1X12,
 		.bpp			= 16,
 		.bpc			= 12,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGRBG12,
+		.fourcc			= V4L2_PIX_FMT_SGRBG12,
 		.mbus_code		= MEDIA_BUS_FMT_SGRBG12_1X12,
 		.bpp			= 16,
 		.bpc			= 12,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SRGGB12,
+		.fourcc			= V4L2_PIX_FMT_SRGGB12,
 		.mbus_code		= MEDIA_BUS_FMT_SRGGB12_1X12,
 		.bpp			= 16,
 		.bpc			= 12,
@@ -204,25 +204,25 @@ static const struct vin_video_format vin_formats[] = {
 
 	/* RAW12 packed mode */
 	{
-		.fourcc 		= V4L2_PIX_FMT_SBGGR12P,
+		.fourcc			= V4L2_PIX_FMT_SBGGR12P,
 		.mbus_code		= MEDIA_BUS_FMT_SBGGR12_1X12,
 		.bpp			= 12,
 		.bpc			= 12,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGBRG12P,
+		.fourcc			= V4L2_PIX_FMT_SGBRG12P,
 		.mbus_code		= MEDIA_BUS_FMT_SGBRG12_1X12,
 		.bpp			= 12,
 		.bpc			= 12,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SGRBG12P,
+		.fourcc			= V4L2_PIX_FMT_SGRBG12P,
 		.mbus_code		= MEDIA_BUS_FMT_SGRBG12_1X12,
 		.bpp			= 12,
 		.bpc			= 12,
 	},
 	{
-		.fourcc 		= V4L2_PIX_FMT_SRGGB12P,
+		.fourcc			= V4L2_PIX_FMT_SRGGB12P,
 		.mbus_code		= MEDIA_BUS_FMT_SRGGB12_1X12,
 		.bpp			= 12,
 		.bpc			= 12,
@@ -244,7 +244,7 @@ static char *fourcc_to_str(u32 fmt)
 }
 
 const struct vin_video_format *vin_format_from_pixel(struct vin_dev *vin,
-						       u32 pixelformat)
+						     u32 pixelformat)
 {
 	int i;
 
@@ -269,7 +269,7 @@ const struct vin_video_format *vin_format_from_pixel(struct vin_dev *vin,
 }
 
 static const struct vin_video_format *vin_find_format_by_fourcc(struct vin_dev *vin,
-						       unsigned int fourcc)
+								unsigned int fourcc)
 {
 	unsigned int num_formats = vin->num_of_sd_formats;
 	const struct vin_video_format *fmt;
@@ -285,7 +285,7 @@ static const struct vin_video_format *vin_find_format_by_fourcc(struct vin_dev *
 }
 
 static u32 vin_format_bytesperline(struct vin_dev *vin,
-				    struct v4l2_pix_format *pix)
+				   struct v4l2_pix_format *pix)
 {
 	const struct vin_video_format *fmt;
 	u32 align;
@@ -365,7 +365,7 @@ static void vin_format_align(struct vin_dev *vin, struct v4l2_pix_format *pix)
 
 	/* Limit to VIN capabilities */
 	v4l_bound_align_image(&pix->width, 2, vin->info->max_width, walign,
-			      &pix->height, 4, vin->info->max_height, 2, 0);
+			      &pix->height, 4, vin->info->max_height, 0, 0);
 
 	pix->bytesperline = vin_format_bytesperline(vin, pix);
 	pix->sizeimage = vin_format_sizeimage(pix);
@@ -395,10 +395,11 @@ static int vin_find_pad(struct v4l2_subdev *sd, int direction)
 #endif
 
 static int vin_try_format(struct vin_dev *vin, u32 which,
-			   struct v4l2_pix_format *pix,
-			   struct v4l2_rect *src_rect)
+			  struct v4l2_pix_format *pix,
+			  struct v4l2_rect *src_rect)
 {
-	struct v4l2_subdev_pad_config *pad_cfg;
+	struct v4l2_subdev_state *sd_state;
+	static struct lock_class_key key;
 	struct v4l2_subdev_format format = {
 		.which = which,
 	};
@@ -411,7 +412,7 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -420,12 +421,16 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
-	pad_cfg = v4l2_subdev_alloc_pad_config(sd);
-	if (pad_cfg == NULL)
-		return -ENOMEM;
+	/*
+	 * FIXME: Drop this call, drivers are not supposed to use
+	 * __v4l2_subdev_state_alloc().
+	 */
+	sd_state = __v4l2_subdev_state_alloc(sd, "vin:state->lock", &key);
+	if (IS_ERR(sd_state))
+		return PTR_ERR(sd_state);
 
 	dev_dbg(vin->dev, "%s, pad_cfg: code: 0x%04x %ux%u\n",
-		__func__, pad_cfg->try_fmt.code, pad_cfg->try_fmt.width, pad_cfg->try_fmt.height);
+		__func__, sd_state->pads->try_fmt.code, sd_state->pads->try_fmt.width, sd_state->pads->try_fmt.height);
 	dev_dbg(vin->dev, "%s, pix->pixelformat: %s\n", __func__, fourcc_to_str(pix->pixelformat));
 
 	if (!vin_format_from_pixel(vin, pix->pixelformat))
@@ -454,7 +459,7 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 	width = pix->width;
 	height = pix->height;
 
-	ret = v4l2_subdev_call(sd, pad, set_fmt, pad_cfg, &format);
+	ret = v4l2_subdev_call(sd, pad, set_fmt, sd_state, &format);
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		goto done;
 	ret = 0;
@@ -479,13 +484,13 @@ static int vin_try_format(struct vin_dev *vin, u32 which,
 	vin_format_align(vin, pix);
 
 done:
-	v4l2_subdev_free_pad_config(pad_cfg);
+	__v4l2_subdev_state_free(sd_state);
 
 	return ret;
 }
 
 static int vin_querycap(struct file *file, void *priv,
-			 struct v4l2_capability *cap)
+			struct v4l2_capability *cap)
 {
 	struct vin_dev *vin = video_drvdata(file);
 
@@ -499,7 +504,7 @@ static int vin_querycap(struct file *file, void *priv,
 }
 
 static int vin_try_fmt_vid_cap(struct file *file, void *priv,
-				struct v4l2_format *f)
+			       struct v4l2_format *f)
 {
 	struct vin_dev *vin = video_drvdata(file);
 
@@ -509,7 +514,7 @@ static int vin_try_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vin_s_fmt_vid_cap(struct file *file, void *priv,
-				 struct v4l2_format *f)
+			     struct v4l2_format *f)
 {
 	struct vin_dev *vin = video_drvdata(file);
 	struct v4l2_rect fmt_rect, src_rect;
@@ -528,7 +533,7 @@ static int vin_s_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 
 	ret = vin_try_format(vin, V4L2_SUBDEV_FORMAT_ACTIVE, &f->fmt.pix,
-			      &src_rect);
+			     &src_rect);
 	if (ret)
 		return ret;
 
@@ -551,7 +556,7 @@ static int vin_s_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vin_g_fmt_vid_cap(struct file *file, void *priv,
-			      struct v4l2_format *f)
+			     struct v4l2_format *f)
 {
 	struct vin_dev *vin = video_drvdata(file);
 
@@ -570,7 +575,7 @@ static int vin_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	struct media_pad *pad;
 	int ret;
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -598,7 +603,7 @@ static int vin_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	struct media_pad *pad;
 	int ret;
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -618,7 +623,7 @@ static int vin_s_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 }
 
 static int vin_enum_fmt_vid_cap(struct file *file, void *priv,
-				 struct v4l2_fmtdesc *f)
+				struct v4l2_fmtdesc *f)
 {
 	struct vin_dev *vin = video_drvdata(file);
 
@@ -634,7 +639,7 @@ static int vin_enum_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vin_enum_input(struct file *file, void *priv,
-			   struct v4l2_input *i)
+			  struct v4l2_input *i)
 {
 	pr_info("%s, %d", __func__, __LINE__);
 
@@ -664,7 +669,7 @@ static int vin_s_input(struct file *file, void *priv, unsigned int i)
 }
 
 static int vin_enum_framesizes(struct file *file, void *fh,
-				struct v4l2_frmsizeenum *fsize)
+			       struct v4l2_frmsizeenum *fsize)
 {
 	struct vin_dev *vin = video_drvdata(file);
 	struct media_pad *pad;
@@ -683,11 +688,12 @@ static int vin_enum_framesizes(struct file *file, void *fh,
 	fse.code = sd_fmt->mbus_code;
 
 	/* Use media pad to get v4l2 subdevice */
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
-	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n", __func__, pad->entity->name, pad->index);
+	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n",
+		__func__, pad->entity->name, pad->index);
 
 	subdev = media_entity_to_v4l2_subdev(pad->entity);
 
@@ -704,7 +710,7 @@ static int vin_enum_framesizes(struct file *file, void *fh,
 }
 
 static int vin_enum_frameintervals(struct file *file, void *fh,
-				    struct v4l2_frmivalenum *fival)
+				   struct v4l2_frmivalenum *fival)
 {
 	struct vin_dev *vin = video_drvdata(file);
 	struct media_pad *pad;
@@ -725,11 +731,12 @@ static int vin_enum_frameintervals(struct file *file, void *fh,
 	fie.code = sd_fmt->mbus_code;
 
 	/* Use media pad to get v4l2 subdevice */
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
-	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n", __func__, pad->entity->name, pad->index);
+	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n",
+		__func__, pad->entity->name, pad->index);
 
 	subdev = media_entity_to_v4l2_subdev(pad->entity);
 
@@ -745,7 +752,7 @@ static int vin_enum_frameintervals(struct file *file, void *fh,
 }
 
 static int vin_subscribe_event(struct v4l2_fh *fh,
-				const struct v4l2_event_subscription *sub)
+			       const struct v4l2_event_subscription *sub)
 {
 	pr_info("%s, %d", __func__, __LINE__);
 
@@ -793,8 +800,8 @@ static const struct v4l2_ioctl_ops vin_ioctl_ops = {
 
 #if defined(MC_MODE_DEFAULT)
 static int vin_mc_try_format_default(struct vin_dev *vin, u32 which,
-			   struct v4l2_pix_format *pix,
-			   struct v4l2_rect *src_rect)
+				     struct v4l2_pix_format *pix,
+				     struct v4l2_rect *src_rect)
 {
 	struct v4l2_subdev_pad_config *pad_cfg;
 	struct v4l2_subdev_format format = {
@@ -809,7 +816,7 @@ static int vin_mc_try_format_default(struct vin_dev *vin, u32 which,
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
@@ -818,7 +825,7 @@ static int vin_mc_try_format_default(struct vin_dev *vin, u32 which,
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
 	pad_cfg = v4l2_subdev_alloc_pad_config(sd);
-	if (pad_cfg == NULL)
+	if (!pad_cfg)
 		return -ENOMEM;
 
 	dev_dbg(vin->dev, "%s, pix->pixelformat: %s\n", __func__, fourcc_to_str(pix->pixelformat));
@@ -870,9 +877,10 @@ done:
 #endif
 
 static void vin_mc_try_format(struct vin_dev *vin,
-			       struct v4l2_pix_format *pix)
+			      struct v4l2_pix_format *pix)
 {
 	const struct vin_video_format *fmt;
+
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
 	/*
@@ -893,7 +901,7 @@ static void vin_mc_try_format(struct vin_dev *vin,
 }
 
 static int vin_mc_try_fmt_vid_cap(struct file *file, void *priv,
-				   struct v4l2_format *f)
+				  struct v4l2_format *f)
 {
 	struct vin_dev *vin = video_drvdata(file);
 
@@ -905,7 +913,7 @@ static int vin_mc_try_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vin_mc_s_fmt_vid_cap(struct file *file, void *priv,
-				 struct v4l2_format *f)
+				struct v4l2_format *f)
 {
 	struct vin_dev *vin = video_drvdata(file);
 #if defined(MC_MODE_DEFAULT)
@@ -918,7 +926,6 @@ static int vin_mc_s_fmt_vid_cap(struct file *file, void *priv,
 	if (vb2_is_busy(&vin->queue))
 		return -EBUSY;
 
-
 #if defined(MC_MODE_DEFAULT)
 	if (mode) {
 		//struct vin_dev *vin = video_drvdata(file);
@@ -929,7 +936,7 @@ static int vin_mc_s_fmt_vid_cap(struct file *file, void *priv,
 		//	return -EBUSY;
 
 		ret = vin_mc_try_format_default(vin, V4L2_SUBDEV_FORMAT_ACTIVE, &f->fmt.pix,
-				      &src_rect);
+						&src_rect);
 		if (ret)
 			return ret;
 
@@ -970,7 +977,7 @@ static int vin_mc_s_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vin_mc_enum_fmt_vid_cap(struct file *file, void *priv,
-				 struct v4l2_fmtdesc *f)
+				   struct v4l2_fmtdesc *f)
 {
 	struct vin_dev *vin = video_drvdata(file);
 	unsigned int i;
@@ -1030,7 +1037,8 @@ static int vin_mc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 	matched = -1;
 	for (i = 0; i < ARRAY_SIZE(vin_formats); i++) {
-		//dev_dbg(vin->dev, "i: %d, vin_formats[i].fourcc: %s\n", i, fourcc_to_str(vin_formats[i].fourcc));
+		//dev_dbg(vin->dev, "i: %d, vin_formats[i].fourcc: %s\n", i,
+		//	fourcc_to_str(vin_formats[i].fourcc));
 
 		if (vin_format_from_pixel(vin, vin_formats[i].fourcc))
 			matched++;
@@ -1039,7 +1047,8 @@ static int vin_mc_enum_fmt_vid_cap(struct file *file, void *priv,
 
 		if (matched == f->index) {
 			f->pixelformat = vin_formats[i].fourcc;
-			dev_dbg(vin->dev, "matched: %d, f->pixelformat: %s\n", matched, fourcc_to_str(f->pixelformat));
+			dev_dbg(vin->dev, "matched: %d, f->pixelformat: %s\n",
+				matched, fourcc_to_str(f->pixelformat));
 
 			return 0;
 		}
@@ -1177,7 +1186,7 @@ void vin_v4l2_unregister(struct vin_dev *vin)
 }
 
 static void vin_notify(struct v4l2_subdev *sd,
-			unsigned int notification, void *arg)
+		       unsigned int notification, void *arg)
 {
 	struct vin_dev *vin =
 		container_of(sd->v4l2_dev, struct vin_dev, v4l2_dev);
@@ -1201,7 +1210,6 @@ int vin_v4l2_formats_init(struct vin_dev *vin)
 	u32 bist_fmt[2] = {MEDIA_BUS_FMT_YUYV8_2X8, MEDIA_BUS_FMT_SBGGR12_1X12};
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-
 
 	for (k = 0; k < ARRAY_SIZE(bist_fmt); k++) {
 		for (i = 0; i < ARRAY_SIZE(vin_formats); i++) {
@@ -1238,8 +1246,8 @@ int vin_v4l2_formats_init(struct vin_dev *vin)
 
 	vin->num_of_sd_formats = num_fmts;
 	vin->sd_formats = devm_kcalloc(vin->dev,
-					num_fmts, sizeof(struct vin_video_format *),
-					GFP_KERNEL);
+				       num_fmts, sizeof(struct vin_video_format *),
+				       GFP_KERNEL);
 	if (!vin->sd_formats) {
 		dev_err(vin->dev, "Could not allocate memory\n");
 		return -ENOMEM;
@@ -1259,12 +1267,10 @@ int vin_v4l2_framesizes_init(struct vin_dev *vin)
 	struct vin_video_framesize bist_fsizes[2] = {{1280, 720}, {1920, 1080}};
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-
-
 	vin->num_of_sd_framesizes = num_fsize;
 	vin->sd_framesizes = devm_kcalloc(vin->dev, num_fsize,
-					   sizeof(struct vin_video_framesize),
-					   GFP_KERNEL);
+					  sizeof(struct vin_video_framesize),
+					  GFP_KERNEL);
 	if (!vin->sd_framesizes) {
 		dev_err(vin->dev, "Could not allocate memory\n");
 		return -ENOMEM;
@@ -1275,7 +1281,8 @@ int vin_v4l2_framesizes_init(struct vin_dev *vin)
 	for (i = 0; i < vin->num_of_sd_framesizes; i++) {
 		vin->sd_framesizes[i].width = bist_fsizes[i].width;
 		vin->sd_framesizes[i].height = bist_fsizes[i].height;
-		dev_dbg(vin->dev, "%ux%u\n", vin->sd_framesizes[i].width, vin->sd_framesizes[i].height);
+		dev_dbg(vin->dev, "%ux%u\n",
+			vin->sd_framesizes[i].width, vin->sd_framesizes[i].height);
 	}
 
 	return 0;
@@ -1293,18 +1300,19 @@ int vin_v4l2_formats_init(struct vin_dev *vin)
 	};
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
-	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n", __func__, pad->entity->name, pad->index);
+	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n",
+		__func__, pad->entity->name, pad->index);
 
 	subdev = media_entity_to_v4l2_subdev(pad->entity);
 
 	while (!v4l2_subdev_call(subdev, pad, enum_mbus_code,
 				 NULL, &mbus_code)) {
-
-		dev_dbg(vin->dev, "%s, %d, mbus_code.code: 0x%x\n", __func__, __LINE__, mbus_code.code);
+		dev_dbg(vin->dev, "%s, %d, mbus_code.code: 0x%x\n",
+			__func__, __LINE__, mbus_code.code);
 
 		for (i = 0; i < ARRAY_SIZE(vin_formats); i++) {
 			if (vin_formats[i].mbus_code != mbus_code.code)
@@ -1340,9 +1348,9 @@ int vin_v4l2_formats_init(struct vin_dev *vin)
 		return -ENXIO;
 
 	vin->num_of_sd_formats = num_fmts;
-	vin->sd_formats = devm_kcalloc(vin->dev,
-					num_fmts, sizeof(struct vin_video_format *),
-					GFP_KERNEL);
+	vin->sd_formats = devm_kcalloc(vin->dev, num_fmts,
+				       sizeof(struct vin_video_format *),
+				       GFP_KERNEL);
 	if (!vin->sd_formats) {
 		dev_err(vin->dev, "Could not allocate memory\n");
 		return -ENOMEM;
@@ -1369,11 +1377,12 @@ int vin_v4l2_framesizes_init(struct vin_dev *vin)
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_remote_pad(&vin->pad);
+	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
 
-	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n", __func__, pad->entity->name, pad->index);
+	dev_dbg(vin->dev, "%s, pad->entity->name: %s, pad->index: %d\n",
+		__func__, pad->entity->name, pad->index);
 
 	subdev = media_entity_to_v4l2_subdev(pad->entity);
 
@@ -1388,8 +1397,8 @@ int vin_v4l2_framesizes_init(struct vin_dev *vin)
 
 	vin->num_of_sd_framesizes = num_fsize;
 	vin->sd_framesizes = devm_kcalloc(vin->dev, num_fsize,
-					   sizeof(struct vin_video_framesize),
-					   GFP_KERNEL);
+					  sizeof(struct vin_video_framesize),
+					  GFP_KERNEL);
 	if (!vin->sd_framesizes) {
 		dev_err(vin->dev, "Could not allocate memory\n");
 		return -ENOMEM;
@@ -1427,10 +1436,11 @@ int vin_v4l2_set_default_fmt(struct vin_dev *vin)
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-	//dev_dbg(vin->dev, "%s, pixelformat: %s\n", __func__, fourcc_to_str(f.fmt.pix.pixelformat));
+	dev_dbg(vin->dev, "%s, pixelformat: %s\n",
+		__func__, fourcc_to_str(f.fmt.pix.pixelformat));
 
 	ret = vin_try_format(vin, V4L2_SUBDEV_FORMAT_ACTIVE, &f.fmt.pix,
-				  &src_rect);
+			     &src_rect);
 	if (ret)
 		return ret;
 

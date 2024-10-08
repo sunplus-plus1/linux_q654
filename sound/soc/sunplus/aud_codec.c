@@ -130,22 +130,23 @@ static struct snd_soc_dai_driver audcodec_dai[]	= {
 };
 
 static const DECLARE_TLV_DB_SCALE(volume_tlv, -6000, 0,	1);
-static const char *cpm0_5_out[]	= {"pcm0", "pcm5"};
-static const struct soc_enum cpm0_5_out_enum = SOC_ENUM_DOUBLE(reg_aud_grm_gain_control_8, 16, 17, 2, cpm0_5_out);
+static const char * const cpm0_5_out[] = {"pcm0", "pcm5"};
+static const struct soc_enum cpm0_5_out_enum = SOC_ENUM_DOUBLE(reg_aud_grm_gain_control_8,
+							       16, 17, 2, cpm0_5_out);
 
 static const struct snd_kcontrol_new aud_snd_controls[]	= {
 	/* master gains	*/
-	SOC_SINGLE_TLV("Master Playback	Volume", reg_aud_grm_master_gain,	8,	2<<22,		0,	volume_tlv),
+	SOC_SINGLE_TLV("Playback Volume", reg_aud_grm_master_gain, 8, 2 << 22, 0, volume_tlv),
 	/* Playback gains */
-	SOC_DOUBLE_TLV("A0 Playback Volume",	reg_aud_grm_gain_control_5,	0,	8,	0x80,	0,	volume_tlv),
-	SOC_DOUBLE_TLV("A1 Playback Volume",	reg_aud_grm_gain_control_5,	16,	24,	0x80,	0,	volume_tlv),
+	SOC_DOUBLE_TLV("A0 Volume", reg_aud_grm_gain_control_5, 0, 8, 0x80, 0,	volume_tlv),
+	SOC_DOUBLE_TLV("A1 Volume", reg_aud_grm_gain_control_5, 16, 24, 0x80, 0, volume_tlv),
 
-	SOC_DOUBLE_TLV("A2 Playback Volume",	reg_aud_grm_gain_control_6,	0,	8,	0x80,	0,	volume_tlv),
-	SOC_DOUBLE_TLV("A3 Playback Volume",	reg_aud_grm_gain_control_6,	16,	24,	0x80,	0,	volume_tlv),
+	SOC_DOUBLE_TLV("A2 Volume", reg_aud_grm_gain_control_6, 0, 8, 0x80, 0,	volume_tlv),
+	SOC_DOUBLE_TLV("A3 Volume", reg_aud_grm_gain_control_6, 16, 24, 0x80, 0, volume_tlv),
 
-	SOC_SINGLE_TLV("A4 Playback Volume 1",	reg_aud_grm_gain_control_7,	14,	2<<16,		0,	volume_tlv),
-	SOC_SINGLE_TLV("A4 Playback Volume 2",	reg_aud_grm_gain_control_8,	14,	2<<16,		0,	volume_tlv),
-	SOC_DOUBLE_TLV("A20 Playback Volume",	reg_aud_grm_gain_control_10,	0,	8,	0x80,	0,	volume_tlv),
+	SOC_SINGLE_TLV("A4 Volume 1", reg_aud_grm_gain_control_7, 14, 2 << 16, 0, volume_tlv),
+	SOC_SINGLE_TLV("A4 Volume 2", reg_aud_grm_gain_control_8, 14, 2 << 16, 0, volume_tlv),
+	SOC_DOUBLE_TLV("A20 Volume", reg_aud_grm_gain_control_10, 0, 8, 0x80, 0, volume_tlv),
 
 	/* Mux */
 	SOC_ENUM("pcm0 pcm5 Output", cpm0_5_out_enum),
@@ -248,7 +249,7 @@ static const struct snd_kcontrol_new aud_snd_controls[]	= {
 static unsigned	int audreg_read(struct snd_soc_component *component, unsigned int reg)
 {
 	int val, addr_g, addr_i;
-	volatile uint32_t *addr;
+	volatile u32 *addr;
 
 	addr_i = reg % 100;
 	addr_g = (reg -	addr_i)	/ 100 -	60;
@@ -262,8 +263,8 @@ static unsigned	int audreg_read(struct snd_soc_component *component, unsigned in
 
 static int audreg_write(struct snd_soc_component *component, unsigned int reg, unsigned int value)
 {
-	int  addr_g, addr_i;
-	volatile uint32_t *addr;
+	int addr_g, addr_i;
+	volatile u32 *addr;
 
 	addr_i = reg % 100;
 	addr_g = (reg -	addr_i)	/ 100 -	60;
@@ -312,9 +313,10 @@ static int aud_codec_probe(struct platform_device *pdev)
 {
 	int ret	= 0;
 
-	dev_info(&pdev->dev, "%s \n", __func__);
+	dev_info(&pdev->dev, "%s\n", __func__);
 	codecaudio_base	= codec_get_spaud_data();
-	ret = devm_snd_soc_register_component(&pdev->dev, &soc_codec_dev_aud, audcodec_dai, ARRAY_SIZE(audcodec_dai));
+	ret = devm_snd_soc_register_component(&pdev->dev, &soc_codec_dev_aud, audcodec_dai,
+					      ARRAY_SIZE(audcodec_dai));
 
 	return ret;
 }
@@ -322,28 +324,19 @@ static int aud_codec_probe(struct platform_device *pdev)
 static int aud_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
-
 	return 0;
 }
-#if 0
-static const struct of_device_id sunplus_audio_codec_dt_ids[] =	{
-	{ .compatible =	"sunplus,audio-codec", },
-	{ },
-};
-MODULE_DEVICE_TABLE(of,	sunplus_audio_codec_dt_ids);
-#endif
+
 static struct platform_driver spaud_codec_driver = {
 	.driver	= {
-		.name		= "aud-codec",
+		.name	= "aud-codec",
 		.owner	= THIS_MODULE,
 		//.of_match_table	= of_match_ptr(sunplus_audio_codec_dt_ids),
 	},
 	.probe	= aud_codec_probe,
 	.remove	= aud_codec_remove,
 };
-#if 0
-module_platform_driver(spaud_codec_driver);
-#else
+
 static struct platform_device *spsoc_codec_device;
 static int __init snd_spsoc_codec_init(void)
 {
@@ -373,8 +366,7 @@ static void __exit snd_spsoc_codec_exit(void)
 	platform_driver_unregister(&spaud_codec_driver);
 }
 module_exit(snd_spsoc_codec_exit);
-#endif
+
 MODULE_AUTHOR("Sunplus Technology Inc.");
 MODULE_DESCRIPTION("Sunplus codec driver");
 MODULE_LICENSE("GPL");
-

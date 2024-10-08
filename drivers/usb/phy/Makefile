@@ -2,8 +2,6 @@
 #
 # Makefile for physical layer USB drivers
 #
-
-obj-$(CONFIG_USB_SUNPLUS_OTG)			+= otg-sunplus.o otg0-sunplus.o
 obj-$(CONFIG_SUNPLUS_SYNOPSYS_USB3_PHY)         += synopsysu3phy-sunplus.o
 
 obj-$(CONFIG_USB_PHY)			+= phy.o
@@ -13,7 +11,6 @@ obj-$(CONFIG_OF)			+= of.o
 
 obj-$(CONFIG_AB8500_USB)		+= phy-ab8500-usb.o
 obj-$(CONFIG_FSL_USB2_OTG)		+= phy-fsl-usb.o
-obj-$(CONFIG_ISP1301_OMAP)		+= phy-isp1301-omap.o
 obj-$(CONFIG_NOP_USB_XCEIV)		+= phy-generic.o
 obj-$(CONFIG_TAHVO_USB)			+= phy-tahvo.o
 obj-$(CONFIG_AM335X_CONTROL_USB)	+= phy-am335x-control.o
@@ -28,4 +25,4 @@ obj-$(CONFIG_USB_MXS_PHY)		+= phy-mxs-usb.o
 obj-$(CONFIG_USB_ULPI)			+= phy-ulpi.o
 obj-$(CONFIG_USB_ULPI_VIEWPORT)		+= phy-ulpi-viewport.o
 obj-$(CONFIG_KEYSTONE_USB_PHY)		+= phy-keystone.o
-obj-$(CONFIG_JZ4770_PHY)		+= phy-jz4770.o
+obj-$(CONFIG_USB_SUNPLUS_OTG)			+= otg-sunplus.o otg0-sunplus.o

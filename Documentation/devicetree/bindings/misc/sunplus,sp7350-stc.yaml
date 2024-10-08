@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2024
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/misc/sunplus,sp7350-stc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SoCs STC
+
+maintainers:
+  - XianTao Hu <xt.hu@sunmedia.com.cn>
+
+properties:
+  compatible:
+    const: sunplus,sp7350-stc
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: clk_sys
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sp-sp7350.h>
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+      stc: stc@f8800b80 {
+        compatible = "sunplus,sp7350-stc";
+        reg = <0x00 0xf8800b80 0x00 0x14>;
+        clocks = <&clkc SYSAO>;
+        clock-names = "clk_sys";
+      };
+    };
+...

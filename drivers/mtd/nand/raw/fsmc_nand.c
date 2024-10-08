@@ -26,8 +26,8 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand-ecc-sw-hamming.h>
 #include <linux/mtd/rawnand.h>
-#include <linux/mtd/nand_ecc.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/mtd/partitions.h>
@@ -450,6 +450,17 @@ static int fsmc_read_hwecc_ecc1(struct nand_chip *chip, const u8 *data,
 	return 0;
 }
 
+static int fsmc_correct_ecc1(struct nand_chip *chip,
+			     unsigned char *buf,
+			     unsigned char *read_ecc,
+			     unsigned char *calc_ecc)
+{
+	bool sm_order = chip->ecc.options & NAND_ECC_SOFT_HAMMING_SM_ORDER;
+
+	return ecc_sw_hamming_correct(buf, read_ecc, calc_ecc,
+				      chip->ecc.size, sm_order);
+}
+
 /* Count the number of 0's in buff upto a max of max_bits */
 static int count_written_bits(u8 *buff, int size, int max_bits)
 {
@@ -869,7 +880,7 @@ static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 		}
 	}
 
-	if (of_get_property(np, "nand-skip-bbtscan", NULL))
+	if (of_property_read_bool(np, "nand-skip-bbtscan"))
 		nand->options |= NAND_SKIP_BBTSCAN;
 
 	host->dev_timings = devm_kzalloc(&pdev->dev,
@@ -938,7 +949,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		dev_info(host->dev, "Using 1-bit HW ECC scheme\n");
 		nand->ecc.calculate = fsmc_read_hwecc_ecc1;
-		nand->ecc.correct = nand_correct_data;
+		nand->ecc.correct = fsmc_correct_ecc1;
 		nand->ecc.hwctl = fsmc_enable_hwecc;
 		nand->ecc.bytes = 3;
 		nand->ecc.strength = 1;
@@ -951,6 +962,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 				 "Using 4-bit SW BCH ECC scheme\n");
 			break;
 		}
+		break;
 
 	case NAND_ECC_ENGINE_TYPE_ON_DIE:
 		break;
@@ -962,7 +974,7 @@ static int fsmc_nand_attach_chip(struct nand_chip *nand)
 
 	/*
 	 * Don't set layout for BCH4 SW ECC. This will be
-	 * generated later in nand_bch_init() later.
+	 * generated later during BCH initialization.
 	 */
 	if (nand->ecc.engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST) {
 		switch (mtd->oobsize) {
@@ -1054,15 +1066,11 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	host->regs_va = base + FSMC_NOR_REG_SIZE +
 		(host->bank * FSMC_NAND_BANK_SZ);
 
-	host->clk = devm_clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		dev_err(&pdev->dev, "failed to fetch block clock\n");
 		return PTR_ERR(host->clk);
 	}
-
-	ret = clk_prepare_enable(host->clk);
-	if (ret)
-		return ret;
 
 	/*
 	 * This device ID is actually a common AMBA ID as used on the
@@ -1099,7 +1107,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		if (!host->read_dma_chan) {
 			dev_err(&pdev->dev, "Unable to get read dma channel\n");
 			ret = -ENODEV;
-			goto disable_clk;
+			goto disable_fsmc;
 		}
 		host->write_dma_chan = dma_request_channel(mask, filter, NULL);
 		if (!host->write_dma_chan) {
@@ -1143,9 +1151,8 @@ release_dma_write_chan:
 release_dma_read_chan:
 	if (host->mode == USE_DMA_ACCESS)
 		dma_release_channel(host->read_dma_chan);
-disable_clk:
+disable_fsmc:
 	fsmc_nand_disable(host);
-	clk_disable_unprepare(host->clk);
 
 	return ret;
 }
@@ -1153,7 +1160,7 @@ disable_clk:
 /*
  * Clean up routine
  */
-static int fsmc_nand_remove(struct platform_device *pdev)
+static void fsmc_nand_remove(struct platform_device *pdev)
 {
 	struct fsmc_nand_data *host = platform_get_drvdata(pdev);
 
@@ -1170,10 +1177,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 			dma_release_channel(host->write_dma_chan);
 			dma_release_channel(host->read_dma_chan);
 		}
-		clk_disable_unprepare(host->clk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1217,7 +1221,7 @@ static const struct of_device_id fsmc_nand_id_table[] = {
 MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
 
 static struct platform_driver fsmc_nand_driver = {
-	.remove = fsmc_nand_remove,
+	.remove_new = fsmc_nand_remove,
 	.driver = {
 		.name = "fsmc-nand",
 		.of_match_table = fsmc_nand_id_table,

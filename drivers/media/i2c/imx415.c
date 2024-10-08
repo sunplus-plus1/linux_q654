@@ -38,6 +38,11 @@
 
 #define IMX415_NUM_CLK_PARAM_REGS 11
 
+#define IMX415_REG_8BIT(n)	  ((1 << 16) | (n))
+#define IMX415_REG_16BIT(n)	  ((2 << 16) | (n))
+#define IMX415_REG_24BIT(n)	  ((3 << 16) | (n))
+#define IMX415_REG_SIZE_SHIFT	  16
+#define IMX415_REG_ADDR_MASK	  0xffff
 #define IMX415_MODE		  CCI_REG8(0x3000)
 #define IMX415_MODE_OPERATING	  (0)
 #define IMX415_MODE_STANDBY	  BIT(0)
@@ -1233,7 +1238,7 @@ err_pm:
 }
 
 static int imx415_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct imx415 *sensor = to_imx415(sd);
@@ -1246,7 +1251,7 @@ static int imx415_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int imx415_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct imx415 *sensor = to_imx415(sd);
@@ -1294,7 +1299,7 @@ static void imx415_update_image_pad_format(struct imx415 *imx415,
 }
 
 static int imx415_get_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct imx415 *imx415 = to_imx415(sd);
@@ -1303,7 +1308,7 @@ static int imx415_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&imx415->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		try_fmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		try_fmt = v4l2_subdev_get_try_format(sd, state, fmt->pad);
 		fmt->format = *try_fmt;
 	} else {
 		imx415_update_image_pad_format(imx415, mode, fmt);
@@ -1314,7 +1319,7 @@ static int imx415_get_format(struct v4l2_subdev *sd,
 }
 
 static int imx415_set_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_pad_config *cfg,
+			     struct v4l2_subdev_state *state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
@@ -1329,7 +1334,7 @@ static int imx415_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&imx415->mutex);
 	imx415_update_image_pad_format(imx415, mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
+		framefmt = v4l2_subdev_get_try_format(sd, state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		imx415->mode = mode;
@@ -1340,7 +1345,7 @@ static int imx415_set_format(struct v4l2_subdev *sd,
 }
 
 static int imx415_get_selection(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *sd_state,
 				struct v4l2_subdev_selection *sel)
 {
 	struct imx415 *imx415 = to_imx415(sd);
@@ -1375,7 +1380,7 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 }
 
 static int imx415_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg)
+			   struct v4l2_subdev_state *state)
 {
 	struct v4l2_subdev_format format = {
 		.format = {
@@ -1384,7 +1389,7 @@ static int imx415_init_cfg(struct v4l2_subdev *sd,
 		},
 	};
 
-	imx415_set_format(sd, cfg, &format);
+	imx415_set_format(sd, state, &format);
 
 	return 0;
 }
@@ -1640,7 +1645,7 @@ static int imx415_probe(struct i2c_client *client)
 	pm_runtime_get_noresume(sensor->dev);
 	pm_runtime_enable(sensor->dev);
 
-	ret = v4l2_async_register_subdev_sensor_common(&sensor->subdev);
+	ret = v4l2_async_register_subdev_sensor(&sensor->subdev);
 	if (ret < 0)
 		goto err_pm;
 
@@ -1664,7 +1669,7 @@ err_power:
 	return ret;
 }
 
-static int imx415_remove(struct i2c_client *client)
+static void imx415_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct imx415 *sensor = to_imx415(subdev);
@@ -1681,8 +1686,6 @@ static int imx415_remove(struct i2c_client *client)
 	if (!pm_runtime_status_suspended(sensor->dev))
 		imx415_power_off(sensor);
 	pm_runtime_set_suspended(sensor->dev);
-
-	return 0;
 }
 
 static int imx415_runtime_resume(struct device *dev)
@@ -1717,7 +1720,7 @@ static const struct of_device_id imx415_of_match[] = {
 MODULE_DEVICE_TABLE(of, imx415_of_match);
 
 static struct i2c_driver imx415_driver = {
-	.probe_new = imx415_probe,
+	.probe = imx415_probe,
 	.remove = imx415_remove,
 	.driver = {
 		.name = "imx415",

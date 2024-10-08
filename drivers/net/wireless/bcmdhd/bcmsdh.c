@@ -2,7 +2,26 @@
  *  BCMSDH interface glue
  *  implement bcmsdh API for SDIOH driver
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -46,7 +65,7 @@
 #include <sbsdio.h>	/* SDIO device core hardware definitions. */
 #include <sdio.h>	/* SDIO Device and Protocol Specs */
 
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 #include <dhd_bt_interface.h>
 #endif /* defined (BT_OVER_SDIO) */
 
@@ -56,7 +75,7 @@ const uint bcmsdh_msglevel = BCMSDH_ERROR_VAL;
 /* local copy of bcm sd handler */
 bcmsdh_info_t * l_bcmsdh = NULL;
 
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 struct sdio_func *func_f3 = NULL;
 static f3intr_handler processf3intr = NULL;
 static dhd_hang_notification process_dhd_hang_notification = NULL;
@@ -78,7 +97,7 @@ bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 }
 #endif
 
-#if defined (BT_OVER_SDIO)
+#if defined(BT_OVER_SDIO)
 void bcmsdh_btsdio_process_hang_state(dhd_hang_state_t new_state)
 {
 	bool state_change = false;
@@ -358,9 +377,6 @@ bcmsdh_cfg_read(void *sdh, uint fnc_num, uint32 addr, int *err)
 
 	return data;
 }
-#ifdef BCMSDH_MODULE
-EXPORT_SYMBOL(bcmsdh_cfg_read);
-#endif
 
 void
 bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, uint8 data, int *err)
@@ -391,9 +407,6 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, uint32 addr, uint8 data, int *err)
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, uint8data = 0x%x\n", __FUNCTION__,
 	            fnc_num, addr, data));
 }
-#ifdef BCMSDH_MODULE
-EXPORT_SYMBOL(bcmsdh_cfg_write);
-#endif
 
 uint32
 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, uint32 addr, int *err)
@@ -497,7 +510,6 @@ bcmsdh_cisaddr_read(void *sdh, uint func, uint8 *cisd, uint32 offset)
 
 	return (SDIOH_API_SUCCESS(status) ? 0 : BCME_ERROR);
 }
-
 
 int
 bcmsdhsdio_set_sbaddr_window(void *sdh, uint32 address, bool force_set)
@@ -940,6 +952,7 @@ uint
 bcmsdh_set_mode(void *sdh, uint mode)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+
 	return (sdioh_set_mode(bcmsdh->sdioh, mode));
 }
 

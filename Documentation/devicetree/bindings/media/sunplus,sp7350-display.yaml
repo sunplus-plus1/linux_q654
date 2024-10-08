@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/sunplus,sp7350-display.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus SoC SP7350 Legacy Display Driver
+
+maintainers:
+  - Hammer Hsieh <hammer.hsieh@sunplus.com>
+
+description: |
+  - Sunplus SoC SP7350 Legacy Display Driver
+
+properties:
+  compatible:
+    const: sunplus,sp7350-display
+
+  reg:
+    minItems: 1
+    maxItems: 4
+
+  interrupts:
+    minItems: 1
+    maxItems: 4
+
+  clocks:
+    minItems: 2
+    maxItems: 20
+
+  clock-names:
+    minItems: 2
+    maxItems: 20
+
+  resets:
+    minItems: 2
+    maxItems: 20
+
+  reset-names:
+    minItems: 2
+    maxItems: 20
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    fb_disp_device: fb_disp_device {
+      compatible = "sunplus,sp7350-fb";
+    };
+
+    display: display@f8005c80 {
+      compatible = "sunplus,sp7350-display";
+      reg = <0x00 0xf8005c80 0x00 0xa80>, <0x00 0xf8800180 0x00 0x80>;
+      interrupt-parent = <&gic>;
+      interrupts =
+        <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>,
+        <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
+      clocks =
+        <&clkc DISPSYS>, <&clkc DMIX>, <&clkc GPOST0>, <&clkc GPOST1>,
+        <&clkc GPOST2>, <&clkc GPOST3>, <&clkc IMGREAD0>, <&clkc MIPITX>,
+        <&clkc OSD0>, <&clkc OSD1>, <&clkc OSD2>, <&clkc OSD3>,
+        <&clkc TCON>, <&clkc TGEN>, <&clkc VPOST0>, <&clkc VSCL0>;
+      clock-names =
+        "clkc_dispsys", "clkc_dmix", "clkc_gpost0", "clkc_gpost1",
+        "clkc_gpost2", "clkc_gpost3", "clkc_imgread0", "clkc_mipitx",
+        "clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
+        "clkc_tcon", "clkc_tgen", "clkc_vpost0", "clkc_vscl0";
+      resets =
+        <&rstc RST_DISPSYS>, <&rstc RST_DMIX>, <&rstc RST_GPOST0>, <&rstc RST_GPOST1>,
+        <&rstc RST_GPOST2>, <&rstc RST_GPOST3>, <&rstc RST_IMGREAD0>, <&rstc RST_MIPITX>,
+        <&rstc RST_OSD0>, <&rstc RST_OSD1>, <&rstc RST_OSD2>, <&rstc RST_OSD3>,
+        <&rstc RST_TCON>, <&rstc RST_TGEN>, <&rstc RST_VPOST0>, <&rstc RST_VSCL0>;
+      reset-names =
+        "rstc_dispsys", "rstc_dmix", "rstc_gpost0", "rstc_gpost1",
+        "rstc_gpost2", "rstc_gpost3", "rstc_imgread0", "rstc_mipitx",
+        "rstc_osd0", "rstc_osd1", "rstc_osd2", "rstc_osd3",
+        "rstc_tcon", "rstc_tgen", "rstc_vpost0", "rstc_vscl0";
+    };

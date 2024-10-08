@@ -11,7 +11,7 @@
 #include <linux/dma-direction.h>
 #include <linux/dma-mapping.h>
 #include <linux/kfifo.h>
-#include <asm/cacheflush.h>
+#include <linux/cacheflush.h>
 #include <crypto/scatterwalk.h>
 
 #define SP_CRYPTO_PRI		(0x200)
@@ -46,13 +46,13 @@
 #define SP_TRB_PARA_LEN		(12)
 
 #define AUTODMA_CRCR_ADDR_MASK	(~TRB_RING_ALIGN_MASK)
-#define AUTODMA_CRCR_CP		(1 << 4)
-#define AUTODMA_CRCR_CRR	(1 << 3)
-#define AUTODMA_CRCR_CS		(1 << 1)
-#define AUTODMA_CRCR_RCS	(1 << 0)
+#define AUTODMA_CRCR_CP		BIT(4)
+#define AUTODMA_CRCR_CRR	BIT(3)
+#define AUTODMA_CRCR_CS		BIT(1)
+#define AUTODMA_CRCR_RCS	BIT(0)
 
-#define AUTODMA_RCSR_EN		(1 << 31)
-#define AUTODMA_RCSR_ERF	(1 << 30)
+#define AUTODMA_RCSR_EN		BIT(31)
+#define AUTODMA_RCSR_ERF	BIT(30)
 #define AUTODMA_RCSR_SIZE_MASK	(0xffff)
 
 #define AUTODMA_ERBAR_ERBA_MASK	(~TRB_RING_ALIGN_MASK)
@@ -72,7 +72,7 @@
 
 #define R(r)		readl_relaxed(&reg->r)
 #define W(r, v)		writel_relaxed(v, &reg->r)
-#define WR(r, op)	W(r, R(r) op)
+#define WR(r, op)	W((r), R(r) op)
 
 enum {
 	SP_CRYPTO_AES = 0x20180428,
@@ -86,7 +86,6 @@ extern void *base_va;
 #define P2A(p)		((u32)(uintptr_t)(p))
 
 struct trb_s {
-
 	/* Cycle bits. indicates the current cycle of the ring */
 #ifdef BUS_SMALL_ENDIAN
 	u32 priv;
@@ -162,7 +161,7 @@ struct trb_ring_s {
 	struct trb_s *tail;
 	struct trb_s *link;
 
-	struct mutex lock;
+	struct mutex lock; // hw lock
 	struct semaphore trb_sem; /* sem to protect over use of trb */
 
 	u32 trigger_count;
@@ -213,8 +212,8 @@ struct crypto_ctx_s {
 #define M_AES_CBC	0x00000001
 #define M_AES_CTR	0x00000002
 #define M_CHACHA20	0x00000003
-#define M_ENC		(0 << 7)	// 0: encrypt
-#define M_DEC		(1 << 7)	// 1: decrypt
+#define M_ENC		0		// 0: encrypt
+#define M_DEC		BIT(7)		// 1: decrypt
 // HASH
 #define M_MD5		0x00000000
 #define M_SHA3		0x00000001
@@ -227,31 +226,30 @@ struct crypto_ctx_s {
 #define M_SHA256	0x00000003
 #define M_SHA512	0x00010003
 #define M_POLY1305	0x00000004
-#define M_UPDATE	(0 << 7)	// 0: update
-#define M_FINAL		(1 << 7)	// 1: final
+#define M_UPDATE	0		// 0: update
+#define M_FINAL		BIT(7)		// 1: final
 
-#define AES_CMD_RD_IF	(1 << 8)
-#define HASH_CMD_RD_IF	(1 << 7)
-#define AES_TRB_IF	(1 << 6)
-#define HASH_TRB_IF	(1 << 5)
-#define AES_ERF_IF	(1 << 4)
-#define HASH_ERF_IF	(1 << 3)
-#define AES_DMA_IF	(1 << 2)
-#define HASH_DMA_IF	(1 << 1)
-#define RSA_DMA_IF	(1 << 0)
+#define AES_CMD_RD_IF	BIT(8)
+#define HASH_CMD_RD_IF	BIT(7)
+#define AES_TRB_IF	BIT(6)
+#define HASH_TRB_IF	BIT(5)
+#define AES_ERF_IF	BIT(4)
+#define HASH_ERF_IF	BIT(3)
+#define AES_DMA_IF	BIT(2)
+#define HASH_DMA_IF	BIT(1)
+#define RSA_DMA_IF	BIT(0)
 
-#define AES_CMD_RD_IE	(1 << 8)
-#define HASH_CMD_RD_IE	(1 << 7)
-#define AES_TRB_IE	(1 << 6)
-#define HASH_TRB_IE	(1 << 5)
-#define AES_ERF_IE	(1 << 4)
-#define HASH_ERF_IE	(1 << 3)
-#define AES_DMA_IE	(1 << 2)
-#define HASH_DMA_IE	(1 << 1)
-#define RSA_DMA_IE	(1 << 0)
+#define AES_CMD_RD_IE	BIT(8)
+#define HASH_CMD_RD_IE	BIT(7)
+#define AES_TRB_IE	BIT(6)
+#define HASH_TRB_IE	BIT(5)
+#define AES_ERF_IE	BIT(4)
+#define HASH_ERF_IE	BIT(3)
+#define AES_DMA_IE	BIT(2)
+#define HASH_DMA_IE	BIT(1)
+#define RSA_DMA_IE	BIT(0)
 
 struct sp_crypto_reg {
-
 	/*  Field Name  Bit     Access Description  */
 	/*  0.0 AES DMA Control Status register (AESDMACS)
 	 *  SIZE        31:16   RW DMA Transfer Length
@@ -312,10 +310,10 @@ struct sp_crypto_reg {
 	 */
 	dev_reg RSADMACS;
 
-#define SEC_DMA_ENABLE  (1 << 0)
-#define SEC_DATA_BE     (1 << 3)
-#define SEC_DATA_LE     (0 << 3)
-#define SEC_DMA_SIZE(x) (x << 16)
+#define SEC_DMA_ENABLE  BIT(0)
+#define SEC_DATA_BE     BIT(3)
+#define SEC_DATA_LE     0
+#define SEC_DMA_SIZE(x) ((x) << 16)
 
 	/* 0.13 RSA Source Data pointer (RSASPTR)
 	 * SPTR        31:0    RW Source(X) address Z=X**Y (mod N),
@@ -333,14 +331,14 @@ struct sp_crypto_reg {
 	 * D           31:16   RW N length, Only support 64*n(3<=n<=32)
 	 * Reserved    15:8    RO Reserved
 	 * PRECALC     7       RW Precalculate P2
-	 *						  0: Precalculate and write back to pointer from P2PTR
-	 *						  1: Fetch from P2PTR
+	 *			0: Precalculate and write back to pointer from P2PTR
+	 *			1: Fetch from P2PTR
 	 * Reserved    6:0     RO Reserved
 	 */
 	dev_reg RSAPAR0;
 #define RSA_SET_PARA_D(x)   ((x) << 16)
-#define RSA_PARA_PRECAL_P2  (0 << 7)
-#define RSA_PARA_FETCH_P2   (1 << 7)
+#define RSA_PARA_PRECAL_P2  0
+#define RSA_PARA_FETCH_P2   BIT(7)
 
 	/* 0.16 RSA Dma Parameter 1 (RSAPAR1)
 	 * YPTR 31:0 RW Y pointer Z=X**Y (mod N)
@@ -377,7 +375,6 @@ struct sp_crypto_reg {
 	 * Indicates the initial state of ring cycle bit
 	 */
 	dev_reg AESDMA_CRCR;
-
 
 	/* 0.22 AES DMA Event Ring Base Address Register (AESDMA_ERBAR)
 	 * ERBA        31:4    RW Event Ring Base Address
@@ -430,7 +427,6 @@ struct sp_crypto_reg {
 	 */
 	dev_reg HASHDMA_CRCR;
 
-
 	/* 0.27 HASH DMA Event Ring Base Address Register (HASHDMA_ERBAR)
 	 * ERBA        31:4    RW Event Ring Base Address
 	 * The first TRB of the status will be write to this address
@@ -467,8 +463,6 @@ struct sp_crypto_reg {
 	/* 0.31 */
 	dev_reg reserved;
 
-
-
 	/* 1.0 SEC IP Version (VERSION)
 	 * VERSION 31:0 RO the date of version
 	 */
@@ -485,7 +479,6 @@ struct sp_crypto_reg {
 	 * RSA_DMA_IE  0       RW RSA DMA finish interrupt enable
 	 */
 	dev_reg SECIE;
-
 
 	/* 1.2 Interrupt Flag (SECIF)
 	 * Reserve     31:7    RO Reserve
@@ -512,7 +505,8 @@ do { \
 	void *_err = (void *)((unsigned long)(err)); \
 	if (IS_ERR(_err)) { \
 		ret = PTR_ERR(_err); \
-		SP_CRYPTO_ERR("ERR(%d) @ %s(%d): "info"\n", ret, __func__, __LINE__, ##__VA_ARGS__); \
+		SP_CRYPTO_ERR("ERR(%d) @ %s(%d): " info "\n", \
+			      ret, __func__, __LINE__, ##__VA_ARGS__); \
 		goto_label; \
 	} \
 } while (0)
@@ -530,18 +524,20 @@ struct sp_crypto_dev *sp_crypto_alloc_dev(int type);
 int crypto_ctx_init(struct crypto_ctx_s *ctx, int type);
 void crypto_ctx_exit(struct crypto_ctx_s *ctx);
 int crypto_ctx_exec(struct crypto_ctx_s *ctx);
-struct trb_s *crypto_ctx_queue(struct crypto_ctx_s *ctx,
-	dma_addr_t src, dma_addr_t dst,
-	dma_addr_t iv, dma_addr_t key,
-	u32 len, u32 mode, bool ioc);
+struct trb_s *crypto_ctx_queue(struct crypto_ctx_s *ctx, dma_addr_t src, dma_addr_t dst,
+			       dma_addr_t iv, dma_addr_t key, u32 len, u32 mode, bool ioc);
 
 struct trb_s *trb_next(struct trb_s *trb);
 struct trb_s *trb_get(struct trb_ring_s *ring);
 struct trb_s *trb_put(struct trb_ring_s *ring);	/* USE_IN_IRQ, move ring tail to next */
-void trb_ring_reset(struct trb_ring_s *ring);	/* USE_IN_IRQ, reset ring head & tail to base addr */
+void trb_ring_reset(struct trb_ring_s *ring);	/* USE_IN_IRQ, reset ring head & tail */
 
 void dump_trb(struct trb_s *trb);
+void dump_buf(u8 *buf, u32 len);
 
-extern void dump_buf(u8 *buf, u32 len);
+static inline int crypto_tfm_alg_priority(struct crypto_tfm *tfm)
+{
+	return tfm->__crt_alg->cra_priority;
+}
 
 #endif //__SP_CRYPTO_H__

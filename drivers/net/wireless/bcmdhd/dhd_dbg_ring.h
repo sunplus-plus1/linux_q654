@@ -1,7 +1,26 @@
 /*
  * DHD debug ring header file - interface
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -52,6 +71,11 @@ typedef struct dhd_dbg_ring_entry {
 	uint64 timestamp; /* present if has_timestamp bit is set. */
 } PACKED_STRUCT dhd_dbg_ring_entry_t;
 
+typedef struct dhd_dbg_ring_entry_pack {
+	uint32 magic;
+	int num_entries;
+} PACKED_STRUCT dhd_dbg_ring_entry_pack_t;
+
 struct ring_statistics {
 	/* number of bytes that was written to the buffer by driver */
 	uint32 written_bytes;
@@ -95,7 +119,9 @@ typedef struct dhd_dbg_ring {
 	bool pull_inactive;	/* pull contents from ring even if it is inactive */
 } dhd_dbg_ring_t;
 
-#define DBGRING_FLUSH_THRESHOLD(ring)		(ring->ring_size / 3)
+#define DBGRING_FLUSH_THRESHOLD(ring)		\
+	(ring->id != PACKET_LOG_RING_ID) ?		\
+	(ring->ring_size / 3u) : (ring->ring_size / 4u)
 #define RING_STAT_TO_STATUS(ring, status) \
 	do { \
 		/* status.name/ring->name are the same length so no need to check return value */ \
@@ -108,10 +134,11 @@ typedef struct dhd_dbg_ring {
 		status.verbose_level = ring->log_level; \
 	} while (0)
 
+#define DBG_RING_PACK_MAGIC 0xDBAADBAA
+#define DBG_RING_ENTRY_PACK_SIZE (sizeof(dhd_dbg_ring_entry_pack_t))
 #define DBG_RING_ENTRY_SIZE (sizeof(dhd_dbg_ring_entry_t))
 #define ENTRY_LENGTH(hdr) ((hdr)->len + DBG_RING_ENTRY_SIZE)
 #define PAYLOAD_MAX_LEN 65535
-#define PAYLOAD_ECNTR_MAX_LEN 1648u
 #define PAYLOAD_RTT_MAX_LEN 1648u
 #define PAYLOAD_BCM_TRACE_MAX_LEN 1648u
 #define PENDING_LEN_MAX 0xFFFFFFFF
@@ -133,9 +160,13 @@ void dhd_dbg_ring_dealloc_deinit(void **dbgring, dhd_pub_t *dhd);
 int dhd_dbg_ring_init(dhd_pub_t *dhdp, dhd_dbg_ring_t *ring, uint16 id, uint8 *name,
 		uint32 ring_sz, void *allocd_buf, bool pull_inactive);
 void dhd_dbg_ring_deinit(dhd_pub_t *dhdp, dhd_dbg_ring_t *ring);
+int dhd_dbg_ring_set_buf(dhd_pub_t *dhdp, dhd_dbg_ring_t *ring, void *buf);
+#ifdef DHD_PKT_LOGGING_DBGRING
+int dhd_dbg_ring_update(void *dbg_ring, uint32 w_len);
+#endif /* DHD_PKT_LOGGING_DBGRING */
 int dhd_dbg_ring_push(dhd_dbg_ring_t *ring, dhd_dbg_ring_entry_t *hdr, void *data);
 int dhd_dbg_ring_pull(dhd_dbg_ring_t *ring, void *data, uint32 buf_len,
-		bool strip_hdr);
+		bool strip_hdr, int* num_entries);
 int dhd_dbg_ring_pull_single(dhd_dbg_ring_t *ring, void *data, uint32 buf_len,
 	bool strip_header);
 uint32 dhd_dbg_ring_get_pending_len(dhd_dbg_ring_t *ring);

@@ -68,20 +68,23 @@ struct csi2_dev;
 #define VERSION_ID				0x74	/* 165.29 Version ID (Version_ID) */
 
 #ifdef MIPI_CSI_BIST
-static unsigned int bist_mode = 0;
+static unsigned int bist_mode;
+bist_mode = 0;
 module_param(bist_mode, uint, 0444);
 MODULE_PARM_DESC(bist_mode, " Internal pattern format selection, default is 0.\n"
 				"\t    0 == Color bar for YUY2 format\n"
 				"\t    1 == Border for YUY2 format\n"
 				"\t    2 == Gray bar for RAW12 format\n");
 
-static unsigned int bist_ch = 0;
+static unsigned int bist_ch;
+bist_ch = 0;
 module_param(bist_ch, uint, 0444);
 MODULE_PARM_DESC(bist_ch, " Internal pattern output channel, default is 0.");
 #endif
 
 #ifdef MIPI_CSI_VC_TEST
-static unsigned int vc = 0;
+static unsigned int vc;
+vc = 0;
 module_param(vc, uint, 0444);
 MODULE_PARM_DESC(vc, " Internal pattern output channel, default is 0.");
 #endif
@@ -176,6 +179,7 @@ struct csi2_dev {
 	/* Virtual channel support */
 	unsigned int max_channels;
 	unsigned int num_channels;
+	unsigned int iw_in[4];
 };
 
 static inline struct csi2_dev *sd_to_csi2(struct v4l2_subdev *sd)
@@ -211,10 +215,10 @@ static void csi2_enter_standby(struct csi2_dev *priv)
 {
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
-	// Configure PHY for standby
-#if 0 // CCHo: Reset MIPI-CSI once.
-	reset_control_assert(priv->rstc);
-#endif
+// Configure PHY for standby
+// #if 0 // CCHo: Reset MIPI-CSI once. JW: checkpatch.py #if 0 should be remove
+//	reset_control_assert(priv->rstc);
+// #endif
 #ifdef CONFIG_PM_RUNTIME_MIPICSI
 	usleep_range(100, 150);
 	pm_runtime_put(priv->dev);
@@ -228,9 +232,9 @@ static void csi2_exit_standby(struct csi2_dev *priv)
 #ifdef CONFIG_PM_RUNTIME_MIPICSI
 	pm_runtime_get_sync(priv->dev);
 #endif
-#if 0 // CCHo: Reset MIPI-CSI once.
-	reset_control_deassert(priv->rstc);
-#endif
+// #if 0 // CCHo: Reset MIPI-CSI once. JW: checkpatch.py #if 0 should be remove
+//	reset_control_deassert(priv->rstc);
+// #endif
 }
 
 static int csi2_wait_phy_start(struct csi2_dev *priv,
@@ -303,7 +307,6 @@ static int csi2_get_active_lanes(struct csi2_dev *priv,
 				  unsigned int *lanes)
 {
 	struct v4l2_mbus_config mbus_config = { 0 };
-	unsigned int num_lanes = UINT_MAX;
 	int ret;
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
@@ -333,23 +336,14 @@ static int csi2_get_active_lanes(struct csi2_dev *priv,
 		return -EINVAL;
 	}
 
-	if (mbus_config.flags & V4L2_MBUS_CSI2_1_LANE)
-		num_lanes = 1;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_2_LANE)
-		num_lanes = 2;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_3_LANE)
-		num_lanes = 3;
-	else if (mbus_config.flags & V4L2_MBUS_CSI2_4_LANE)
-		num_lanes = 4;
-
-	if (num_lanes > priv->lanes) {
+	if (mbus_config.bus.mipi_csi2.num_data_lanes > priv->lanes) {
 		dev_err(priv->dev,
 			"Unsupported mbus config: too many data lanes %u\n",
-			num_lanes);
+			mbus_config.bus.mipi_csi2.num_data_lanes);
 		return -EINVAL;
 	}
 
-	*lanes = num_lanes;
+	*lanes = mbus_config.bus.mipi_csi2.num_data_lanes;
 
 	return 0;
 }
@@ -372,21 +366,19 @@ static void csi2_lane_config(struct csi2_dev *priv, u8 lanes)
 
 	/* Set LANE_NUM and ENLP_DATA_LANE fields according lane number */
 	switch (lanes) {
-		default:
-		case 1: /* 1 lane */
-			set_field(&mix_cfg, 0x0, 0x3<<20);	/* 0x0: 1 lane */
-			set_field(&ana_cfg0, 0x1, 0xf<<4);	/* Enable data lane of LP mode circuit for data lane 0 */
-			break;
-
-		case 2: /* 2 lanes */
-			set_field(&mix_cfg, 0x1, 0x3<<20);	/* 0x1: 2 lanes */
-			set_field(&ana_cfg0, 0x3, 0xf<<4);	/* Enable data lane of LP mode circuit for data lane 0/1 */
-			break;
-
-		case 4: /* 4 lanes */
-			set_field(&mix_cfg, 0x2, 0x3<<20);	/* 0x2: 4 lanes */
-			set_field(&ana_cfg0, 0xf, 0xf<<4);	/* Enable data lane of LP mode circuit for data lane 0/1/2/3 */
-			break;
+	default:
+	case 1: /* 1 lane */
+		set_field(&mix_cfg, 0x0, 0x3<<20);	/* 0x0: 1 lane */
+		set_field(&ana_cfg0, 0x1, 0xf<<4);	/* Enable data lane of LP mode circuit for data lane 0 */
+		break;
+	case 2: /* 2 lanes */
+		set_field(&mix_cfg, 0x1, 0x3<<20);	/* 0x1: 2 lanes */
+		set_field(&ana_cfg0, 0x3, 0xf<<4);	/* Enable data lane of LP mode circuit for data lane 0/1 */
+		break;
+	case 4: /* 4 lanes */
+		set_field(&mix_cfg, 0x2, 0x3<<20);	/* 0x2: 4 lanes */
+		set_field(&ana_cfg0, 0xf, 0xf<<4);	/* Enable data lane of LP mode circuit for data lane 0/1/2/3 */
+		break;
 	}
 
 	set_field(&ana_cfg0, 0x1, 0x1<<2);		/* Enable clock lane of LP mode circuit */
@@ -420,26 +412,26 @@ static void csi2_vc_config(struct csi2_dev *priv)
 #ifdef MIPI_CSI_VC_TEST
 		if (vc < 4) {
 			/* Set 0 to the VC field of the DI byte to disable Virtual Channel x */
-			set_field(&sof_syncword, (vc<<6|0x00), 0xff<<(i*8)); 	/* Set CHx_SOF_SYNCWORD field */
-			set_field(&eof_syncword, (vc<<6|0x01), 0xff<<(i*8)); 	/* Set CHx_EOF_SYNCWORD field */
-			set_field(&sol_syncword, (vc)		, 0xc0<<(i*8)); 	/* Set CHx_SOL_SYNCWORD field */
+			set_field(&sof_syncword, (vc<<6|0x00), 0xff<<(i*8));	/* Set CHx_SOF_SYNCWORD field */
+			set_field(&eof_syncword, (vc<<6|0x01), 0xff<<(i*8));	/* Set CHx_EOF_SYNCWORD field */
+			set_field(&sol_syncword, (vc), 0xc0<<(i*8));	/* Set CHx_SOL_SYNCWORD field */
 		} else {
 			/* Set VCx to the VC field of the DI byte to enable Virtua Channel x */
-			set_field(&sof_syncword, (i<<6|0x00), 0xff<<(i*8));		/* Set CHx_SOF_SYNCWORD field */
-			set_field(&eof_syncword, (i<<6|0x01), 0xff<<(i*8));		/* Set CHx_EOF_SYNCWORD field */
-			set_field(&sol_syncword, (i)        , 0xc0<<(i*8));		/* Set CHx_SOL_SYNCWORD field */
+			set_field(&sof_syncword, (i<<6|0x00), 0xff << (i * 8));	/* Set CHx_SOF_SYNCWORD field */
+			set_field(&eof_syncword, (i<<6|0x01), 0xff << (i * 8));	/* Set CHx_EOF_SYNCWORD field */
+			set_field(&sol_syncword, (i), 0xc0 << (i * 8));	/* Set CHx_SOL_SYNCWORD field */
 		}
 #else
 		if (i < priv->num_channels) {
 			/* Set VCx to the VC field of the DI byte to enable Virtua Channel x */
 			set_field(&sof_syncword, (i<<6|0x00), 0xff<<(i*8));		/* Set CHx_SOF_SYNCWORD field */
 			set_field(&eof_syncword, (i<<6|0x01), 0xff<<(i*8));		/* Set CHx_EOF_SYNCWORD field */
-			set_field(&sol_syncword, (i)        , 0xc0<<(i*8));		/* Set CHx_SOL_SYNCWORD field */
+			set_field(&sol_syncword, (i), 0xc0<<(i*8));		/* Set CHx_SOL_SYNCWORD field */
 		} else {
 			/* Set 0 to the VC field of the DI byte to disable Virtual Channel x */
 			set_field(&sof_syncword, (0<<6|0x00), 0xff<<(i*8));		/* Set CHx_SOF_SYNCWORD field */
 			set_field(&eof_syncword, (0<<6|0x01), 0xff<<(i*8));		/* Set CHx_EOF_SYNCWORD field */
-			set_field(&sol_syncword, (0)        , 0xc0<<(i*8));		/* Set CHx_SOL_SYNCWORD field */
+			set_field(&sol_syncword, (0), 0xc0<<(i*8));		/* Set CHx_SOL_SYNCWORD field */
 		}
 #endif
 	}
@@ -459,10 +451,10 @@ static void csi2_vc_config(struct csi2_dev *priv)
 	/* Configure the connection between CSI-IW channels and Virtual channels
 	 * Note: This connection shoud be based on the routing.
 	 */
-	csi_writel(priv, MIPI_CH0_CONFIG, 0x00<<30);		/* Connect CSI-IW0 to VC0 */
-	csi_writel(priv, MIPI_CH1_CONFIG, 0x01<<30);		/* Connect CSI-IW1 to VC1 */
-	csi_writel(priv, MIPI_CH2_CONFIG, 0x02<<30);		/* Connect CSI-IW2 to VC2 */
-	csi_writel(priv, MIPI_CH3_CONFIG, 0x03<<30);		/* Connect CSI-IW3 to VC3 */
+	csi_writel(priv, MIPI_CH0_CONFIG, priv->iw_in[0]<<30);		/* Configure the input of CSI-IW0 */
+	csi_writel(priv, MIPI_CH1_CONFIG, priv->iw_in[1]<<30);		/* Configure the input of CSI-IW1 */
+	csi_writel(priv, MIPI_CH2_CONFIG, priv->iw_in[2]<<30);		/* Configure the input of CSI-IW2 */
+	csi_writel(priv, MIPI_CH3_CONFIG, priv->iw_in[3]<<30);		/* Configure the input of CSI-IW3 */
 
 	/* MIPI-CSI2 and MIPI-CSI3 ports share VI23-CSIIW2 and VI23-CSIIW3.
 	 * Configure MIPICSI23_SEL (G164) to select the virtual channel source
@@ -477,8 +469,7 @@ static void csi2_vc_config(struct csi2_dev *priv)
 				writel(1, priv->base2);		/* VI23-CSIIW2/3 source from MIPI-CSI3 */
 			else if ((priv->id == 2) && (priv->num_channels > 2))
 				writel(0, priv->base2);		/* VI23-CSIIW2/3 source from MIPI-CSI2 */
-
-			dev_dbg(priv->dev, "mipicsi23_sel: %08x, \n", readl(priv->base2));
+			dev_dbg(priv->dev, "mipicsi23_sel: %08x\n", readl(priv->base2));
 		}
 	}
 }
@@ -490,9 +481,7 @@ static void csi2_dt_config(struct csi2_dev *priv, unsigned int dt)
 
 	mix_cfg = csi_readl(priv, MIPICSI_MIX_CFG);
 	sol_syncword = csi_readl(priv, MIPICSI_SOL_SYNCWORD);
-
-	dev_dbg(priv->dev, "%s, %d, dt: %02x\n", __func__, __LINE__ ,dt);
-
+	dev_dbg(priv->dev, "%s, %d, dt: %02x\n", __func__, __LINE__, dt);
 	/* Set DEC_MODE field according to Data Type */
 	switch (dt) {
 	default:
@@ -542,7 +531,7 @@ static void csi2_bist_control(struct csi2_dev *priv, u8 on)
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
 	val = csi_readl(priv, MIPICSI_ENABLE);
-	set_field(&val, on, 0x1<<16); 			/* Enable BIST function */
+	set_field(&val, on, 0x1<<16);	/* Enable BIST function */
 	csi_writel(priv, MIPICSI_ENABLE, val);
 }
 
@@ -557,23 +546,24 @@ static void csi2_bist_config(struct csi2_dev *priv, unsigned int dt, u8 ch)
 
 	/* Use internal pattern to test MIPI-CSI */
 	val = 0;
-	if (dt == 0x2c) width = width/2;		/* One pixel is output twice for RAW12 */
-	set_field(&val, height, 0xfff<<16);		/* Vertical size of internal pattern */
-	set_field(&val, width, 0x1fff<<0);		/* Horizontal size of internal pattern */
+	if (dt == 0x2c)
+		width = width / 2;			/* One pixel is output twice for RAW12 */
+	set_field(&val, height, 0xfff << 16);		/* Vertical size of internal pattern */
+	set_field(&val, width, 0x1fff << 0);		/* Horizontal size of internal pattern */
 	csi_writel(priv, MIPI_CH0_BIST_SIZE, val);
 	csi_writel(priv, MIPI_CH1_BIST_SIZE, val);
 	csi_writel(priv, MIPI_CH2_BIST_SIZE, val);
 	csi_writel(priv, MIPI_CH3_BIST_SIZE, val);
 
 	val = 0;
-	if (dt == 0x2c) mode = 2;				/* Gray bar for RAW12 */
+	if (dt == 0x2c)
+		mode = 2;				/* Gray bar for RAW12 */
 	val = csi_readl(priv, MIPICSI_ENABLE);
 	set_field(&val, ch, 0x3<<24);			/* Select BIST pattern output to channel x */
 	set_field(&val, mode, 0x3<<20);			/* Gray bar for RAW12 format */
 	set_field(&val, 1, 0x1<<17);			/* Use internal clock for BIST */
 	csi_writel(priv, MIPICSI_ENABLE, val);
-
-	dev_info(priv->dev, "BIST mode: %d, BIST channel: %d \n",mode, ch);
+	dev_info(priv->dev, "BIST mode: %d, BIST channel: %d\n", mode, ch);
 }
 #endif
 
@@ -866,7 +856,7 @@ static int csi_g_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int csi2_enum_mbus_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_state *state,
 				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -882,7 +872,7 @@ static int csi2_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int csi2_enum_frame_size(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -898,7 +888,7 @@ static int csi2_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int csi2_enum_frame_interval(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -914,7 +904,7 @@ static int csi2_enum_frame_interval(struct v4l2_subdev *sd,
 }
 
 static int csi2_set_pad_format(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_format *format)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -936,7 +926,7 @@ static int csi2_set_pad_format(struct v4l2_subdev *sd,
 
 			dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
-			ret = v4l2_subdev_call(priv->remote, pad, set_fmt, cfg, format);
+			ret = v4l2_subdev_call(priv->remote, pad, set_fmt, state, format);
 			if (ret < 0 && ret != -ENOIOCTLCMD)
 				return ret;
 
@@ -951,7 +941,7 @@ static int csi2_set_pad_format(struct v4l2_subdev *sd,
 			__func__, priv->mf.code, priv->mf.width, priv->mf.height);
 	} else {
 
-		framefmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		framefmt = v4l2_subdev_get_try_format(sd, state, 0);
 		*framefmt = format->format;
 
 		dev_dbg(priv->dev, "%s, framefmt->code: 0x%x %ux%u\n",
@@ -962,7 +952,7 @@ static int csi2_set_pad_format(struct v4l2_subdev *sd,
 }
 
 static int csi2_get_pad_format(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_format *format)
 {
 	struct csi2_dev *priv = sd_to_csi2(sd);
@@ -972,7 +962,7 @@ static int csi2_get_pad_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		format->format = priv->mf;
 	else
-		format->format = *v4l2_subdev_get_try_format(sd, cfg, 0);
+		format->format = *v4l2_subdev_get_try_format(sd, state, 0);
 
 	dev_dbg(priv->dev, "%s, code: 0x%x %ux%u\n", __func__,
 		format->format.code, format->format.width, format->format.height);
@@ -1006,14 +996,14 @@ static const struct v4l2_subdev_ops car_csi2_subdev_ops = {
 
 static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 			      struct v4l2_subdev *subdev,
-			      struct v4l2_async_subdev *asd)
+			      struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *priv = notifier_to_csi2(notifier);
 	int pad, ret = 0;
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
 
-	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+	pad = media_entity_get_fwnode_pad(&subdev->entity, asc->match.fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
 		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
@@ -1042,7 +1032,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
 
 static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				struct v4l2_async_connection *asc)
 {
 	struct csi2_dev *priv = notifier_to_csi2(notifier);
 
@@ -1057,6 +1047,8 @@ static const struct v4l2_async_notifier_operations csi2_notify_ops = {
 	.bound = csi2_notify_bound,
 	.unbind = csi2_notify_unbind,
 };
+
+#define V4L2_FWNODE_CSI2_MAX_DATA_LANES	4
 
 static int csi2_parse_v4l2(struct csi2_dev *priv,
 			    struct v4l2_fwnode_endpoint *vep)
@@ -1134,7 +1126,8 @@ static bool is_camera_probed(struct fwnode_handle *fwnode)
 
 	if (dev) {
 		/* Check if the device has a drivers bound */
-		if (dev->driver) ret = true;
+		if (dev->driver)
+			ret = true;
 
 		/* Put the device reference */
 		put_device(dev);
@@ -1146,11 +1139,11 @@ static bool is_camera_probed(struct fwnode_handle *fwnode)
 
 static int csi2_parse_dt(struct csi2_dev *priv)
 {
-	struct v4l2_async_subdev *asd;
+	struct v4l2_async_connection *asc;
 	struct fwnode_handle *fwnode;
 	struct device_node *ep;
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = 0 };
-	u32 id;
+	u32 i, id;
 	int ret;
 
 	dev_dbg(priv->dev, "%s, %d\n", __func__, __LINE__);
@@ -1189,6 +1182,18 @@ static int csi2_parse_dt(struct csi2_dev *priv)
 
 	dev_dbg(priv->dev, "%s, max_channels: %d, num_channels: %d\n",
 		__func__, priv->max_channels, priv->num_channels);
+
+	/* Configure virtual channels as the input of CSI-IWs */
+	ret = of_property_read_u32_array(priv->dev->of_node, "csiiw_input", priv->iw_in, 4);
+	if (ret) {
+		dev_warn(priv->dev, "Use increasing sequence as CSIIW input setting\n");
+		for (i = 0; i < 4; i++) {
+			priv->iw_in[i] = i;
+		}
+	}
+
+	dev_dbg(priv->dev, "%s, iw_in[0]: %d, iw_in[1]: %d, iw_in[2]: %d, iw_in[3]: %d\n",
+		__func__, priv->iw_in[0], priv->iw_in[1], priv->iw_in[2], priv->iw_in[3]);
 
 #if defined(MIPI_CSI_BIST)
 	/* For BIST test, skip bounding a sensor */
@@ -1246,22 +1251,20 @@ static int csi2_parse_dt(struct csi2_dev *priv)
 	}
 #endif
 
-	v4l2_async_notifier_init(&priv->notifier);
+	v4l2_async_subdev_nf_init(&priv->notifier, &priv->subdev);
 	priv->notifier.ops = &csi2_notify_ops;
 
-	asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier, fwnode,
-						    sizeof(*asd));
+	asc = v4l2_async_nf_add_fwnode(&priv->notifier, fwnode,
+						    struct v4l2_async_connection);
 	fwnode_handle_put(fwnode);
-	if (IS_ERR(asd)) {
+	if (IS_ERR(asc)) {
 		dev_err(priv->dev, "Failed to add subdev notifier\n");
-		return PTR_ERR(asd);
+		return PTR_ERR(asc);
 	}
-
-	ret = v4l2_async_subdev_notifier_register(&priv->subdev,
-						  &priv->notifier);
+	ret = v4l2_async_nf_register(&priv->notifier);
 	if (ret) {
 		dev_err(priv->dev, "Failed to register notifier\n");
-		v4l2_async_notifier_cleanup(&priv->notifier);
+		v4l2_async_nf_cleanup(&priv->notifier);
 	}
 
 	return ret;
@@ -1288,33 +1291,33 @@ static int csi2_phy_post_init(struct csi2_dev *priv)
  * sysfs.
  */
 #ifdef MIPI_CSI_BIST
-static ssize_t csi2_bist_mode_show (struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t bist_mode_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", bist_mode);
 }
 
-static ssize_t csi2_bist_mode_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t bist_mode_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	bist_mode = simple_strtoul(buf, NULL, 16);
+	bist_mode = kstrtoul(buf, NULL, 16);
 
 	return count;
 }
 
-static DEVICE_ATTR(bist_mode, S_IWUSR|S_IRUGO, csi2_bist_mode_show, csi2_bist_mode_store);
+static DEVICE_ATTR_RW(bist_mode, 0644, bist_mode_show, bist_mode_store);
 
-static ssize_t csi2_bist_ch_show (struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t bist_ch_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", bist_ch);
 }
 
-static ssize_t csi2_bist_ch_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t bist_ch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	bist_ch = simple_strtoul(buf, NULL, 16);
+	bist_ch = kstrtoul(buf, NULL, 16);
 
 	return count;
 }
 
-static DEVICE_ATTR(bist_ch, S_IWUSR|S_IRUGO, csi2_bist_ch_show, csi2_bist_ch_store);
+static DEVICE_ATTR_RW(bist_ch, 0644, bist_ch_show, bist_ch_store);
 
 static struct attribute *csi2_attributes[] = {
 	&dev_attr_bist_mode.attr,
@@ -1324,19 +1327,19 @@ static struct attribute *csi2_attributes[] = {
 #endif
 
 #ifdef MIPI_CSI_VC_TEST
-static ssize_t csi2_vc_show (struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t vc_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%d\n", vc);
 }
 
-static ssize_t csi2_vc_store (struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+static ssize_t vc_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	vc = simple_strtoul(buf, NULL, 16);
+	vc = kstrtoul(buf, NULL, 16);
 
 	return count;
 }
 
-static DEVICE_ATTR(vc, S_IWUSR|S_IRUGO, csi2_vc_show, csi2_vc_store);
+static DEVICE_ATTR_RW(vc, 0644, vc_show, vc_store);
 
 static struct attribute *csi2_attributes[] = {
 	&dev_attr_vc.attr,
@@ -1359,7 +1362,7 @@ static const struct media_entity_operations csi2_entity_ops = {
 };
 
 static int csi2_probe_resources(struct csi2_dev *priv,
-				 struct platform_device *pdev)
+				struct platform_device *pdev)
 {
 	struct resource *res;
 
@@ -1377,7 +1380,7 @@ static int csi2_probe_resources(struct csi2_dev *priv,
 	 * They need to get resource MIPICSI23_SEL (G164) to select the virtual
 	 * channel source of VI23-CSIIW2 AND VI23-CSIIW3.
 	 */
-	if ((res->start == 0xF8005380) || (res->start == 0xF8005400)) {
+	if (res->start == 0xF8005380 || res->start == 0xF8005400) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		priv->base2 = devm_ioremap(&pdev->dev, res->start, (res->end - res->start + 1));
 		if (IS_ERR(priv->base2))
@@ -1514,8 +1517,8 @@ static int sp_csi2_probe(struct platform_device *pdev)
 	return 0;
 
 error:
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 
 	return ret;
 }
@@ -1526,8 +1529,8 @@ static int sp_csi2_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s, %d\n", __func__, __LINE__);
 
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_nf_unregister(&priv->notifier);
+	v4l2_async_nf_cleanup(&priv->notifier);
 	v4l2_async_unregister_subdev(&priv->subdev);
 
 #ifdef CONFIG_PM_RUNTIME_MIPICSI

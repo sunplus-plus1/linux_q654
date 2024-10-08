@@ -1,187 +1,87 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-2.0
 
-/**************************************************************************************************/
-/* How to test RTC:										  */
-/*												  */
-/* 1. use kernel commands									  */
-/* hwclock - query and set the hardware clock (RTC)						  */
-/*												  */
-/* (for i in `seq 5`; do (echo ------ && echo -n 'date      : ' && date && echo -n 'hwclock -r: ' */
-/*								&& hwclock -r; sleep 1); done)	  */
-/* date 121209002014 # Set system to 2014/Dec/12 09:00						  */
-/* (for i in `seq 5`; do (echo ------ && echo -n 'date      : ' && date && echo -n 'hwclock -r: ' */
-/*								&& hwclock -r; sleep 1); done)	  */
-/* hwclock -s # Set the System Time from the Hardware Clock					  */
-/* (for i in `seq 5`; do (echo ------ && echo -n 'date      : ' && date && echo -n 'hwclock -r: ' */
-/*								&& hwclock -r; sleep 1); done)	  */
-/* date 121213002014 # Set system to 2014/Dec/12 13:00						  */
-/* (for i in `seq 5`; do (echo ------ && echo -n 'date      : ' && date && echo -n 'hwclock -r: ' */
-/*								&& hwclock -r; sleep 1); done)	  */
-/* hwclock -w # Set the Hardware Clock to the current System Time				  */
-/* (for i in `seq 10000`; do (echo ------ && echo -n 'date  : ' && date && echo -n 'hwclock -r: ' */
-/*								&& hwclock -r; sleep 1); done)	  */
-/*												  */
-/* How to setup alarm (e.g., 10 sec later):							  */
-/*     echo 0 > /sys/class/rtc/rtc0/wakealarm && nnn=`date '+%s'` && echo $nnn && \		  */
-/*     nnn=`expr $nnn + 10` && echo $nnn > /sys/class/rtc/rtc0/wakealarm			  */
-/*												  */
-/* 2. use RTC Driver Test Program (\linux\application\module_test\rtc\rtc-test.c)		  */
-/*												  */
-/**************************************************************************************************/
-#include <linux/module.h>
-#include <linux/err.h>
-#include <linux/rtc.h>
-#include <linux/platform_device.h>
+/*
+ * The RTC driver for Sunplus	SP7021
+ *
+ * Copyright (C) 2019 Sunplus Technology Inc., All rights reseerved.
+ */
+
+#include <linux/bitfield.h>
 #include <linux/clk.h>
-#include <linux/reset.h>
-#include <linux/of.h>
-#include <linux/ktime.h>
+#include <linux/err.h>
 #include <linux/io.h>
-#include <linux/delay.h>
+#include <linux/ktime.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/reset.h>
+#include <linux/rtc.h>
 
-/* ---------------------------------------------------------------------------------------------- */
-#define FUNC_DEBUG() pr_debug("[RTC] Debug: %s(%d)\n", __func__, __LINE__)
+#define RTC_REG_NAME			"rtc"
 
-#define RTC_DEBUG(fmt, args ...) pr_debug("[RTC] Debug: " fmt, ## args)
-#define RTC_INFO(fmt, args ...) pr_info("[RTC] Info: " fmt, ## args)
-#define RTC_WARN(fmt, args ...) pr_warn("[RTC] Warning: " fmt, ## args)
-#define RTC_ERR(fmt, args ...) pr_err("[RTC] Error: " fmt, ## args)
-/* ---------------------------------------------------------------------------------------------- */
+#define RTC_CTRL			0x40
+#define TIMER_FREEZE_MASK_BIT		BIT(5 + 16)
+#define TIMER_FREEZE			BIT(5)
+#define DIS_SYS_RST_RTC_MASK_BIT	BIT(4 + 16)
+#define DIS_SYS_RST_RTC			BIT(4)
+#define RTC32K_MODE_RESET_MASK_BIT	BIT(3 + 16)
+#define RTC32K_MODE_RESET		BIT(3)
+#define ALARM_EN_OVERDUE_MASK_BIT	BIT(2 + 16)
+#define ALARM_EN_OVERDUE		BIT(2)
+#define ALARM_EN_PMC_MASK_BIT		BIT(1 + 16)
+#define ALARM_EN_PMC			BIT(1)
+#define ALARM_EN_MASK_BIT		BIT(0 + 16)
+#define ALARM_EN			BIT(0)
+#define RTC_TIMER_OUT			0x44
+#define RTC_DIVIDER			0x48
+#define RTC_TIMER_SET			0x4c
+#define RTC_ALARM_SET			0x50
+#define RTC_USER_DATA			0x54
+#define RTC_RESET_RECORD		0x58
+#define RTC_BATT_CHARGE_CTRL		0x5c
+#define BAT_CHARGE_RSEL_MASK_BIT	GENMASK(3 + 16, 2 + 16)
+#define BAT_CHARGE_RSEL_MASK		GENMASK(3, 2)
+#define BAT_CHARGE_RSEL_2K_OHM		FIELD_PREP(BAT_CHARGE_RSEL_MASK, 0)
+#define BAT_CHARGE_RSEL_250_OHM		FIELD_PREP(BAT_CHARGE_RSEL_MASK, 1)
+#define BAT_CHARGE_RSEL_50_OHM		FIELD_PREP(BAT_CHARGE_RSEL_MASK, 2)
+#define BAT_CHARGE_RSEL_0_OHM		FIELD_PREP(BAT_CHARGE_RSEL_MASK, 3)
+#define BAT_CHARGE_DSEL_MASK_BIT	BIT(1 + 16)
+#define BAT_CHARGE_DSEL_MASK		GENMASK(1, 1)
+#define BAT_CHARGE_DSEL_ON		FIELD_PREP(BAT_CHARGE_DSEL_MASK, 0)
+#define BAT_CHARGE_DSEL_OFF		FIELD_PREP(BAT_CHARGE_DSEL_MASK, 1)
+#define BAT_CHARGE_EN_MASK_BIT		BIT(0 + 16)
+#define BAT_CHARGE_EN			BIT(0)
+#define RTC_TRIM_CTRL			0x60
 
 struct sunplus_rtc {
+	struct rtc_device *rtc;
+	struct resource *res;
 	struct clk *rtcclk;
 	struct reset_control *rstc;
-	unsigned long set_alarm_again;
-	u32 __iomem * mbox_base;
-	u32 rtc_irq;
-	u32 rtc_back_ctrl;
-	u32 rtc_back_ontime_set;
+	void __iomem *reg_base;
+	int irq;
 };
 
-struct sunplus_rtc sp_rtc;
-
-#define RTC_REG_NAME		"rtc_reg"
-#define MBOX_REG_NAME		"mbox_reg"
-#define MBOX_RTC_SUSPEND_IN      (0x11225566)
-#define MBOX_RTC_SUSPEND_OUT     (0x33447788)
-
-#define INT_STATUS_MASK		0x1
-#define INT_STATUS_UPDATE	0x0
-#define INT_STATUS_ALARM	0x1
-
-struct sp_rtc_reg {
-	unsigned int rsv00;
-	unsigned int rtc_ctrl;
-	unsigned int rtc_timer;
-	unsigned int rtc_ontime_set;
-	unsigned int rtc_clock_set;
-	unsigned int rsv05;
-	unsigned int rtc_periodic_set;
-	unsigned int rtc_int_status;
-	unsigned int rsv08;
-	unsigned int rsv09;
-	unsigned int sys_rtc_cnt_31_0;
-	unsigned int sys_rtc_cnt_63_32;
-	unsigned int rsv12;
-	unsigned int rsv13;
-	unsigned int rsv14;
-	unsigned int rsv15;
-	unsigned int rsv16;
-	unsigned int rsv17;
-	unsigned int rsv18;
-	unsigned int rsv19;
-	unsigned int rsv20;
-	unsigned int rsv21;
-	unsigned int rsv22;
-	unsigned int rsv23;
-	unsigned int rsv24;
-	unsigned int rsv25;
-	unsigned int rsv26;
-	unsigned int rsv27;
-	unsigned int rsv28;
-	unsigned int rsv29;
-	unsigned int rsv30;
-	unsigned int rsv31;
-};
-static struct sp_rtc_reg *rtc_reg_ptr;
-
-static void sp_get_seconds(unsigned long *secs)
+static void sp_get_seconds(struct device *dev, unsigned long *secs)
 {
-	*secs = (unsigned long)readl(&rtc_reg_ptr->rtc_timer);
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(dev);
+
+	*secs = (unsigned long)readl(sp_rtc->reg_base + RTC_TIMER_OUT);
 }
 
-static void sp_set_seconds(unsigned long secs)
+static void sp_set_seconds(struct device *dev, unsigned long secs)
 {
-	writel((u32)secs, &rtc_reg_ptr->rtc_clock_set);
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(dev);
+
+	writel((u32)secs, sp_rtc->reg_base + RTC_TIMER_SET);
 }
 
 static int sp_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long secs;
 
-	sp_get_seconds(&secs);
+	sp_get_seconds(dev, &secs);
 	rtc_time64_to_tm(secs, tm);
-	RTC_DEBUG("%s:  RTC date/time to %d-%d-%d, %02d:%02d:%02d.\r\n",
-		__func__, tm->tm_mday, tm->tm_mon + 1, tm->tm_year,
-					tm->tm_hour, tm->tm_min, tm->tm_sec);
-
-	return rtc_valid_tm(tm);
-}
-
-int sp_rtc_get_time(struct rtc_time *tm)
-{
-	unsigned long secs;
-
-	sp_get_seconds(&secs);
-	rtc_time64_to_tm(secs, tm);
-	return 0;
-}
-EXPORT_SYMBOL(sp_rtc_get_time);
-
-static int sp_rtc_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	FUNC_DEBUG();
-
-	// Keep RTC from system reset
-	writel(MBOX_RTC_SUSPEND_IN, sp_rtc.mbox_base); // tell CM4 in suspend by mailbox
-	//backup rtc value, maybe clear by cm4 rtc wakeup
-	sp_rtc.rtc_back_ctrl = readl(&rtc_reg_ptr->rtc_ctrl);
-	sp_rtc.rtc_back_ontime_set = readl(&rtc_reg_ptr->rtc_ontime_set);
-
-	writel(0x13, &rtc_reg_ptr->rtc_ctrl);//enable rtc interrupt
-	if(sp_rtc.rtc_irq > 0 )
-	{
-		if (device_may_wakeup(&pdev->dev))
-		{
-			enable_irq_wake(sp_rtc.rtc_irq);
-		}
-		else
-		{
-			disable_irq_wake(sp_rtc.rtc_irq);
-		}
-	}
-
-	return 0;
-}
-
-static int sp_rtc_resume(struct platform_device *pdev)
-{
-	/*						*/
-	/* Because RTC is still powered during suspend,	*/
-	/* there is nothing to do here.			*/
-	/*						*/
-	FUNC_DEBUG();
-
-	writel(MBOX_RTC_SUSPEND_OUT, sp_rtc.mbox_base); // tell CM4 out suspend by mailbox
-
-	writel(sp_rtc.rtc_back_ctrl,&rtc_reg_ptr->rtc_ctrl);
-	writel(sp_rtc.rtc_back_ontime_set,&rtc_reg_ptr->rtc_ontime_set);
-	if(sp_rtc.rtc_irq > 0 )
-	{
-		if (device_may_wakeup(&pdev->dev)){
-			disable_irq_wake(sp_rtc.rtc_irq);
-		}
-	}
 
 	return 0;
 }
@@ -191,49 +91,37 @@ static int sp_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	unsigned long secs;
 
 	secs = rtc_tm_to_time64(tm);
-	RTC_DEBUG("%s, secs = %lu\n", __func__, secs);
-	sp_set_seconds(secs);
+	dev_dbg(dev, "%s, secs = %lu\n", __func__, secs);
+	sp_set_seconds(dev, secs);
 
 	return 0;
 }
 
 static int sp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct rtc_device *rtc = dev_get_drvdata(dev);
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(dev);
 	unsigned long alarm_time;
 
 	alarm_time = rtc_tm_to_time64(&alrm->time);
-	RTC_DEBUG("%s, alarm_time: %u\n", __func__, (u32)(alarm_time));
-
-	if (alarm_time > 0xFFFFFFFF)
-		return -EINVAL;
-
-	if ((rtc->aie_timer.enabled) && (rtc->aie_timer.node.expires == ktime_set(alarm_time, 0))) {
-		if (rtc->uie_rtctimer.enabled)
-			sp_rtc.set_alarm_again = 1;
-	}
-
-	writel((u32)alarm_time, &rtc_reg_ptr->rtc_ontime_set);
-	wmb();			// make sure settings are effective.
-
-	// enable alarm here after enabling update IRQ
-	//writel(0x13, &rtc_reg_ptr->rtc_ctrl);
-	if (rtc->uie_rtctimer.enabled)
-		writel(0x13, &rtc_reg_ptr->rtc_ctrl);
-	else if (!rtc->aie_timer.enabled)
-		writel(0x10, &rtc_reg_ptr->rtc_ctrl);
-
-	udelay(10);
+	dev_dbg(dev, "%s, alarm_time: %u\n", __func__, (u32)(alarm_time));
+	writel((u32)alarm_time, sp_rtc->reg_base + RTC_ALARM_SET);
 
 	return 0;
 }
 
 static int sp_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(dev);
 	unsigned int alarm_time;
 
-	alarm_time = readl(&rtc_reg_ptr->rtc_ontime_set);
-	RTC_DEBUG("%s, alarm_time: %u\n", __func__, alarm_time);
+	alarm_time = readl(sp_rtc->reg_base + RTC_ALARM_SET);
+	dev_dbg(dev, "%s, alarm_time: %u\n", __func__, alarm_time);
+
+	if (alarm_time == 0)
+		alrm->enabled = 0;
+	else
+		alrm->enabled = 1;
+
 	rtc_time64_to_tm((unsigned long)(alarm_time), &alrm->time);
 
 	return 0;
@@ -241,12 +129,17 @@ static int sp_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int sp_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct rtc_device *rtc = dev_get_drvdata(dev);
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(dev);
 
 	if (enabled)
-		writel(0x13, &rtc_reg_ptr->rtc_ctrl);
-	else if (!rtc->uie_rtctimer.enabled)
-		writel(0x10, &rtc_reg_ptr->rtc_ctrl);
+		writel((TIMER_FREEZE_MASK_BIT | DIS_SYS_RST_RTC_MASK_BIT |
+			RTC32K_MODE_RESET_MASK_BIT | ALARM_EN_OVERDUE_MASK_BIT |
+			ALARM_EN_PMC_MASK_BIT | ALARM_EN_MASK_BIT) |
+			(DIS_SYS_RST_RTC | ALARM_EN_OVERDUE | ALARM_EN_PMC | ALARM_EN),
+			sp_rtc->reg_base + RTC_CTRL);
+	else
+		writel((ALARM_EN_OVERDUE_MASK_BIT | ALARM_EN_PMC_MASK_BIT | ALARM_EN_MASK_BIT) |
+			0x0, sp_rtc->reg_base + RTC_CTRL);
 
 	return 0;
 }
@@ -259,151 +152,208 @@ static const struct rtc_class_ops sp_rtc_ops = {
 	.alarm_irq_enable =	sp_rtc_alarm_irq_enable,
 };
 
-static irqreturn_t rtc_irq_handler(int irq, void *dev_id)
+static irqreturn_t sp_rtc_irq_handler(int irq, void *dev_id)
 {
 	struct platform_device *plat_dev = dev_id;
-	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(&plat_dev->dev);
 
-	if ((readl(&rtc_reg_ptr->rtc_int_status) & INT_STATUS_MASK) == INT_STATUS_ALARM) {
-		if (rtc->uie_rtctimer.enabled) {
-			rtc_update_irq(rtc, 1, RTC_IRQF | RTC_UF);
-			RTC_DEBUG("[RTC] update irq\n");
-
-			if (sp_rtc.set_alarm_again == 1) {
-				sp_rtc.set_alarm_again = 0;
-				rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
-				RTC_DEBUG("[RTC] alarm irq\n");
-			}
-		} else {
-			rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
-			RTC_DEBUG("[RTC] alarm irq\n");
-		}
-	}
+	rtc_update_irq(sp_rtc->rtc, 1, RTC_IRQF | RTC_AF);
+	dev_dbg(&plat_dev->dev, "[RTC] ALARM INT\n");
 
 	return IRQ_HANDLED;
 }
 
+/*
+ * -------------------------------------------------------------------------------------
+ * bat_charge_rsel   bat_charge_dsel   bat_charge_en     Remarks
+ *         x              x                 0            Disable
+ *         0              0                 1            0.86mA (2K Ohm with diode)
+ *         1              0                 1            1.81mA (250 Ohm with diode)
+ *         2              0                 1            2.07mA (50 Ohm with diode)
+ *         3              0                 1            16.0mA (0 Ohm with diode)
+ *         0              1                 1            1.36mA (2K Ohm without diode)
+ *         1              1                 1            3.99mA (250 Ohm without diode)
+ *         2              1                 1            4.41mA (50 Ohm without diode)
+ *         3              1                 1            16.0mA (0 Ohm without diode)
+ * -------------------------------------------------------------------------------------
+ */
+static void sp_rtc_set_trickle_charger(struct device dev)
+{
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(&dev);
+	u32 ohms, rsel;
+	u32 chargeable;
+
+	if (of_property_read_u32(dev.of_node, "trickle-resistor-ohms", &ohms) ||
+	    of_property_read_u32(dev.of_node, "aux-voltage-chargeable", &chargeable)) {
+		dev_warn(&dev, "battery charger disabled\n");
+		return;
+	}
+
+	switch (ohms) {
+	case 2000:
+		rsel = BAT_CHARGE_RSEL_2K_OHM;
+		break;
+	case 250:
+		rsel = BAT_CHARGE_RSEL_250_OHM;
+		break;
+	case 50:
+		rsel = BAT_CHARGE_RSEL_50_OHM;
+		break;
+	case 0:
+		rsel = BAT_CHARGE_RSEL_0_OHM;
+		break;
+	default:
+		dev_err(&dev, "invalid charger resistor value (%d)\n", ohms);
+		return;
+	}
+
+	writel(BAT_CHARGE_RSEL_MASK_BIT | rsel, sp_rtc->reg_base + RTC_BATT_CHARGE_CTRL);
+
+	switch (chargeable) {
+	case 0:
+		writel(BAT_CHARGE_DSEL_MASK_BIT | BAT_CHARGE_DSEL_OFF,
+		       sp_rtc->reg_base + RTC_BATT_CHARGE_CTRL);
+		break;
+	case 1:
+		writel(BAT_CHARGE_DSEL_MASK_BIT | BAT_CHARGE_DSEL_ON,
+		       sp_rtc->reg_base + RTC_BATT_CHARGE_CTRL);
+		break;
+	default:
+		dev_err(&dev, "invalid aux-voltage-chargeable value (%d)\n", chargeable);
+		return;
+	}
+
+	writel(BAT_CHARGE_EN_MASK_BIT | BAT_CHARGE_EN, sp_rtc->reg_base + RTC_BATT_CHARGE_CTRL);
+}
+
 static int sp_rtc_probe(struct platform_device *plat_dev)
 {
+	struct sunplus_rtc *sp_rtc;
 	int ret;
-	int err, irq;
-	struct rtc_device *rtc = NULL;
-	struct resource *res;
-	void __iomem *reg_base = NULL;
 
-	FUNC_DEBUG();
+	sp_rtc = devm_kzalloc(&plat_dev->dev, sizeof(*sp_rtc), GFP_KERNEL);
+	if (!sp_rtc)
+		return -ENOMEM;
 
-	memset(&sp_rtc, 0, sizeof(sp_rtc));
+	sp_rtc->reg_base = devm_platform_ioremap_resource_byname(plat_dev, RTC_REG_NAME);
+	if (IS_ERR(sp_rtc->reg_base))
+		return dev_err_probe(&plat_dev->dev, PTR_ERR(sp_rtc->reg_base),
+					    "%s devm_ioremap_resource fail\n", RTC_REG_NAME);
+	dev_dbg(&plat_dev->dev, "res = %pR, reg_base = %p\n",
+		sp_rtc->res, sp_rtc->reg_base);
 
-	// find and map our resources
-	res = platform_get_resource_byname(plat_dev, IORESOURCE_MEM, RTC_REG_NAME);
-	RTC_DEBUG("res = 0x%llx\n", res->start);
+	sp_rtc->irq = platform_get_irq(plat_dev, 0);
+	if (sp_rtc->irq < 0)
+		return sp_rtc->irq;
 
-	if (res) {
-		reg_base = devm_ioremap_resource(&plat_dev->dev, res);
-		if (IS_ERR(reg_base))
-			RTC_ERR("%s devm_ioremap_resource fail\n", RTC_REG_NAME);
-	}
-	RTC_DEBUG("reg_base = 0x%lx\n", (unsigned long)reg_base);
+	ret = devm_request_irq(&plat_dev->dev, sp_rtc->irq, sp_rtc_irq_handler,
+			       IRQF_TRIGGER_RISING, "rtc irq", plat_dev);
+	if (ret)
+		return dev_err_probe(&plat_dev->dev, ret, "devm_request_irq failed:\n");
 
-	res = platform_get_resource_byname(plat_dev, IORESOURCE_MEM, MBOX_REG_NAME);
-	RTC_DEBUG("res = 0x%llx\n", res->start);
+	sp_rtc->rtcclk = devm_clk_get(&plat_dev->dev, NULL);
+	if (IS_ERR(sp_rtc->rtcclk))
+		return dev_err_probe(&plat_dev->dev, PTR_ERR(sp_rtc->rtcclk),
+					    "devm_clk_get fail\n");
 
-	if (res) {
-		sp_rtc.mbox_base = devm_ioremap_resource(&plat_dev->dev, res);
-		if (IS_ERR(sp_rtc.mbox_base))
-			RTC_ERR("%s devm_ioremap_resource fail\n", MBOX_REG_NAME);
-	}
-	RTC_DEBUG("mailbox_base = 0x%lx\n", (unsigned long)sp_rtc.mbox_base);
+	sp_rtc->rstc = devm_reset_control_get_exclusive(&plat_dev->dev, NULL);
+	if (IS_ERR(sp_rtc->rstc))
+		return dev_err_probe(&plat_dev->dev, PTR_ERR(sp_rtc->rstc),
+					    "failed to retrieve reset controller\n");
 
-	// clk
-	sp_rtc.rtcclk = devm_clk_get(&plat_dev->dev, NULL);
-	RTC_DEBUG("sp_rtc->clk = 0x%lx\n", (unsigned long)sp_rtc.rtcclk);
-	if (IS_ERR(sp_rtc.rtcclk))
-		RTC_DEBUG("devm_clk_get fail\n");
-
-	ret = clk_prepare_enable(sp_rtc.rtcclk);
-
-	// reset
-	sp_rtc.rstc = devm_reset_control_get(&plat_dev->dev, NULL);
-	RTC_DEBUG("sp_rtc->rstc = 0x%lx\n", (unsigned long)sp_rtc.rstc);
-	if (IS_ERR(sp_rtc.rstc)) {
-		ret = PTR_ERR(sp_rtc.rstc);
-		RTC_ERR("SPI failed to retrieve reset controller: %d\n", ret);
-		goto free_clk;
-	}
-
-	ret = reset_control_deassert(sp_rtc.rstc);
+	ret = clk_prepare_enable(sp_rtc->rtcclk);
 	if (ret)
 		goto free_clk;
 
-	rtc_reg_ptr = (struct sp_rtc_reg *)(reg_base);
-
-	// Keep RTC from system reset
-	writel((1 << (16+4)) | (1 << 4), &rtc_reg_ptr->rtc_ctrl);
-
-	// request irq
-	irq = platform_get_irq(plat_dev, 0);
-	if (irq < 0) {
-		RTC_ERR("platform_get_irq failed\n");
+	ret = reset_control_deassert(sp_rtc->rstc);
+	if (ret)
 		goto free_reset_assert;
-	}
-
-	err = devm_request_irq(&plat_dev->dev, irq, rtc_irq_handler, IRQF_TRIGGER_RISING, "rtc irq", plat_dev);
-	if (err) {
-		RTC_ERR("devm_request_irq failed: %d\n", err);
-		goto free_reset_assert;
-	}
 
 	device_init_wakeup(&plat_dev->dev, 1);
-	sp_rtc.rtc_irq = irq;
+	dev_set_drvdata(&plat_dev->dev, sp_rtc);
 
-	rtc = devm_rtc_device_register(&plat_dev->dev, "sp7350-rtc", &sp_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
+	sp_rtc->rtc = devm_rtc_allocate_device(&plat_dev->dev);
+	if (IS_ERR(sp_rtc->rtc)) {
+		ret = PTR_ERR(sp_rtc->rtc);
 		goto free_reset_assert;
 	}
 
-	platform_set_drvdata(plat_dev, rtc);
-	RTC_INFO("sp7350-rtc loaded\n");
+	sp_rtc->rtc->range_max = U32_MAX;
+	sp_rtc->rtc->range_min = 0;
+	sp_rtc->rtc->ops = &sp_rtc_ops;
+
+	ret = devm_rtc_register_device(sp_rtc->rtc);
+	if (ret)
+		goto free_reset_assert;
+
+	/* Setup trickle charger */
+	if (plat_dev->dev.of_node)
+		sp_rtc_set_trickle_charger(plat_dev->dev);
+
+	/* Keep RTC from system reset */
+	writel(DIS_SYS_RST_RTC_MASK_BIT | DIS_SYS_RST_RTC, sp_rtc->reg_base + RTC_CTRL);
 
 	return 0;
 
 free_reset_assert:
-	reset_control_assert(sp_rtc.rstc);
+	reset_control_assert(sp_rtc->rstc);
 free_clk:
-	clk_disable_unprepare(sp_rtc.rtcclk);
+	clk_disable_unprepare(sp_rtc->rtcclk);
 
 	return ret;
 }
 
-static int sp_rtc_remove(struct platform_device *plat_dev)
+static void sp_rtc_remove(struct platform_device *plat_dev)
 {
-	reset_control_assert(sp_rtc.rstc);
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(&plat_dev->dev);
+
+	device_init_wakeup(&plat_dev->dev, 0);
+	reset_control_assert(sp_rtc->rstc);
+	clk_disable_unprepare(sp_rtc->rtcclk);
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int sp_rtc_suspend(struct device *dev)
+{
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(sp_rtc->irq);
 
 	return 0;
 }
 
+static int sp_rtc_resume(struct device *dev)
+{
+	struct sunplus_rtc *sp_rtc = dev_get_drvdata(dev);
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(sp_rtc->irq);
+
+	return 0;
+}
+#endif
+
 static const struct of_device_id sp_rtc_of_match[] = {
-	{ .compatible = "sunplus,sp7350-rtc" },
+	{ .compatible = "sunplus,sp7021-rtc" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sp_rtc_of_match);
 
+static SIMPLE_DEV_PM_OPS(sp_rtc_pm_ops, sp_rtc_suspend, sp_rtc_resume);
+
 static struct platform_driver sp_rtc_driver = {
 	.probe   = sp_rtc_probe,
-	.remove  = sp_rtc_remove,
-	.suspend = sp_rtc_suspend,
-	.resume  = sp_rtc_resume,
+	.remove_new = sp_rtc_remove,
 	.driver  = {
-		.name = "sp7350-rtc",
-		.owner = THIS_MODULE,
+		.name	= "sp7021-rtc",
 		.of_match_table = sp_rtc_of_match,
+		.pm	= &sp_rtc_pm_ops,
 	},
 };
 module_platform_driver(sp_rtc_driver);
 
-MODULE_AUTHOR("Vincent Shih <vincent.shih@sunplus.com>");
+MODULE_AUTHOR("Vincent Shih <vincent.sunplus@gmail.com>");
 MODULE_DESCRIPTION("Sunplus RTC driver");
 MODULE_LICENSE("GPL v2");
 

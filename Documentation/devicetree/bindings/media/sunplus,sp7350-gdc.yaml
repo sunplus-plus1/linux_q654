@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/sunplus,sp7350-gdc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus Geometric Distortion Correction driver(GDC)
+
+description:
+  GDC is a highly configurable Geometrical Distortion Correction engine, 
+  capable of performing up to four simultaneous geometric warp functions, 
+  each displayed in a sub-window, at video resolutions up to 4K UHD. 
+  GDC engine is suitable for video surveillance, fisheye correction, 
+  automotive reversing cameras, and panoramic correction and dome cameras.
+
+maintainers:
+  - YuBo Leng <yb.leng@sunmedia.com.cn>
+
+properties:
+  compatible:
+    const: sunplus,sp7350-gdc
+
+  reg:
+    description: | 
+        Base address and length of the GDC registers.
+    maxItems: 2
+    
+  memory-region:    
+    maxItems: 1
+    
+  interrupts:
+    description: | 
+        Indicate that GDC finished processing the frame and in IDLE state.
+    maxItems: 1
+
+  clocks:
+    maxItems: 3
+
+  clock-names:
+    items:
+      - const: sys
+      - const: axi
+      - const: apb
+
+  resets:
+    maxItems: 3
+
+  reset-names:
+    items:
+      - const: sys
+      - const: axi
+      - const: apb
+      
+  sunplus,max_config_size:
+    description: | 
+        The size(in byte) of internal buffer which is for binary configuration data.
+        The size must be aligned to 4-byte.   
+    $ref: /schemas/types.yaml#/definitions/uint32
+    
+  sunplus,devnode_number:
+    description: | 
+        The device node number which is used while registering v4l2 video device.
+        If this property is omitted, driver will use the default value(-1).
+    $ref: /schemas/types.yaml#/definitions/uint32
+    
+required:
+  - compatible
+  - reg
+  - memory-region
+  - interrupts
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+  - sunplus,max_config_size
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+    gdc: gdc@f8c09000 {
+        compatible = "sunplus,sp7350-gdc";
+        reg = <0x0 0xf8c09000 0x0 0xff>;
+        memory-region = <&gdc_reserve>;
+        interrupt-parent = <&gic>;
+        interrupts = <GIC_SPI 108 IRQ_TYPE_EDGE_RISING>;
+        clocks = <&clkc VCL>, <&clkc VCL5>, <&clkc VCL3>;
+        clock-names = "sys", "axi", "apb";
+        resets = <&rstc RST_VCL>, <&rstc RST_VCL5>, <&rstc RST_VCL3>;
+        reset-names = "sys", "axi", "apb";
+        sunplus,max_config_size = <0x100000>;
+        sunplus,devnode_number = <96>;
+    };

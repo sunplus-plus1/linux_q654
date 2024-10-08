@@ -16,8 +16,10 @@
 #include <video/videomode.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
-#include <drm/drm_modes.h>
+//#include <drm/drm_modes.h>
 #include <drm/drm_print.h>
 #include <drm/drm_panel.h>
 
@@ -51,8 +53,11 @@ struct sp7350_panel_simple_dsi {
 	enum drm_panel_orientation orientation;
 	//struct backlight_device *bl_dev;
 
-	bool prepared;
-	bool enabled;
+	unsigned short flags;		/* driver status., see below */
+#define FLAG_BUS_I2C_READY   0x01	/* driver status flag, i2c_bus_ready */
+#define FLAG_BUS_DSI_READY   0x02	/* driver status flag, dsi_bus_ready */
+#define FLAG_PANEL_PREPARED  0x10	/* driver status flag, panel_prepared */
+#define FLAG_PANEL_ENABLED   0x20	/* driver status flag, panel_enabled */
 
 	struct regulator *supply;
 	struct i2c_adapter *ddc;
@@ -199,6 +204,26 @@ static const struct panel_init_cmd xinli_tcxd024iblon_n2_init_cmd[] = {
 	{},
 };
 
+static const struct panel_init_cmd wks_wks70wv055_wct_init_cmd[] = {
+	/* dsi 1-lane */
+	_INIT_DCS_CMD(0x10, 0x02, 0x03),
+
+	_INIT_DCS_CMD(0x64, 0x01, 0x05),
+	_INIT_DCS_CMD(0x44, 0x01, 0x00),
+	_INIT_DCS_CMD(0x48, 0x01, 0x00),
+	_INIT_DCS_CMD(0x14, 0x01, 0x03),
+
+	_INIT_DCS_CMD(0x50, 0x04, 0x00),
+	_INIT_DCS_CMD(0x20, 0x04, 0x50, 0x01, 0x10, 0x00),
+	_INIT_DCS_CMD(0x64, 0x04, 0x0f, 0x04),
+	_INIT_DELAY_CMD(100),
+
+	_INIT_DCS_CMD(0x04, 0x01, 0x01),
+	_INIT_DCS_CMD(0x04, 0x02, 0x01),
+	_INIT_DELAY_CMD(100),
+	{},
+};
+
 static const struct drm_display_mode lx_hxm0686tft_001_modes[] = {
 	{
 		/* from specification typical values adjustment. */
@@ -296,23 +321,55 @@ static const struct sp7350_dsi_panel_desc xinli_tcxd024iblon_n2_desc = {
 	.init_cmds = xinli_tcxd024iblon_n2_init_cmd,
 };
 
+static const struct drm_display_mode wks_wks70wv055_wct_mode[] = {
+	{
+		/* Modeline comes from the SP7350 firmware, with HFP=0
+		 * plugged in and clock re-computed from that.
+		 */
+		.clock = 28060200 / 1000,
+		.hdisplay = 800,
+		.hsync_start = 800 + 0,
+		.hsync_end = 800 + 0 + 112,
+		.htotal = 800 + 0 + 112 + 5,
+		.vdisplay = 480,
+		.vsync_start = 480 + 7,
+		.vsync_end = 480 + 7 + 2,
+		.vtotal = 480 + 7 + 2 + 21,
+	}
+};
+
+static const struct sp7350_dsi_panel_desc wks_wks70wv055_wct_desc = {
+	.modes = wks_wks70wv055_wct_mode,
+	.num_modes = ARRAY_SIZE(wks_wks70wv055_wct_mode),
+	.bpc = 8,
+	.size = {
+		.width_mm = 154,
+		.height_mm = 86,
+	},
+	.lanes = 1,
+	.format = MIPI_DSI_FMT_RGB888,
+	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
+		      MIPI_DSI_MODE_LPM,
+	.init_cmds = wks_wks70wv055_wct_init_cmd,
+};
+
 static inline struct sp7350_panel_simple_dsi *to_simple_panel(struct drm_panel *panel)
 {
 	return container_of(panel, struct sp7350_panel_simple_dsi, base);
 }
 
-static unsigned int sp7350_panel_simple_get_display_modes(struct sp7350_panel_simple_dsi *panel,
+static unsigned int sp7350_panel_simple_get_display_modes(struct sp7350_panel_simple_dsi *sp_panel,
 							  struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 	unsigned int i, num = 0;
 
-	for (i = 0; i < panel->desc->num_modes; i++) {
-		const struct drm_display_mode *m = &panel->desc->modes[i];
+	for (i = 0; i < sp_panel->desc->num_modes; i++) {
+		const struct drm_display_mode *m = &sp_panel->desc->modes[i];
 
 		mode = drm_mode_duplicate(connector->dev, m);
 		if (!mode) {
-			dev_err(panel->base.dev, "failed to add mode %ux%u@%u\n",
+			dev_err(sp_panel->base.dev, "failed to add mode %ux%u@%u\n",
 				m->hdisplay, m->vdisplay,
 				drm_mode_vrefresh(m));
 			continue;
@@ -333,13 +390,13 @@ static unsigned int sp7350_panel_simple_get_display_modes(struct sp7350_panel_si
 	return num;
 }
 
-static int sp7350_panel_init_dcs_cmd(struct sp7350_panel_simple_dsi *panel)
+static int sp7350_panel_init_dcs_cmd(struct sp7350_panel_simple_dsi *sp_panel)
 {
-	struct mipi_dsi_device *dsi = panel->dsi;
+	struct mipi_dsi_device *dsi = sp_panel->dsi;
 	int i, err = 0;
 
-	if (panel->desc->init_cmds) {
-		const struct panel_init_cmd *init_cmds = panel->desc->init_cmds;
+	if (sp_panel->desc->init_cmds) {
+		const struct panel_init_cmd *init_cmds = sp_panel->desc->init_cmds;
 
 		for (i = 0; init_cmds[i].len != 0; i++) {
 			const struct panel_init_cmd *cmd = &init_cmds[i];
@@ -373,87 +430,85 @@ static int sp7350_panel_init_dcs_cmd(struct sp7350_panel_simple_dsi *panel)
 
 static int sp7350_panel_simple_disable(struct drm_panel *panel)
 {
-	struct sp7350_panel_simple_dsi *sp7350_panel = to_simple_panel(panel);
+	struct sp7350_panel_simple_dsi *sp_panel = to_simple_panel(panel);
 	//struct mipi_dsi_device *dsi = to_mipi_dsi_device(panel->dev);
 	int ret;
 
 	DRM_DEV_DEBUG_DRIVER(panel->dev, "start.\n");
-	if (!sp7350_panel->enabled)
+	if (!(sp_panel->flags & FLAG_PANEL_ENABLED))
 		return 0; /* This is not an issue so we return 0 here */
 
-	//backlight_disable(sp7350_panel->bl_dev);
+	//backlight_disable(sp_panel->bl_dev);
 
-	ret = mipi_dsi_dcs_set_display_off(sp7350_panel->dsi);
+	ret = mipi_dsi_dcs_set_display_off(sp_panel->dsi);
 	if (ret)
 		return ret;
 
-	ret = mipi_dsi_dcs_enter_sleep_mode(sp7350_panel->dsi);
+	ret = mipi_dsi_dcs_enter_sleep_mode(sp_panel->dsi);
 	if (ret)
 		return ret;
 
 	msleep(120);
 
-	sp7350_panel->enabled = false;
+	sp_panel->flags &= ~FLAG_PANEL_ENABLED;
 
 	return 0;
 }
 
 static int sp7350_panel_simple_unprepare(struct drm_panel *panel)
 {
-	struct sp7350_panel_simple_dsi *sp7350_panel = to_simple_panel(panel);
+	struct sp7350_panel_simple_dsi *sp_panel = to_simple_panel(panel);
 
 	DRM_DEV_DEBUG_DRIVER(panel->dev, "start.\n");
-	if (!sp7350_panel->prepared)
+	if (!(sp_panel->flags & FLAG_PANEL_PREPARED))
 		return 0;
 
-	if (sp7350_panel->enable_gpio) {
-		gpiod_set_value_cansleep(sp7350_panel->enable_gpio, 0);
+	if (sp_panel->enable_gpio) {
+		gpiod_set_value_cansleep(sp_panel->enable_gpio, 0);
 		msleep(20);
 	}
 
-	regulator_disable(sp7350_panel->supply);
+	regulator_disable(sp_panel->supply);
 
-	sp7350_panel->prepared = false;
+	sp_panel->flags &= ~FLAG_PANEL_PREPARED;
 
 	return 0;
 }
 
 static int sp7350_panel_simple_prepare(struct drm_panel *panel)
 {
-	struct sp7350_panel_simple_dsi *sp7350_panel = to_simple_panel(panel);
+	struct sp7350_panel_simple_dsi *sp_panel = to_simple_panel(panel);
 	int ret;
 
 	DRM_DEV_DEBUG_DRIVER(panel->dev, "start.\n");
-	if (sp7350_panel->prepared)
-		return 0;
 
-	ret = regulator_enable(sp7350_panel->supply);
+	ret = regulator_enable(sp_panel->supply);
 	if (ret < 0) {
 		dev_err(panel->dev, "failed to enable supply: %d\n", ret);
 		return ret;
 	}
 
-	if (sp7350_panel->enable_gpio) {
-		gpiod_set_value_cansleep(sp7350_panel->enable_gpio, 0);
+	if (sp_panel->enable_gpio) {
+		gpiod_set_value_cansleep(sp_panel->enable_gpio, 0);
 		msleep(20);
-		gpiod_set_value_cansleep(sp7350_panel->enable_gpio, 1);
+		gpiod_set_value_cansleep(sp_panel->enable_gpio, 1);
 	}
 
-	ret = sp7350_panel_init_dcs_cmd(sp7350_panel);
+	ret = sp7350_panel_init_dcs_cmd(sp_panel);
 	if (ret < 0) {
 		dev_err(panel->dev, "failed to init panel: %d\n", ret);
 		goto poweroff;
 	}
 
-	sp7350_panel->prepared = true;
+	sp_panel->flags |= FLAG_PANEL_PREPARED;
 
 	return 0;
 
 poweroff:
-	regulator_disable(sp7350_panel->supply);
+	regulator_disable(sp_panel->supply);
 
-	if (sp7350_panel->enable_gpio) {
-		gpiod_set_value_cansleep(sp7350_panel->enable_gpio, 0);
+	if (sp_panel->enable_gpio) {
+		gpiod_set_value_cansleep(sp_panel->enable_gpio, 0);
 		msleep(20);
 	}
 
@@ -462,15 +517,13 @@ poweroff:
 
 static int sp7350_panel_simple_enable(struct drm_panel *panel)
 {
-	struct sp7350_panel_simple_dsi *sp7350_panel = to_simple_panel(panel);
+	struct sp7350_panel_simple_dsi *sp_panel = to_simple_panel(panel);
 
 	DRM_DEV_DEBUG_DRIVER(panel->dev, "start.\n");
-	if (sp7350_panel->enabled)
-		return 0;
 
-	//backlight_enable(sp7350_panel->bl_dev);
+	//backlight_enable(sp_panel->bl_dev);
 
-	sp7350_panel->enabled = true;
+	sp_panel->flags |= FLAG_PANEL_ENABLED;
 
 	return 0;
 }
@@ -478,12 +531,12 @@ static int sp7350_panel_simple_enable(struct drm_panel *panel)
 static int sp7350_panel_simple_get_modes(struct drm_panel *panel,
 					 struct drm_connector *connector)
 {
-	struct sp7350_panel_simple_dsi *sp7350_panel = to_simple_panel(panel);
+	struct sp7350_panel_simple_dsi *sp_panel = to_simple_panel(panel);
 	int num = 0;
 
 	/* probe EDID if a DDC bus is available */
-	if (sp7350_panel->ddc) {
-		struct edid *edid = drm_get_edid(connector, sp7350_panel->ddc);
+	if (sp_panel->ddc) {
+		struct edid *edid = drm_get_edid(connector, sp_panel->ddc);
 
 		drm_connector_update_edid_property(connector, edid);
 		if (edid) {
@@ -491,12 +544,12 @@ static int sp7350_panel_simple_get_modes(struct drm_panel *panel,
 			kfree(edid);
 		}
 	}
-	num += sp7350_panel_simple_get_display_modes(sp7350_panel, connector);
+	num += sp7350_panel_simple_get_display_modes(sp_panel, connector);
 
-	connector->display_info.width_mm = sp7350_panel->desc->size.width_mm;
-	connector->display_info.height_mm = sp7350_panel->desc->size.height_mm;
-	connector->display_info.bpc = sp7350_panel->desc->bpc;
-	drm_connector_set_panel_orientation(connector, sp7350_panel->orientation);
+	connector->display_info.width_mm = sp_panel->desc->size.width_mm;
+	connector->display_info.height_mm = sp_panel->desc->size.height_mm;
+	connector->display_info.bpc = sp_panel->desc->bpc;
+	drm_connector_set_panel_orientation(connector, sp_panel->orientation);
 
 	return num;
 }
@@ -523,77 +576,118 @@ static const struct backlight_ops sp7350_panel_simple_backlight_ops = {
 };
 #endif
 
-static int sp7350_panel_simple_add(struct sp7350_panel_simple_dsi *panel)
+static int sp7350_panel_simple_resume(struct device *dev)
 {
-	struct device *dev = &panel->dsi->dev;
+	struct sp7350_panel_simple_dsi *sp_panel = dev_get_drvdata(dev);
+
+	if (sp_panel->flags & FLAG_PANEL_PREPARED)
+		sp7350_panel_simple_prepare(&sp_panel->base);
+
+	if (sp_panel->flags & FLAG_PANEL_ENABLED)
+		sp7350_panel_simple_enable(&sp_panel->base);
+
+	sp_panel->flags |= FLAG_BUS_DSI_READY;
+
+	return 0;
+}
+
+static int sp7350_panel_simple_suspend(struct device *dev)
+{
+	struct sp7350_panel_simple_dsi *sp_panel = dev_get_drvdata(dev);
+
+	if (sp_panel->flags & FLAG_PANEL_ENABLED) {
+		sp7350_panel_simple_disable(&sp_panel->base);
+		/* reset for resume. */
+		sp_panel->flags |= FLAG_PANEL_ENABLED;
+	}
+	if (sp_panel->flags & FLAG_PANEL_PREPARED) {
+		sp7350_panel_simple_unprepare(&sp_panel->base);
+		/* reset for resume. */
+		sp_panel->flags |= FLAG_PANEL_PREPARED;
+	}
+
+	sp_panel->flags &= ~FLAG_BUS_DSI_READY;
+
+	return 0;
+}
+
+static const struct dev_pm_ops sp7350_panel_simple_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(sp7350_panel_simple_suspend, sp7350_panel_simple_resume)
+};
+
+static int sp7350_panel_simple_add(struct sp7350_panel_simple_dsi *sp_panel)
+{
+	struct device *dev = &sp_panel->dsi->dev;
 	struct device_node *ddc;
 	int err;
 
-	panel->supply = devm_regulator_get(dev, "power");
-	if (IS_ERR(panel->supply))
-		return PTR_ERR(panel->supply);
+	sp_panel->supply = devm_regulator_get(dev, "power");
+	if (IS_ERR(sp_panel->supply))
+		return PTR_ERR(sp_panel->supply);
 
-	panel->enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_LOW);
-	if (IS_ERR(panel->enable_gpio)) {
+	sp_panel->enable_gpio = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_LOW);
+	if (IS_ERR(sp_panel->enable_gpio)) {
 		dev_err(dev, "cannot get enable-gpios %ld\n",
-			PTR_ERR(panel->enable_gpio));
-		return PTR_ERR(panel->enable_gpio);
+			PTR_ERR(sp_panel->enable_gpio));
+		return PTR_ERR(sp_panel->enable_gpio);
 	}
-	if (panel->enable_gpio)
-		gpiod_set_value_cansleep(panel->enable_gpio, 0);
+	if (sp_panel->enable_gpio)
+		gpiod_set_value_cansleep(sp_panel->enable_gpio, 0);
 
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
 	if (ddc) {
-		panel->ddc = of_find_i2c_adapter_by_node(ddc);
+		sp_panel->ddc = of_find_i2c_adapter_by_node(ddc);
 		of_node_put(ddc);
 
-		if (!panel->ddc)
+		if (!sp_panel->ddc)
 			return -EPROBE_DEFER;
 	}
 
-	drm_panel_init(&panel->base, dev, &sp7350_panel_funcs,
+	drm_panel_init(&sp_panel->base, dev, &sp7350_panel_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
-	err = of_drm_get_panel_orientation(dev->of_node, &panel->orientation);
+	err = of_drm_get_panel_orientation(dev->of_node, &sp_panel->orientation);
 	if (err < 0) {
 		dev_err(dev, "%p: failed to get orientation %d\n", dev->of_node, err);
 		return err;
 	}
 
-	err = drm_panel_of_backlight(&panel->base);
+	err = drm_panel_of_backlight(&sp_panel->base);
 	if (err)
 		return err;
 
-	drm_panel_add(&panel->base);
+	drm_panel_add(&sp_panel->base);
 
 	return 0;
 }
 
 static int sp7350_panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 {
-	struct sp7350_panel_simple_dsi *panel;
+	struct sp7350_panel_simple_dsi *sp_panel;
 	int ret;
 	const struct sp7350_dsi_panel_desc *desc;
 
-	panel = devm_kzalloc(&dsi->dev, sizeof(*panel), GFP_KERNEL);
-	if (!panel)
+	sp_panel = devm_kzalloc(&dsi->dev, sizeof(*sp_panel), GFP_KERNEL);
+	if (!sp_panel)
 		return -ENOMEM;
 
 	desc = of_device_get_match_data(&dsi->dev);
 	dsi->lanes = desc->lanes;
 	dsi->format = desc->format;
 	dsi->mode_flags = desc->mode_flags;
-	panel->desc = desc;
-	panel->dsi = dsi;
+	sp_panel->desc = desc;
+	sp_panel->dsi = dsi;
 
-	ret = sp7350_panel_simple_add(panel);
+	ret = sp7350_panel_simple_add(sp_panel);
 	if (ret < 0)
 		return ret;
 
-	mipi_dsi_set_drvdata(dsi, panel);
+	mipi_dsi_set_drvdata(dsi, sp_panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret)
-		drm_panel_remove(&panel->base);
+		drm_panel_remove(&sp_panel->base);
+
+	sp_panel->flags |= FLAG_BUS_DSI_READY;
 
 	DRM_DEV_DEBUG_DRIVER(&dsi->dev, "finish.\n");
 
@@ -602,15 +696,15 @@ static int sp7350_panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 
 static void sp7350_panel_simple_dsi_shutdown(struct mipi_dsi_device *dsi)
 {
-	struct sp7350_panel_simple_dsi *panel = mipi_dsi_get_drvdata(dsi);
+	struct sp7350_panel_simple_dsi *sp_panel = mipi_dsi_get_drvdata(dsi);
 
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
+	drm_panel_disable(&sp_panel->base);
+	drm_panel_unprepare(&sp_panel->base);
 }
 
-static int sp7350_panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
+static void sp7350_panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
 {
-	struct sp7350_panel_simple_dsi *panel = mipi_dsi_get_drvdata(dsi);
+	struct sp7350_panel_simple_dsi *sp_panel = mipi_dsi_get_drvdata(dsi);
 	int ret;
 
 	sp7350_panel_simple_dsi_shutdown(dsi);
@@ -619,17 +713,17 @@ static int sp7350_panel_simple_dsi_remove(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
 
-	if (panel->base.dev)
-		drm_panel_remove(&panel->base);
-
-	return 0;
+	if (sp_panel->base.dev)
+		drm_panel_remove(&sp_panel->base);
 }
 
 static const struct of_device_id panel_simple_dsi_of_match[] = {
 	{
-		.compatible = "lx,hxm0686tft-001", .data = &lx_hxm0686tft_001_desc
+		.compatible = "sunplus,lx-hxm0686tft-001", .data = &lx_hxm0686tft_001_desc
 	}, {
-		.compatible = "xinli,tcxd024iblon-2", .data = &xinli_tcxd024iblon_n2_desc
+		.compatible = "sunplus,xinli-tcxd024iblon-2", .data = &xinli_tcxd024iblon_n2_desc
+	}, {
+		.compatible = "sunplus,wks-wks70wv055-wct", .data = &wks_wks70wv055_wct_desc
 	}, {
 		/* sentinel */
 	}
@@ -640,6 +734,7 @@ static struct mipi_dsi_driver panel_simple_dsi_driver = {
 	.driver = {
 		.name = "panel-simple-dsi",
 		.of_match_table = panel_simple_dsi_of_match,
+		.pm = &sp7350_panel_simple_pm_ops,
 	},
 	.probe = sp7350_panel_simple_dsi_probe,
 	.remove = sp7350_panel_simple_dsi_remove,

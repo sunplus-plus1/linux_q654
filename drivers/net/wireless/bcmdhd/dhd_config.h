@@ -17,8 +17,6 @@
 #define FW_TYPE_ES      5
 #define FW_TYPE_MFG     6
 #define FW_TYPE_MINIME  7
-#define FW_TYPE_G       0
-#define FW_TYPE_AG      1
 
 #define FW_PATH_AUTO_SELECT 1
 #ifdef BCMDHD_MDRIVER
@@ -27,7 +25,7 @@
 //#define CONFIG_PATH_AUTO_SELECT
 #endif
 extern char firmware_path[MOD_PARAM_PATHLEN];
-#if defined(BCMSDIO) || defined(BCMPCIE)
+#if defined(BCMSDIO)
 extern uint dhd_rxbound;
 extern uint dhd_txbound;
 #endif
@@ -156,15 +154,6 @@ enum in_suspend_mode {
 	SUSPEND_MODE_2 = 2
 };
 
-#ifdef TPUT_MONITOR
-enum data_drop_mode {
-	NO_DATA_DROP = -1,
-	FW_DROP = 0,
-	TXPKT_DROP = 1,
-	XMIT_DROP = 2
-};
-#endif
-
 enum conn_state {
 	CONN_STATE_IDLE = 0,
 	CONN_STATE_CONNECTING = 1,
@@ -226,6 +215,7 @@ typedef struct dhd_conf {
 	int ioctl_ver;
 	int band;
 	int bw_cap[2];
+	int mapsta_mode;
 	wl_country_t cspec;
 	uint roam_off;
 	uint roam_off_suspend;
@@ -233,6 +223,9 @@ typedef struct dhd_conf {
 	int roam_scan_period[2];
 	int roam_delta[2];
 	int fullroamperiod;
+#ifdef WL_SCHED_SCAN
+	int max_sched_scan_reqs;
+#endif /* WL_SCHED_SCAN */
 	uint keep_alive_period;
 	bool rekey_offload;
 #ifdef ARP_OFFLOAD_SUPPORT
@@ -245,6 +238,8 @@ typedef struct dhd_conf {
 	conf_pkt_filter_add_t pkt_filter_add;
 	conf_pkt_filter_del_t pkt_filter_del;
 	char *magic_pkt_filter_add;
+	int magic_pkt_hdr_len;
+	int pkt_filter_cnt_default;
 #endif
 	int srl;
 	int lrl;
@@ -365,13 +360,10 @@ typedef struct dhd_conf {
 	int proptx_maxcnt_5g;
 #endif /* DYNAMIC_PROPTX_MAXCOUNT */
 #ifdef TPUT_MONITOR
-	int data_drop_mode;
-	unsigned long net_len;
 	uint tput_monitor_ms;
 	struct osl_timespec tput_ts;
 	unsigned long last_tx;
 	unsigned long last_rx;
-	unsigned long last_net_tx;
 #ifdef BCMSDIO
 	int32 doflow_tput_thresh;
 #endif
@@ -401,15 +393,14 @@ typedef struct dhd_conf {
 
 #ifdef BCMSDIO
 void dhd_conf_get_otp(dhd_pub_t *dhd, bcmsdh_info_t *sdh, si_t *sih);
-#if defined(HW_OOB) || defined(FORCE_WOWLAN)
-void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, struct si_pub *sih);
-#endif
 void dhd_conf_set_txglom_params(dhd_pub_t *dhd, bool enable);
 bool dhd_conf_legacy_otp_chip(dhd_pub_t *dhd);
 #endif
 #ifdef BCMPCIE
-int dhd_conf_get_otp(dhd_pub_t *dhd, si_t *sih);
 bool dhd_conf_legacy_msi_chip(dhd_pub_t *dhd);
+#if defined(BCMPCIE_CTO_PREVENTION)
+bool dhd_conf_legacy_cto_chip(uint16 chip);
+#endif
 #endif
 #ifdef WL_CFG80211
 bool dhd_conf_legacy_chip_check(dhd_pub_t *dhd);
@@ -437,6 +428,7 @@ int dhd_conf_set_chiprev(dhd_pub_t *dhd, uint chip, uint chiprev);
 uint dhd_conf_get_chip(void *context);
 uint dhd_conf_get_chiprev(void *context);
 int dhd_conf_get_pm(dhd_pub_t *dhd);
+int dhd_conf_custom_mac(dhd_pub_t *dhd);
 int dhd_conf_reg2args(dhd_pub_t *dhd, char *cmd, bool set, uint32 index, uint32 *val);
 int dhd_conf_check_hostsleep(dhd_pub_t *dhd, int cmd, void *buf, int len,
 	int *hostsleep_set, int *hostsleep_val, int *ret);

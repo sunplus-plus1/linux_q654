@@ -15,7 +15,6 @@
 
 #include "thermal_hwmon.h"
 
-
 #define DISABLE_THERMAL		(BIT(31) | BIT(15))
 #define ENABLE_THERMAL		BIT(31)
 
@@ -33,7 +32,6 @@
 #define SP_THERMAL_CTL1_REG	0x0004		//F8800288
 #define SP_THERMAL_CTL2_REG	0x000C		//F88002C0
 #define SP_THERMAL_CTL3_REG	0x0010		//F88002C4
-
 
 #define SP_THERMAL_STS0_V2_REG	0x0018
 
@@ -66,7 +64,7 @@ static int sp_thermal_init(struct sp_thermal_data *sp_data)
 	else
 		writel(ENABLE_THERMAL, sp_data->regs + SP_THERMAL_CTL0_REG);
 
-	msleep(1);
+	msleep(20);
 	return 0;
 }
 
@@ -77,19 +75,19 @@ static int sp_get_otp_temp_coef(struct sp_thermal_data *sp_data, struct device *
 	char *otp_v;
 
 	cell = nvmem_cell_get(dev, "therm_calib");
-	if (IS_ERR(cell)){
-		printk(KERN_ERR "Failed to get NVMEM cell: %ld\n", PTR_ERR(cell));
+	if (IS_ERR(cell)) {
+		pr_err("Failed to get NVMEM cell: %ld\n", PTR_ERR(cell));
 		sp_data->otp_temp0 = sp_data->dev_comp->temp_otp_base;
-    		return 0;
+		return 0;
 	}
 
 	otp_v = nvmem_cell_read(cell, &otp_l);
 	nvmem_cell_put(cell);
 
-	if (otp_l < 3){
-		printk(KERN_ERR "Failed to read NVMEM cell: %ld\n", PTR_ERR(cell));
+	if (otp_l < 3) {
+		pr_err("Failed to read NVMEM cell: %ld\n", PTR_ERR(cell));
 		sp_data->otp_temp0 = sp_data->dev_comp->temp_otp_base;
-    		return 0;
+		return 0;
 	}
 
 	sp_data->otp_temp0 = FIELD_PREP(SP_TCODE_LOW_MASK, otp_v[0]) |
@@ -103,35 +101,36 @@ static int sp_get_otp_temp_coef(struct sp_thermal_data *sp_data, struct device *
 	if (!IS_ERR(otp_v))
 		kfree(otp_v);
 
-	if (sp_data->otp_temp0 == 0) 
+	if (sp_data->otp_temp0 == 0)
 		sp_data->otp_temp0 = sp_data->dev_comp->temp_otp_base;
-	
+
 	return 0;
 }
 
-static int sp_thermal_get_sensor_temp(void *data, int *temp)
+static int sp_thermal_get_sensor_temp(struct thermal_zone_device *tz, int *temp)
 {
-	struct sp_thermal_data *sp_data = data;
+	struct sp_thermal_data *sp_data = thermal_zone_device_priv(tz);
 	int t_code;
 
-	if (sp_data->dev_comp->ver > 1){
+	if (sp_data->dev_comp->ver > 1) {
 		writel(0xFFFF0800, sp_data->regs +  SP_THERMAL_CTL1_REG);
 		writel(0xFFFF9530, sp_data->regs +  SP_THERMAL_CTL2_REG);
 		writel(0x00030003, sp_data->regs +  SP_THERMAL_CTL3_REG);
 		t_code = readl(sp_data->regs + SP_THERMAL_STS0_V2_REG);
-	}
-	else
+	} else {
 		t_code = readl(sp_data->regs + SP_THERMAL_STS0_REG);
+	}
 
 	t_code = FIELD_GET(SP_THERMAL_MASK, t_code);
 
-	*temp = ((sp_data->otp_temp0 - t_code) * 10000 / sp_data->dev_comp->temp_rate) + sp_data->dev_comp->temp_base;
+	*temp = ((sp_data->otp_temp0 - t_code) * 10000 /
+		sp_data->dev_comp->temp_rate) + sp_data->dev_comp->temp_base;
 	*temp *= 10;
 
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops sp_of_thermal_ops = {
+static struct thermal_zone_device_ops sp_of_thermal_ops = {
 	.get_temp = sp_thermal_get_sensor_temp,
 };
 
@@ -139,13 +138,12 @@ static int sp_thermal_register_sensor(struct platform_device *pdev,
 				      struct sp_thermal_data *data, int index)
 {
 	data->id = index;
-	data->pcb_tz = devm_thermal_zone_of_sensor_register(&pdev->dev,
-							    data->id,
-							    data, &sp_of_thermal_ops);
+	data->pcb_tz = devm_thermal_of_zone_register(&pdev->dev,
+						     data->id, data, &sp_of_thermal_ops);
 	if (IS_ERR_OR_NULL(data->pcb_tz))
 		return PTR_ERR(data->pcb_tz);
 
-	if (devm_thermal_add_hwmon_sysfs(data->pcb_tz))
+	if (devm_thermal_add_hwmon_sysfs(&pdev->dev, data->pcb_tz))
 		dev_warn(&pdev->dev, "failed to add hwmon sysfs attributes\n");
 
 	return 0;
@@ -230,7 +228,7 @@ static int __maybe_unused sp_thermal_resume(struct device *dev)
 		reset_control_deassert(sp_data->rstc);
 		clk_prepare_enable(sp_data->clk);
 	}
-	msleep(1);
+	msleep(20);
 	return sp_thermal_init(sp_data);
 }
 
@@ -243,7 +241,6 @@ static int sp_thermal_runtime_suspend(struct device *dev)
 		reset_control_assert(sp_data->rstc);
 	}
 	return 0;
-
 }
 
 static int sp_thermal_runtime_resume(struct device *dev)
@@ -254,7 +251,7 @@ static int sp_thermal_runtime_resume(struct device *dev)
 		reset_control_deassert(sp_data->rstc);   //release reset
 		clk_prepare_enable(sp_data->clk);        //enable clken and disable gclken
 	}
-	msleep(1);
+	msleep(20);
 	return sp_thermal_init(sp_data);
 }
 

@@ -1,7 +1,26 @@
 /*
  * Fundamental types and constants relating to FILS AUTHENTICATION
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -135,6 +154,26 @@ typedef BWL_PRE_PACKED_STRUCT union rnr_tbtt_info_field {
 		uint8		bss_params;
 		uint8		psd_20mhz;
 	} BWL_POST_PACKED_STRUCT len13_t;
+
+	/* Draft P802.11be Table 9-281 */
+	BWL_PRE_PACKED_STRUCT struct len15 {
+		uint8		tbtt_offset;
+		tbtt_bssid_t	bssid;
+		uint32		short_ssid;
+		uint8		bss_params;
+		uint8		mld_params[3];
+	} BWL_POST_PACKED_STRUCT len15_t;
+
+	/* Draft P802.11be Table 9-281 */
+	BWL_PRE_PACKED_STRUCT struct len16 {
+		uint8		tbtt_offset;
+		tbtt_bssid_t	bssid;
+		uint32		short_ssid;
+		uint8		bss_params;
+		uint8		psd_20mhz;
+		uint8		mld_params[3];
+	} BWL_POST_PACKED_STRUCT len16_t;
+
 } BWL_POST_PACKED_STRUCT rnr_tbtt_info_field_t;
 
 /* 11ai D11.0 9.4.2.171.1 TBTT Information field */
@@ -181,6 +220,16 @@ typedef BWL_PRE_PACKED_STRUCT struct fils_rnr_element {
 	(((hdr) & TBTT_INFO_HDR_COUNT_MASK) >> 4u)
 #define TBTT_INFO_HDR_LENGTH(hdr)\
 	(((hdr) & TBTT_INFO_HDR_LENGTH_MASK) >> 8u)
+
+/* TBTT Information Header subfield - Draft P802.11REVmd D5.0 Figure 9-631 */
+#define TBTT_INFO_HDR_TI_FLD_TYPE_POS	0u	/* TBTT Information Field Type */
+#define TBTT_INFO_HDR_TI_FLD_TYPE_SZ	2u
+#define TBTT_INFO_HDR_FLTR_NAP_POS	2u	/* Filtered Neighbor AP */
+#define TBTT_INFO_HDR_FLTR_NAP_SZ	1u
+#define TBTT_INFO_HDR_TI_CNT_POS	4u	/* TBTT Information Count */
+#define TBTT_INFO_HDR_TI_CNT_SZ		4u
+#define TBTT_INFO_HDR_TI_LEN_POS	8u	/* TBTT Information Length */
+#define TBTT_INFO_HDR_TI_LEN_SZ		8u
 
 /* BSS Params Macros */
 #define RNR_BSS_PARAMS_OCT_REC_MASK		(0x01u)
@@ -238,6 +287,18 @@ typedef BWL_PRE_PACKED_STRUCT struct fils_rnr_element {
  *  SHORTSSID (4)+BSS(1) + 20Mhz PSD(1) = 13 BYTES
  */
 #define NBR_AP_TBTT_BSSID_SHORT_SSID_BSS_PSD_LEN	13U
+
+/*  NBR_AP TBTT OFFSETfield(1) + BSSID(6)+SHORTSSID (4)+
+ *  BSS(1) + MLD (3) = 15 BYTES
+ */
+/* Draft P802.11be Table 9-281 */
+#define NBR_AP_TBTT_BSSID_SHORT_SSID_BSS_MLD_LEN	15U
+
+/*  NBR_AP TBTT OFFSETfield(1) + BSSID(6) +
+ *  SHORTSSID (4)+BSS(1) + 20Mhz PSD(1) + MLD (3) = 16 BYTES
+ */
+/* Draft P802.11be Table 9-281 */
+#define NBR_AP_TBTT_BSSID_SHORT_SSID_BSS_PSD_MLD_LEN	16U
 
 /* FILS Nonce element */
 #define FILS_NONCE_LENGTH 16u

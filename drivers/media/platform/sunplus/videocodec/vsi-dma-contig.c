@@ -305,7 +305,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		return ret;
 	}
 
-	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
+    vm_flags_set(vma, vma->vm_flags	| VM_DONTEXPAND | VM_DONTDUMP);
 	vma->vm_private_data	= &buf->handler;
 	vma->vm_ops		= &vb2_common_vm_ops;
 
@@ -325,6 +325,9 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 struct vb2_dc_attachment {
 	struct sg_table sgt;
 	enum dma_data_direction dma_dir;
+
+    /* Lock for dma buf attachments */
+    struct mutex lock;
 };
 
 static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf,
@@ -362,6 +365,8 @@ static int vb2_dc_dmabuf_ops_attach(struct dma_buf *dbuf,
 	attach->dma_dir = DMA_NONE;
 	dbuf_attach->priv = attach;
 
+    mutex_init(&attach->lock);
+
 	return 0;
 }
 
@@ -387,6 +392,7 @@ static void vb2_dc_dmabuf_ops_detach(struct dma_buf *dbuf,
 		dma_unmap_sgtable(db_attach->dev, sgt, attach->dma_dir,
 				  DMA_ATTR_SKIP_CPU_SYNC);
 	sg_free_table(sgt);
+    mutex_destroy(&attach->lock);
 	kfree(attach);
 	db_attach->priv = NULL;
 }
@@ -396,7 +402,7 @@ static struct sg_table *vb2_dc_dmabuf_ops_map(
 {
 	struct vb2_dc_attachment *attach = db_attach->priv;
 	/* stealing dmabuf mutex to serialize map/unmap operations */
-	struct mutex *lock = &db_attach->dmabuf->lock;
+	struct mutex *lock = &attach->lock;
 	struct sg_table *sgt;
 
 	mutex_lock(lock);

@@ -5,6 +5,10 @@
 #include <linux/platform_device.h>
 #include "ohci-sunplus.h"
 
+#ifndef CONFIG_USB_EHCI_SUNPLUS
+u8 sp_port0_enabled = PORT0_ENABLED;
+#endif
+
 static int ohci0_sunplus_platform_probe(struct platform_device *dev)
 {
 	dev->id = 1;
@@ -35,12 +39,13 @@ static struct platform_driver ohci0_hcd_sunplus_driver = {
 
 static int __init ohci0_sunplus_init(void)
 {
-	if (sp_port0_enabled & PORT0_ENABLED) {
+	if (sp_port0_enabled == PORT0_ENABLED) {
 		pr_notice("register ohci0_hcd_sunplus_driver\n");
 		return platform_driver_register(&ohci0_hcd_sunplus_driver);
 	}
 
 	pr_notice("warn,port0 not enable,not register ohci0 sunplus hcd driver\n");
+
 	return -1;
 }
 module_init(ohci0_sunplus_init);

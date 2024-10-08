@@ -1477,14 +1477,45 @@ static void elantech_disconnect(struct psmouse *psmouse)
 }
 
 /*
+ * Some hw_version 4 models fail to properly activate absolute mode on
+ * resume without going through disable/enable cycle.
+ */
+static const struct dmi_system_id elantech_needs_reenable[] = {
+#if defined(CONFIG_DMI) && defined(CONFIG_X86)
+	{
+		/* Lenovo N24 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "81AF"),
+		},
+	},
+#endif
+	{ }
+};
+
+/*
  * Put the touchpad back into absolute mode when reconnecting
  */
 static int elantech_reconnect(struct psmouse *psmouse)
 {
+	int err;
+
 	psmouse_reset(psmouse);
 
 	if (elantech_detect(psmouse, 0))
 		return -1;
+
+	if (dmi_check_system(elantech_needs_reenable)) {
+		err = ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_DISABLE);
+		if (err)
+			psmouse_warn(psmouse, "failed to deactivate mouse on %s: %d\n",
+				     psmouse->ps2dev.serio->phys, err);
+
+		err = ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_ENABLE);
+		if (err)
+			psmouse_warn(psmouse, "failed to reactivate mouse on %s: %d\n",
+				     psmouse->ps2dev.serio->phys, err);
+	}
 
 	if (elantech_set_absolute_mode(psmouse)) {
 		psmouse_err(psmouse,
@@ -1905,8 +1936,6 @@ static int elantech_create_smbus(struct psmouse *psmouse,
 	};
 	unsigned int idx = 0;
 
-	smbus_board.properties = i2c_props;
-
 	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-size-x",
 						   info->x_max + 1);
 	i2c_props[idx++] = PROPERTY_ENTRY_U32("touchscreen-size-y",
@@ -1938,11 +1967,15 @@ static int elantech_create_smbus(struct psmouse *psmouse,
 	if (elantech_is_buttonpad(info))
 		i2c_props[idx++] = PROPERTY_ENTRY_BOOL("elan,clickpad");
 
+	smbus_board.fwnode = fwnode_create_software_node(i2c_props, NULL);
+	if (IS_ERR(smbus_board.fwnode))
+		return PTR_ERR(smbus_board.fwnode);
+
 	return psmouse_smbus_init(psmouse, &smbus_board, NULL, 0, false,
 				  leave_breadcrumbs);
 }
 
-/**
+/*
  * elantech_setup_smbus - called once the PS/2 devices are enumerated
  * and decides to instantiate a SMBus InterTouch device.
  */

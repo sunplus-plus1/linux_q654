@@ -1,7 +1,26 @@
 /*
  * Linux cfg80211 driver - Android related functions
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -48,12 +67,17 @@
 /* If any feature uses the Generic Netlink Interface, put it here to enable WL_GENL
  * automatically
  */
-#if defined(WL_SDO) || defined(BT_WIFI_HANDOVER)
+#if defined(WL_SDO)
 #define WL_GENL
 #endif
 
 #ifdef WL_GENL
 #include <net/genetlink.h>
+#endif
+
+#if !defined(WL_MBO_IOV_VERSION)
+/* MBO IOV API version */
+#define WL_MBO_IOV_VERSION WL_MBO_IOV_VERSION_1_1
 #endif
 
 typedef struct _android_wifi_priv_cmd {
@@ -174,16 +198,15 @@ enum {
 	BCM_E_SVC_FOUND,
 	BCM_E_DEV_FOUND,
 	BCM_E_DEV_LOST,
-#ifdef BT_WIFI_HANDOVER
-	BCM_E_DEV_BT_WIFI_HO_REQ,
-#endif
 	BCM_E_MAX
 };
 
 s32 wl_genl_send_msg(struct net_device *ndev, u32 event_type,
 	const u8 *string, u16 len, u8 *hdr, u16 hdrlen);
 #endif /* WL_GENL */
+#ifdef WL_NETLINK
 s32 wl_netlink_send_msg(int pid, int type, int seq, const void *data, size_t size);
+#endif /* WL_NETLINK */
 
 /* hostap mac mode */
 #define MACLIST_MODE_DISABLED   0
@@ -260,4 +283,9 @@ extern int wl_android_bcnrecv_event(struct net_device *ndev,
 				return BCME_ERROR; \
 		} \
 	}
+
+#if defined(CUSTOM_CONTROL_HE_6G_FEATURES)
+extern int wl_android_set_he_6g_band(struct net_device *dev, bool enable);
+#endif /* CUSTOM_CONTROL_HE_6G_FEATURES */
+extern int wl_android_rcroam_turn_on(struct net_device *dev, int rcroam_enab);
 #endif /* _wl_android_ */

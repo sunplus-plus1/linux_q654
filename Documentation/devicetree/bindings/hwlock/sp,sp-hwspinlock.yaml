@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) Sunplus Co., Ltd. 2021
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwlock/sp,sp-hwspinlock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus Hardware Spinlock
+
+maintainers:
+  - hq.tang <hq.tang@sunmedia.com.cn>
+
+properties:
+  "#hwlock-cells":
+    const: 1
+
+  compatible:
+    const: sp,sunplus-hwspinlock
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: hsem
+
+required:
+  - "#hwlock-cells"
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sp-sp7350.h>
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+      hwspinlock@4c000000 {
+        compatible = "sunplus,sp-hwspinlock";
+        #hwlock-cells = <1>;
+        reg = <0 0xf800f880 0 0x80>;
+        clocks = <&clkc SEMAPHORE>;
+        clock-names = "hsem";
+      };
+    };
+
+...

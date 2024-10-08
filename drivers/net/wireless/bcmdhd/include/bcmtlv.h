@@ -1,7 +1,26 @@
 /*
  * TLV and XTLV support
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -36,7 +55,7 @@ extern "C" {
 typedef struct bcm_tlv {
 	uint8	id;
 	uint8	len;
-	uint8	data[1];
+	uint8	data[BCM_FLEX_ARRAY];
 } bcm_tlv_t;
 
 /* size of tlv including data */
@@ -62,7 +81,7 @@ typedef struct bcm_tlv_ext {
 	uint8	id;
 	uint8	len;
 	uint8	ext;
-	uint8	data[1];
+	uint8	data[BCM_FLEX_ARRAY];
 } bcm_tlv_ext_t;
 
 /* get next tlv_ext - no length checks */
@@ -132,6 +151,10 @@ bcm_tlv_t *bcm_parse_tlvs_dot11(const  void *buf, uint buflen, uint key, bool id
 /* same as parse_tlvs, but stops when found id > key */
 const  bcm_tlv_t *bcm_parse_ordered_tlvs(const  void *buf, uint buflen, uint key);
 
+/* sub-buffer ptr/len contained inside the elt starting at the given body_offset */
+void bcm_tlv_sub_buffer(const bcm_tlv_t *elt, uint body_offset,
+	const uint8 **buffer, uint8 *buflen);
+
 /* find a tlv with DOT11_MNG_PROPR_ID as id, and the given oui and type */
 	bcm_tlv_t *bcm_find_vendor_ie(const  void *tlvs, uint tlvs_len, const char *voui,
 	                              uint8 *type, uint type_len);
@@ -163,7 +186,7 @@ uint8 *bcm_copy_tlv_safe(const void *src, uint8 *dst, uint dst_maxlen);
 typedef struct bcm_xtlv {
 	uint16	id;
 	uint16	len;
-	uint8	data[1];
+	uint8	data[BCM_FLEX_ARRAY];
 } bcm_xtlv_t;
 
 /* xtlv options */
@@ -343,9 +366,12 @@ void bcm_xtlv_unpack_xtlv(const bcm_xtlv_t *xtlv, uint16 *type, uint16 *len,
 /* length value pairs */
 struct bcm_xlv {
 	uint16 len;
-	uint8 data[1];
+	uint8 data[BCM_FLEX_ARRAY];
 };
 typedef struct bcm_xlv bcm_xlv_t;
+
+#define XLV_HDR_LEN		(OFFSETOF(bcm_xlv_t, data))
+#define XLV_TOTAL_LEN(xlv)	(BCM_XTLV_LEN(xlv) + XLV_HDR_LEN)
 
 struct bcm_xlvp {
 	uint16 len;

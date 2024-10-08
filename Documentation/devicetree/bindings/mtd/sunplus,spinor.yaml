@@ -5,7 +5,7 @@
 $id: http://devicetree.org/schemas/mtd/sunplus,spinor.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Sunplus SPI NOR flash controller Device Tree Bindings
+title: Sunplus SPI NOR flash controller
 
 maintainers:
   - Wells Lu <wells.lu@sunplus.com>
@@ -17,7 +17,7 @@ description: |
 properties:
   compatible:
     items:
-      - const: sunplus,sp-spi-nor
+      - const: sunplus,sp7350-spi-nor
 
   reg:
     items:
@@ -57,6 +57,7 @@ properties:
 
   spi-chip-selection:
     description: Chip select of SPI NOR flash
+    $ref: /schemas/types.yaml#/definitions/uint32
     const: 0
 
   read-timing-selection:
@@ -91,10 +92,10 @@ required:
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
-    #include <dt-bindings/clock/sp-sp7021.h>
-    #include <dt-bindings/reset/sp-sp7021.h>
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
     sp_spinor0: spinor@9C000B00 {
-        compatible = "sunplus,sp-spi-nor";
+        compatible = "sunplus,sp7350-spi-nor";
         reg = <0x9C000B00 0x80>, <0x9c000080 0x80>;
         interrupt-parent = <&intc>;
         interrupts = <143 IRQ_TYPE_LEVEL_HIGH>;

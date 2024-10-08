@@ -1111,7 +1111,6 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
 	struct resource *res_mem;
-	struct resource *res_irq;
 	struct clk *clk;
 	struct sp_spinand_info *info;
 	static const char * const part_types[] = {
@@ -1134,7 +1133,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	init_waitqueue_head(&info->wq);
 	platform_set_drvdata(pdev, info);
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	res_mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nand");
 	if (!res_mem) {
 		SPINAND_LOGE("Failed to get memory resource!\n");
 		ret = -ENXIO;
@@ -1149,14 +1148,14 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res_irq <= 0) {
-		SPINAND_LOGE("get irq resource fail\n");
-		ret = -ENXIO;
+	info->irq = platform_get_irq_byname(pdev, "int_nand");
+	if (info->irq < 0) {
+		SPINAND_LOGE("failed to get irq resource\n");
+		ret = info->irq;
 		goto err1;
 	}
 
-	info->rstc = devm_reset_control_get(&pdev->dev, NULL);
+	info->rstc = devm_reset_control_get(&pdev->dev, "rst_nand");
 	if (IS_ERR(info->rstc)) {
 		SPINAND_LOGE("Failed to get reset control\n");
 		goto err1;
@@ -1168,7 +1167,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	clk = devm_clk_get(&pdev->dev, NULL);
+	clk = devm_clk_get(&pdev->dev, "clk_nand");
 	if (!IS_ERR(clk)) {
 		ret = clk_prepare(clk);
 		if (ret) {
@@ -1207,13 +1206,12 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	ret = request_irq(res_irq->start, spi_nand_irq,
-			IRQF_SHARED, "sp_spinand", info);
+	ret = devm_request_irq(dev, info->irq, spi_nand_irq,
+					IRQF_SHARED, "sp_spinand", info);
 	if (ret) {
-		SPINAND_LOGE("request IRQ fail: %d\n", ret);
+		SPINAND_LOGE("failed to request IRQ: %d\n", ret);
 		goto err1;
 	}
-	info->irq = res_irq->start;
 
 	ret = of_property_read_u32(node, "spi-max-frequency", &max_freq);
 	if (ret < 0) {
@@ -1264,6 +1262,13 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	if (spi_nand_reset(info) < 0) {
 		SPINAND_LOGE("reset device fail\n");
 		ret = -ENXIO;
+		goto err1;
+	}
+
+
+	ret = sp_bch_probe(pdev);
+	if (ret) {
+		SPINAND_LOGE("failed to probe BCH: %d\n", ret);
 		goto err1;
 	}
 
@@ -1433,6 +1438,8 @@ static int sp_spinand_remove(struct platform_device *pdev)
 
 	devm_kfree(&pdev->dev, (void *)info);
 
+	ret = sp_bch_remove(pdev);
+
 	return ret;
 }
 
@@ -1448,6 +1455,10 @@ static int sp_spinand_suspend(struct device *dev)
 		SPINAND_LOGE("Failed to assert reset control\n");
 		return ret;
 	}
+
+	ret = sp_bch_suspend(dev);
+	if (ret) 
+		return ret;
 
 	return 0;
 
@@ -1472,6 +1483,10 @@ static int sp_spinand_resume(struct device *dev)
 
 	/* Configure the feature registers of SPI-NAND devices */
 	sp_spinand_feature_cfg(info);
+
+	ret = sp_bch_resume(dev);
+	if (ret) 
+		return ret;
 
 	return 0;
 }

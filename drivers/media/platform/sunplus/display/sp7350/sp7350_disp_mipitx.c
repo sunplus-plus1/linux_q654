@@ -27,6 +27,7 @@ static const char * const mipitx_video_pkt[] = {
  * and set it before MIPITX module enable
  */
 //#define SP7350_MIPI_DSI_TIMING_NEW
+//#define SP7350_MIPI_DSI_BTA_TEST
 
 void sp7350_mipitx_init(void)
 {
@@ -1387,16 +1388,24 @@ void sp7350_mipitx_phy_init_dsi(void)
 	if (disp_dev->mipitx_dev_id == 0x00001000) {
 		sp7350_mipitx_cmd_mode_start();
 		//transfer data from TX to RX (depends on panel manufacturer)
+		#ifndef SP7350_MIPI_DSI_BTA_TEST //for BTA test
 		sp7350_mipitx_panel_init(0x00001000, width, height);
+		#endif
 	} else if (disp_dev->mipitx_dev_id == 0x00001001) {
 		sp7350_mipitx_cmd_mode_start();
 		//transfer data from TX to RX (depends on panel manufacturer)
+		#ifndef SP7350_MIPI_DSI_BTA_TEST //for BTA test
 		sp7350_mipitx_panel_init(0x00001001, width, height);
+		#endif
 	} else if (disp_dev->mipitx_dev_id == 0x00001002) {
 		sp7350_mipitx_cmd_mode_start();
 		//transfer data from TX to RX (depends on panel manufacturer)
+		#ifndef SP7350_MIPI_DSI_BTA_TEST //for BTA test
 		sp7350_mipitx_panel_init(0x00001002, width, height);
+		#endif
 	}
+
+#ifndef SP7350_MIPI_DSI_BTA_TEST //for BTA test
 
 	sp7350_mipitx_pllclk_set(SP7350_MIPITX_HS_MODE, width, height);
 
@@ -1408,6 +1417,8 @@ void sp7350_mipitx_phy_init_dsi(void)
 		sp7350_mipitx_csi_setting();
 
 	sp7350_mipitx_video_mode_on();
+
+#endif
 }
 
 void sp7350_mipitx_phy_init_csi(void)

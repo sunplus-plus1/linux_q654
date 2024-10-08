@@ -2,5 +2,6 @@
 #
 # Makefile for the Sunplus Pin control drivers.
 #
-obj-$(CONFIG_PINCTRL_SPPCTL_SP7350) += sppctl.o sppctl_pinctrl.o sppctl_sysfs.o sppctl_gpio_ops.o sppctl_gpio.o
-obj-$(CONFIG_PINCTRL_SPPCTL_SP7350) += pinctrl_inf_sp7350.o gpio_inf_sp7350.o
+obj-$(CONFIG_PINCTRL_SP7350) += pinctrl-sunplus.o pinctrl-sp7350.o gpio-sp7350.o
+obj-$(CONFIG_PINCTRL_SPPCTL) += sppinctrl.o
+sppinctrl-objs := sppctl.o sppctl_sp7021.o

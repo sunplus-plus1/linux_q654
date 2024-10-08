@@ -1,7 +1,26 @@
 /*
  * HND generic pktq operation primitives
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -292,7 +311,7 @@ extern bool spktq_full(struct spktq *spq);
 
 #define spktqfilter(spq, fltr, fltr_ctx, defer, defer_ctx, flush, flush_ctx) \
 	spktq_filter((spq), (fltr), (fltr_ctx), (defer), (defer_ctx), (flush), (flush_ctx))
-extern bool pktq_init(struct pktq *pq, int num_prec, uint max_pkts);
+extern bool pktq_init(struct pktq *pq, uint num_prec, uint max_pkts);
 extern bool pktq_deinit(struct pktq *pq);
 extern bool spktq_init(struct spktq *spq, uint max_pkts);
 extern bool spktq_init_list(struct spktq *spq, uint max_pkts,
@@ -319,9 +338,14 @@ extern void spktq_flush_ext(osl_t *osh, struct spktq *spq, bool dir,
 extern void pktq_pflush(osl_t *osh, struct pktq *pq, int prec, bool dir);
 
 typedef void (*spktq_cb_t)(void *arg, struct spktq *spq);
+typedef uint32 (*spktq_suppress_cb_t)(void *arg, struct spktq *spq);
 extern void spktq_free_register(spktq_cb_t cb, void *arg);
 extern void spktq_cb(void *spq);
+uint32 spktq_suppress_cb(void *spq);
+void spktq_suppress_register(spktq_suppress_cb_t cb, void *arg);
+void *(spktq_delete_node)(struct spktq *spq, void *prev, void *cur);
 #define SPKTQFREE	spktq_cb
+#define SPKTQFREE_SUPPRESS	spktq_suppress_cb
 
 #ifdef __cplusplus
 }

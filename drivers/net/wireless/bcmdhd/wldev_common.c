@@ -1,7 +1,26 @@
 /*
  * Common function shared by Linux WEXT, cfg80211 and p2p drivers
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -22,6 +41,7 @@
  */
 
 #include <osl.h>
+#include <linuxver.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/netdevice.h>
@@ -31,6 +51,8 @@
 #ifdef WL_CFG80211
 #include <wl_cfg80211.h>
 #include <wl_cfgscan.h>
+#else
+#define WL_DBG_PRINT_SYSTEM_TIME
 #endif /* WL_CFG80211 */
 #include <dhd_config.h>
 
@@ -101,14 +123,13 @@ s32 wldev_ioctl(
 	strlcpy(ifr.ifr_name, dev->name, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)&ioc;
 
-	fs = get_fs();
-	set_fs(get_ds());
+	GETFS_AND_SETFS_TO_KERNEL_DS(fs);
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31)
 	ret = dev->do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
 #else
 	ret = dev->netdev_ops->ndo_do_ioctl(dev, &ifr, SIOCDEVPRIVATE);
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31) */
-	set_fs(fs);
+	SETFS(fs);
 
 	ret = 0;
 #endif /* defined(BCMDONGLEHOST) */
@@ -195,12 +216,20 @@ s32 wldev_iovar_setbuf(
 	if (buf_sync) {
 		mutex_lock(buf_sync);
 	}
+	/* initialize buffer */
+	if (buf && (buflen > 0)) {
+		bzero(buf, buflen);
+	} else {
+		ret = BCME_BADARG;
+		goto exit;
+	}
 	iovar_len = wldev_mkiovar(iovar_name, param, paramlen, buf, buflen);
 	if (iovar_len > 0)
 		ret = wldev_ioctl_set(dev, WLC_SET_VAR, buf, iovar_len);
 	else
 		ret = BCME_BUFTOOSHORT;
 
+exit:
 	if (buf_sync)
 		mutex_unlock(buf_sync);
 	return ret;
@@ -359,6 +388,76 @@ s32 wldev_iovar_getint_bsscfg(
 	return err;
 }
 
+#if defined(BCMDONGLEHOST) && defined(WL_CFG80211)
+s32 wldev_iovar_setint_no_wl(struct net_device *dev, s8 *iovar, s32 val)
+{
+	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+	s32 ifidx = dhd_net2idx(dhd->info, dev);
+
+	if (ifidx == DHD_BAD_IF) {
+		WLDEV_ERROR(("wldev_iovar_setint_no_wl: bad ifidx for ndev:%s\n", dev->name));
+		return BCME_ERROR;
+	}
+
+	val = htod32(val);
+	return dhd_iovar(dhd, ifidx, iovar,
+		(char *)&val, sizeof(val), NULL, 0, TRUE);
+}
+
+s32 wldev_iovar_getint_no_wl(struct net_device *dev, s8 *iovar, s32 *val)
+{
+	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+	s32 ifidx = dhd_net2idx(dhd->info, dev);
+	u8 iovar_buf[WLC_IOCTL_SMLEN];
+	s32 err;
+
+	if (ifidx == DHD_BAD_IF) {
+		WLDEV_ERROR(("wldev_iovar_getint_no_wl: bad ifidx for ndev:%s\n", dev->name));
+		return BCME_ERROR;
+	}
+
+	val = htod32(val);
+	bzero(iovar_buf, sizeof(iovar_buf));
+	err = dhd_iovar(dhd, ifidx, iovar, (char *)val, sizeof(*val),
+			iovar_buf, sizeof(iovar_buf), FALSE);
+	if (err == BCME_OK) {
+		(void)memcpy_s(val, sizeof(*val), iovar_buf, sizeof(*val));
+		*val = dtoh32(*val);
+	}
+	return err;
+}
+
+s32 wldev_iovar_no_wl(struct net_device *dev, s8 *iovar,
+		s8 *param_buf, uint param_len, s8 *res_buf, u32 res_len, bool set)
+{
+	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+	s32 ifidx = dhd_net2idx(dhd->info, dev);
+
+	if (ifidx == DHD_BAD_IF) {
+		WLDEV_ERROR(("wldev_iovar_no_wl: bad ifidx for ndev:%s\n", dev->name));
+		return BCME_ERROR;
+	}
+
+	return dhd_iovar(dhd, ifidx, iovar, param_buf, param_len, res_buf, res_len, set);
+}
+
+s32 wldev_ioctl_no_wl(struct net_device *dev, u32 cmd, s8 *buf, u32 len, bool set)
+{
+	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+	s32 ifidx = dhd_net2idx(dhd->info, dev);
+
+	if (ifidx == DHD_BAD_IF) {
+		WLDEV_ERROR(("wldev_ioctl_no_wl: bad ifidx for ndev:%s\n", dev->name));
+		return BCME_ERROR;
+	}
+	return dhd_wl_ioctl_cmd(dhd, cmd, buf, len, set, ifidx);
+}
+#endif /* BCMDONGLEHOST && WL_CFG80211 */
+
 int wldev_get_link_speed(
 	struct net_device *dev, int *plink_speed)
 {
@@ -428,6 +527,7 @@ int wldev_set_band(
 	}
 	return error;
 }
+
 int wldev_get_datarate(struct net_device *dev, int *datarate)
 {
 	int error = 0;
@@ -453,7 +553,7 @@ int wldev_get_mode(
 	int chanspec = 0;
 	uint16 band = 0;
 	uint16 bandwidth = 0;
-	wl_bss_info_t *bss = NULL;
+	wl_bss_info_v109_t *bss = NULL;
 	char* buf = NULL;
 
 	buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
@@ -470,7 +570,7 @@ int wldev_get_mode(
 		buf = NULL;
 		return error;
 	}
-	bss = (wl_bss_info_t*)(buf + 4);
+	bss = (wl_bss_info_v109_t*)(buf + 4);
 	chanspec = wl_chspec_driver_to_host(bss->chanspec);
 
 	band = chanspec & WL_CHANSPEC_BAND_MASK;

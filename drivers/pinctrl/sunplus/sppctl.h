@@ -1,164 +1,170 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * SP7021 Pin Controller Driver.
+ * Copyright (C) Sunplus Tech / Tibbo Tech.
+ */
 
-#ifndef SPPCTL_H
-#define SPPCTL_H
+#ifndef __SPPCTL_H__
+#define __SPPCTL_H__
 
-/* Disable code that conflicts with generic usage */
-#define DISABLE_CONFLICT_CODE_WITH_GENERIC_USAGE
-
-#define MNAME "sppctl"
-#define M_LIC "GPL v2"
-#define M_AUT "Yubo Leng <yb.leng@sunmedia.com.cn>"
-#define M_NAM "SP7350 PinCtl"
-#define M_ORG "Sunplus Tech."
-#define M_CPR "(C) 2023"
-
+#include <linux/bits.h>
+#include <linux/gpio/driver.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/version.h>
-#include <linux/errno.h>
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/platform_device.h>
-#include <linux/firmware.h>
-#include <linux/interrupt.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_gpio.h>
-#include <linux/of_irq.h>
-#include <linux/sysfs.h>
-#include <linux/printk.h>
 #include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinconf.h>
-#include <linux/pinctrl/pinmux.h>
-#include <linux/pinctrl/pinconf-generic.h>
-#include <dt-bindings/pinctrl/sppctl-sp7350.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
-//#define CONFIG_PINCTRL_SPPCTL_DEBUG 1
+#define SPPCTL_MODULE_NAME		"sppctl_sp7021"
 
-#define SPPCTL_MAX_NAM 64
-#define SPPCTL_MAX_BUF PAGE_SIZE
+#define SPPCTL_GPIO_OFF_FIRST		0x00
+#define SPPCTL_GPIO_OFF_MASTER		0x00
+#define SPPCTL_GPIO_OFF_OE		0x20
+#define SPPCTL_GPIO_OFF_OUT		0x40
+#define SPPCTL_GPIO_OFF_IN		0x60
+#define SPPCTL_GPIO_OFF_IINV		0x80
+#define SPPCTL_GPIO_OFF_OINV		0xa0
+#define SPPCTL_GPIO_OFF_OD		0xc0
 
-#define SPPCTL_MUXABLE_MIN 8
-#define SPPCTL_MUXABLE_MAX 71
+#define SPPCTL_FULLY_PINMUX_MASK_MASK	GENMASK(22, 16)
+#define SPPCTL_FULLY_PINMUX_SEL_MASK	GENMASK(6, 0)
+#define SPPCTL_FULLY_PINMUX_UPPER_SHIFT	8
 
-#define KINF(pd, fmt, args...)                                                 \
-	do {                                                                   \
-		if ((pd) != NULL)                                              \
-			dev_info((pd), fmt, ##args);                           \
-		else                                                           \
-			pr_info(MNAME ": " fmt, ##args);                       \
-	} while (0)
-#define KERR(pd, fmt, args...)                                                 \
-	do {                                                                   \
-		if ((pd) != NULL)                                              \
-			dev_info((pd), fmt, ##args);                           \
-		else                                                           \
-			pr_err(MNAME ": " fmt, ##args);                        \
-	} while (0)
-#ifdef CONFIG_PINCTRL_SPPCTL_DEBUG
-#define KDBG(pd, fmt, args...)                                                 \
-	do {                                                                   \
-		if ((pd) != NULL)                                              \
-			dev_info((pd), fmt, ##args);                           \
-		else                                                           \
-			pr_debug(MNAME ": " fmt, ##args);                      \
-	} while (0)
-#else
-#define KDBG(pd, fmt, args...)
+/*
+ * Mask-fields and control-fields of MOON registers of SP7021 are
+ * arranged as shown below:
+ *
+ *  register |  mask-fields | control-fields
+ * ----------+--------------+----------------
+ *  base[0]  |  (31 : 16)   |   (15 : 0)
+ *  base[1]  |  (31 : 24)   |   (15 : 0)
+ *  base[2]  |  (31 : 24)   |   (15 : 0)
+ *     :     |      :       |       :
+ *
+ * where mask-fields are used to protect control-fields from write-in
+ * accidentally. Set the corresponding bits in the mask-field before
+ * you write a value into a control-field.
+ */
+#define SPPCTL_MOON_REG_MASK_SHIFT	16
+#define SPPCTL_SET_MOON_REG_BIT(bit)	(BIT((bit) + SPPCTL_MOON_REG_MASK_SHIFT) | BIT(bit))
+#define SPPCTL_CLR_MOON_REG_BIT(bit)	BIT((bit) + SPPCTL_MOON_REG_MASK_SHIFT)
+
+#define SPPCTL_IOP_CONFIGS		0xff
+
+#define FNCE(n, r, o, bo, bl, g) { \
+	.name = n, \
+	.type = r, \
+	.roff = o, \
+	.boff = bo, \
+	.blen = bl, \
+	.grps = (g), \
+	.gnum = ARRAY_SIZE(g), \
+}
+
+#define FNCN(n, r, o, bo, bl) { \
+	.name = n, \
+	.type = r, \
+	.roff = o, \
+	.boff = bo, \
+	.blen = bl, \
+	.grps = NULL, \
+	.gnum = 0, \
+}
+
+#define EGRP(n, v, p) { \
+	.name = n, \
+	.gval = (v), \
+	.pins = (p), \
+	.pnum = ARRAY_SIZE(p), \
+}
+
+/**
+ * enum mux_first_reg - Define modes of access of FIRST register
+ * @mux_f_mux:  Set the corresponding pin to a fully-pinmux pin
+ * @mux_f_gpio: Set the corresponding pin to a GPIO or IOP pin
+ * @mux_f_keep: Don't change (keep intact)
+ */
+enum mux_first_reg {
+	mux_f_mux = 0,
+	mux_f_gpio = 1,
+	mux_f_keep = 2,
+};
+
+/**
+ * enum mux_master_reg - Define modes of access of MASTER register
+ * @mux_m_iop:  Set the corresponding pin to an IO processor (IOP) pin
+ * @mux_m_gpio: Set the corresponding pin to a digital GPIO pin
+ * @mux_m_keep: Don't change (keep intact)
+ */
+enum mux_master_reg {
+	mux_m_iop = 0,
+	mux_m_gpio = 1,
+	mux_m_keep = 2,
+};
+
+/**
+ * enum pinmux_type - Define types of pinmux pins
+ * @pinmux_type_fpmx: A fully-pinmux pin
+ * @pinmux_type_grp:  A group-pinmux pin
+ */
+enum pinmux_type {
+	pinmux_type_fpmx,
+	pinmux_type_grp,
+};
+
+/**
+ * struct grp2fp_map - A map storing indexes
+ * @f_idx: an index to function table
+ * @g_idx: an index to group table
+ */
+struct grp2fp_map {
+	u16 f_idx;
+	u16 g_idx;
+};
+
+struct sppctl_gpio_chip;
+
+struct sppctl_pdata {
+	void __iomem *moon2_base;	/* MOON2                                 */
+	void __iomem *gpioxt_base;	/* MASTER, OE, OUT, IN, I_INV, O_INV, OD */
+	void __iomem *first_base;	/* FIRST                                 */
+	void __iomem *moon1_base;	/* MOON1               */
+
+	struct pinctrl_desc pctl_desc;
+	struct pinctrl_dev *pctl_dev;
+	struct pinctrl_gpio_range pctl_grange;
+	struct sppctl_gpio_chip *spp_gchip;
+
+	char const **unq_grps;
+	size_t unq_grps_sz;
+	struct grp2fp_map *g2fp_maps;
+};
+
+struct sppctl_grp {
+	const char * const name;
+	const u8 gval;                  /* group number   */
+	const unsigned * const pins;    /* list of pins   */
+	const unsigned int pnum;        /* number of pins */
+};
+
+struct sppctl_func {
+	const char * const name;
+	const enum pinmux_type type;    /* function type          */
+	const u8 roff;                  /* register offset        */
+	const u8 boff;                  /* bit offset             */
+	const u8 blen;                  /* bit length             */
+	const struct sppctl_grp * const grps; /* list of groups   */
+	const unsigned int gnum;        /* number of groups       */
+};
+
+extern const struct sppctl_func sppctl_list_funcs[];
+extern const char * const sppctl_pmux_list_s[];
+extern const char * const sppctl_gpio_list_s[];
+extern const struct pinctrl_pin_desc sppctl_pins_all[];
+extern const unsigned int sppctl_pins_gpio[];
+
+extern const size_t sppctl_list_funcs_sz;
+extern const size_t sppctl_pmux_list_sz;
+extern const size_t sppctl_gpio_list_sz;
+extern const size_t sppctl_pins_all_sz;
+
 #endif
-
-#include "sppctl_gpio.h"
-
-struct sppctl_pdata_t {
-	u8 debug;
-	void *sysfs_sdp;
-	void __iomem *gpioxt_regs_base; // MASTER , OE , OUT , IN
-	void __iomem *first_regs_base; // GPIO_FIRST
-	void __iomem *padctl1_regs_base; // PAD CTRL1
-	void __iomem *padctl2_regs_base; // PAD CTRL2
-	void __iomem *moon1_regs_base; // PIN-GROUP
-#if defined(SUPPORT_GPIO_AO_INT)
-	void __iomem *gpio_ao_int_regs_base; // GPIO_AO_INT
-#endif
-	// pinctrl-related
-	struct pinctrl_desc pdesc;
-	struct pinctrl_dev *pcdp;
-	struct pinctrl_gpio_range gpio_range;
-	struct sppctlgpio_chip_t *gpiod;
-};
-
-struct sppctl_reg_t {
-	u16 v; // value part
-	u16 m; // mask part
-};
-
-#include "sppctl_sysfs.h"
-#include "sppctl_pinctrl.h"
-
-void sppctl_gmx_set(struct sppctl_pdata_t *pdata, u8 reg_offset, u8 bit_offset,
-		    u8 bit_nums, u8 bit_value);
-u8 sppctl_gmx_get(struct sppctl_pdata_t *pdata, u8 reg_offset, u8 bit_offset,
-		  u8 bit_nums);
-void sppctl_pin_set(struct sppctl_pdata_t *pdata, u8 pin_selector,
-		    u8 func_selector);
-u8 sppctl_fun_get(struct sppctl_pdata_t *pdata, u8 func_selector);
-//void sppctl_loadfw(struct device *pdev, const char *fwname);
-
-enum F_OFF_t {
-	F_OFF_0, // nowhere
-	F_OFF_M, // in mux registers
-	F_OFF_G, // mux group registers
-	F_OFF_I, // in iop registers
-};
-
-struct sppctlgrp_t {
-	const char *const name;
-	const u8 gval; // value for register
-	const unsigned *const pins; // list of pins
-	const unsigned int pnum; // number of pins
-};
-
-#define EGRP(n, v, p)                                                          \
-	{                                                                      \
-		.name = n, .gval = (v), .pins = (p), .pnum = ARRAY_SIZE(p),    \
-	}
-
-struct func_t {
-	const char *const name;
-	const enum F_OFF_t freg; // function register type
-	const u8 roff; // register offset
-	const u8 boff; // bit offset
-	const u8 blen; // number of bits
-	const struct sppctlgrp_t *const grps; // list of groups
-	const unsigned int gnum; // number of groups
-	const char *grps_sa[12]; // array of pointers to func's grps names
-};
-
-#define FNCE(n, r, o, bo, bl, g)                                               \
-	{                                                                      \
-		.name = n, .freg = r, .roff = o, .boff = bo, .blen = bl,       \
-		.grps = (g), .gnum = ARRAY_SIZE(g),                            \
-	}
-
-#define FNCN(n, r, o, bo, bl)                                                  \
-	{                                                                      \
-		.name = n, .freg = r, .roff = o, .boff = bo, .blen = bl,       \
-		.grps = NULL, .gnum = 0,                                       \
-	}
-
-extern struct func_t list_funcs[];
-extern const size_t list_func_nums;
-
-extern const char *const sppctlpmux_list_s[];
-extern const size_t pinmux_list_size;
-
-struct grp2fp_map_t {
-	u16 f_idx; // function index
-	u16 g_idx; // pins/group index inside function
-};
-
-// for debug
-void print_device_tree_node(struct device_node *node, int depth);
-
-#endif // SPPCTL_H

@@ -34,7 +34,7 @@ static int __init sp_otp0_drv_new(void)
 {
 	return platform_driver_register(&sp_otp0_driver);
 }
-subsys_initcall(sp_otp0_drv_new);
+module_init(sp_otp0_drv_new);
 
 static void __exit sp_otp0_drv_del(void)
 {

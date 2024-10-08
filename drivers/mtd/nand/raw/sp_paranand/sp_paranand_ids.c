@@ -2,6 +2,7 @@
 
 #include <linux/mtd/rawnand.h>
 #include <linux/sizes.h>
+#include "sp_paranand.h"
 
 /*
  * Chip ID list

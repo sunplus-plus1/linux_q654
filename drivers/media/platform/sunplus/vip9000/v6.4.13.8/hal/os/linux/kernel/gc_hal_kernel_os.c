@@ -399,11 +399,11 @@ _QueryProcessPageTable(gctPOINTER Logical, gctPHYS_ADDR_T *Address)
         /* vmalloc area. */
         *Address = page_to_phys(vmalloc_to_page(Logical)) | offset;
         return gcvSTATUS_OK;
-    } else if (virt_addr_valid(logical)) {
+    } else if (virt_addr_valid(Logical)) {
         /* Kernel logical address. */
         *Address = virt_to_phys(Logical);
         return gcvSTATUS_OK;
-#if USING_PFN_FOLLOW
+#if USING_PFN_FOLLOW || (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0))
     } else {
         struct vm_area_struct *vma;
         unsigned long pfn = 0;
@@ -415,8 +415,8 @@ _QueryProcessPageTable(gctPOINTER Logical, gctPHYS_ADDR_T *Address)
             up_read(&current_mm_mmap_sem);
             return gcvSTATUS_NOT_FOUND;
         }
-        ret = pfn_follow(vma, addr, &pfn);
         up_read(&current_mm_mmap_sem);
+        ret = follow_pfn(vma, logical, &pfn);
         if (ret < 0) {
             return gcvSTATUS_NOT_FOUND;
         } else {

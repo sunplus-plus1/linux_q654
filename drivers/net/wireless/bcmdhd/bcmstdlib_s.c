@@ -1,7 +1,26 @@
 /*
  * Broadcom Secure Standard Library.
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -28,6 +47,7 @@
 #else /* BCMDRIVER */
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 #endif /* else BCMDRIVER */
 
 #include <bcmstdlib_s.h>
@@ -60,8 +80,8 @@
 #endif /* SIZE_MAX */
 #define RSIZE_MAX (SIZE_MAX >> 1u)
 
-#if !defined(__STDC_WANT_SECURE_LIB__) && \
-	!(defined(__STDC_LIB_EXT1__) && defined(__STDC_WANT_LIB_EXT1__))
+#if !defined(__STDC_WANT_SECURE_LIB__) && !(defined(__STDC_LIB_EXT1__) && \
+	defined(__STDC_WANT_LIB_EXT1__))
 /*
  * memmove_s - secure memmove
  * dest : pointer to the object to copy to
@@ -73,7 +93,7 @@
  * than RSIZE_MAX, writes destsz zero bytes into the dest object.
  */
 int
-memmove_s(void *dest, size_t destsz, const void *src, size_t n)
+BCMPOSTTRAPFN(memmove_s)(void *dest, size_t destsz, const void *src, size_t n)
 {
 	int err = BCME_OK;
 
@@ -88,13 +108,13 @@ memmove_s(void *dest, size_t destsz, const void *src, size_t n)
 	}
 
 	if (destsz < n) {
-		memset(dest, 0, destsz);
+		bzero(dest, destsz);
 		err = BCME_BADLEN;
 		goto exit;
 	}
 
 	if ((!src) || (((const char *)src + n) < (const char *)src)) {
-		memset(dest, 0, destsz);
+		bzero(dest, destsz);
 		err = BCME_BADARG;
 		goto exit;
 	}
@@ -132,20 +152,20 @@ BCMPOSTTRAPFN(memcpy_s)(void *dest, size_t destsz, const void *src, size_t n)
 	}
 
 	if (destsz < n) {
-		memset(dest, 0, destsz);
+		bzero(dest, destsz);
 		err = BCME_BADLEN;
 		goto exit;
 	}
 
 	if ((!s) || ((s + n) < s)) {
-		memset(dest, 0, destsz);
+		bzero(dest, destsz);
 		err = BCME_BADARG;
 		goto exit;
 	}
 
 	/* overlap checking between dest and src */
 	if (!(((d + destsz) <= s) || (d >= (s + n)))) {
-		memset(dest, 0, destsz);
+		bzero(dest, destsz);
 		err = BCME_BADARG;
 		goto exit;
 	}
@@ -204,7 +224,7 @@ exit:
  * of course, the buffer size is zero). It does not pad
  * out the result like strncpy() does.
  */
-size_t strlcpy(char *dest, const char *src, size_t size)
+size_t BCMPOSTTRAPFN(strlcpy)(char *dest, const char *src, size_t size)
 {
 	size_t i;
 

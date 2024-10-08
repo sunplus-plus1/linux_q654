@@ -209,9 +209,9 @@ static void exporter_release(struct dma_buf *dmabuf)
 	dmabuf_exported = NULL;
 }
 
-static void *exporter_vmap(struct dma_buf *dmabuf)
+static int exporter_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
-	return dmabuf->priv;
+	return 0/*dmabuf->priv*/;
 }
 
 static int exporter_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
@@ -315,7 +315,7 @@ static long enc_memalloc_ioctl(struct file *filp,
         else
         {
             dmaparams.busAddress = 0;
-            
+
             dmabuf = dma_buf_get(dmaparams.fd);
             if (IS_ERR(dmabuf)) {
                 err = PTR_ERR(dmabuf);
@@ -478,7 +478,7 @@ static int emem_chrdev_probe(struct platform_device *dev)
     }
 
     // create the device class
-    enc_mem_chrdev_class = class_create(THIS_MODULE, ENC_MEM_CHRDEV_NAME);
+    enc_mem_chrdev_class = class_create(ENC_MEM_CHRDEV_NAME);
     if (IS_ERR(enc_mem_chrdev_class))
     {
         dev_err(&dev->dev, " class_create failed!\n");

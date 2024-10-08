@@ -718,7 +718,6 @@ static uint32_t hal_udc_check_trb_type(struct trb_data *t_trb)
 static void hal_udc_transfer_event_handle(struct transfer_event_trb *transfer_evnet, struct sp_udc *udc)
 {
 	struct normal_trb *ep_trb = NULL;
-	uint32_t len_zh, len_yu;
 	struct sp_request *req;
 	uint32_t trans_len = 0;
 #if (TRANS_MODE == DMA_MODE)
@@ -756,6 +755,14 @@ static void hal_udc_transfer_event_handle(struct transfer_event_trb *transfer_ev
 	UDC_LOGD("ep %x[%c],trb:%px,%x len %d - %d\n", ep_num, ep_trb->dir ? 'I' : 'O',
 			ep_trb, transfer_evnet->trbp, trans_len, transfer_evnet->len);
 
+	UDC_LOGL("========================= ep%d Transfer Event TRB =========================\n", ep_num);
+	UDC_LOGL("transfer trb virtual addr = 0x%px\n", ep_trb);
+	UDC_LOGL("entry0 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry0);
+	UDC_LOGL("entry1 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry1);
+	UDC_LOGL("entry2 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry2);
+	UDC_LOGL("entry3 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry3);
+	UDC_LOGL("==========================================================================\n");
+
 	if (!ep->num && !trans_len && list_empty (&ep->queue)) {
 		spin_unlock_irqrestore(&ep->lock, flags);
 		UDC_LOGD("+%s.%d ep0 zero\n", __func__, __LINE__);
@@ -763,17 +770,8 @@ static void hal_udc_transfer_event_handle(struct transfer_event_trb *transfer_ev
 		return;
 	}
 
-	if (!ep->is_in && trans_len) {
-		len_zh = trans_len / CACHE_LINE_SIZE;
-		len_yu = trans_len % CACHE_LINE_SIZE;
-
-		if (len_yu)
-			len_zh = (len_zh + 1) * CACHE_LINE_SIZE;
-		else
-			len_zh = len_zh * CACHE_LINE_SIZE;
-
-		dma_sync_single_for_cpu(udc->dev, ep_trb->ptr, len_zh, DMA_FROM_DEVICE);
-	}
+	if (!ep->is_in && trans_len)
+		dma_sync_single_for_cpu(udc->dev, ep_trb->ptr, trans_len, DMA_FROM_DEVICE);
 
 #ifdef CONFIG_USB_SUNPLUS_OTG
 	#if (TRANS_MODE == DMA_MODE)
@@ -902,6 +900,7 @@ static void hal_udc_analysis_event_trb(struct trb_data *event_trb, struct sp_udc
 		case UDC_RESET:
 			UDC_LOGL("bus reset\n");
 
+			udc->first_enum_xfer = true;
 			pwr_uphy_pll(1);
 			USBx->EP0_CS &= ~EP_EN;		/* dislabe ep0 */
 
@@ -1267,16 +1266,6 @@ static void fill_link_trb(struct trb_data *t_trb, dma_addr_t ring)
 static void hal_udc_fill_transfer_trb(struct trb_data *t_trb, struct udc_endpoint *ep, uint32_t ioc)
 {
 	struct normal_trb *tmp_trb = (struct normal_trb *)t_trb;
-	int len_zh = 0;
-	int len_yu = 0;
-
-	len_zh = ep->transfer_len / CACHE_LINE_SIZE;
-	len_yu = ep->transfer_len % CACHE_LINE_SIZE;
-
-	if (len_yu)
-		len_zh = (len_zh + 1) * CACHE_LINE_SIZE;
-	else
-		len_zh = len_zh * CACHE_LINE_SIZE;
 
 	tmp_trb->tlen = ep->transfer_len;
 	tmp_trb->ptr = (uint32_t)ep->transfer_buff_pa;
@@ -1286,12 +1275,14 @@ static void hal_udc_fill_transfer_trb(struct trb_data *t_trb, struct udc_endpoin
 		tmp_trb->dir = 0;	/* 0 is out */
 
 		if (ep->transfer_len)
-			dma_sync_single_for_cpu(ep->dev->dev, tmp_trb->ptr, len_zh, DMA_FROM_DEVICE);
+			dma_sync_single_for_cpu(ep->dev->dev, tmp_trb->ptr, ep->transfer_len,
+						DMA_FROM_DEVICE);
 	} else {
 		tmp_trb->dir = 1;	/* 1 is IN */
 
 		if (ep->transfer_len)
-			dma_sync_single_for_device(ep->dev->dev, tmp_trb->ptr, len_zh, DMA_TO_DEVICE);
+			dma_sync_single_for_device(ep->dev->dev, tmp_trb->ptr, ep->transfer_len,
+						   DMA_TO_DEVICE);
 	}
 
 	if (ep->type == UDC_EP_TYPE_ISOC)
@@ -1311,6 +1302,19 @@ static void hal_udc_fill_transfer_trb(struct trb_data *t_trb, struct udc_endpoin
 		tmp_trb->cycbit = 0;	/* set cycle bit 0 */
 	else
 		tmp_trb->cycbit = 1;
+
+	if (ioc == 1) {
+		UDC_LOGL("============================ ep%d Transfer TRB ============================\n", ep->num);
+		UDC_LOGL("transfer trb virtual addr = 0x%px\n", tmp_trb);
+		UDC_LOGL("transfer trb physical addr = 0x%llx\n",
+		         (dma_addr_t)((tmp_trb - (struct normal_trb *)ep->ep_transfer_ring.trb_va) *
+				    sizeof(struct trb_data) + ep->ep_transfer_ring.trb_pa));
+		UDC_LOGL("entry0 = 0x%x\n", t_trb->entry0);
+		UDC_LOGL("entry1 = 0x%x\n", t_trb->entry1);
+		UDC_LOGL("entry2 = 0x%x\n", t_trb->entry2);
+		UDC_LOGL("entry3 = 0x%x\n", t_trb->entry3);
+		UDC_LOGL("==========================================================================\n");
+	}
 }
 
 static void hal_udc_fill_ep_desc(struct sp_udc *udc, struct udc_endpoint *ep)
@@ -1363,10 +1367,21 @@ static void hal_udc_fill_ep_desc(struct sp_udc *udc, struct udc_endpoint *ep)
 
 }
 
-static struct trb_data *hal_udc_fill_trb(struct sp_udc	*udc, struct udc_endpoint *ep, uint32_t zero)
+static struct trb_data *hal_udc_fill_trb(struct sp_udc *udc, struct udc_endpoint *ep, uint32_t zero)
 {
 	struct trb_data *end_trb;
 	struct trb_data *fill_trb = NULL;
+	struct endpoint0_desc *tmp_ep0_desc = NULL;
+	struct normal_trb *tmp_trb = NULL;
+	uint32_t dptr;
+
+	if ((ep->num == EP0) && (udc->first_enum_xfer == true)) {
+		dptr = SHIFT_LEFT_BIT4(ep->ep_transfer_ring.trb_pa +
+				       ((ep->ep_trb_ring_dq - ep->ep_transfer_ring.trb_va) *
+					sizeof(struct trb_data)));
+
+		tmp_trb = (struct normal_trb *)ep->ep_trb_ring_dq;
+	}
 
 	end_trb = ep->ep_transfer_ring.end_trb_va;
 
@@ -1431,10 +1446,23 @@ static struct trb_data *hal_udc_fill_trb(struct sp_udc	*udc, struct udc_endpoint
 
 	wmb();
 
-	if (ep->num == 0)
-		udc->reg->EP0_CS |= EP_EN;
-	else
+	if (ep->num == EP0) {
+		if (udc->first_enum_xfer == true) {
+			/* bypass the unexecuted ep0 Transfer TRBs (last connection) after bus */ 
+			/* reset (new connection) for 1st data transfer of the enumeration.    */
+			udc->first_enum_xfer = false;
+
+			tmp_ep0_desc = (struct endpoint0_desc *)udc->ep_desc;
+			tmp_ep0_desc->dptr = dptr;
+			tmp_ep0_desc->dcs = tmp_trb->cycbit;
+
+			udc->reg->EP0_CS |= (RDP_EN | EP_EN);
+		} else {
+			udc->reg->EP0_CS |= EP_EN;
+		}
+	} else {
 		udc->reg->EPN_CS[ep->num-1] |= EP_EN;
+	}
 
 	return fill_trb;
 }
@@ -1443,10 +1471,6 @@ int32_t hal_udc_endpoint_transfer(struct sp_udc	*udc, struct sp_request *req, ui
 					uint8_t *data, dma_addr_t data_pa, uint32_t length, uint32_t zero)
 {
 	struct udc_endpoint *ep;
-#if (TRANS_MODE == DMA_MODE)
-	int len_zh = 0;
-	int len_yu = 0;
-#endif
 
 	if (EP_NUM(ep_addr) > UDC_MAX_ENDPOINT_NUM) {
 		UDC_LOGE("ep_addr parameter error, max endpoint num is %d.\n", UDC_MAX_ENDPOINT_NUM);
@@ -1469,16 +1493,9 @@ int32_t hal_udc_endpoint_transfer(struct sp_udc	*udc, struct sp_request *req, ui
 
 #if (TRANS_MODE == DMA_MODE)
 	if (length != 0) {
-		len_zh = length / CACHE_LINE_SIZE;
-		len_yu = length % CACHE_LINE_SIZE;
-
-		if (len_yu)
-			len_zh = (len_zh + 1) * CACHE_LINE_SIZE;
-		else
-			len_zh = len_zh * CACHE_LINE_SIZE;
-
 		if (ep->is_in)
-			dma_sync_single_for_device(udc->dev, virt_to_phys(data), len_zh, DMA_TO_DEVICE);
+			dma_sync_single_for_device(udc->dev, virt_to_phys(data), length,
+						   DMA_TO_DEVICE);
 
 		ep->transfer_buff = data;
 		ep->transfer_buff_pa = virt_to_phys(data);
@@ -2756,7 +2773,6 @@ static int sp_udc_probe(struct platform_device *pdev)
 	resource_size_t rsrc_len;
 	resource_size_t rsrc_start;
 	int retval;
-	typedef void (*pfunc)(unsigned long);
 
 	udc = kzalloc(sizeof(*udc), GFP_KERNEL);
 	if (!udc) {
@@ -2889,7 +2905,7 @@ static int sp_udc_probe(struct platform_device *pdev)
 	spin_lock_init (&udc->lock);
 	init_ep_spin(udc);
 	platform_set_drvdata(pdev, udc);
-	tasklet_init(&udc->event_task, (pfunc) handle_event, (unsigned long)udc);
+	tasklet_init(&udc->event_task, (void *)handle_event, (unsigned long)udc);
 
 	timer_setup(&udc->sof_polling_timer, udc_sof_polling, 0);
 	udc->sof_polling_timer.expires = jiffies + HZ / 20;
@@ -2898,6 +2914,7 @@ static int sp_udc_probe(struct platform_device *pdev)
 	udc->before_sof_polling_timer.expires = jiffies + 1 * HZ;
 
 	udc->bus_reset_finish = false;
+	udc->first_enum_xfer = false;
 	udc->frame_num = 0;
 	udc->vbus_active = true;
 	udc->dev = &(pdev->dev);

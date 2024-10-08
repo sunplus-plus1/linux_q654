@@ -106,7 +106,10 @@ int sp_bch_encode(struct mtd_info *mtd, dma_addr_t buf, dma_addr_t ecc);
 int sp_bch_decode(struct mtd_info *mtd, dma_addr_t buf, dma_addr_t ecc);
 int sp_autobch_config(struct mtd_info *mtd, void *buf, void *ecc, int enc, int dec_src);
 int sp_autobch_result(struct mtd_info *mtd);
-
+int sp_bch_probe(struct platform_device *pdev);
+int sp_bch_remove(struct platform_device *pdev);
+int sp_bch_suspend(struct device *dev);
+int sp_bch_resume(struct device *dev);
 
 #endif /* __SP_BCH_H */
 

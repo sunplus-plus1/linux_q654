@@ -2,8 +2,7 @@
 
 /dts-v1/;
 
-#define CONFIG_SOC_SP7350
-
+#include <autoconf.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -271,8 +270,9 @@
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 125 IRQ_TYPE_LEVEL_HIGH>; /* CPU2_TO_0_DIRECT_INT7 */
 		resets = <&rstc RST_CM4>;
-		memory-region = <&rproc_0_reserved>, <&rproc0runaddr>, <&vdev0buffer>, <&vdev0vring0>, <&vdev0vring1>;
-		mboxes = <&mbox 0>; // for SUNPLUS_MBOX_TEST
+#ifdef CONFIG_SUNPLUS_MBOX_TEST
+		mboxes = <&mbox 0>;
+#endif
 	};
 
 	npu_core_0v8: npu_0p8v {
@@ -896,6 +896,46 @@
 			"rstc_tcon", "rstc_tgen", "rstc_vpost0", "rstc_vscl0";
 	};
 
+	display_subsystem: display-subsystem {
+		compatible = "sunplus,sp7350-display-subsystem";
+	};
+
+	display_crtc0: crtc0@f8005c80 {
+		compatible = "sunplus,sp7350-crtc0";
+		reg = <0x00 0xf8005c80 0x00 0x980>;
+
+		interrupt-parent = <&gic>;
+		interrupts =
+			<GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	mipi_dsi0: mipi-dsi@f8006600 {
+		compatible = "sunplus,sp7350-dsi0";
+
+		reg = <0x00 0xf8006600 0x00 0xb8>, <0x00 0xf8800180 0x00 0x80>;
+
+		clocks =
+			<&clkc DISPSYS>, <&clkc DMIX>, <&clkc TGEN>, <&clkc TCON>, <&clkc MIPITX>,
+			<&clkc GPOST0>, <&clkc GPOST1>, <&clkc GPOST2>, <&clkc GPOST3>,
+			<&clkc OSD0>, <&clkc OSD1>, <&clkc OSD2>, <&clkc OSD3>,
+			<&clkc IMGREAD0>, <&clkc VSCL0>, <&clkc VPOST0>;
+		clock-names =
+			"clkc_dispsys", "clkc_dmix", "clkc_tgen", "clkc_tcon", "clkc_mipitx",
+			"clkc_gpost0", "clkc_gpost1", "clkc_gpost2", "clkc_gpost3",
+			"clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
+			"clkc_imgread0", "clkc_vscl0", "clkc_vpost0";
+		resets =
+			<&rstc RST_DISPSYS>, <&rstc RST_DMIX>, <&rstc RST_TGEN>, <&rstc RST_TCON>, <&rstc RST_MIPITX>,
+			<&rstc RST_GPOST0>, <&rstc RST_GPOST1>, <&rstc RST_GPOST2>, <&rstc RST_GPOST3>,
+			<&rstc RST_OSD0>, <&rstc RST_OSD1>, <&rstc RST_OSD2>, <&rstc RST_OSD3>,
+			<&rstc RST_IMGREAD0>, <&rstc RST_VSCL0>, <&rstc RST_VPOST0>;
+		reset-names =
+			"rstc_dispsys", "rstc_dmix", "rstc_tgen", "rstc_tcon", "rstc_mipitx",
+			"rstc_gpost0", "rstc_gpost1", "rstc_gpost2", "rstc_gpost3",
+			"rstc_osd0", "rstc_osd1", "rstc_osd2", "rstc_osd3",
+			"rstc_imgread0", "rstc_vscl0", "rstc_vpost0";
+	};
+
 	adc: adc@f8802f00 {
 		compatible = "sunplus,sp7350-adc";
 		reg = <0x0 0xf8802f00 0x0 0x80>;
@@ -932,14 +972,14 @@
 	};
 
 	hwlock: hwspinlock@f800f880 {
-		compatible = "sp,sunplus-hwspinlock";
+		compatible = "sunplus,sp-hwspinlock";
 		#hwlock-cells = <1>;
 		reg = <0 0xf800f880 0 0x80>;
 		clocks = <&clkc SEMAPHORE>;
 		clock-names = "hsem";
 	};
 
-	cbdma: cbdma@sp_cbdma {
+	cbdma: dma-controller@f8000d00 {
 		compatible = "sunplus,cb-cdma";
 		reg = <0x0 0xf8000d00 0x0 0x80>;
 		reg-names = "cb_dma";
@@ -947,7 +987,9 @@
 		resets = <&rstc RST_CBDMA0>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
-		addrwidth = <0x20>;
+		sunplus,addrwidth = <0x20>;
+		#dma-cells = <1>;
+
 		dma-channel-0 {
 			compatible = "sunplus,cb-cdma-channel";
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
@@ -1044,7 +1086,7 @@
 		snps,mtl-rx-config = <&mtl_rx_setup>;
 		snps,mtl-tx-config = <&mtl_tx_setup>;
 		nvmem-cell-names = "mac-address";
-		nvmem-cells = <&mac_addr>;
+		nvmem-cells = <&mac_addr 0>;
 	};
 
 	otp0: otp@f8802380 {
@@ -1053,17 +1095,21 @@
 		reg-names = "hb_gpio", "otprx", "otp_key";
 		clocks = <&clkc OTPRX>;
 		resets = <&rstc RST_OTPRX>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		therm_calib: therm_calib@9 {
-			reg = <0x9 0x3>;
-		};
-		mac_addr: mac-address@16 {
-			reg = <0x16 0x6>;
-			sunplus,byte-swap;
-		};
-		disc_vol: disc_vol@2d {
-			reg = <0x2d 0x1>;
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			therm_calib: therm_calib@9 {
+				reg = <0x9 0x3>;
+			};
+			mac_addr: mac-address@16 {
+				#nvmem-cell-cells = <1>;
+				compatible = "mac-base";
+				reg = <0x16 0x6>;
+			};
+			disc_vol: disc_vol@2d {
+				reg = <0x2d 0x1>;
+			};
 		};
 	};
 
@@ -1112,6 +1158,12 @@
 		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
+	nic: nic@f8012b80 {
+		compatible = "sunplus,sp7350-nic";
+		reg = <0x0 0xf815a000 0x0 0x2E8>, <0x0 0xf815b000 0x0 0x33c>, <0x0 0xf815c000 0x0 0x4fc>;
+		reg-names = "nic_main", "nic_pai", "nic_paii";
+	};
+	
 	mmc1: mmc@f8003e80 {
 		compatible = "sunplus,sp7350-sd";
 		reg = <0x0 0xf8003e80 0x0 0x180>;
@@ -1195,6 +1247,7 @@
 	extcon_dwc3drd: extcon_usb3 {
 		compatible = "linux,extcon-usb-gpio";
 		reg = <0x0 0xf8004a80 0x0 0x80>;
+		clocks = <&clkc UPHY0>;
 	};
 
 	usb3drd0: usb3drd0{
@@ -1256,20 +1309,15 @@
 
 	spinand0: spinand@f8002b80 {
 		compatible = "sunplus,sp7350-spi-nand";
-		reg = <0x0 0xf8002b80 0x0 0x60>;
+		reg = <0x0 0xf8002b80 0x0 0x60>, <0x0 0xf8101000 0x0 0x30>;
+		reg-names = "nand", "bch";
 		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc SPIND>;
-		resets = <&rstc RST_SPIND>;
-	};
-
-	bch0: bch@f8101000 {
-		compatible = "sunplus,sp7350-bch";
-		reg = <0x0 0xf8101000 0x0 0x30>;
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc BCH>;
-		resets = <&rstc RST_BCH>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "int_nand", "int_bch";
+		clocks = <&clkc SPIND>, <&clkc BCH>;
+		clock-names = "clk_nand", "clk_bch";
+		resets = <&rstc RST_SPIND>, <&rstc RST_BCH>;
+		reset-names = "rst_nand", "rst_bch";
 	};
 
 	paranand0: paranand@f8120000 {
@@ -1283,7 +1331,7 @@
 		dma-names = "rxtx";
 	};
 
-	video_codec: video_codec {
+	video_codec: video_codec@f880125c {
 		compatible = "sunplus,sp7350-hantro-codec";
 		reg = <0x0 0xf880125c 0x0 0xff>;
 		clocks = <&clkc VIDEO_CODEC>;
@@ -1331,14 +1379,26 @@
 		reg = <0x0 0xf8140000 0x0 0x20000>, <0x0 0xf880125c 0x0 0xff>;
 		reg-name = "galcore","gal_ios";
 		dev_name = "galcore";
-		memory-region = <&npu_reserve>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc NPU>;
-		clock-names = "clk_vip9000";
+		clock-names = "clk_npu";
 		clock-frequency = <900000000>;
 		resets = <&rstc RST_NPU>;
-		reset-names = "rstc_vip9000";
+		reset-names = "rstc_npu";
+	};
+
+	gdc: gdc@f8c09000 {
+		compatible = "sunplus,sp7350-gdc";
+		reg = <0x0 0xf8c09000 0x0 0xff>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 108 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc VCL>, <&clkc VCL5>, <&clkc VCL3>;
+		clock-names = "sys", "axi", "apb";
+		resets = <&rstc RST_VCL>, <&rstc RST_VCL5>, <&rstc RST_VCL3>;
+		reset-names = "sys", "axi", "apb";
+		sunplus,max_config_size = <0x100000>;
+		sunplus,devnode_number = <96>;
 	};
 
 	dummymaster: dm@f8000700 {
@@ -1607,99 +1667,5 @@
 		reg-names = "moon1", "pad_ctl_1", "first", "pad_ctl_2", "gpioxt", "gpio_ao_int";
 		gpio-controller;
 		#gpio-cells = <2>;
-	};
-
-
-	display_subsystem: display-subsystem {
-		compatible = "sunplus,sp7350-display-subsystem";
-	};
-
-	drm_crtc0: crtc0@f8005c80 {
-		compatible = "sunplus,sp7350-crtc0";
-		reg = <0x00 0xf8005c80 0x00 0x980>;
-
-		interrupt-parent = <&gic>;
-		interrupts =
-			<GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
-
-		port {
-			crtc0_out: endpoint {
-				remote-endpoint = <&dsi0_in0>;
-			};
-		};
-	};
-
-	drm_dsi0: mipi-dsi@f8006600 {
-		compatible = "sunplus,sp7350-dsi0";
-
-		reg = <0x00 0xf8006600 0x00 0xb8>, <0x00 0xf8800180 0x00 0x80>;
-
-		clocks =
-			<&clkc DISPSYS>, <&clkc DMIX>, <&clkc TGEN>, <&clkc TCON>, <&clkc MIPITX>,
-			<&clkc GPOST0>, <&clkc GPOST1>, <&clkc GPOST2>, <&clkc GPOST3>,
-			<&clkc OSD0>, <&clkc OSD1>, <&clkc OSD2>, <&clkc OSD3>,
-			<&clkc IMGREAD0>, <&clkc VSCL0>, <&clkc VPOST0>;
-		clock-names =
-			"clkc_dispsys", "clkc_dmix", "clkc_tgen", "clkc_tcon", "clkc_mipitx",
-			"clkc_gpost0", "clkc_gpost1", "clkc_gpost2", "clkc_gpost3",
-			"clkc_osd0", "clkc_osd1", "clkc_osd2", "clkc_osd3",
-			"clkc_imgread0", "clkc_vscl0", "clkc_vpost0";
-		resets =
-			<&rstc RST_DISPSYS>, <&rstc RST_DMIX>, <&rstc RST_TGEN>, <&rstc RST_TCON>, <&rstc RST_MIPITX>,
-			<&rstc RST_GPOST0>, <&rstc RST_GPOST1>, <&rstc RST_GPOST2>, <&rstc RST_GPOST3>,
-			<&rstc RST_OSD0>, <&rstc RST_OSD1>, <&rstc RST_OSD2>, <&rstc RST_OSD3>,
-			<&rstc RST_IMGREAD0>, <&rstc RST_VSCL0>, <&rstc RST_VPOST0>;
-		reset-names =
-			"rstc_dispsys", "rstc_dmix", "rstc_tgen", "rstc_tcon", "rstc_mipitx",
-			"rstc_gpost0", "rstc_gpost1", "rstc_gpost2", "rstc_gpost3",
-			"rstc_osd0", "rstc_osd1", "rstc_osd2", "rstc_osd3",
-			"rstc_imgread0", "rstc_vscl0", "rstc_vpost0";
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-		hxm0686tft_lcd: mipi_dsi_lcd@0 {
-			compatible = "lx,hxm0686tft-001";
-			reg = <0>;
-			status = "disabled";
-			disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-				/* 0x0:Raising Edge(default)
-				 * 0x1:Falling Edge
-				 */
-		};
-		tcxd024iblon_lcd: mipi_dsi_lcd@1 {
-			compatible = "xinli,tcxd024iblon-2";
-			reg = <1>;
-			status = "disabled";
-			disp_mipitx_clk_edge = <0x1>; /* 0x1:Falling Edge */
-				/* 0x0:Raising Edge(default)
-				 * 0x1:Falling Edge
-				 */
-		};
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			/* 0 for input port */
-			dsi0_in: port@0 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <0>;
-				dsi0_in0: endpoint@0 {
-					remote-endpoint = <&crtc0_out>;
-					reg = <0>;
-				};
-			};
-
-			/* 1 for output port */
-			dsi0_out: port@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <1>;
-				dsi0_out0: endpoint@0 {
-					reg = <0>;
-				};
-			};
-		};
 	};
 };

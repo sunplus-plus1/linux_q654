@@ -1,7 +1,26 @@
 /*
  * From FreeBSD 2.2.7: Fundamental constants relating to ethernet.
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -175,10 +194,22 @@ BWL_PRE_PACKED_STRUCT struct	ether_addr {
 				 (((const uint16 *)(a))[6] ^ ((const uint16 *)(b))[6]))
 #endif /* DONGLEBUILD && __ARM_ARCH_7A__ */
 
+#define eacmp_nogrp(a, b) \
+			(((((const uint8 *)(a))[0] & 0x0e) ^ (((const uint8 *)(b))[0] & 0x0e)) | \
+	                (((const uint8 *)(a))[1] ^ ((const uint8 *)(b))[1]) | \
+	                (((const uint8 *)(a))[2] ^ ((const uint8 *)(b))[2]) | \
+	                (((const uint8 *)(a))[3] ^ ((const uint8 *)(b))[3]) | \
+	                (((const uint8 *)(a))[4] ^ ((const uint8 *)(b))[4]) | \
+	                (((const uint8 *)(a))[5] ^ ((const uint8 *)(b))[5]))
+
 #define	ether_cmp(a, b)	eacmp(a, b)
 
+#ifdef BCMFUZZ
+/* memcpy_s to avoid alignment warnings for fuzzer */
+#define eacopy(s, d)	((void)memcpy_s((d), ETHER_ADDR_LEN, (s), ETHER_ADDR_LEN))
+#else
 /* copy an ethernet address - assumes the pointers can be referenced as shorts */
-#if defined(DONGLEBUILD) && defined(__ARM_ARCH_7A__) && !defined(BCMFUZZ)
+#if defined(DONGLEBUILD) && defined(__ARM_ARCH_7A__)
 #define eacopy(s, d) \
 do { \
 	(*(uint32 *)(d)) = (*(const uint32 *)(s)); \
@@ -192,6 +223,7 @@ do { \
 	((uint16 *)(d))[2] = ((const uint16 *)(s))[2]; \
 } while (0)
 #endif /* DONGLEBUILD && __ARM_ARCH_7A__ */
+#endif /* BCMFUZZ */
 
 #define	ether_copy(s, d) eacopy(s, d)
 
@@ -244,7 +276,7 @@ do { \
 	*(struct ether_header *)(d) = t; \
 } while (0)
 
-#define  ETHER_ISUCAST(ea) ((((uint8 *)(ea))[0] & 0x01) == 0)
+#define  ETHER_ISUCAST(ea) ((((const uint8 *)(ea))[0] & 0x01) == 0)
 
 /* This marks the end of a packed structure section. */
 #include <packed_section_end.h>

@@ -82,7 +82,7 @@ COOKIE WAIT       - We have seen an INIT chunk in the original direction, or als
 COOKIE ECHOED     - We have seen a COOKIE_ECHO chunk in the original direction.
 ESTABLISHED       - We have seen a COOKIE_ACK in the reply direction.
 SHUTDOWN_SENT     - We have seen a SHUTDOWN chunk in the original direction.
-SHUTDOWN_RECD     - We have seen a SHUTDOWN chunk in the reply directoin.
+SHUTDOWN_RECD     - We have seen a SHUTDOWN chunk in the reply direction.
 SHUTDOWN_ACK_SENT - We have seen a SHUTDOWN_ACK chunk in the direction opposite
 		    to that of the SHUTDOWN chunk.
 CLOSED            - We have seen a SHUTDOWN_COMPLETE chunk in the direction of
@@ -142,6 +142,7 @@ static void sctp_print_conntrack(struct seq_file *s, struct nf_conn *ct)
 }
 #endif
 
+/* do_basic_checks ensures sch->length > 0, do not use before */
 #define for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count)	\
 for ((offset) = (dataoff) + sizeof(struct sctphdr), (count) = 0;	\
 	(offset) < (skb)->len &&					\
@@ -152,7 +153,8 @@ for ((offset) = (dataoff) + sizeof(struct sctphdr), (count) = 0;	\
 static int do_basic_checks(struct nf_conn *ct,
 			   const struct sk_buff *skb,
 			   unsigned int dataoff,
-			   unsigned long *map)
+			   unsigned long *map,
+			   const struct nf_hook_state *state)
 {
 	u_int32_t offset, count;
 	struct sctp_chunkhdr _sch, *sch;
@@ -161,8 +163,6 @@ static int do_basic_checks(struct nf_conn *ct,
 	flag = 0;
 
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
-		pr_debug("Chunk Num: %d  Type: %d\n", count, sch->type);
-
 		if (sch->type == SCTP_CID_INIT ||
 		    sch->type == SCTP_CID_INIT_ACK ||
 		    sch->type == SCTP_CID_SHUTDOWN_COMPLETE)
@@ -177,7 +177,9 @@ static int do_basic_checks(struct nf_conn *ct,
 		      sch->type == SCTP_CID_COOKIE_ECHO ||
 		      flag) &&
 		     count != 0) || !sch->length) {
-			pr_debug("Basic checks failed\n");
+			nf_ct_l4proto_log_invalid(skb, ct, state,
+						  "%s failed. chunk num %d, type %d, len %d flag %d\n",
+						  __func__, count, sch->type, sch->length, flag);
 			return 1;
 		}
 
@@ -185,7 +187,6 @@ static int do_basic_checks(struct nf_conn *ct,
 			set_bit(sch->type, map);
 	}
 
-	pr_debug("Basic checks passed\n");
 	return count == 0;
 }
 
@@ -195,63 +196,46 @@ static int sctp_new_state(enum ip_conntrack_dir dir,
 {
 	int i;
 
-	pr_debug("Chunk type: %d\n", chunk_type);
-
 	switch (chunk_type) {
 	case SCTP_CID_INIT:
-		pr_debug("SCTP_CID_INIT\n");
 		i = 0;
 		break;
 	case SCTP_CID_INIT_ACK:
-		pr_debug("SCTP_CID_INIT_ACK\n");
 		i = 1;
 		break;
 	case SCTP_CID_ABORT:
-		pr_debug("SCTP_CID_ABORT\n");
 		i = 2;
 		break;
 	case SCTP_CID_SHUTDOWN:
-		pr_debug("SCTP_CID_SHUTDOWN\n");
 		i = 3;
 		break;
 	case SCTP_CID_SHUTDOWN_ACK:
-		pr_debug("SCTP_CID_SHUTDOWN_ACK\n");
 		i = 4;
 		break;
 	case SCTP_CID_ERROR:
-		pr_debug("SCTP_CID_ERROR\n");
 		i = 5;
 		break;
 	case SCTP_CID_COOKIE_ECHO:
-		pr_debug("SCTP_CID_COOKIE_ECHO\n");
 		i = 6;
 		break;
 	case SCTP_CID_COOKIE_ACK:
-		pr_debug("SCTP_CID_COOKIE_ACK\n");
 		i = 7;
 		break;
 	case SCTP_CID_SHUTDOWN_COMPLETE:
-		pr_debug("SCTP_CID_SHUTDOWN_COMPLETE\n");
 		i = 8;
 		break;
 	case SCTP_CID_HEARTBEAT:
-		pr_debug("SCTP_CID_HEARTBEAT");
 		i = 9;
 		break;
 	case SCTP_CID_HEARTBEAT_ACK:
-		pr_debug("SCTP_CID_HEARTBEAT_ACK");
 		i = 10;
 		break;
 	default:
 		/* Other chunks like DATA or SACK do not change the state */
-		pr_debug("Unknown chunk type, Will stay in %s\n",
-			 sctp_conntrack_names[cur_state]);
+		pr_debug("Unknown chunk type %d, Will stay in %s\n",
+			 chunk_type, sctp_conntrack_names[cur_state]);
 		return cur_state;
 	}
-
-	pr_debug("dir: %d   cur_state: %s  chunk_type: %d  new_state: %s\n",
-		 dir, sctp_conntrack_names[cur_state], chunk_type,
-		 sctp_conntrack_names[sctp_conntracks[dir][i][cur_state]]);
 
 	return sctp_conntracks[dir][i][cur_state];
 }
@@ -299,7 +283,7 @@ sctp_new(struct nf_conn *ct, const struct sk_buff *skb,
 			pr_debug("Setting vtag %x for secondary conntrack\n",
 				 sh->vtag);
 			ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL] = sh->vtag;
-		} else {
+		} else if (sch->type == SCTP_CID_SHUTDOWN_ACK) {
 		/* If it is a shutdown ack OOTB packet, we expect a return
 		   shutdown complete, otherwise an ABORT Sec 8.4 (5) and (8) */
 			pr_debug("Setting vtag %x for new conn OOTB\n",
@@ -340,7 +324,7 @@ static bool sctp_error(struct sk_buff *skb,
 	}
 	return false;
 out_invalid:
-	nf_l4proto_log_invalid(skb, state->net, state->pf, IPPROTO_SCTP, "%s", logmsg);
+	nf_l4proto_log_invalid(skb, state, IPPROTO_SCTP, "%s", logmsg);
 	return true;
 }
 
@@ -369,7 +353,7 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 	if (sh == NULL)
 		goto out;
 
-	if (do_basic_checks(ct, skb, dataoff, map) != 0)
+	if (do_basic_checks(ct, skb, dataoff, map, state) != 0)
 		goto out;
 
 	if (!nf_ct_is_confirmed(ct)) {
@@ -392,7 +376,9 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 	    !test_bit(SCTP_CID_HEARTBEAT, map) &&
 	    !test_bit(SCTP_CID_HEARTBEAT_ACK, map) &&
 	    sh->vtag != ct->proto.sctp.vtag[dir]) {
-		pr_debug("Verification tag check failed\n");
+		nf_ct_l4proto_log_invalid(skb, ct, state,
+					  "verification tag check failed %x vs %x for dir %d",
+					  sh->vtag, ct->proto.sctp.vtag[dir], dir);
 		goto out;
 	}
 
@@ -470,9 +456,10 @@ int nf_conntrack_sctp_packet(struct nf_conn *ct,
 
 		/* Invalid */
 		if (new_state == SCTP_CONNTRACK_MAX) {
-			pr_debug("nf_conntrack_sctp: Invalid dir=%i ctype=%u "
-				 "conntrack=%u\n",
-				 dir, sch->type, old_state);
+			nf_ct_l4proto_log_invalid(skb, ct, state,
+						  "Invalid, old_state %d, dir %d, type %d",
+						  old_state, dir, sch->type);
+
 			goto out_unlock;
 		}
 
@@ -567,7 +554,7 @@ static bool sctp_can_early_drop(const struct nf_conn *ct)
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
 static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
-			  struct nf_conn *ct)
+			  struct nf_conn *ct, bool destroy)
 {
 	struct nlattr *nest_parms;
 
@@ -576,15 +563,20 @@ static int sctp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	if (nla_put_u8(skb, CTA_PROTOINFO_SCTP_STATE, ct->proto.sctp.state) ||
-	    nla_put_be32(skb, CTA_PROTOINFO_SCTP_VTAG_ORIGINAL,
+	if (nla_put_u8(skb, CTA_PROTOINFO_SCTP_STATE, ct->proto.sctp.state))
+		goto nla_put_failure;
+
+	if (destroy)
+		goto skip_state;
+
+	if (nla_put_be32(skb, CTA_PROTOINFO_SCTP_VTAG_ORIGINAL,
 			 ct->proto.sctp.vtag[IP_CT_DIR_ORIGINAL]) ||
 	    nla_put_be32(skb, CTA_PROTOINFO_SCTP_VTAG_REPLY,
 			 ct->proto.sctp.vtag[IP_CT_DIR_REPLY]))
 		goto nla_put_failure;
 
+skip_state:
 	spin_unlock_bh(&ct->lock);
-
 	nla_nest_end(skb, nest_parms);
 
 	return 0;

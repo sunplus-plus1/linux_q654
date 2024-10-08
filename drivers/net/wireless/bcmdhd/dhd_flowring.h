@@ -6,7 +6,26 @@
  * Provides type definitions and function prototypes used to create, delete and manage flow rings at
  * high level.
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -58,47 +77,19 @@
 #endif /* IDLE_TX_FLOW_MGMT */
 #define FLOW_RING_STATUS_STA_FREEING    7
 
-#if defined(DHD_HTPUT_TUNABLES)
 #define HTPUT_FLOW_RING_PRIO		PRIO_8021D_BE
 #define HTPUT_NUM_STA_FLOW_RINGS	1u
 #define HTPUT_NUM_CLIENT_FLOW_RINGS	3u
 #define HTPUT_TOTAL_FLOW_RINGS		(HTPUT_NUM_STA_FLOW_RINGS + HTPUT_NUM_CLIENT_FLOW_RINGS)
 #define DHD_IS_FLOWID_HTPUT(pub, flowid) \
-	((flowid >= (pub)->htput_flow_ring_start) && \
-	(flowid < ((pub)->htput_flow_ring_start + HTPUT_TOTAL_FLOW_RINGS)))
-#endif /* DHD_HTPUT_TUNABLES */
+	((pub)->htput_support && (flowid >= (pub)->htput_flow_ring_start) && \
+	((uint16)flowid < ((pub)->htput_flow_ring_start + HTPUT_TOTAL_FLOW_RINGS)))
 
-#ifdef DHD_EFI
-/*
- * Each lbuf is of size 2048 bytes. But the last 112 bytes is occupied for lbuf header.
- * Since lbuf is crucial data structure we want to avoid operations very close to lbuf.
- * so providing a pad of 136 bytes. so lbuf and pad together is 248 bytes.
- *
- * So the maximum usable lbuf size is 1800 bytes.
- *
- * These 1800 bytes is utilized for below purposes.
- *
- * 1. FW operating in mode2 requires 98 bytes for extra headers
- * like SNAP, PLCP etc. Whereas FW operating in mode4 requires 70 bytes.
- * So in EFI DHD we will consider 98 bytes which fits for chips operating in both mode2 and mode4.
- *
- * 2. For TPUT tests in EFI user can request a maximum payload of 1500 bytes.
- * To add ethernet header and TPUT header etc we are reserving 100bytes. So 1600 bytes are utilized
- * for headers and payload.
- *
- * so 1698(98 + 1600) bytes by are consumed by 1 and 2.
- * So we still have 112 bytes which can be utilized
- * if FW needs buffer for more headers in future.
- *
- * --Update-- 13Jul2018 (above comments preserved for history)
- * 3.  In case of 11ax chips more headroom is required, FW requires a min. of 1920 bytes for Rx
- * buffers, or it will trap. Therefore bumping up the size to 1920 bytes. Which leaves
- * only 16 bytes pad between data and lbuf header ! Further size increase may not be possible !!
- */
-#define DHD_FLOWRING_RX_BUFPOST_PKTSZ	1920
-#else
+#if defined(FLOW_RING_PREALLOC)
+#define MAX_FLOW_RINGS 64
+#endif /* FLOW_RING_PREALLOC */
+
 #define DHD_FLOWRING_RX_BUFPOST_PKTSZ	2048
-#endif /* DHD_EFI */
 
 #define DHD_FLOWRING_RX_BUFPOST_PKTSZ_MAX 4096
 
@@ -127,16 +118,9 @@
 #define DHD_IF_ROLE_GENERIC_STA(pub, idx) \
 	(DHD_IF_ROLE_STA(pub, idx) || DHD_IF_ROLE_P2PGC(pub, idx) || DHD_IF_ROLE_WDS(pub, idx))
 
-#ifdef DHD_AWDL
-#define DHD_IF_ROLE_AWDL(pub, idx)	(DHD_IF_ROLE(pub, idx) == WLC_E_IF_ROLE_AWDL)
-#define DHD_IF_ROLE_MULTI_CLIENT(pub, idx) \
-	(DHD_IF_ROLE_AP(pub, idx) || DHD_IF_ROLE_P2PGO(pub, idx) || DHD_IF_ROLE_AWDL(pub, idx) ||\
-		DHD_IF_ROLE_NAN(pub, idx))
-#else
 #define DHD_IF_ROLE_MULTI_CLIENT(pub, idx) \
 	(DHD_IF_ROLE_AP(pub, idx) || DHD_IF_ROLE_P2PGO(pub, idx) ||\
 		DHD_IF_ROLE_NAN(pub, idx))
-#endif /* DHD_AWDL */
 
 #define DHD_FLOW_RING(dhdp, flowid) \
 	(flow_ring_node_t *)&(((flow_ring_node_t *)((dhdp)->flow_ring_table))[flowid])
@@ -272,9 +256,6 @@ typedef struct flow_ring_node {
 	/* counter to decide if this particlur flow is stuck or not */
 	uint32		stuck_count;
 #endif /* DEVICE_TX_STUCK_DETECT */
-#ifdef DHD_HP2P
-	bool	hp2p_ring;
-#endif /* DHD_HP2P */
 } flow_ring_node_t;
 
 typedef flow_ring_node_t flow_ring_table_t;
@@ -327,6 +308,8 @@ extern int dhd_flowid_find_by_ifidx(dhd_pub_t *dhdp, uint8 ifidex, uint16 flowid
 extern void dhd_flowid_free(dhd_pub_t *dhdp, uint8 ifindex, uint16 flowid);
 
 extern void dhd_flow_rings_delete(dhd_pub_t *dhdp, uint8 ifindex);
+extern void dhd_update_multicilent_flow_rings(dhd_pub_t *dhdp, uint8 ifindex,
+	bool increment);
 extern void dhd_flow_rings_flush(dhd_pub_t *dhdp, uint8 ifindex);
 
 extern void dhd_flow_rings_delete_for_peer(dhd_pub_t *dhdp, uint8 ifindex,
@@ -342,10 +325,5 @@ extern int dhd_update_interface_link_status(dhd_pub_t *dhdp, uint8 ifindex,
 extern int dhd_flow_prio_map(dhd_pub_t *dhd, uint8 *map, bool set);
 extern int dhd_update_flow_prio_map(dhd_pub_t *dhdp, uint8 map);
 extern uint32 dhd_active_tx_flowring_bkpq_len(dhd_pub_t *dhdp);
-#ifdef DHD_AWDL
-/* DHD handler for awdl peer op IOVAR */
-extern void dhd_awdl_peer_op(dhd_pub_t *dhdp, uint8 ifindex,
-                void *buf, uint32 buflen);
-#endif /* DHD_AWDL */
 extern uint8 dhd_flow_rings_ifindex2role(dhd_pub_t *dhdp, uint8 ifindex);
 #endif /* _dhd_flowrings_h_ */

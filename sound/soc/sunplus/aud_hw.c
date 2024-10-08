@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // 2022.12 / chingchou.huang
-// This	file is	all about audio	harware	initialization.
+// This	file is	all about audio	hardware initialization.
 // include ADC/DAC/SPDIF/PLL...etc
 //
 #include <linux/device.h>
@@ -28,8 +28,8 @@ EXPORT_SYMBOL_GPL(AUDHW_pin_mx);
 void AUDHW_Mixer_Setting(void *auddrvdata)
 {
 	struct sunplus_audio_base *pauddrvdata = auddrvdata;
-	UINT32 val;
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pauddrvdata->audio_base;
+	u32 val;
+	volatile register_audio *regs0 = pauddrvdata->audio_base;
 	//67. 0~4
 	regs0->aud_grm_master_gain	= 0x80000000; //aud_grm_master_gain
 	regs0->aud_grm_gain_control_0	= 0x80808080; //aud_grm_gain_control_0
@@ -64,7 +64,7 @@ void AUDHW_Cfg_AdcIn(void *auddrvdata)
 {
 	struct sunplus_audio_base *pauddrvdata = auddrvdata;
 	int val;
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pauddrvdata->audio_base;
+	volatile register_audio *regs0 = pauddrvdata->audio_base;
 
 	regs0->adcp_ch_enable	= 0x0; //adcp_ch_enable
 	regs0->adcp_fubypass	= 0x7777; //adcp_fubypass
@@ -114,10 +114,10 @@ void AUDHW_Cfg_AdcIn(void *auddrvdata)
 void AUDHW_SystemInit(void *auddrvdata)
 {
 	struct sunplus_audio_base *pauddrvdata = auddrvdata;
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pauddrvdata->audio_base;
+	volatile register_audio *regs0 = pauddrvdata->audio_base;
 
 	pr_debug("!!!audio_base 0x%p\n", regs0);
-	pr_debug("!!!aud_fifo_reset 0x%p\n", &(regs0->aud_fifo_reset));
+	pr_debug("!!!aud_fifo_reset 0x%p\n", &regs0->aud_fifo_reset);
 	//reset	aud fifo
 	regs0->audif_ctrl = 0x1; //aud_ctrl=1
 	pr_debug("aud_fifo_reset 0x%x\n", regs0->aud_fifo_reset);
@@ -176,11 +176,11 @@ EXPORT_SYMBOL_GPL(AUDHW_SystemInit);
 void snd_aud_config(void *auddrvdata)
 {
 	struct sunplus_audio_base *pauddrvdata = auddrvdata;
-	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pauddrvdata->audio_base;
+	volatile register_audio *regs0 = pauddrvdata->audio_base;
 	int dma_initial;
 
 	dma_initial = DRAM_PCM_BUF_LENGTH * (NUM_FIFO_TX - 1);
-	regs0->aud_audhwya	= aud_param.fifoInfo.pcmtx_physAddrBase;
+	regs0->aud_audhwya	= aud_param.fifo_info.pcmtx_phys_base;
 	regs0->aud_a0_base	= dma_initial;
 	regs0->aud_a1_base	= dma_initial;
 	regs0->aud_a2_base	= dma_initial;

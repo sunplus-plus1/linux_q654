@@ -1,7 +1,26 @@
 /*
  * HND Run Time Environment debug info area
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -48,9 +67,11 @@ extern uint32 gFWID;
 #endif
 
 enum hnd_debug_reloc_entry_type {
-	HND_DEBUG_RELOC_ENTRY_TYPE_ROM		= 0u,
-	HND_DEBUG_RELOC_ENTRY_TYPE_RAM		= 1u,
-	HND_DEBUG_RELOC_ENTRY_TYPE_MTH_STACK	= 2u, /* main thread stack */
+	HND_DEBUG_RELOC_ENTRY_TYPE_ROM			= 0u,
+	HND_DEBUG_RELOC_ENTRY_TYPE_RAM			= 1u,
+	HND_DEBUG_RELOC_ENTRY_TYPE_MTH_STACK		= 2u, /* main thread stack */
+	HND_DEBUG_RELOC_ENTRY_TYPE_MTH_STACK_OVFL	= 3u, /* main thread stack overflow */
+	RELOC_NUM_ENTRIES
 };
 typedef uint32 hnd_debug_reloc_entry_type_t;
 
@@ -85,9 +106,6 @@ typedef struct hnd_debug_reloc {
 	_HD_DEBUG_RELOC_ENTRY_P hnd_reloc_ptr;	/* contains the pointer to the MMU reloc table */
 	uint32 hnd_reloc_ptr_size;		/* Specifies the size of the MMU reloc table */
 } hnd_debug_reloc_t;
-
-/* Number of MMU relocation entries supported in v2 */
-#define RELOC_NUM_ENTRIES		4u
 
 /* Total MMU relocation table size for v2 */
 #define HND_DEBUG_RELOC_PTR_SIZE	(RELOC_NUM_ENTRIES * sizeof(hnd_debug_reloc_entry_t))
@@ -134,7 +152,7 @@ typedef struct hnd_debug {
 #else
 	/* Note: The original uint32 version is split into two fields:
 	 * uint16 version and uint16 length to accomidate future expansion
-	 * of the strucutre.
+	 * of the structure.
 	 *
 	 * The length field is not populated for the version 1 of the structure.
 	 */
@@ -231,6 +249,8 @@ typedef struct prstatus {
 #define DUMP_INFO_PTR_PTR_3   0xf8
 #define DUMP_INFO_PTR_PTR_4   0x874
 #define DUMP_INFO_PTR_PTR_5   0x878
+#define DUMP_INFO_PTR_PTR_6   0x4f0
+#define DUMP_INFO_PTR_PTR_7   0x4f8
 #define DUMP_INFO_PTR_PTR_END 0xffffffff
 #define DUMP_INFO_PTR_PTR_LIST	DUMP_INFO_PTR_PTR_0, \
 		DUMP_INFO_PTR_PTR_1,					\
@@ -238,6 +258,8 @@ typedef struct prstatus {
 		DUMP_INFO_PTR_PTR_3,					\
 		DUMP_INFO_PTR_PTR_4,					\
 		DUMP_INFO_PTR_PTR_5,					\
+		DUMP_INFO_PTR_PTR_6,					\
+		DUMP_INFO_PTR_PTR_7,					\
 		DUMP_INFO_PTR_PTR_END
 
 extern bool hnd_debug_info_in_trap_context(void);

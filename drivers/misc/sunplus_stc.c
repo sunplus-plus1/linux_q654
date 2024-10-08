@@ -26,12 +26,12 @@
 #include <asm-generic/siginfo.h>
 #include <linux/init.h>
 
-#define TRACE(s) printk("### %s:%d %s\n", __FUNCTION__, __LINE__, s)
+#define TRACE(s) pr_info("### %s:%d %s\n", __func__, __line__, s)
 
 //#define CONFIG_SP_STC_DEBUG
 #ifdef CONFIG_SP_STC_DEBUG
 	#define TAG "STC: "
-	#define sp_stc_dbg(fmt, ...) printk(KERN_INFO TAG fmt, ##__VA_ARGS__);
+	#define sp_stc_dbg(fmt, ...) pr_info(TAG fmt, ##__VA_ARGS__)
 #else
 	#define sp_stc_dbg(fmt, ...) do {} while (0)
 #endif
@@ -53,16 +53,15 @@
 #define	STC_EXT_25M		0
 #define STC_EXT_32K		1
 
-
 struct sp_stc_group {
 	void __iomem *base;
 	struct device *dev;
 
-	struct clk *sys_clk;	/* used if src select sysclk  		*/
-	u32 src_freq;		/* frequency of system clock(bus clock)	*/
-	u32 stc_freq;		/* work frequency of STC 		*/
+	struct clk *sys_clk;	/* used if src select sysclk */
+	u32 src_freq;		/* frequency of system clock(bus clock) */
+	u32 stc_freq;		/* work frequency of STC */
 
-	u8 src;			/* clock source of STC 			*/
+	u8 src;			/* clock source of STC */
 	u8 stc_id;
 };
 
@@ -84,13 +83,13 @@ static void of_stc_register_devices(struct sp_stc_group *stc_group)
 
 	for_each_available_child_of_node(stc_group_node, node) {
 		snprintf(child_name, sizeof(child_name), "%s-timer%d",
-                         dev_name(stc_group->dev), child_idx++);
+			 dev_name(stc_group->dev), child_idx++);
 		//printk("child_name %s\n", child_name);
 
 		pdev = of_platform_device_create(node, child_name, stc_group->dev);
 		if (!pdev) {
 			dev_warn(stc_group->dev, "Failed to create child %s dev\n",
-                                 child_name);
+				 child_name);
 		}
 	}
 
@@ -117,18 +116,6 @@ static void sp_stc_set_freq(struct sp_stc_group *priv)
 	}
 }
 
-#if 0
-static void sp_clk_disable_unprepare(void *data)
-{
-	clk_disable_unprepare(data);
-}
-
-static void sp_reset_control_assert(void *data)
-{
-	reset_control_assert(data);
-}
-#endif
-
 static int sp_stc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -141,30 +128,6 @@ static int sp_stc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-#if 0 // TODO: Is clk neccessary ?
-	priv->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(priv->clk))
-		return dev_err_probe(dev, PTR_ERR(priv->clk), "Failed to get clock\n");
-
-	ret = clk_prepare_enable(priv->clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to enable clock\n");
-
-	ret = devm_add_action_or_reset(dev, sp_clk_disable_unprepare, priv->clk);
-	if (ret)
-		return ret;
-
-	/* The timer and watchdog shared the STC reset */
-	priv->rstc = devm_reset_control_get_shared(dev, NULL);
-	if (IS_ERR(priv->rstc))
-		return dev_err_probe(dev, PTR_ERR(priv->rstc), "Failed to get reset\n");
-
-	reset_control_deassert(priv->rstc);
-
-	ret = devm_add_action_or_reset(dev, sp_reset_control_assert, priv->rstc);
-	if (ret)
-		return ret;
-#endif
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
@@ -173,14 +136,14 @@ static int sp_stc_probe(struct platform_device *pdev)
 	ret = of_property_read_u8(dev->of_node, "stc-src-sel", &priv->src);
 	if (ret) {
 		dev_err(dev, "Failed to get STC clock source selection (%d)\n", ret);
- 		return ret;
+		return ret;
 	}
 
-	/* Get STC frequence */
+	/* Get STC frequency */
 	ret = of_property_read_u32(dev->of_node, "stc-freq", &priv->stc_freq);
 	if (ret) {
 		dev_err(dev, "Failed to get STC frequency (%d)\n", ret);
- 		return ret;
+		return ret;
 	}
 
 	//priv->src = STC_SRC_SYS;//xtdebug
@@ -191,7 +154,8 @@ static int sp_stc_probe(struct platform_device *pdev)
 	} else { /* system clock as source */
 		priv->sys_clk = devm_clk_get(dev, "clk_sys");
 		if (IS_ERR(priv->sys_clk))
-			return dev_err_probe(dev, PTR_ERR(priv->sys_clk), "Failed to get system clock\n");
+			return dev_err_probe(dev, PTR_ERR(priv->sys_clk),
+					     "Failed to get system clock\n");
 
 		priv->src_freq = clk_get_rate(priv->sys_clk);
 	}
@@ -218,7 +182,7 @@ static int sp_stc_suspend(struct device *dev)
 	//sp_stc_dbg(">>>>>> [DEBUG] STC suspend <<<<<<\n");
 
 	/* Save the reg val */
-	for(i = 0; i < 5; i++)
+	for (i = 0; i < 5; i++)
 		regs[i] = readl_relaxed(base + i * 0x4);
 
 	//clk_disable_unprepare(priv->clk);
@@ -239,7 +203,7 @@ static int sp_stc_resume(struct device *dev)
 	//clk_prepare_enable(priv->clk);
 
 	/* Restore the reg val */
-	for(i = 0; i < 5; i++)
+	for (i = 0; i < 5; i++)
 		writel(regs[i], base + i * 0x4);
 
 	return 0;

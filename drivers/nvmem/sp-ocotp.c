@@ -35,7 +35,7 @@ static int sp_otp_wait(void __iomem *_base)
 	unsigned int status;
 
 	do {
-		udelay(10);
+		usleep_range(10, 20);
 		if (timeout-- == 0)
 			return -ETIMEDOUT;
 
@@ -89,41 +89,47 @@ int sp_otp_read_real(struct sp_otp_data_t *_otp, int addr, char *value)
 /* The data read from OTP is in little-endian byte order, but for certain
  * data, it needs to be returned in big-endian byte order, such as MAC address.
  * if the data needs to be returned in big-endian byte order, simply add the
- * 'sunplus,byte-swap' property to the nvmem cell node in the device tree.
+ * generic compatible string: "mac-base" to the nvmem cell node in the device
+ * tree.
  *
  * For example:
  * A MAC address read from OTP as 0f:cd:f1:1e:50:1c is invalid, after
  * converting to big endian byte order, it becomes 1c:50:1e:f1:cd:0f,
  * which is valid.
  * The nvmem cell node is as follows:
- *	mac-address@16 {
+ *	mac_addr: mac-address@16 {
+ *		compatible = "mac-base";
  *		reg = <0x16 0x6>;
- *		sunplus,byte-swap;
+ *		#nvmem-cell-cells = <1>;
  *	};
  */
 static void sp_ocotp_byte_swap_check(struct sp_otp_data_t *otp,
-			unsigned int offset, size_t bytes, char *val)
+				     unsigned int offset, size_t bytes, char *val)
 {
-	struct device_node *parent, *child;
+	struct device_node *parent, *child, *layout_np;
 	const __be32 *addr;
 	int i;
 
 	parent = otp->dev->of_node;
+	layout_np = of_get_child_by_name(parent, "nvmem-layout");
 
-	for_each_child_of_node(parent, child) {
-		if (!of_find_property(child, "sunplus,byte-swap", NULL))
-			continue;
+	for_each_child_of_node(layout_np, child) {
 		addr = of_get_property(child, "reg", NULL);
 		if (!addr)
 			continue;
-		if ((offset != be32_to_cpup(addr++)) ||
-		    (bytes != be32_to_cpup(addr)))
+
+		if (offset != be32_to_cpup(addr++) || bytes != be32_to_cpup(addr))
 			continue;
+
+		if(!of_device_is_compatible(child, "mac-base"))
+			break;
+
 		for (i = 0; i < (bytes >> 1); i++) {
 			val[i] ^= val[bytes - 1 - i];
 			val[bytes - 1 - i] ^= val[i];
 			val[i] ^= val[bytes - 1 - i];
 		}
+
 		break;
 	}
 }
@@ -138,7 +144,7 @@ static int sp_ocotp_read(void *_c, unsigned int _off, void *_v, size_t _l)
 
 	dev_dbg(otp->dev, "OTP read %lu bytes at %u", _l, _off);
 
-	if ((_off >= QAK654_OTP_SIZE) || (_l == 0) || ((_off + _l) > QAK654_OTP_SIZE))
+	if (_off >= QAK654_OTP_SIZE || _l == 0 || ((_off + _l) > QAK654_OTP_SIZE))
 		return -EINVAL;
 
 	ret = clk_enable(otp->clk);
@@ -179,7 +185,7 @@ int sp_ocotp_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct sp_otp_vX_t *sp_otp_vX = NULL;
-	struct device *dev = &(pdev->dev);
+	struct device *dev = &pdev->dev;
 	struct nvmem_device *nvmem;
 	struct sp_otp_data_t *otp;
 	struct resource *res;
@@ -251,7 +257,7 @@ EXPORT_SYMBOL_GPL(sp_ocotp_probe);
 
 int sp_ocotp_remove(struct platform_device *pdev)
 {
-	// disbale for devm_*
+	// disable for devm_*
 	struct nvmem_device *nvmem = platform_get_drvdata(pdev);
 
 	nvmem_unregister(nvmem);

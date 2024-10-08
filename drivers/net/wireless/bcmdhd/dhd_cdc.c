@@ -1,7 +1,26 @@
 /*
  * DHD Protocol Module for CDC and BDC.
  *
- * Copyright (C) 2020, Broadcom.
+ * Copyright (C) 2024 Synaptics Incorporated. All rights reserved.
+ *
+ * This software is licensed to you under the terms of the
+ * GNU General Public License version 2 (the "GPL") with Broadcom special exception.
+ *
+ * INFORMATION CONTAINED IN THIS DOCUMENT IS PROVIDED "AS-IS," AND SYNAPTICS
+ * EXPRESSLY DISCLAIMS ALL EXPRESS AND IMPLIED WARRANTIES, INCLUDING ANY
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE,
+ * AND ANY WARRANTIES OF NON-INFRINGEMENT OF ANY INTELLECTUAL PROPERTY RIGHTS.
+ * IN NO EVENT SHALL SYNAPTICS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, PUNITIVE, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION
+ * WITH THE USE OF THE INFORMATION CONTAINED IN THIS DOCUMENT, HOWEVER CAUSED
+ * AND BASED ON ANY THEORY OF LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ * NEGLIGENCE OR OTHER TORTIOUS ACTION, AND EVEN IF SYNAPTICS WAS ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE. IF A TRIBUNAL OF COMPETENT JURISDICTION
+ * DOES NOT PERMIT THE DISCLAIMER OF DIRECT DAMAGES OR ANY OTHER DAMAGES,
+ * SYNAPTICS' TOTAL CUMULATIVE LIABILITY TO ANY PARTY SHALL NOT
+ * EXCEED ONE HUNDRED U.S. DOLLARS
+ *
+ * Copyright (C) 2024, Broadcom.
  *
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -50,6 +69,10 @@
 #include <wlfc_proto.h>
 #include <dhd_wlfc.h>
 #endif
+
+#ifdef DHD_HWTSTAMP
+#include <dhd_linux_priv.h>
+#endif /* DHD_HWTSTAMP */
 #ifdef BCMDBUS
 #include <dhd_config.h>
 #endif /* BCMDBUS */
@@ -116,6 +139,26 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 	dhd_prot_t *prot = dhd->prot;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+	/*
+	 * prot->msg is the buffer used to send the ioctl msg in dhdcdc_msg and the same is
+	 * used for receiving the ioctl response.
+	 * As this buffer is not cleared after sending message and before re-using for receive
+	 * operation, problems are seen when bus errors occur.
+	 * Example:- An error is seen on the bus where a 0 byte pkt is received.
+	 * the bus-controller "layer below cdc" does not update the buffer in this 0 byte pkt case.
+	 * bus-controller layer calls the completion callback without any error and with the
+	 * same buffer.(no change)
+	 * This issue is seen on DBUS/USB + FPGA platforms
+	 * In this function if there is no update to the buffer, the stale id field of sent msg
+	 * matches to expected ID and further processing is done thinking that
+	 * proper response is received.
+	 * This is a generic problem and its a good idea to clear the buffer or atleast
+	 * the buffer's key value (ioctl ID within flags field in this case) before re-using it.
+	 *
+	 * To ensure that a new content is indeed received from the bus making flags = 0.
+	 * Note that ID=0 is invalid value.
+	 */
+	prot->msg.flags = 0;
 
 	do {
 		ret = dhd_bus_rxctl(dhd->bus, (uchar*)&prot->msg, cdc_len);
@@ -156,6 +199,12 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uin
 			*(int *)buf = dhd->dongle_error;
 			goto done;
 		}
+	}
+
+	if (ifidx >= DHD_MAX_IFS) {
+		DHD_ERROR(("%s: IF index %d Invalid for the dongle FW\n",
+			__FUNCTION__, ifidx));
+		return -EIO;
 	}
 
 	memset(msg, 0, sizeof(cdc_ioctl_t));
@@ -271,14 +320,13 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8
 			}
 		}
 #endif /* DHD_PM_OVERRIDE */
-#if defined(WLAIBSS)
-		if (dhd->op_mode == DHD_FLAG_IBSS_MODE) {
-			DHD_ERROR(("%s: SET PM ignored for IBSS!(Requested:%d)\n",
-				__FUNCTION__, buf ? *(char *)buf : 0));
-			goto done;
-		}
-#endif /* WLAIBSS */
 		DHD_TRACE_HW4(("%s: SET PM to %d\n", __FUNCTION__, buf ? *(char *)buf : 0));
+	}
+
+	if (ifidx >= DHD_MAX_IFS) {
+		DHD_ERROR(("%s: IF index %d Invalid for the dongle FW\n",
+			__FUNCTION__, ifidx));
+		return -EIO;
 	}
 
 	memset(msg, 0, sizeof(cdc_ioctl_t));
@@ -426,6 +474,19 @@ dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 #endif
 }
 
+void
+dhd_prot_counters(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf,
+	bool print_ringinfo, bool print_pktidinfo)
+{
+	return;
+}
+
+void
+dhd_bus_counters(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
+{
+	return;
+}
+
 /*	The FreeBSD PKTPUSH could change the packet buf pinter
 	so we need to make it changable
 */
@@ -483,6 +544,7 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 	struct bdc_header *h;
 #endif
 	uint8 data_offset = 0;
+	uint32 bdc_hdr_len = BDC_HEADER_LEN;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -498,11 +560,36 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 	}
 
 	h = (struct bdc_header *)PKTDATA(dhd->osh, pktbuf);
+#ifdef DHD_HWTSTAMP
+	if (h->flags2 & BDC_FLAG2_TSF_FLAG) {
+		struct bdc_header_tsf *h_tsf = (struct bdc_header_tsf *)PKTDATA(dhd->osh, pktbuf);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30))
+		if (dhd->info->stmpconf.rx_filter) {
+			ktime_t tsf;
+			struct skb_shared_hwtstamps *tst;
+			tst = skb_hwtstamps(((struct sk_buff*)(pktbuf)));
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0))
+			tsf = (s64) h_tsf->tsf_h;
+			tsf = tsf << 32 | h_tsf->tsf_l;
+			/* Convert micro sec tsf to nano sec kernel hw timestamp */
+			tst->hwtstamp = tsf * 1000;
+#else
+			tsf.tv64 = (s64) h_tsf->tsf_h;
+			tsf.tv64 = tsf.tv64 << 32 | h_tsf->tsf_l;
+			/* Convert micro sec tsf to nano sec kernel hw timestamp */
+			tst->hwtstamp.tv64 = tsf.tv64 * 1000;
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)) */
+		}
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 30)) */
+		h_tsf->dataOffset = h_tsf->dataOffset - 2;
+		bdc_hdr_len = bdc_hdr_len + 8;
+	}
+#endif /* DHD_HWTSTAMP */
 	if (!ifidx) {
 		/* for tx packet, skip the analysis */
 		data_offset = h->dataOffset;
-		PKTPULL(dhd->osh, pktbuf, BDC_HEADER_LEN);
+		PKTPULL(dhd->osh, pktbuf, bdc_hdr_len);
 		goto exit;
 	}
 
@@ -525,7 +612,7 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 
 	PKTSETPRIO(pktbuf, (h->priority & BDC_PRIORITY_MASK));
 	data_offset = h->dataOffset;
-	PKTPULL(dhd->osh, pktbuf, BDC_HEADER_LEN);
+	PKTPULL(dhd->osh, pktbuf, bdc_hdr_len);
 #endif /* BDC */
 
 #ifdef PROP_TXSTATUS
@@ -775,7 +862,6 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 
 	cur_pkt = *pkt;
 	*pkt = NULL;
-	*pkt_count = 0;
 
 	ptr = dhd->reorder_bufs[flow_id];
 	if (flags & WLHOST_REORDERDATA_DEL_FLOW) {
@@ -785,12 +871,10 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 			__FUNCTION__, flow_id));
 
 		if (ptr == NULL) {
-			DHD_ERROR(("%s: received flags to cleanup, but no flow (%d) yet\n",
+			DHD_REORDER(("%s: received flags to cleanup, but no flow (%d) yet\n",
 				__FUNCTION__, flow_id));
-			if (cur_pkt) {
-				*pkt_count = 1;
-				*pkt = cur_pkt;
-			}
+			*pkt_count = 1;
+			*pkt = cur_pkt;
 			return 0;
 		}
 
@@ -798,22 +882,16 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 			ptr->exp_idx, ptr->exp_idx);
 		/* set it to the last packet */
 		if (plast) {
-			if (cur_pkt) {
-				PKTSETNEXT(dhd->osh, plast, cur_pkt);
-				cnt++;
-			}
+			PKTSETNEXT(dhd->osh, plast, cur_pkt);
+			cnt++;
 		}
 		else {
 			if (cnt != 0) {
 				DHD_ERROR(("%s: del flow: something fishy, pending packets %d\n",
 					__FUNCTION__, cnt));
 			}
-			if (cur_pkt) {
-				*pkt = cur_pkt;
-				cnt = 1;
-			} else {
-				cnt = 0;
-			}
+			*pkt = cur_pkt;
+			cnt = 1;
 		}
 		buf_size += ((ptr->max_idx + 1) * sizeof(void *));
 		MFREE(dhd->osh, ptr, buf_size);
@@ -834,10 +912,7 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 		ptr = (struct reorder_info *)MALLOC(dhd->osh, buf_size_alloc);
 		if (ptr == NULL) {
 			DHD_ERROR(("%s: Malloc failed to alloc buffer\n", __FUNCTION__));
-			if (cur_pkt) {
-				*pkt = cur_pkt;
-				*pkt_count = 1;
-			}
+			*pkt_count = 1;
 			return 0;
 		}
 		bzero(ptr, buf_size_alloc);
@@ -859,18 +934,6 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 		ptr->p[ptr->cur_idx] = cur_pkt;
 		ptr->pend_pkts++;
 		*pkt_count = cnt;
-		/* Corner case: wrong BA WSIZE make NEW_HOLE with FLUSH */
-		if (WLHOST_REORDERDATA_FLUSH_ALL & flags) {
-			cur_idx = ptr->cur_idx;
-			exp_idx = ptr->exp_idx;
-			dhd_get_hostreorder_pkts(dhd->osh, ptr, pkt, &cnt, &plast,
-			                         cur_idx, exp_idx);
-			*pkt_count = cnt;
-			DHD_ERROR(("%s: *Warning, new+flush(flags=0x%X), "
-			           "out=%d, pending=%d, cur=%d, exp=%d\n",
-			           __FUNCTION__, flags, cnt, ptr->pend_pkts,
-			           cur_idx, exp_idx));
-		}
 	}
 	else if (flags & WLHOST_REORDERDATA_CURIDX_VALID) {
 		cur_idx = reorder_info_buf[WLHOST_REORDERDATA_CURIDX_OFFSET];
@@ -898,7 +961,7 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 			DHD_REORDER(("%s: got the right one now, cur_idx is %d\n",
 				__FUNCTION__, cur_idx));
 			if (ptr->p[cur_idx] != NULL) {
-				DHD_ERROR(("%s: Error buffer pending..free it\n",
+				DHD_REORDER(("%s: Error buffer pending..free it\n",
 					__FUNCTION__));
 				PKTFREE(dhd->osh, ptr->p[cur_idx], TRUE);
 				ptr->p[cur_idx] = NULL;
@@ -943,9 +1006,7 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 					PKTSETNEXT(dhd->osh, plast, cur_pkt);
 				else
 					*pkt = cur_pkt;
-				if (cur_pkt) {
-					cnt++;
-				}
+				cnt++;
 			}
 			else {
 				ptr->p[cur_idx] = cur_pkt;
@@ -973,9 +1034,7 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 			PKTSETNEXT(dhd->osh, plast, cur_pkt);
 		else
 			*pkt = cur_pkt;
-		if (cur_pkt) {
-			cnt++;
-		}
+		cnt++;
 		*pkt_count = cnt;
 		/* set the new expected idx */
 		ptr->exp_idx = exp_idx;

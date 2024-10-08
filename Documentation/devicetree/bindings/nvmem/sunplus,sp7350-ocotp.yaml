@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/sunplus,sp7350-ocotp.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: On-Chip OTP Memory for Sunplus SP7350
+
+maintainers:
+  - Vincent Shih <vincent.shih@sunplus.com>
+
+allOf:
+  - $ref: nvmem.yaml#
+
+properties:
+  nvmem-layout:
+    $ref: /schemas/nvmem/layouts/nvmem-layout.yaml
+    description:
+      Alternative to the statically defined nvmem cells, this
+      container may reference more advanced (dynamic) layout
+      parsers.
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sp-sp7350.h>
+    #include <dt-bindings/reset/sp-sp7350.h>
+
+    otp0: otp@f8802380 {
+      compatible = "sunplus,sp7350-ocotp";
+      reg = <0x0 0xf8802380 0x0 0x60>, <0x0 0xf8802400 0x0 0x80>,
+                <0x0 0xf8802480 0x0 0x18>;
+      reg-names = "hb_gpio", "otprx", "otp_key";
+      clocks = <&clkc OTPRX>;
+      resets = <&rstc RST_OTPRX>;
+      nvmem-layout {
+        compatible = "fixed-layout";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        therm_calib: therm_calib@9 {
+          reg = <0x9 0x3>;
+        };
+        mac_addr: mac-address@16 {
+          #nvmem-cell-cells = <1>;
+          compatible = "mac-base";
+          reg = <0x16 0x6>;
+        };
+        disc_vol: disc_vol@2d {
+          reg = <0x2d 0x1>;
+        };
+      };
+    };
+...

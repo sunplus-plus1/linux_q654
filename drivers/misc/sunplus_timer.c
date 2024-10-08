@@ -29,19 +29,19 @@
 
 static DEFINE_IDA(timer_ida);
 
-#define TRACE(s) printk("### %s:%d %s\n", __FUNCTION__, __LINE__, s)
+#define TRACE(s) pr_info("### %s:%d %s\n", __func__, __line__, s)
 
 //#define CONFIG_SP_TIMER_DEBUG
 #ifdef CONFIG_SP_TIMER_DEBUG
 	#define TAG "Timer: "
-	#define sp_timer_dbg(fmt, ...) printk(KERN_INFO TAG fmt, ##__VA_ARGS__);
+	#define sp_timer_dbg(fmt, ...) pr_info(TAG fmt, ##__VA_ARGS__)
 #else
 	#define sp_timer_dbg(fmt, ...) do {} while (0)
 #endif
 
 #define DEVICE_NAME		"sunplus-timer"
 
-#define	TIMER_IOCTL_BASE 	'T'
+#define	TIMER_IOCTL_BASE	'T'
 
 #define	TMRIOC_SETOPTIONS	_IOR(TIMER_IOCTL_BASE, 0, int)
 #define	TMRIOC_SETTIME		_IOWR(TIMER_IOCTL_BASE, 1, int)
@@ -83,7 +83,7 @@ static DEFINE_IDA(timer_ida);
 #define SP_TM_RTC		2
 #define SP_TM_WRAP		3
 
-#define TIMER_SRC_MSK		GENMASK(15,14)
+#define TIMER_SRC_MSK		GENMASK(15, 14)
 #define TIMER_SRC(x)		((x) << 14)
 
 static struct mutex sp_timer_sem;
@@ -92,10 +92,10 @@ static dev_t sp_timer_major;
 struct sp_timer_priv {
 	struct device dev;	/* internal device */
 	struct cdev cdev;
-	struct mutex lock;
+	struct mutex lock;	/* Mutex to protect access to priv data */
 	struct device *parent;	/* pdev->dev */
 	struct device_node *parent_np;
-	unsigned long status;		/* Internal status bits */
+	unsigned long status;	/* Internal status bits */
 
 	void __iomem *base;
 	int irqn;
@@ -125,7 +125,7 @@ static int sp_timer_stop(struct sp_timer_priv *priv)
 	void __iomem *base = priv->base;
 	u32 val;
 
-	sp_timer_dbg("### %s(%d) \n", __FUNCTION__, __LINE__);
+	sp_timer_dbg("### %s(%d)\n", __func__, __line__);
 
 	val = readl_relaxed(base + TIMER_CTRL);
 	val &= TIMER_STOP;
@@ -141,7 +141,7 @@ static int sp_timer_start(struct sp_timer_priv *priv)
 	void __iomem *base = priv->base;
 	u32 val;
 
-	sp_timer_dbg("### %s(%d) \n", __FUNCTION__, __LINE__);
+	sp_timer_dbg("### %s(%d)\n", __func__, __line__);
 
 	val = readl_relaxed(base + TIMER_CTRL);
 	val |= TIMER_START;
@@ -156,7 +156,7 @@ static int sp_timer_get_timeleft(struct sp_timer_priv *priv, u32 *val)
 {
 	void __iomem *base = priv->base;
 
-	//sp_timer_dbg("### %s(%d) \n", __FUNCTION__, __LINE__);
+	//sp_timer_dbg("### %s(%d)\n", __func__, __line__);
 
 	*val = readl_relaxed(base + TIMER_CNT);
 
@@ -170,7 +170,7 @@ static int sp_timer_sel_mode(struct sp_timer_priv *priv)
 	u32 val;
 
 	val = readl_relaxed(base + TIMER_CTRL);
-	if(mode == SP_TM_OS)
+	if (mode == SP_TM_OS)
 		val &= TIMER_ONE_SHOT;
 	else
 		val |= TIMER_REPEAT;
@@ -186,7 +186,7 @@ static int sp_timer_sel_src(struct sp_timer_priv *priv)
 	u32 val;
 
 	if (src > SP_TM_WRAP) {
-		printk("Invaild sourcce selection\n");
+		pr_err("Invalid sourcce selection\n");
 		return -1;
 	}
 
@@ -212,7 +212,7 @@ static int sp_timer_set_cnt(struct sp_timer_priv *priv, u32 cnt)
 	}
 
 	writel(cnt, base + TIMER_CNT);
-	if(mode == SP_TM_RPT)
+	if (mode == SP_TM_RPT)
 		writel(cnt, base + TIMER_RELOAD);
 
 	if (sp_timer_active(priv)) {
@@ -236,7 +236,7 @@ static int sp_timer_hw_init(struct sp_timer_priv *priv)
 }
 
 static long sp_timer_ioctl(struct file *file, unsigned int cmd,
-							unsigned long arg)
+			   unsigned long arg)
 {
 	struct sp_timer_priv *priv = file->private_data;
 	void __user *argp = (void __user *)arg;
@@ -246,7 +246,7 @@ static long sp_timer_ioctl(struct file *file, unsigned int cmd,
 
 	mutex_lock(&priv->lock);
 
-	//sp_timer_dbg("1### %s(%d) \n", __FUNCTION__, __LINE__);
+	//sp_timer_dbg("### %s(%d)\n", __func__, __line__);
 
 	switch (cmd) {
 	case TMRIOC_SETOPTIONS:
@@ -277,7 +277,7 @@ static long sp_timer_ioctl(struct file *file, unsigned int cmd,
 		err = put_user(val, p);
 		break;
 	case TMRIOC_GETINFO:
-		printk("STC%dTIMER%d:sel_src=%d freq=%d, mode=%d, rel_time=%d",
+		pr_info("STC%dTIMER%d:sel_src=%d freq=%d, mode=%d, rel_time=%d",
 			priv->stc_id,
 			priv->tmr_id,
 			priv->src,
@@ -300,7 +300,7 @@ static int sp_timer_open(struct inode *inode, struct file *file)
 	struct sp_timer_priv *priv;
 
 	priv = container_of(inode->i_cdev, struct sp_timer_priv,
-				       cdev);
+			    cdev);
 
 	/* The timer is single open! */
 	if (test_and_set_bit(_SP_TIME_DEV_OPEN, &priv->status))
@@ -357,7 +357,6 @@ static const struct file_operations sp_timer_fops = {
 
 static struct class sp_timer_class = {
 	.name =		"timer",
-	.owner =	THIS_MODULE,
 	.dev_groups =	sp_timer_groups,
 };
 
@@ -391,12 +390,13 @@ static int timer_cdev_register(struct sp_timer_priv *priv)
 	err = cdev_device_add(&priv->cdev, &priv->dev);
 	if (err) {
 		pr_err("timer%d unable to add device %d:%d\n",
-			priv->tmr_id,  MAJOR(sp_timer_major), priv->tmr_id);
+		       priv->tmr_id,  MAJOR(sp_timer_major), priv->tmr_id);
 		return err;
 	}
 	priv->cdev.owner = THIS_MODULE;
 
-	//device_create(&sp_timer_class, priv->parent, priv->dev.devt, NULL, "%s%d", "timer", priv->id);
+	//device_create(&sp_timer_class, priv->parent, priv->dev.devt,
+	//		NULL, "%s%d", "timer", priv->id);
 
 	return 0;
 }
@@ -420,13 +420,13 @@ static void devm_timer_cdev_unregister(struct device *dev, void *res)
 }
 
 int devm_timer_cdev_register(struct device *dev,
-				struct sp_timer_priv *priv)
+			     struct sp_timer_priv *priv)
 {
 	struct sp_timer_priv **rcpriv;
 	int ret;
 
 	rcpriv = devres_alloc(devm_timer_cdev_unregister, sizeof(*rcpriv),
-			     GFP_KERNEL);
+			      GFP_KERNEL);
 	if (!rcpriv)
 		return -ENOMEM;
 
@@ -493,13 +493,13 @@ static int sp_timer_probe(struct platform_device *pdev)
 	ret = of_property_read_u8(dev->of_node, "timer-mode", &priv->mode);
 	if (ret) {
 		dev_err(dev, "Failed to get timer mode (%d)\n", ret);
- 		return ret;
+		return ret;
 	}
 
 	ret = of_alias_get_id(dev->of_node, "timer");
 	if (ret >= 0)
 		priv->tmr_id = ida_simple_get(&timer_ida, ret, ret + 1, GFP_KERNEL);
-	sp_timer_dbg("%s(%d) ret %d ida %d\n", __FUNCTION__, __LINE__, ret, priv->tmr_id);
+	sp_timer_dbg("%s(%d) ret %d ida %d\n", __func__, __line__, ret, priv->tmr_id);
 
 	priv->stc_id = of_alias_get_id(priv->parent_np, "stc");
 
@@ -507,19 +507,20 @@ static int sp_timer_probe(struct platform_device *pdev)
 	priv->rel_cnt = 100000; //1s
 
 	sp_timer_hw_init(priv);
-	printk("STC%dTIMER%d:irqn=%d, sel_src=%d freq=%d, mode=%d, rel_time=%d",
-			priv->stc_id,
-			priv->tmr_id,
-			priv->irqn,
-			priv->src,
-			priv->freq,
-			priv->mode,
-			priv->rel_cnt);
-#if 0// xtdebug
+	pr_info("STC%dTIMER%d:irqn=%d, sel_src=%d freq=%d, mode=%d, rel_time=%d",
+		priv->stc_id,
+		priv->tmr_id,
+		priv->irqn,
+		priv->src,
+		priv->freq,
+		priv->mode,
+		priv->rel_cnt);
+#ifdef XTDEBUG
 	sp_timer_start(&priv->priv);
 	u32 *stc_av4 = ioremap(0xf8801300, 0x80);
 	int i;
-	sp_timer_dbg("Dump STC_AV4 Group REG: \n");
+
+	sp_timer_dbg("Dump STC_AV4 Group REG:\n");
 	sp_timer_dbg("G38.3  stc_divisor 0x%x\n", *(stc_av4 + 3));
 	sp_timer_dbg("G38.9  timer0_ctl 0x%x\n", *(stc_av4 + 9));
 	sp_timer_dbg("G38.10 timer0_cnt 0x%x\n", *(stc_av4 + 10));
@@ -546,7 +547,7 @@ static int sp_timer_suspend(struct device *dev)
 		sp_timer_stop(priv);
 
 	/* Save the reg val */
-	for(i = 0; i < 3; i++)
+	for (i = 0; i < 3; i++)
 		regs[i] = readl_relaxed(base + i * 0x4);
 
 	return 0;
@@ -561,7 +562,7 @@ static int sp_timer_resume(struct device *dev)
 	sp_timer_dbg(">>>>>> [DEBUG] TIMER resume <<<<<<\n");
 
 	/* Restore the reg val */
-	for(i = 0; i < 3; i++)
+	for (i = 0; i < 3; i++)
 		writel(regs[i], base + i * 0x4);
 
 	if (sp_timer_active(priv))
