@@ -253,8 +253,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & I2S_P_INC0))
 				return;
 
-			regs0->aud_fifo_enable |= I2S_P_INC0;
-			regs0->aud_fifo_reset	= I2S_P_INC0;
+			regs0->aud_fifo_enable	|= I2S_P_INC0;
+			regs0->aud_fifo_reset	|= I2S_P_INC0;
 			while ((regs0->aud_fifo_reset &	I2S_P_INC0))
 				;
 			regs0->aud_enable |= aud_enable_i2stdm_p;
@@ -267,8 +267,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & I2S_P_INC1))
 				return;
 
-			regs0->aud_fifo_enable |= I2S_P_INC1;
-			regs0->aud_fifo_reset	= I2S_P_INC1;
+			regs0->aud_fifo_enable	|= I2S_P_INC1;
+			regs0->aud_fifo_reset	|= I2S_P_INC1;
 			while ((regs0->aud_fifo_reset &	I2S_P_INC1))
 				;
 			regs0->aud_enable |= aud_enable_i2s1_p;
@@ -281,8 +281,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & I2S_P_INC2))
 				return;
 
-			regs0->aud_fifo_enable |= I2S_P_INC2;
-			regs0->aud_fifo_reset	= I2S_P_INC2;
+			regs0->aud_fifo_enable	|= I2S_P_INC2;
+			regs0->aud_fifo_reset	|= I2S_P_INC2;
 			while ((regs0->aud_fifo_reset &	I2S_P_INC2))
 				;
 			regs0->aud_enable |= aud_enable_i2s2_p;
@@ -295,8 +295,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & SPDIF_P_INC0))
 				return;
 
-			regs0->aud_fifo_enable |= SPDIF_P_INC0;
-			regs0->aud_fifo_reset	= SPDIF_P_INC0;
+			regs0->aud_fifo_enable	|= SPDIF_P_INC0;
+			regs0->aud_fifo_reset	|= SPDIF_P_INC0;
 			while ((regs0->aud_fifo_reset &	SPDIF_P_INC0))
 				;
 			regs0->aud_enable |= aud_enable_spdiftx0_p;
@@ -320,8 +320,8 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & I2S_C_INC0))
 				return;
 
-			regs0->aud_fifo_enable |= I2S_C_INC0;
-			regs0->aud_fifo_reset	= I2S_C_INC0;
+			regs0->aud_fifo_enable	|= I2S_C_INC0;
+			regs0->aud_fifo_reset	|= I2S_C_INC0;
 			while ((regs0->aud_fifo_reset &	I2S_C_INC0))
 				;
 			regs0->aud_enable |= aud_enable_i2s0_c;
@@ -334,8 +334,8 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & I2S_C_INC1))
 				return;
 
-			regs0->aud_fifo_enable |= I2S_C_INC1;
-			regs0->aud_fifo_reset	= I2S_C_INC1;
+			regs0->aud_fifo_enable	|= I2S_C_INC1;
+			regs0->aud_fifo_reset	|= I2S_C_INC1;
 			while ((regs0->aud_fifo_reset &	I2S_C_INC1))
 				;
 			regs0->aud_enable |= aud_enable_i2s1_c;
@@ -348,8 +348,8 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & I2S_C_INC2))
 				return;
 
-			regs0->aud_fifo_enable |= I2S_C_INC2;
-			regs0->aud_fifo_reset	= I2S_C_INC2;
+			regs0->aud_fifo_enable	|= I2S_C_INC2;
+			regs0->aud_fifo_reset	|= I2S_C_INC2;
 			while ((regs0->aud_fifo_reset &	I2S_C_INC2))
 				;
 			regs0->aud_enable |= aud_enable_i2s2_c;
@@ -362,8 +362,8 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 			if ((regs0->aud_fifo_enable & SPDIF_C_INC0))
 				return;
 
-			regs0->aud_fifo_enable |= SPDIF_C_INC0;
-			regs0->aud_fifo_reset	= SPDIF_C_INC0;
+			regs0->aud_fifo_enable	|= SPDIF_C_INC0;
+			regs0->aud_fifo_reset	|= SPDIF_C_INC0;
 			while ((regs0->aud_fifo_reset &	SPDIF_C_INC0))
 				;
 			regs0->aud_enable |= aud_enable_spdif_c;
