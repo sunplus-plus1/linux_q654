@@ -137,7 +137,7 @@ static int vsi_enc_s_parm(struct file *filp, void *priv, struct v4l2_streamparm 
 		if (!parm->parm.output.timeperframe.numerator)
 			parm->parm.output.timeperframe.numerator = 1;			//default val
 		if (ctx->mediacfg.m_encparams.m_framerate.inputRateDenom != parm->parm.output.timeperframe.numerator ||
-			ctx->mediacfg.m_encparams.m_framerate.inputRateNumer != parm->parm.output.timeperframe.denominator) {			
+			ctx->mediacfg.m_encparams.m_framerate.inputRateNumer != parm->parm.output.timeperframe.denominator) {
 			ctx->mediacfg.m_encparams.m_framerate.inputRateDenom = parm->parm.output.timeperframe.numerator;
 			ctx->mediacfg.m_encparams.m_framerate.inputRateNumer = parm->parm.output.timeperframe.denominator;
 			flag_updateparam(m_framerate)
@@ -156,7 +156,7 @@ static int vsi_enc_s_parm(struct file *filp, void *priv, struct v4l2_streamparm 
 			flag_updateparam(m_framerate)
 		}
 		parm->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
- 	} 	
+ 	}
 	mutex_unlock(&ctx->ctxlock);
 	return 0;
 }
@@ -390,7 +390,7 @@ static int vsi_enc_streamoff(
 		for (i = 0; i < VIDEO_MAX_FRAME; i++)
 			ctx->srcvbufflag[i] = 0;
 	}
-	
+
 	return_all_buffers(q, VB2_BUF_STATE_DONE, 1);
 	ret = vb2_streamoff(q, type);
 	mutex_unlock(&ctx->ctxlock);
@@ -1149,7 +1149,7 @@ static int vsi_v4l2_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		}
 		break;
 	case V4L2_CID_MPEG_VIDEO_CONSTANT_QUALITY:
-		pencparm->m_rcmode.picRc = 
+		pencparm->m_rcmode.picRc =
 			pencparm->m_rcmode.ctbRc = -1;
 		val = vsi_enc_convertV4l2Quality(ctrl->val);
 		if (pencparm->m_qphdr.qpHdr != val) {
@@ -2293,7 +2293,7 @@ static struct v4l2_ctrl_config vsi_v4l2_encctrl_defs[] = {
 		.max = 51,
 		.step = 1,
 		.def = 0,
-	},	
+	},
 	{
 		.id = V4L2_CID_MPEG_VIDEO_H264_HIERARCHICAL_CODING_TYPE,
 		.type = V4L2_CTRL_TYPE_MENU,

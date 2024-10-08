@@ -65,7 +65,7 @@ static inline unsigned int mask_set(unsigned int mask)
 	return (mask | (mask << 16));
 }
 
-static int sp_wdt_restart(struct watchdog_device *wdev,
+int sp_wdt_restart(struct watchdog_device *wdev,
 			  unsigned long action, void *data)
 {
 	struct sp_wdt_priv *priv = watchdog_get_drvdata(wdev);
@@ -250,7 +250,6 @@ static const struct watchdog_ops sp_wdt_ops = {
 	.stop		= sp_wdt_stop,
 	.ping		= sp_wdt_ping,
 	.get_timeleft	= sp_wdt_get_timeleft,
-	.restart	= sp_wdt_restart,
 };
 
 static void sp_clk_disable_unprepare(void *data)

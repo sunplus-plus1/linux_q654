@@ -14,21 +14,6 @@
 
 #define SP7350_MAX_PLANE  5
 
-#define SP7350_LAYER_OSD0				0x0
-#define SP7350_LAYER_OSD1				0x1
-#define SP7350_LAYER_OSD2				0x2
-#define SP7350_LAYER_OSD3				0x3
-
-/* for fg_sel */
-#define SP7350_DMIX_VPP0	0x0
-#define SP7350_DMIX_VPP1	0x1 //unsupported
-#define SP7350_DMIX_VPP2	0x2 //unsupported
-#define SP7350_DMIX_OSD0	0x3
-#define SP7350_DMIX_OSD1	0x4
-#define SP7350_DMIX_OSD2	0x5
-#define SP7350_DMIX_OSD3	0x6
-#define SP7350_DMIX_PTG		0x7
-
 /* for layer_mode */
 #define SP7350_DMIX_BG	0x0 //BG
 #define SP7350_DMIX_L1	0x1 //VPP0
@@ -111,6 +96,14 @@
 #define SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING (1 << 6)
 #define SP7350_DRM_PLANE_CAP_COLOR_KEYING        (1 << 7)
 
+enum sp7350_plane_type {
+	SP7350_PLANE_TYPE_VPP0,
+	SP7350_PLANE_TYPE_OSD0,
+	SP7350_PLANE_TYPE_OSD1,
+	SP7350_PLANE_TYPE_OSD2,
+	SP7350_PLANE_TYPE_OSD3,
+};
+
 struct sp7350_plane_region_alpha_info {
 	int regionid;
 	int alpha;
@@ -189,8 +182,11 @@ struct sp7350_plane {
 	u32 *pixel_formats;
 	unsigned int num_pixel_formats;
 	const struct drm_plane_helper_funcs *funcs;
-	unsigned int capabilities;
-	unsigned int zpos;
+	uint32_t capabilities;
+	uint32_t zpos;
+	uint32_t src_h_max, src_w_max;
+	uint32_t scl_h_max, scl_w_max;
+	uint32_t out_h_max, out_w_max;
 	bool is_media_plane;
 	struct drm_property *region_alpha_property;
 	struct drm_property *region_color_keying_property;
@@ -203,8 +199,11 @@ struct sp7350_plane {
 	unsigned int updated_color_keying;
 
 	struct sp7350_plane_state *state;
-	int osd_layer_sel;
-	int layer;
+	int osd_layer_sel; /* internal use, one of SP7350_LAYER_XXX, ex.SP7350_LAYER_OSD1 */
+
+	int dmix_fg_sel; /* one of SP7350_DMIX_XXX_SEL, ex.SP7350_DMIX_OSD1_SEL */
+	int dmix_layer;  /* one of SP7350_DMIX_XX, ex.SP7350_DMIX_L1 */
+	int dtg_adjust;  /* tgen dtg adjust value, default value ex.SP7350_DTG_ADJ_DMIX_L1 */
 };
 
 #define to_sp7350_plane(plane) \
@@ -214,7 +213,7 @@ struct sp7350_plane {
 		container_of(state, struct sp7350_plane_state, base)
 
 struct drm_plane *sp7350_plane_init(struct drm_device *drm,
-	enum drm_plane_type type, int sptype);
+	enum drm_plane_type type, enum sp7350_plane_type sptype, int init_zpos);
 int sp7350_plane_release(struct drm_device *drm, struct drm_plane *plane);
 int sp7350_plane_dev_suspend(struct device *dev, struct drm_plane *plane);
 int sp7350_plane_dev_resume(struct device *dev, struct drm_plane *plane);
