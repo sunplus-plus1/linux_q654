@@ -1830,28 +1830,24 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	if (IS_ERR(sp_crtc->planes[3]))
 		return PTR_ERR(sp_crtc->planes[3]);
 
-	//#if 0 //ubuntu mate issue, temporary off cursor plane
-	///* init plane for cursor_plane */
-	//DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (cursor_plane)\n");
-	//sp_crtc->planes[4] =
-	//	sp7350_plane_init(drm, DRM_PLANE_TYPE_CURSOR, SP7350_PLANE_TYPE_OSD0, 4);
-	//if (IS_ERR(sp_crtc->planes[4]))
-	//	return PTR_ERR(sp_crtc->planes[4]);
-	//#endif
+	/* init plane for cursor_plane */
+	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "sp7350_plane_init (cursor_plane)\n");
+	sp_crtc->planes[4] =
+		sp7350_plane_init(drm, DRM_PLANE_TYPE_CURSOR, SP7350_PLANE_TYPE_OSD0, 4);
+	if (IS_ERR(sp_crtc->planes[4]))
+		return PTR_ERR(sp_crtc->planes[4]);
 
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_init_with_planes\n");
-	//ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->planes[0], sp_crtc->planes[4],
-	//ubuntu mate issue, temporary off cursor plane
-	ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->planes[0], NULL,
-					crtc_funcs, NULL);
+	ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->planes[0],
+				 sp_crtc->planes[SP7350_MAX_PLANE-1], crtc_funcs, NULL);
 
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_helper_add\n");
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);
 
 	/* for overlay plane only. */
-	sp_crtc->planes[1]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
-	sp_crtc->planes[2]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
-	sp_crtc->planes[3]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
+	//sp_crtc->planes[1]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
+	//sp_crtc->planes[2]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
+	//sp_crtc->planes[3]->possible_crtcs = GENMASK(drm->mode_config.num_crtc - 1, 0);
 
 	/* black for BackGround */
 	sp_crtc->background_color = SP7350_DMIX_PTG_BLACK;

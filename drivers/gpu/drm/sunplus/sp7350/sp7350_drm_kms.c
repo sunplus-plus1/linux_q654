@@ -66,6 +66,9 @@ int sp7350_drm_modeset_init(struct drm_device *drm)
 	drm->mode_config.async_page_flip = true;
 	//drm->mode_config.allow_fb_modifiers = true;
 	drm->mode_config.normalize_zpos = true;
+	/* set max cursor width and height for userspace */
+	drm->mode_config.cursor_width = 256;
+	drm->mode_config.cursor_height = 256;
 
 	drm_mode_config_reset(drm);
 

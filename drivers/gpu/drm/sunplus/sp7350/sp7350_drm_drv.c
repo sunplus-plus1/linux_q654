@@ -70,11 +70,12 @@ static struct drm_driver sp7350_drm_driver = {
 	.debugfs_init = sp7350_debugfs_init,
 //#endif
 
-	.name			= "sp7350-drm",
-	.desc			= "Sunplus SP7350 DRM",
-	.date			= "20240828",
-	.major			= 2,
-	.minor			= 0,
+	.name         = "sp7350-drm",
+	.desc         = "Sunplus SP7350 DRM",
+	.date         = "20240828",
+	.major        = 2,
+	.minor        = 1,
+	.patchlevel   = 0,
 };
 
 /* -----------------------------------------------------------------------------
