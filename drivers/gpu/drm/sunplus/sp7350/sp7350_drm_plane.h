@@ -174,6 +174,9 @@ struct sp7350_plane_state {
 	struct sp7350_plane_region_color_keying_info region_color_keying;
 	unsigned int color_keying;
 	struct sp7350_osd_region info;
+	/* updated by struct drm_display_mode adjusted_mode */
+	int hdisplay;
+	int vdisplay;
 };
 
 struct sp7350_plane {
