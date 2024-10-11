@@ -42,8 +42,6 @@
 //#define XRES_VSCL_MAX  2880
 //#define YRES_VSCL_MAX  4096
 
-#define SP7350_DRM_VPP_SCL_AUTO_ADJUST    1
-
 /* TODO, should add property for it. */
 #define SP7350_DRM_VPP_SCL_AUTO_ADJUST    1
 
@@ -289,8 +287,15 @@ static int sp7350_vpp_plane_vscl_set(struct drm_plane *plane, int x, int y, int 
 	//SP7350_PLANE_WRITE(VSCL_ACTRL_S_YLEN, crop_ylen - y);
 	//#endif
 
-	SP7350_PLANE_WRITE(VSCL_DCTRL_D_XSTART, img_dest_x);
-	SP7350_PLANE_WRITE(VSCL_DCTRL_D_YSTART, img_dest_y);
+	if (img_dest_x < 0)
+		SP7350_PLANE_WRITE(VSCL_DCTRL_D_XSTART, 0-img_dest_x);
+	else
+		SP7350_PLANE_WRITE(VSCL_DCTRL_D_XSTART, img_dest_x);
+	if (img_dest_y < 0)
+		SP7350_PLANE_WRITE(VSCL_DCTRL_D_YSTART, 0-img_dest_y);
+	else
+		SP7350_PLANE_WRITE(VSCL_DCTRL_D_YSTART, img_dest_y);
+
 	SP7350_PLANE_WRITE(VSCL_DCTRL_D_XLEN, img_dest_w);
 	SP7350_PLANE_WRITE(VSCL_DCTRL_D_YLEN, img_dest_h);
 
@@ -410,22 +415,26 @@ int sp7350_vpp_plane_vpost_opif_set(struct drm_plane *plane, int act_x, int act_
 	/*set mask region*/
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKTOP);
 	value &= ~SP7350_VPP_VPOST_OPIF_TOP_MASK;
-	value |= SP7350_VPP_VPOST_OPIF_TOP_SET(act_y);
+	if (act_y > 0)
+		value |= SP7350_VPP_VPOST_OPIF_TOP_SET(act_y);
 	SP7350_PLANE_WRITE(VPOST_OPIF_MSKTOP, value);
 
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKBOT);
 	value &= ~SP7350_VPP_VPOST_OPIF_BOT_MASK;
-	value |= SP7350_VPP_VPOST_OPIF_BOT_SET(output_h - act_h - act_y);
+	if (act_h + act_y < output_h)
+		value |= SP7350_VPP_VPOST_OPIF_BOT_SET(output_h - act_h - act_y);
 	SP7350_PLANE_WRITE(VPOST_OPIF_MSKBOT, value);
 
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKLEFT);
 	value &= ~SP7350_VPP_VPOST_OPIF_LEFT_MASK;
-	value |= SP7350_VPP_VPOST_OPIF_LEFT_SET(act_x);
+	if (act_x > 0)
+		value |= SP7350_VPP_VPOST_OPIF_LEFT_SET(act_x);
 	SP7350_PLANE_WRITE(VPOST_OPIF_MSKLEFT, value);
 
 	value = SP7350_PLANE_READ(VPOST_OPIF_MSKRIGHT);
 	value &= ~SP7350_VPP_VPOST_OPIF_RIGHT_MASK;
-	value |= SP7350_VPP_VPOST_OPIF_RIGHT_SET(output_w - act_w - act_x);
+	if (act_w + act_x < output_w)
+		value |= SP7350_VPP_VPOST_OPIF_RIGHT_SET(output_w - act_w - act_x);
 	SP7350_PLANE_WRITE(VPOST_OPIF_MSKRIGHT, value);
 
 	return 0;
@@ -925,6 +934,14 @@ static void sp7350_plane_reset(struct drm_plane *plane)
 		drm_property_blob_put(sp_plane->region_color_keying_blob);
 		sp_plane->region_color_keying_blob = NULL;
 	}
+
+	if (sp_plane->is_media_plane) {
+		sp_state->hdisplay = sp_plane->out_w_max;
+		sp_state->vdisplay = sp_plane->out_h_max;
+	} else {
+		sp_state->hdisplay = XRES_OSD_MAX;
+		sp_state->vdisplay = YRES_OSD_MAX;
+	}
 }
 
 static const struct drm_plane_funcs sp7350_plane_funcs = {
@@ -1040,12 +1057,14 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 				    new_state->src_w >> 16, new_state->src_h >> 16,
 				    new_state->crtc_x, new_state->crtc_y,
 				    new_state->crtc_w, new_state->crtc_h,
-				    new_state->crtc->mode.hdisplay, new_state->crtc->mode.vdisplay);
+				    new_state->crtc_w + new_state->crtc_x,
+				    new_state->crtc_h + new_state->crtc_y);
 
 		/* default setting for VPP OPIF(MASK function) */
 		sp7350_vpp_plane_vpost_opif_set(plane, new_state->crtc_x, new_state->crtc_y,
 					  new_state->crtc_w, new_state->crtc_h,
-					  new_state->crtc->mode.hdisplay, new_state->crtc->mode.vdisplay);
+					  new_state->crtc_w + new_state->crtc_x,
+					  new_state->crtc_h + new_state->crtc_y);
 	}
 
 	/*
@@ -1111,6 +1130,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		sp7350_drm_plane_set(plane, sp_plane->dmix_fg_sel, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
+
 	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
 	sp_state = to_sp7350_plane_state(new_state);
 	info = &sp_state->info;
@@ -1160,6 +1180,22 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		info->region_info.act_y = new_state->crtc_y;
 		info->region_info.act_width = new_state->crtc_w;
 		info->region_info.act_height = new_state->crtc_h;
+		if (new_state->crtc_x < 0) {
+			info->region_info.act_x = 0;
+			info->region_info.start_x -= new_state->crtc_x;
+			info->region_info.act_width += new_state->crtc_x;
+		} else if ((new_state->crtc_x + new_state->crtc_w) > sp_state->hdisplay) {
+			info->region_info.act_width -=
+				(new_state->crtc_x + new_state->crtc_w - sp_state->hdisplay);
+		}
+		if (new_state->crtc_y < 0) {
+			info->region_info.act_y = 0;
+			info->region_info.start_y -= new_state->crtc_y;
+			info->region_info.act_height += new_state->crtc_y;
+		} else if ((new_state->crtc_y + new_state->crtc_h) > sp_state->vdisplay) {
+			info->region_info.act_height -=
+				(new_state->crtc_y + new_state->crtc_h - sp_state->vdisplay);
+		}
 	}
 
 	/* no scale state */
@@ -1265,8 +1301,8 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
-	struct drm_crtc_state *crtc_state;
-
+	struct sp7350_plane_state *sp_state = to_sp7350_plane_state(new_state);
+	struct drm_crtc_state *crtc_state = NULL;
 
 	if (!new_state->fb || WARN_ON(!new_state->crtc)) {
 		DRM_DEBUG_ATOMIC("plane-%d return 0.\n", plane->index);
@@ -1279,9 +1315,24 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 		DRM_DEBUG_ATOMIC("plane-%d drm_atomic_get_crtc_state is err\n", plane->index);
 		return PTR_ERR(crtc_state);
 	}
+	sp_state->hdisplay = crtc_state->adjusted_mode.crtc_hdisplay;
+	sp_state->vdisplay = crtc_state->adjusted_mode.crtc_vdisplay;
 
-	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-		DRM_DEBUG_ATOMIC("plane-%d DRM_PLANE_TYPE_CURSOR unsupport for VPP HW.\n", plane->index);
+	if ((new_state->crtc_w + new_state->crtc_x) <= 0 ||
+		(new_state->crtc_h + new_state->crtc_y) <= 0 ||
+		new_state->crtc_x >= sp_state->hdisplay ||
+		new_state->crtc_y >= sp_state->vdisplay) {
+		DRM_DEBUG_ATOMIC("plane-%d no visible areas.[crtc(%d,%d)-(%d,%d)]\n",
+				plane->index,
+				new_state->crtc_x, new_state->crtc_y,
+				new_state->crtc_w, new_state->crtc_h);
+		return -EINVAL;
+	}
+
+	/* [FIXME]check for VPP layer only!!!!WHY??? */
+	if (sp_plane->is_media_plane && (new_state->crtc_y < -150 ||
+		new_state->crtc_w + new_state->crtc_x - 110 > sp_state->hdisplay)) {
+		DRM_DEBUG_ATOMIC("plane-%d invalid visible areas.\n", plane->index);
 		return -EINVAL;
 	}
 
@@ -1316,6 +1367,7 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 		}
 	}
 
+	/* Check HW Restricted. */
 	if ((new_state->crtc_w + new_state->crtc_x) > sp_plane->out_w_max
 		|| (new_state->crtc_h + new_state->crtc_y) > sp_plane->out_h_max) {
 		DRM_DEBUG_ATOMIC("plane-%d Check OUT fail[crtc(%d,%d)-(%d,%d)], outof limit[MAX %dx%d]!\n",
@@ -1477,6 +1529,7 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 		sp_plane->capabilities = SP7350_DRM_PLANE_CAP_SCALE |
 			SP7350_DRM_PLANE_CAP_PIX_BLEND | SP7350_DRM_PLANE_CAP_WIN_BLEND |
 			SP7350_DRM_PLANE_CAP_REGION_BLEND;
+		/* HW Restricted. */
 		sp_plane->src_w_max = XRES_VIMGREAD_MAX;
 		sp_plane->src_h_max = YRES_VIMGREAD_MAX;
 		sp_plane->out_w_max = XRES_VSCL_MAX;
@@ -1496,10 +1549,11 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 			sp_plane->capabilities = SP7350_DRM_PLANE_CAP_PIX_BLEND |
 				SP7350_DRM_PLANE_CAP_WIN_BLEND | SP7350_DRM_PLANE_CAP_REGION_BLEND |
 				SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING | SP7350_DRM_PLANE_CAP_COLOR_KEYING;
+		/* HW Restricted. */
 		sp_plane->src_w_max = XRES_OSD_MAX;
-		sp_plane->src_h_max = XRES_OSD_MAX;
-		sp_plane->out_w_max = XRES_OSD_MAX;
-		sp_plane->out_h_max = XRES_OSD_MAX;
+		sp_plane->src_h_max = YRES_OSD_MAX;
+		sp_plane->out_w_max = XRES_OSD_MAX*2;  /* support frame base offset */
+		sp_plane->out_h_max = YRES_OSD_MAX*2;  /* support frame base offset */
 		sp_plane->scl_w_max = 0;
 		sp_plane->scl_h_max = 0;
 
@@ -1538,7 +1592,7 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 	sp_plane->type = type;
 	sp_plane->zpos = init_zpos;
 
-	ret = drm_universal_plane_init(drm, plane, 0,
+	ret = drm_universal_plane_init(drm, plane, GENMASK(drm->mode_config.num_crtc, 0),
 					&sp7350_plane_funcs,
 				sp_plane->pixel_formats, sp_plane->num_pixel_formats,
 				NULL, type, NULL);
