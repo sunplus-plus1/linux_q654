@@ -95,6 +95,8 @@ static int dwmac_generic_probe(struct platform_device *pdev)
 
 #if IS_ENABLED(CONFIG_SOC_SP7350)
 	plat_dat->fix_mac_speed = sunplus_fix_mac_speed;
+	// for RTL8211F_WOL_TEST
+	//plat_dat->flags |= STMMAC_FLAG_USE_PHY_WOL;
 #endif
 
 	ret = stmmac_pltfr_probe(pdev, plat_dat, &stmmac_res);
