@@ -473,7 +473,7 @@ int spi_nand_read_by_dma(struct sp_spinand_info *info, u32 io_mode,
 {
 	struct sp_spinand_regs *regs = info->regs;
 	u32 plane_sel_mode = info->plane_sel_mode;
-	u32 page_size = info->page_size;
+	u32 page_size = info->mtd->writesize;
 	int cmd = get_iomode_readcmd(io_mode);
 	int cfg = get_iomode_cfg(io_mode, 0);
 	u32 value = 0;
@@ -510,7 +510,7 @@ int spi_nand_read_by_dma(struct sp_spinand_info *info, u32 io_mode,
 	}
 	writel(col, &regs->spi_col_addr);
 
-	value = SPINAND_SPARE_SIZE(info->oob_size)
+	value = SPINAND_SPARE_SIZE(info->mtd->oobsize)
 		| SPINAND_PAGE_SIZE((page_size >> 10) - 1);
 	writel(value, &regs->spi_page_size);
 
@@ -528,7 +528,7 @@ int spi_nand_write_by_dma(struct sp_spinand_info *info, u32 io_mode,
 {
 	struct sp_spinand_regs *regs = info->regs;
 	u32 plane_sel_mode = info->plane_sel_mode;
-	u32 page_size = info->page_size;
+	u32 page_size = info->mtd->writesize;
 	int cmd = get_iomode_writecmd(io_mode);
 	int cfg = get_iomode_cfg(io_mode, 1);
 	u32 value = 0;
@@ -566,7 +566,7 @@ int spi_nand_write_by_dma(struct sp_spinand_info *info, u32 io_mode,
 	}
 	writel(col, &regs->spi_col_addr);
 
-	value = SPINAND_SPARE_SIZE(info->oob_size)
+	value = SPINAND_SPARE_SIZE(info->mtd->oobsize)
 		| SPINAND_PAGE_SIZE((page_size >> 10) - 1);
 	writel(value, &regs->spi_page_size);
 
@@ -592,7 +592,7 @@ int spi_nand_pageread_autobch(struct sp_spinand_info *info, u32 io_mode,
 {
 	struct sp_spinand_regs *regs = info->regs;
 	u32 plane_sel_mode = info->plane_sel_mode;
-	u32 page_size = info->page_size;
+	u32 page_size = info->mtd->writesize;
 	int cmd = get_iomode_readcmd(io_mode);
 	int cfg = get_iomode_cfg(io_mode, 0);
 	u32 value = 0;
@@ -613,7 +613,7 @@ int spi_nand_pageread_autobch(struct sp_spinand_info *info, u32 io_mode,
 
 	value = SPINAND_LITTLE_ENDIAN
 		| SPINAND_TRS_MODE
-		| SPINAND_DATA_LEN(info->page_size);
+		| SPINAND_DATA_LEN(info->mtd->writesize);
 	writel(value, &regs->spi_cfg[0]);
 
 	value = cfg | SPINAND_DUMMY_CYCLES(8);
@@ -633,12 +633,12 @@ int spi_nand_pageread_autobch(struct sp_spinand_info *info, u32 io_mode,
 
 	writel(page_size, &regs->device_parity_addr);
 
-	value = SPINAND_SPARE_SIZE(info->oob_size)
+	value = SPINAND_SPARE_SIZE(info->mtd->oobsize)
 		| SPINAND_PAGE_SIZE((page_size >> 10) - 1);
 	writel(value, &regs->spi_page_size);
 
 	writel((u32)((ulong)buf), &regs->mem_data_addr);
-	writel((u32)((ulong)buf+info->page_size), &regs->mem_parity_addr);
+	writel((u32)((ulong)buf+info->mtd->writesize), &regs->mem_parity_addr);
 
 	value = SPINAND_BCH_DATA_LEN(info->parity_sector_size)
 		| SPINAND_BCH_DECSRC(info->bch_dec_src)
@@ -654,7 +654,7 @@ int spi_nand_pageread_autobch(struct sp_spinand_info *info, u32 io_mode,
 		| SPINAND_USR_READCACHE_EN;
 	writel(value, &regs->spi_auto_cfg);
 
-	sp_autobch_config(info->mtd, buf, buf+info->page_size, 0, info->bch_dec_src);
+	sp_autobch_config(info->mtd, buf, buf+info->mtd->writesize, 0, info->bch_dec_src);
 
 	ret = spi_nand_trigger_and_wait_dma(info);
 
@@ -671,7 +671,7 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 {
 	struct sp_spinand_regs *regs = info->regs;
 	u32 plane_sel_mode = info->plane_sel_mode;
-	u32 page_size = info->page_size;
+	u32 page_size = info->mtd->writesize;
 	int cmd = get_iomode_writecmd(io_mode);
 	int cfg = get_iomode_cfg(io_mode, 1);
 	u32 value = 0;
@@ -694,7 +694,7 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 
 	value = SPINAND_LITTLE_ENDIAN
 		| SPINAND_TRS_MODE
-		| SPINAND_DATA_LEN(info->page_size);
+		| SPINAND_DATA_LEN(info->mtd->writesize);
 	writel(value, &regs->spi_cfg[0]);
 
 	value = cfg;
@@ -714,12 +714,12 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 
 	writel(page_size, &regs->device_parity_addr);
 
-	value = SPINAND_SPARE_SIZE(info->oob_size)
+	value = SPINAND_SPARE_SIZE(info->mtd->oobsize)
 		| SPINAND_PAGE_SIZE((page_size >> 10) - 1);
 	writel(value, &regs->spi_page_size);
 
 	writel((u32)((ulong)buf), &regs->mem_data_addr);
-	writel((u32)((ulong)buf+info->page_size), &regs->mem_parity_addr);
+	writel((u32)((ulong)buf+info->mtd->writesize), &regs->mem_parity_addr);
 
 	value = SPINAND_BCH_DATA_LEN(info->parity_sector_size)
 		| SPINAND_BCH_DECSRC(info->bch_dec_src)
@@ -737,7 +737,7 @@ int spi_nand_pagewrite_autobch(struct sp_spinand_info *info, u32 io_mode,
 		| SPINAND_AUTOWEL_BF_PRGMLOAD;
 	writel(value, &regs->spi_auto_cfg);
 
-	sp_autobch_config(info->mtd, buf, buf+info->page_size, 1, info->bch_dec_src);
+	sp_autobch_config(info->mtd, buf, buf+info->mtd->writesize, 1, info->bch_dec_src);
 
 	ret = spi_nand_trigger_and_wait_dma(info);
 
@@ -940,7 +940,7 @@ static void sp_spinand_read_buf(struct nand_chip *chip, u8 *buf, int len)
 		switch (info->cmd) {
 		case NAND_CMD_READOOB:
 		case NAND_CMD_READ0: {
-			size = info->page_size + info->oob_size - info->col;
+			size = info->mtd->writesize + info->mtd->oobsize - info->col;
 			sp_spinand_read_raw(info, info->row, info->col, size);
 			break;
 		}
@@ -1046,7 +1046,7 @@ static int sp_spinand_feature_cfg(struct sp_spinand_info *info)
 
 	for (i = 0; i < nanddev_ntargets(&info->nand.base); i++) {
 		sp_spinand_select_chip(&info->nand, i);
-		if (info->nand.drv_options & SPINAND_OPT_ECCEN_IN_F90_4) {
+		if (info->drv_options & SPINAND_OPT_ECCEN_IN_F90_4) {
 			value = spi_nand_getfeatures(info, 0x90);
 			value &= ~0x01;
 			spi_nand_setfeatures(info, 0x90, value);
@@ -1054,11 +1054,11 @@ static int sp_spinand_feature_cfg(struct sp_spinand_info *info)
 
 		value = spi_nand_getfeatures(info, DEVICE_FEATURE_ADDR);
 		value &= ~0x10; 	/* disable internal ECC */
-		if (info->nand.drv_options & SPINAND_OPT_HAS_BUF_BIT)
+		if (info->drv_options & SPINAND_OPT_HAS_BUF_BIT)
 			value |= 0x08;	/* use buffer read mode */
-		if (info->nand.drv_options & SPINAND_OPT_HAS_CONTI_RD)
+		if (info->drv_options & SPINAND_OPT_HAS_CONTI_RD)
 			value &= ~0x01; /* disable continuous read mode */
-		if (info->nand.drv_options & SPINAND_OPT_HAS_QE_BIT)
+		if (info->drv_options & SPINAND_OPT_HAS_QE_BIT)
 			value |= 0x01;	/* enable quad io */
 		spi_nand_setfeatures(info, DEVICE_FEATURE_ADDR, value);
 
@@ -1100,6 +1100,26 @@ static struct mtd_part_parser sunplus_nand_parser = {
 	.name = "sunplus_part",
 };
 
+static int sp_spinand_attach_chip(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct sp_spinand_info *info = (struct sp_spinand_info *)mtd->priv;
+
+	/* Configure the feature registers of SPI-NAND devices */
+	sp_spinand_feature_cfg(info);
+
+	if (sp_bch_init(info->mtd, &info->parity_sector_size) < 0) {
+		SPINAND_LOGE("sp_bch_init fail\n");
+		return  -ENXIO;
+	}
+
+	return 0;
+}
+
+static const struct nand_controller_ops sp_spinand_controller_ops = {
+	.attach_chip = sp_spinand_attach_chip,
+};
+
 static int sp_spinand_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1108,6 +1128,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	u32 id;
 	u32 rts;
 	u32 clk_freq, max_freq;
+	u8 mfr_id, dev_id;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
 	struct resource *res_mem;
@@ -1282,6 +1303,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	info->nand.legacy.read_byte = sp_spinand_read_byte;
 	info->nand.legacy.read_buf = sp_spinand_read_buf;
 	info->nand.legacy.write_buf = sp_spinand_write_buf;
+	info->nand.legacy.dummy_controller.ops = &sp_spinand_controller_ops;
 	info->nand.ecc.read_page = sp_spinand_read_page;
 	info->nand.ecc.write_page = sp_spinand_write_page;
 	info->nand.ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
@@ -1290,20 +1312,31 @@ static int sp_spinand_probe(struct platform_device *pdev)
 
 	spi_nand_readid(info, 0, (u8 *)&id);
 
-	if (nand_scan_ident(&info->nand, 1, sp_spinand_ids)) {
-		SPINAND_LOGE("unsupport spinand,(device id:0x%08x)\n", id);
-		ret = -ENXIO;
-		goto err1;
+	/* Lookup table to get the driver options */
+	mfr_id = id & 0x000000ff;
+	dev_id = (id & 0x0000ff00)>>8;
+
+	for (i = 0; sp_spinand_opt[i].name != NULL; i++) {
+		if ((sp_spinand_opt[i].mfr_id == mfr_id) && (sp_spinand_opt[i].dev_id == dev_id)) {
+			info->drv_options = sp_spinand_opt[i].options;
+			break;
+		}
 	}
 
-	if (info->nand.drv_options & SPINAND_OPT_HAS_TWO_PLANE)
+	/* Lookup table to get the NAND information */
+	for (i = 0; sp_spinand_ids[i].name != NULL; i++) {
+		if ((sp_spinand_ids[i].mfr_id == mfr_id) && (sp_spinand_ids[i].dev_id == dev_id)) {
+			info->type = &sp_spinand_ids[i];
+			break;
+		}
+	}
+
+	if (info->drv_options & SPINAND_OPT_HAS_TWO_PLANE)
 		info->plane_sel_mode = (0x1000<<16) | (0x40<<2) | 3;
 	else
 		info->plane_sel_mode = 0;
 
-	info->page_size = info->mtd->writesize;
-	info->oob_size = info->mtd->oobsize;
-	if (info->page_size+info->oob_size > info->buff.size) {
+	if ((info->type->pagesize+info->type->oobsize) > info->buff.size) {
 		SPINAND_LOGE("device page size is larger than buffer!\n");
 		goto err1;
 	}
@@ -1313,35 +1346,26 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	info->raw_trs_mode = CONFIG_SPINAND_TRSMODE_RAW;
 
 	info->read_bitmode = CONFIG_SPINAND_READ_BITMODE;
-	if ((info->read_bitmode == SPINAND_4BIT_MODE)
-		&& (info->nand.drv_options & SPINAND_OPT_NO_4BIT_READ))
+	if ((info->read_bitmode == SPINAND_4BIT_MODE) &&
+		(info->drv_options & SPINAND_OPT_NO_4BIT_READ))
 		info->read_bitmode = SPINAND_2BIT_MODE;
-	if ((info->read_bitmode == SPINAND_2BIT_MODE)
-		&& (info->nand.drv_options & SPINAND_OPT_NO_2BIT_READ))
+	if ((info->read_bitmode == SPINAND_2BIT_MODE) &&
+		(info->drv_options & SPINAND_OPT_NO_2BIT_READ))
 		info->read_bitmode = SPINAND_1BIT_MODE;
 
 	info->write_bitmode = CONFIG_SPINAND_WRITE_BITMODE;
-	if (info->nand.drv_options & SPINAND_OPT_NO_4BIT_PROGRAM)
+	if (info->drv_options & SPINAND_OPT_NO_4BIT_PROGRAM)
 		info->write_bitmode = SPINAND_1BIT_MODE;
 
-	info->chip_num = SPINAND_OPT_GET_DIENUM(info->nand.drv_options);
+	info->chip_num = SPINAND_OPT_GET_DIENUM(info->drv_options);
 	info->cur_chip = -1;
-	if (info->chip_num > 1) {
-		info->nand.base.memorg.ntargets = info->chip_num;
-		info->mtd->size = info->chip_num * nanddev_target_size(&info->nand.base);
-	}
 
-	/* Configure the feature registers of SPI-NAND devices */
-	sp_spinand_feature_cfg(info);
-
-	if (sp_bch_init(info->mtd, &info->parity_sector_size) < 0) {
+	ret = nand_scan_with_ids(&info->nand, info->chip_num, sp_spinand_ids);
+	if (ret) {
+		SPINAND_LOGE("nand_scan_with_ids failed\n");
 		ret = -ENXIO;
-		SPINAND_LOGE("sp_bch_init fail\n");
 		goto err1;
 	}
-
-	if (nand_scan_tail(&info->nand))
-		SPINAND_LOGW("nand_scan_tail fail\n");
 
 	register_mtd_parser(&sunplus_nand_parser);
 	ret = mtd_device_parse_register(info->mtd, part_types, NULL, NULL, 0);
@@ -1362,7 +1386,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	SPINAND_LOGI("device name : %s\n", info->mtd->name);
 	SPINAND_LOGI("device id   : 0x%08x\n", id);
 	SPINAND_LOGI("options     : 0x%08x\n", info->nand.options);
-	SPINAND_LOGI("drv options : 0x%08x\n", info->nand.drv_options);
+	SPINAND_LOGI("drv options : 0x%08x\n", info->drv_options);
 	SPINAND_LOGI("chip number : %d\n", info->chip_num);
 	SPINAND_LOGI("block size  : %d\n", info->mtd->erasesize);
 	SPINAND_LOGI("page size   : %d\n", info->mtd->writesize);
