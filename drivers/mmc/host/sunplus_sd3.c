@@ -261,7 +261,7 @@ static void spsdc_set_bus_clk(struct spsdc_host *host, int clk)
 	 * if it is high speed or upper, we do not use interrupt
 	 * when send a command that without data.
 	 */
-	if (clk > 25000000)
+	if ((clk > 25000000) || (host->power_state == MMC_POWER_OFF))
 		host->use_int = 0;
 	else
 		host->use_int = 1;
@@ -1025,13 +1025,13 @@ static void spsdc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	mutex_lock(&host->mrq_lock);
 	spsdc_set_power_mode(host, ios);
-	if (ios->power_mode != MMC_POWER_OFF) {
+	//if (ios->power_mode != MMC_POWER_OFF) {
 		spsdc_set_bus_clk(host, ios->clock);
 		spsdc_set_bus_timing(host, ios->timing);
 		spsdc_set_bus_width(host, ios->bus_width);
 		/* ensure mode is correct, because we might have hw reset the controller */
 		spsdc_select_mode(host);
-	}
+	//}
 	mutex_unlock(&host->mrq_lock);
 }
 
@@ -1571,7 +1571,7 @@ probe_free_host:
 	return ret;
 }
 
-static int spsdc_drv_remove(struct platform_device *dev)
+static void spsdc_drv_remove(struct platform_device *dev)
 {
 	struct spsdc_host *host = platform_get_drvdata(dev);
 
@@ -1583,7 +1583,6 @@ static int spsdc_drv_remove(struct platform_device *dev)
 	platform_set_drvdata(dev, NULL);
 	mmc_free_host(host->mmc);
 
-	return 0;
 }
 
 static int spsdc_drv_suspend(struct platform_device *dev, pm_message_t state)
@@ -1687,7 +1686,7 @@ static const struct dev_pm_ops spsdc_pm_ops = {
 
 static struct platform_driver spsdc_driver = {
 	.probe = spsdc_drv_probe,
-	.remove = spsdc_drv_remove,
+	.remove_new = spsdc_drv_remove,
 	.suspend = spsdc_drv_suspend,
 	.resume = spsdc_drv_resume,
 	.driver = {
