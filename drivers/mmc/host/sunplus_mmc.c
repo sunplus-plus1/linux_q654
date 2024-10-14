@@ -2524,7 +2524,7 @@ probe_free_host:
 	return ret;
 }
 
-static int spmmc_drv_remove(struct platform_device *dev)
+static void spmmc_drv_remove(struct platform_device *dev)
 {
 	struct spmmc_host *host = platform_get_drvdata(dev);
 
@@ -2537,8 +2537,6 @@ static int spmmc_drv_remove(struct platform_device *dev)
 	platform_set_drvdata(dev, NULL);
 	mmc_free_host(host->mmc);
 	spmmc_device_remove_sysfs(dev);
-
-	return 0;
 }
 
 static int spmmc_drv_suspend(struct platform_device *dev, pm_message_t state)
@@ -2616,7 +2614,7 @@ MODULE_DEVICE_TABLE(of, spmmc_of_table);
 
 static struct platform_driver spmmc_driver = {
 	.probe = spmmc_drv_probe,
-	.remove = spmmc_drv_remove,
+	.remove_new = spmmc_drv_remove,
 	.suspend = spmmc_drv_suspend,
 	.resume = spmmc_drv_resume,
 	.driver = {
