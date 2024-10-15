@@ -15,7 +15,7 @@
 #include <linux/clk.h>
 
 //#define RTL8211F_WOL_TEST
-#ifdef  RTL8211F_WOL_TEST
+#ifdef RTL8211F_WOL_TEST
 #include <linux/netdevice.h>
 #endif
 
