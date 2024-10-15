@@ -466,6 +466,7 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 
 	if (substream->pcm->device > SP_OTHER) {
 		pr_err("wrong device num: %d\n", substream->pcm->device);
+		ret = -EINVAL;
 		goto out;
 	}
 
