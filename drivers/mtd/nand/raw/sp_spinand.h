@@ -307,6 +307,18 @@ enum SPINAND_BIT_MODE {
 #define SPI_NAND_WRITE_FAIL             0x2
 #define SPI_NAND_ERASE_FAIL             0x4
 
+struct sp_drv_option {
+	char *name;
+	union {
+		struct {
+			uint8_t mfr_id;
+			uint8_t dev_id;
+		};
+		uint8_t id[NAND_MAX_ID_LEN];
+	};
+	unsigned int options;
+};
+
 /* spi nand registers */
 struct sp_spinand_regs {
 	unsigned int spi_ctrl;           // 87.0
@@ -355,8 +367,6 @@ struct sp_spinand_info {
 	u32 cmd;                /* current command code */
 	u32 row;                /* row address of current command */
 	u32 col;                /* column address of current command */
-	u32 page_size;          /* device page size */
-	u32 oob_size;           /* device oob size */
 	u8 spi_clk_div;         /* used as the parameter of SPINAND_SCK_DIV */
 	u8 read_bitmode;        /* bit mode in read case, refer to SPINAND_BIT_MODE */
 	u8 write_bitmode;       /* bit mode in write case, refer to SPINAND_BIT_MODE */
@@ -365,12 +375,16 @@ struct sp_spinand_info {
 	u8 dev_protection;      /* protection value by reading feature(0xA0) */
 	u8 bch_dec_src;         /* BCH decode data source. 0:spi-nand controller, 1:system memory */
 	u8 rts;                 /* Read timing selection */
+
+	struct nand_flash_dev *type;
+	unsigned int drv_options;
 };
 
 /**************************************************************************
  *                 E X T E R N A L   R E F E R E N C E S                  *
  **************************************************************************/
 extern struct nand_flash_dev sp_spinand_ids[];
+extern struct sp_drv_option sp_spinand_opt[];
 
 #endif /* __SP_SPINAND_H */
 
