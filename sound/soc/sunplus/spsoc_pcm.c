@@ -461,11 +461,11 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 
 	pr_debug("%s IN, stream device num: %d\n", __func__, substream->pcm->device);
 
-	if (substream->pcm->device == 4 && substream->stream == 1)
-		hw_test();
+	//if (substream->pcm->device == 4 && substream->stream == 1)
+	//	hw_test();
 
 	if (substream->pcm->device > SP_OTHER) {
-		pr_err("wrong device num: %d\n", substream->pcm->device);
+		pr_info("[sound] device num: %d\n", substream->pcm->device);
 		ret = -EINVAL;
 		goto out;
 	}
