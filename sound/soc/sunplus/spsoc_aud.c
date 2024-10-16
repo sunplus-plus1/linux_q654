@@ -91,7 +91,7 @@ SND_SOC_DAILINK_DEFS(sp_spdif,
 		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-spdif-dai")),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
-#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+#if 0//IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
 SND_SOC_DAILINK_DEFS(es8316,
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_CODEC("es8316.0-0011", "ES8316 HiFi")),
@@ -129,7 +129,7 @@ static struct snd_soc_dai_link spsoc_aud_dai[] = {
 		.ops		= &spsoc_aud_ops,
 		SND_SOC_DAILINK_REG(sp_spdif),
 	},
-#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+#if 0//IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
 	{
 		.name		= "analog_es8316",
 		.stream_name	= "afe",
@@ -152,7 +152,7 @@ static struct platform_device *spsoc_snd_device;
 static int __init snd_spsoc_audio_init(void)
 {
 	int ret;
-#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+#if 0//IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
 	int i;
 	struct snd_soc_card *card = &spsoc_smdk;
 	struct snd_soc_dai_link *dai_link;
