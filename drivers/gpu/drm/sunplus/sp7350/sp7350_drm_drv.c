@@ -75,7 +75,7 @@ static struct drm_driver sp7350_drm_driver = {
 	.date         = "20240828",
 	.major        = 2,
 	.minor        = 1,
-	.patchlevel   = 0,
+	.patchlevel   = 1,
 };
 
 /* -----------------------------------------------------------------------------

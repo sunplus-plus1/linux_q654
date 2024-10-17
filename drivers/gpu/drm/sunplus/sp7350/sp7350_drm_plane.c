@@ -42,9 +42,6 @@
 //#define XRES_VSCL_MAX  2880
 //#define YRES_VSCL_MAX  4096
 
-/* TODO, should add property for it. */
-#define SP7350_DRM_VPP_SCL_AUTO_ADJUST    1
-
 #define SP7350_LAYER_OSD0   0x0
 #define SP7350_LAYER_OSD1   0x1
 #define SP7350_LAYER_OSD2   0x2
@@ -440,6 +437,149 @@ int sp7350_vpp_plane_vpost_opif_set(struct drm_plane *plane, int act_x, int act_
 	return 0;
 }
 
+int sp7350_vpp_vpost_adj_enable(struct drm_plane *plane, int enable)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+
+	value = SP7350_PLANE_READ(VPOST_CONFIG);
+	if (enable)
+		value |= SP7350_VPP_VPOST_ADJ_EN;
+	else
+		value &= ~SP7350_VPP_VPOST_ADJ_EN;
+
+	SP7350_PLANE_WRITE(VPOST_CONFIG, value);
+
+	return 0;
+}
+
+int sp7350_vpp_vpost_adj_turning_point_set(struct drm_plane *plane,
+						const u8 *cp_src, const u8 *cp_sdt, u32 cp_size)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+	if (cp_size != 2)
+		return -1;
+
+	value = 0;
+	value = cp_src[0] + (cp_src[1] << 8);
+	SP7350_PLANE_WRITE(VPOST_ADJ_SRC, value);
+
+	value = 0;
+	value = cp_sdt[0] + (cp_sdt[1] << 8);
+	SP7350_PLANE_WRITE(VPOST_ADJ_DES, value);
+
+	return 0;
+}
+
+int sp7350_vpp_vpost_adj_slope_set(struct drm_plane *plane, const u16 *slope, u32 slope_size)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+	if (slope_size != 3)
+		return -1;
+
+	value = slope[0] & 0x1FF;
+	SP7350_PLANE_WRITE(VPOST_ADJ_SLOPE0, value);
+
+	value = slope[1] & 0x1FF;
+	SP7350_PLANE_WRITE(VPOST_ADJ_SLOPE1, value);
+
+	value = slope[2] & 0x1FF;
+	SP7350_PLANE_WRITE(VPOST_ADJ_SLOPE2, value);
+
+	return 0;
+}
+
+int sp7350_vpp_vpost_adj_luma_boundary_set(struct drm_plane *plane, u8 upper, u8 lower)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+	//value = SP7350_PLANE_READ(VPOST_ADJ_BOUND);
+	value = 0;
+	value = (upper << 8) | lower;
+	SP7350_PLANE_WRITE(VPOST_ADJ_BOUND, value);
+
+	/* New luma boundary enable, bit[3:2]
+	 * 0x0 : Disable (default)
+	 * 0x1 : Only use new lower boundary value
+	 * 0x2 : Only use new upper boundary value
+	 * 0x3 : Use both new boundary value
+	 */
+	value = SP7350_PLANE_READ(VPOST_ADJ_CONFIG);
+	value |= (0x3 << 2);
+	SP7350_PLANE_WRITE(VPOST_ADJ_CONFIG, value);
+
+	return 0;
+}
+
+static u32 sp7350_plane_brightness_setting(struct drm_plane *plane, int brightness)
+{
+	u8 srcY[2];
+	u8 destY[2];
+	u16 slope[3];
+
+	if (brightness >= 0) {
+		srcY[0] = 0;
+		srcY[1] = 0xFF - brightness;
+		destY[0] = brightness;
+		destY[1] = 0xFF;
+	} else {
+		srcY[0] = 0 - brightness;
+		srcY[1] = 0xFF;
+		destY[0] = 0;
+		destY[1] = 0xFF + brightness;
+	}
+
+	slope[0] = slope[2] = 0;
+	slope[1] = 0x100;
+	sp7350_vpp_vpost_adj_turning_point_set(plane, srcY, destY, 2);
+	sp7350_vpp_vpost_adj_slope_set(plane, slope, 3);
+	sp7350_vpp_vpost_adj_enable(plane, 1);
+
+	return 0;
+}
+
+static u32 sp7350_plane_contrast_setting(struct drm_plane *plane, int contrast)
+{
+	u8 srcY[2];
+	u8 destY[2];
+	u16 slope[3];
+
+	if (contrast >= 0) {
+		slope[0] = 0x100 - contrast;
+		slope[1] = 0x100;
+		slope[2] = 0x100 + contrast;
+		srcY[0] = 0x55 + contrast / 6; /* 0xFF/3=0x55 */
+		srcY[1] = 0xAA - contrast / 6; /* 0xFF/3*2=0xAA */
+		destY[0] = srcY[0];
+		destY[1] = srcY[1];
+		//destY[0] = srcY[0]*slope[0]/256;
+		//destY[1] = srcY[1]*slope[1]/256;
+	} else {
+		slope[0] = slope[2] = 0;
+		slope[1] = 0x100 + contrast;
+		srcY[0] = 0;
+		srcY[1] = 0xFF;
+		destY[0] = 0 - contrast / 2;
+		destY[1] = 0xFF + contrast / 2;
+	}
+
+	sp7350_vpp_vpost_adj_turning_point_set(plane, srcY, destY, 2);
+	sp7350_vpp_vpost_adj_slope_set(plane, slope, 3);
+	sp7350_vpp_vpost_adj_enable(plane, 1);
+
+	return 0;
+}
+
 static void sp7350_drm_plane_alpha_config(struct drm_plane *plane, int layer, int enable,
 								    int fix_alpha, int alpha_value)
 {
@@ -543,7 +683,7 @@ static void sp7350_osd_plane_set_by_region(struct drm_plane *plane, struct sp735
 	struct sp7350_dev *sp_dev = to_sp7350_dev(drm);
 
 	u32 tmp_width, tmp_height, tmp_color_mode;
-	u32 tmp_alpha = 0, value = 0;
+	u32 value = 0;
 	u32 tmp_key = 0;
 	u32 *osd_header, *osd_palette;
 	//int i;
@@ -565,13 +705,10 @@ static void sp7350_osd_plane_set_by_region(struct drm_plane *plane, struct sp735
 	//value = osd_header[0];
 
 	value |= (tmp_color_mode << 24) | SP7350_OSD_HDR_BS;
-	if (info->alpha_info.region_alpha_en) {
-		tmp_alpha = info->alpha_info.region_alpha;
-		if (tmp_alpha < 0 || tmp_alpha > 255)
-			tmp_alpha = 255;
 
-		value |= SP7350_OSD_HDR_BL | tmp_alpha;
-	}
+	/* setting region alpha */
+	if (info->alpha_info.region_alpha_en)
+		value |= SP7350_OSD_HDR_BL | info->alpha_info.region_alpha;
 
 	if (info->alpha_info.color_key_en)
 		value |= SP7350_OSD_HDR_KEY;
@@ -668,72 +805,18 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 	//	return -EINVAL;
 	//}
 
-	if (!strcmp(property->name, "region alpha")) {
-		struct sp7350_plane_region_alpha_info *info;
-		struct drm_property_blob *blob = drm_property_lookup_blob(plane->dev, val);
+	if (!strcmp(property->name, "win alpha")) {
+		u32 win_alpha_val = val;
 
-		if (!(sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)) {
+		if (!(sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)) {
 			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
 			return -EINVAL;
 		}
 
-		if (!blob) {
-			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
-			return -EINVAL;
-		}
-		if (!blob->data) {
-			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
-			return -EINVAL;
-		}
+		sp_state->win_alpha = win_alpha_val;
+		DRM_DEBUG_ATOMIC("Set plane[%d] window alpha: %d\n",
+						  plane->index, sp_state->win_alpha);
 
-		if (blob->length != sizeof(struct sp7350_plane_region_alpha_info)) {
-			DRM_DEBUG_ATOMIC("[plane:%d:%s] bad mode blob length: %zu\n",
-					 sp_plane->base.base.id, sp_plane->base.name,
-					 blob->length);
-			return -EINVAL;
-		}
-		info = blob->data;
-
-		/* check value validity */
-		if (info->alpha > 255 || info->alpha < 0) {
-			DRM_DEBUG_ATOMIC("Outof limit! property alpha region [0, 255]!\n");
-			return -EINVAL;
-		}
-
-		if (blob == sp_plane->region_alpha_blob)
-			return 0;
-
-		drm_property_blob_put(sp_plane->region_alpha_blob);
-		sp_plane->region_alpha_blob = NULL;
-
-		if (sp_plane->is_media_plane) {
-			/*
-			 * WARNING:
-			 * vpp plane region alpha setting by vpp opif mask function.
-			 * So only one region for media plane, the parameter "regionid" is invalid.
-			 */
-			DRM_DEBUG_ATOMIC("update vpp opif alpha value by the property!\n");
-		} else {
-			/*
-			 * TODO:
-			 * osd plane region alpha setting by osd region header.
-			 * So support muti-region, the parameter "regionid" is related to osd region.
-			 *  BUT now, only one osd region support, so the parameter "regionid" is invalid now.
-			 */
-			DRM_DEBUG_ATOMIC("update region alpha value by the property!\n");
-		}
-		/*
-		 * Save to plane state, but not update to hw reg.
-		 * All hw reg updated at atomic update.
-		 */
-		sp_state->region_alpha.regionid = info->regionid;
-		sp_state->region_alpha.alpha = info->alpha;
-		sp_plane->region_alpha_blob = drm_property_blob_get(blob);
-
-		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
-				 plane->index, info->regionid, info->alpha);
-
-		drm_property_blob_put(blob);
 	} else if (!strcmp(property->name, "color keying")) {
 		u32 global_color_keying_val = val;
 
@@ -745,10 +828,10 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		DRM_DEBUG_ATOMIC("Set plane[%d] color keying: 0x%08x\n",
 						  plane->index, global_color_keying_val);
 
-		if (sp_plane->is_media_plane) {
-			DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
-			return -EINVAL;
-		}
+		//if (sp_plane->is_media_plane) {
+		//	DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
+		//	return -EINVAL;
+		//}
 
 		DRM_DEBUG_ATOMIC("update color keying value by the property!\n");
 
@@ -771,10 +854,10 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 		}
 		info = blob->data;
 
-		if (sp_plane->is_media_plane) {
-			DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
-			return -EINVAL;
-		}
+		//if (sp_plane->is_media_plane) {
+		//	DRM_DEBUG_ATOMIC("the property is supported for overlay plane only!\n");
+		//	return -EINVAL;
+		//}
 
 		if (blob == sp_plane->region_color_keying_blob)
 			return 0;
@@ -802,6 +885,46 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 				 plane->index, info->regionid, info->keying);
 
 		drm_property_blob_put(blob);
+
+	} else if (!strcmp(property->name, "SCL_ADJ")) {
+		if (!(sp_plane->capabilities & SP7350_DRM_PLANE_CAP_SCALE)) {
+			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
+			return -EINVAL;
+		}
+
+		DRM_DEBUG_ATOMIC("Set plane[%d] %s scaling adjustment ability by the property.\n",
+						  plane->index, val ? "enable" : "disable");
+
+		sp_state->scaling_adjustment_enable = val ? true : false;
+
+	} else if (!strcmp(property->name, "SCL_ADJ") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_SCALE)) {
+		sp_state->scaling_adjustment_enable = val;
+
+	} else if (!strcmp(property->name, "BG_ALPHA") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_BLEND)) {
+		sp_state->bg_alpha = val;
+
+	} else if (!strcmp(property->name, "BG_FORMAT") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_FORMAT)) {
+		sp_state->bg_format = val;
+
+	} else if (!strcmp(property->name, "BG_COLOR") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_COLOR)) {
+		sp_state->bg_color = val;
+
+	} else if (!strcmp(property->name, "brightness") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS)) {
+		sp_state->brightness = val;
+		if (sp_plane->is_media_plane && sp_state->contrast)
+			sp_state->contrast = 0;
+
+	} else if (!strcmp(property->name, "contrast") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_CONTRAST)) {
+		sp_state->contrast = val;
+		if (sp_plane->is_media_plane && sp_state->brightness)
+			sp_state->brightness = 0;
+
 	} else {
 		DRM_DEBUG_ATOMIC("the property isn't implemented by the driver!\n");
 		return -EINVAL;
@@ -820,28 +943,50 @@ static int sp7350_plane_atomic_get_property(struct drm_plane *plane,
 
 	DRM_DEBUG_ATOMIC("Get plane-%d property.name:%s\n", plane->index, property->name);
 
-	if (property == sp_plane->region_alpha_property) {
-		if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
-			*val = (sp_plane->region_alpha_blob) ?
-				 sp_plane->region_alpha_blob->base.id : 0;
-			return 0;
-		}
-	} else if (property == sp_plane->region_color_keying_property) {
-		if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING) {
-			*val = (sp_plane->region_color_keying_blob) ?
-				 sp_plane->region_color_keying_blob->base.id : 0;
-			return 0;
-		}
-	} else if (property == sp_plane->color_keying_property) {
-		if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING) {
-			*val = sp_state->color_keying;
-			return 0;
-		}
+	if ((property == sp_plane->win_alpha_property) &&
+		(sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)) {
+		*val = sp_state->win_alpha;
+
+	} else if ((property == sp_plane->region_color_keying_property) &&
+		       (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING)) {
+		*val = (sp_plane->region_color_keying_blob) ?
+			 sp_plane->region_color_keying_blob->base.id : 0;
+
+	} else if ((property == sp_plane->color_keying_property) &&
+		       (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING)) {
+		*val = sp_state->color_keying;
+
+	} else if (!strcmp(property->name, "SCL_ADJ") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_SCALE)) {
+		*val = sp_state->scaling_adjustment_enable;
+
+	} else if (!strcmp(property->name, "BG_ALPHA") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_BLEND)) {
+		*val = sp_state->bg_alpha;
+
+	} else if (!strcmp(property->name, "BG_FORMAT") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_FORMAT)) {
+		*val = sp_state->bg_format;
+
+	} else if (!strcmp(property->name, "BG_COLOR") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_COLOR)) {
+		*val = sp_state->bg_color;
+
+	} else if (!strcmp(property->name, "brightness") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS)) {
+		*val = sp_state->brightness;
+
+	} else if (!strcmp(property->name, "contrast") &&
+		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_CONTRAST)) {
+		*val = sp_state->contrast;
+
+	} else {
+		DRM_DEBUG_ATOMIC("the property \"%s\" isn't implemented for plane-%d!\n",
+						 property->name, plane->index);
+		return -EINVAL;
 	}
 
-	DRM_DEBUG_ATOMIC("the property \"%s\" isn't implemented for plane-%d!\n",
-					 property->name, plane->index);
-	return -EINVAL;
+	return 0;
 }
 
 /**
@@ -903,11 +1048,30 @@ static void sp7350_plane_reset(struct drm_plane *plane)
 	__drm_atomic_helper_plane_reset(plane, &sp_state->base);
 
 	/* reset to default plane property parameters */
-	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
-		sp_state->region_alpha.regionid = 0;
-		sp_state->region_alpha.alpha = 255;
-		sp_plane->updated_region_alpha.regionid = sp_state->region_alpha.regionid;
-		sp_plane->updated_region_alpha.alpha = sp_state->region_alpha.alpha;
+	sp_state->base.zpos = sp_plane->zpos;
+	sp_state->base.normalized_zpos = sp_plane->zpos;
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_SCALE)
+		sp_state->scaling_adjustment_enable = true;
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ROTATION)
+		sp_state->base.rotation = DRM_MODE_ROTATE_0;
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_BLEND)
+		sp_state->bg_alpha = 0;
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_FORMAT)
+		sp_state->bg_format = 1;
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_COLOR)
+		sp_state->bg_color = SP7350_DMIX_PTG_BLACK;
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS)
+		sp_state->brightness = 0;
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_CONTRAST)
+		sp_state->contrast = 0;
+
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ALPHA_BLEND) {
+		sp_state->base.alpha = DRM_BLEND_ALPHA_OPAQUE;
+		sp_plane->updated_alpha = sp_state->base.alpha;
+	}
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND) {
+		sp_state->win_alpha = 255;
+		sp_plane->updated_win_alpha = sp_state->win_alpha;
 	}
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING) {
 		sp_state->region_color_keying.regionid = 0;
@@ -916,20 +1080,7 @@ static void sp7350_plane_reset(struct drm_plane *plane)
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_COLOR_KEYING)
 		sp_state->color_keying = 0;
 
-	sp_state->base.zpos = sp_plane->zpos;
-	sp_state->base.normalized_zpos = sp_plane->zpos;
-	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ROTATION)
-		sp_state->base.rotation = DRM_MODE_ROTATE_0;
-	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND) {
-		sp_state->base.alpha = DRM_BLEND_ALPHA_OPAQUE;
-		sp_plane->updated_alpha = sp_state->base.alpha;
-	}
-
 	/* clear old property setting. */
-	if (sp_plane->region_alpha_blob) {
-		drm_property_blob_put(sp_plane->region_alpha_blob);
-		sp_plane->region_alpha_blob = NULL;
-	}
 	if (sp_plane->region_color_keying_blob) {
 		drm_property_blob_put(sp_plane->region_color_keying_blob);
 		sp_plane->region_color_keying_blob = NULL;
@@ -955,8 +1106,7 @@ static const struct drm_plane_funcs sp7350_plane_funcs = {
 	.atomic_get_property = sp7350_plane_atomic_get_property,
 };
 
-#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
-static void sp7350_scl_coordinate_adjust(int32_t src_w, int32_t src_h,
+static void sp7350_scaling_coordinate_adjust(int32_t src_w, int32_t src_h,
 	int32_t *dst_x, int32_t *dst_y, int32_t *dst_w, int32_t *dst_h)
 {
 	//int32_t factor_1000x;
@@ -978,7 +1128,6 @@ static void sp7350_scl_coordinate_adjust(int32_t src_w, int32_t src_h,
 		*dst_x += (dst_val - *dst_w) / 2;
 	}
 }
-#endif
 
 static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 					       struct drm_atomic_state *state)
@@ -989,6 +1138,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *old_state = NULL;
 	struct drm_plane_state *new_state = NULL;
 	struct sp7350_plane_state *sp_state = NULL;
+	struct sp7350_plane_state *old_sp_state = NULL;
 
 	if (state) {
 		old_state = drm_atomic_get_old_plane_state(state, plane);
@@ -1006,6 +1156,8 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	}
 	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
 	sp_state = to_sp7350_plane_state(new_state);
+	if (old_state)
+		old_sp_state = to_sp7350_plane_state(old_state);
 
 	/* Check parameter updates first  */
 	/* for crop state check */
@@ -1047,12 +1199,15 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		|| new_state->crtc_w != old_state->crtc_w || new_state->crtc_h != old_state->crtc_h
 		|| (old_state->crtc && (new_state->crtc->mode.hdisplay != old_state->crtc->mode.hdisplay
 		     || new_state->crtc->mode.vdisplay != old_state->crtc->mode.vdisplay))) {
-		#if SP7350_DRM_VPP_SCL_AUTO_ADJUST
-		sp7350_scl_coordinate_adjust(new_state->src_w >> 16, new_state->src_h >> 16,
-			  &new_state->crtc_x, &new_state->crtc_y, &new_state->crtc_w, &new_state->crtc_h);
-		DRM_DEBUG_ATOMIC("plane-%d vscl adjust dst[%d, %d]\n",
-				 plane->index, new_state->crtc_w, new_state->crtc_h);
-		#endif
+		if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ALPHA_BLEND)
+			&& sp_state->scaling_adjustment_enable) {
+			sp7350_scaling_coordinate_adjust(new_state->src_w >> 16, new_state->src_h >> 16,
+				  &new_state->crtc_x, &new_state->crtc_y, &new_state->crtc_w, &new_state->crtc_h);
+			DRM_DEBUG_ATOMIC("plane-%d scaling adjust to crtc x,y:(%d, %d)  w,h:(%d, %d)\n",
+					 plane->index,
+					 new_state->crtc_x, new_state->crtc_y,
+					 new_state->crtc_w, new_state->crtc_h);
+		}
 		sp7350_vpp_plane_vscl_set(plane, new_state->src_x >> 16, new_state->src_y >> 16,
 				    new_state->src_w >> 16, new_state->src_h >> 16,
 				    new_state->crtc_x, new_state->crtc_y,
@@ -1072,7 +1227,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	 * should update opif setting with another plane window size.
 	 */
 
-	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ALPHA_BLEND)
 		&& (new_state->alpha != sp_plane->updated_alpha)) {
 		/*
 		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
@@ -1085,20 +1240,23 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		sp_plane->updated_alpha = new_state->alpha;
 	}
 
-	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)
-		&& (sp_state->region_alpha.regionid != sp_plane->updated_region_alpha.regionid ||
-		    sp_state->region_alpha.alpha != sp_plane->updated_region_alpha.alpha)) {
-		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
-				plane->index, sp_state->region_alpha.regionid,
-				sp_state->region_alpha.alpha);
-		/*
-		 * WARNING:
-		 * vpp plane region alpha setting by vpp opif mask function.
-		 * So only one region for media plane, the parameter "regionid" is invalid.
-		 */
-		sp7350_vpp_plane_vpost_opif_alpha_set(plane, sp_state->region_alpha.alpha, 0);
-		sp_plane->updated_region_alpha.regionid = sp_state->region_alpha.regionid;
-		sp_plane->updated_region_alpha.alpha = sp_state->region_alpha.alpha;
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
+		&& (sp_state->win_alpha != sp_plane->updated_win_alpha)) {
+		DRM_DEBUG_ATOMIC("Set plane[%d] window alpha: alpha:%d\n",
+				plane->index, sp_state->win_alpha);
+
+		sp7350_vpp_plane_vpost_opif_alpha_set(plane, sp_state->win_alpha, 0);
+		sp_plane->updated_win_alpha = sp_state->win_alpha;
+	}
+
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS)
+		&& (!old_sp_state || sp_state->brightness != old_sp_state->brightness)) {
+		sp7350_plane_brightness_setting(plane, sp_state->brightness);
+	}
+
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_CONTRAST)
+		&& (!old_sp_state || sp_state->contrast != old_sp_state->contrast)) {
+		sp7350_plane_contrast_setting(plane, sp_state->contrast);
 	}
 
 	sp7350_drm_plane_set(plane, sp_plane->dmix_fg_sel, SP7350_DMIX_BLENDING);
@@ -1200,15 +1358,10 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	/* no scale state */
 
-	if (!sp_plane->region_alpha_blob)
-		info->alpha_info.region_alpha_en = 0;
-
-	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND)
-		&& (sp_state->region_alpha.regionid != sp_plane->updated_region_alpha.regionid ||
-		    sp_state->region_alpha.alpha != sp_plane->updated_region_alpha.alpha)) {
-		DRM_DEBUG_ATOMIC("Set plane[%d] region alpha: regionid:%d, alpha:%d\n",
-				plane->index, sp_state->region_alpha.regionid,
-				sp_state->region_alpha.alpha);
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
+		&& (sp_state->win_alpha != sp_plane->updated_win_alpha)) {
+		DRM_DEBUG_ATOMIC("Set plane[%d] window alpha: alpha:%d\n",
+				plane->index, sp_state->win_alpha);
 		/*
 		 * TODO:
 		 * osd plane region alpha setting by osd region header.
@@ -1216,9 +1369,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		 *  BUT now, only one osd region support, so the parameter "regionid" is invalid now.
 		 */
 		info->alpha_info.region_alpha_en = 1;
-		info->alpha_info.region_alpha = sp_state->region_alpha.alpha;
-		sp_plane->updated_region_alpha.regionid = sp_state->region_alpha.regionid;
-		sp_plane->updated_region_alpha.alpha = sp_state->region_alpha.alpha;
+		info->alpha_info.region_alpha = sp_state->win_alpha;
+		sp_plane->updated_win_alpha = sp_state->win_alpha;
 		updated = true;
 	}
 
@@ -1281,7 +1433,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		//		 state->fb->modifier, info->color_mode);
 	}
 
-	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ALPHA_BLEND)
 		&& (new_state->alpha != sp_plane->updated_alpha)) {
 		/*
 		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
@@ -1315,8 +1467,10 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 		DRM_DEBUG_ATOMIC("plane-%d drm_atomic_get_crtc_state is err\n", plane->index);
 		return PTR_ERR(crtc_state);
 	}
-	sp_state->hdisplay = crtc_state->adjusted_mode.crtc_hdisplay;
-	sp_state->vdisplay = crtc_state->adjusted_mode.crtc_vdisplay;
+	if (crtc_state->adjusted_mode.crtc_hdisplay && crtc_state->adjusted_mode.crtc_vdisplay) {
+		sp_state->hdisplay = crtc_state->adjusted_mode.crtc_hdisplay;
+		sp_state->vdisplay = crtc_state->adjusted_mode.crtc_vdisplay;
+	}
 
 	if ((new_state->crtc_w + new_state->crtc_x) <= 0 ||
 		(new_state->crtc_h + new_state->crtc_y) <= 0 ||
@@ -1332,7 +1486,10 @@ static int sp7350_kms_plane_atomic_check(struct drm_plane *plane,
 	/* [FIXME]check for VPP layer only!!!!WHY??? */
 	if (sp_plane->is_media_plane && (new_state->crtc_y < -150 ||
 		new_state->crtc_w + new_state->crtc_x - 110 > sp_state->hdisplay)) {
-		DRM_DEBUG_ATOMIC("plane-%d invalid visible areas.\n", plane->index);
+		DRM_DEBUG_ATOMIC("plane-%d invalid visible areas.[crtc(%d,%d)-(%d,%d)]\n",
+				plane->index,
+				new_state->crtc_x, new_state->crtc_y,
+				new_state->crtc_w, new_state->crtc_h);
 		return -EINVAL;
 	}
 
@@ -1411,6 +1568,62 @@ static const struct drm_plane_helper_funcs sp7350_kms_osd_helper_funcs = {
 static void sp7350_plane_create_propertys(struct sp7350_plane *sp_plane)
 {
 
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_SCALE) {
+		sp_plane->scaling_adjustment_property =
+			 drm_property_create_bool(sp_plane->base.dev, DRM_MODE_PROP_ATOMIC,
+					 "SCL_ADJ");
+		drm_object_attach_property(&sp_plane->base.base,
+			 sp_plane->scaling_adjustment_property, 1);
+		if (sp_plane->state)
+			sp_plane->state->scaling_adjustment_enable = true;
+	}
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_BLEND) {
+		sp_plane->background_alpha_property =
+			 drm_property_create_range(sp_plane->base.dev, DRM_MODE_PROP_ATOMIC,
+					 "BG_ALPHA", 0, 255);
+		drm_object_attach_property(&sp_plane->base.base,
+			 sp_plane->background_alpha_property, 0);
+		if (sp_plane->state)
+			sp_plane->state->bg_alpha = 0;
+	}
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_FORMAT) {
+		sp_plane->background_format_property = drm_property_create(sp_plane->base.dev,
+			 DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_IMMUTABLE | DRM_MODE_PROP_ENUM, "BG_FORMAT", 1);
+		drm_property_add_enum(sp_plane->background_format_property,
+					    1, "YCbCr888");
+		drm_object_attach_property(&sp_plane->base.base,
+			 sp_plane->background_format_property, 1);
+		if (sp_plane->state)
+			sp_plane->state->bg_format = 1;
+	}
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_COLOR) {
+		/* background color format:YCbCr888, region: 0x000000~0xffffff */
+		sp_plane->background_color_property = drm_property_create_range(sp_plane->base.dev,
+					 DRM_MODE_PROP_ATOMIC, "BG_COLOR", 0, 0xffffffff);
+		drm_object_attach_property(&sp_plane->base.base,
+			 sp_plane->background_color_property, SP7350_DMIX_PTG_BLACK);
+		if (sp_plane->state)
+			sp_plane->state->bg_color = SP7350_DMIX_PTG_BLACK;
+	}
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS) {
+		/* region: 0~100 */
+		sp_plane->brightness_property = drm_property_create_signed_range(sp_plane->base.dev,
+					 DRM_MODE_PROP_ATOMIC, "brightness", -255, 255);
+		drm_object_attach_property(&sp_plane->base.base,
+			 sp_plane->brightness_property, 0);
+		if (sp_plane->state)
+			sp_plane->state->brightness = 0;
+	}
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_CONTRAST) {
+		/* region: 0~100 */
+		sp_plane->contrast_property = drm_property_create_signed_range(sp_plane->base.dev,
+					 DRM_MODE_PROP_ATOMIC, "contrast", -255, 255);
+		drm_object_attach_property(&sp_plane->base.base,
+			 sp_plane->contrast_property, 0);
+		if (sp_plane->state)
+			sp_plane->state->contrast = 0;
+	}
+
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ZPOS)
 		/* SP7350_MAX_PLANE - 2, cursor not support adjustable zpos */
 		drm_plane_create_zpos_property(&sp_plane->base, sp_plane->zpos, 0, SP7350_MAX_PLANE - 2);
@@ -1425,7 +1638,7 @@ static void sp7350_plane_create_propertys(struct sp7350_plane *sp_plane)
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_PIX_BLEND)
 		drm_plane_create_blend_mode_property(&sp_plane->base, BIT(DRM_MODE_BLEND_PREMULTI));
 
-	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_ALPHA_BLEND)
 		drm_plane_create_alpha_property(&sp_plane->base);
 
 	if (sp_plane->base.state)
@@ -1433,18 +1646,15 @@ static void sp7350_plane_create_propertys(struct sp7350_plane *sp_plane)
 	else
 		DRM_DEBUG_ATOMIC("alpha no default value.\n");
 
-	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_BLEND) {
+	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND) {
 		/* region alpha region: 0~255 */
-		sp_plane->region_alpha_property
-			 = drm_property_create(sp_plane->base.dev,
-						  DRM_MODE_PROP_ATOMIC | DRM_MODE_PROP_BLOB,
-						  "region alpha", 0);
+		sp_plane->win_alpha_property
+			 = drm_property_create_range(sp_plane->base.dev, DRM_MODE_PROP_ATOMIC,
+						  "win alpha", 0, 0xff);
 		drm_object_attach_property(&sp_plane->base.base,
-			 sp_plane->region_alpha_property, 0);
-		if (sp_plane->state) {
-			sp_plane->state->region_alpha.regionid = 0;
-			sp_plane->state->region_alpha.alpha = 255;
-		}
+			 sp_plane->win_alpha_property, 0xff);
+		if (sp_plane->state)
+			sp_plane->state->win_alpha = 255;
 	}
 
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING) {
@@ -1475,9 +1685,13 @@ static void sp7350_plane_create_propertys(struct sp7350_plane *sp_plane)
 
 static void sp7350_plane_destroy_propertys(struct sp7350_plane *sp_plane)
 {
-	if (sp_plane->region_alpha_property) {
-		drm_property_destroy(sp_plane->base.dev, sp_plane->region_alpha_property);
-		sp_plane->region_alpha_property = NULL;
+	if (sp_plane->scaling_adjustment_property) {
+		drm_property_destroy(sp_plane->base.dev, sp_plane->scaling_adjustment_property);
+		sp_plane->scaling_adjustment_property = NULL;
+	}
+	if (sp_plane->win_alpha_property) {
+		drm_property_destroy(sp_plane->base.dev, sp_plane->win_alpha_property);
+		sp_plane->win_alpha_property = NULL;
 	}
 
 	if (sp_plane->region_color_keying_property) {
@@ -1490,10 +1704,6 @@ static void sp7350_plane_destroy_propertys(struct sp7350_plane *sp_plane)
 		sp_plane->color_keying_property = NULL;
 	}
 
-	if (sp_plane->region_alpha_blob) {
-		drm_property_blob_put(sp_plane->region_alpha_blob);
-		sp_plane->region_alpha_blob = NULL;
-	}
 	if (sp_plane->region_color_keying_blob) {
 		drm_property_blob_put(sp_plane->region_color_keying_blob);
 		sp_plane->region_color_keying_blob = NULL;
@@ -1527,8 +1737,10 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 		sp_plane->funcs = &sp7350_kms_vpp_helper_funcs;
 		sp_plane->is_media_plane = true;
 		sp_plane->capabilities = SP7350_DRM_PLANE_CAP_SCALE |
-			SP7350_DRM_PLANE_CAP_PIX_BLEND | SP7350_DRM_PLANE_CAP_WIN_BLEND |
-			SP7350_DRM_PLANE_CAP_REGION_BLEND;
+			SP7350_DRM_PLANE_CAP_PIX_BLEND | SP7350_DRM_PLANE_CAP_ALPHA_BLEND |
+			SP7350_DRM_PLANE_CAP_WIN_BLEND | SP7350_DRM_PLANE_CAP_BRIGHTNESS |
+			SP7350_DRM_PLANE_CAP_CONTRAST;
+
 		/* HW Restricted. */
 		sp_plane->src_w_max = XRES_VIMGREAD_MAX;
 		sp_plane->src_h_max = YRES_VIMGREAD_MAX;
@@ -1547,8 +1759,9 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 
 		if (type != DRM_PLANE_TYPE_CURSOR)
 			sp_plane->capabilities = SP7350_DRM_PLANE_CAP_PIX_BLEND |
-				SP7350_DRM_PLANE_CAP_WIN_BLEND | SP7350_DRM_PLANE_CAP_REGION_BLEND |
-				SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING | SP7350_DRM_PLANE_CAP_COLOR_KEYING;
+				SP7350_DRM_PLANE_CAP_ALPHA_BLEND | SP7350_DRM_PLANE_CAP_WIN_BLEND |
+				SP7350_DRM_PLANE_CAP_COLOR_KEYING | SP7350_DRM_PLANE_CAP_BRIGHTNESS |
+				SP7350_DRM_PLANE_CAP_CONTRAST;
 		/* HW Restricted. */
 		sp_plane->src_w_max = XRES_OSD_MAX;
 		sp_plane->src_h_max = YRES_OSD_MAX;
@@ -1663,8 +1876,7 @@ int sp7350_plane_dev_suspend(struct device *dev, struct drm_plane *plane)
 
 	/* reset mixer setting */
 	sp_plane->updated_alpha = DRM_BLEND_ALPHA_OPAQUE;
-	sp_plane->updated_region_alpha.regionid = 0;
-	sp_plane->updated_region_alpha.alpha = 255;
+	sp_plane->updated_win_alpha = 255;
 	sp_plane->updated_region_color_keying.regionid = 0;
 	sp_plane->updated_region_color_keying.keying = 0;
 	sp_plane->updated_color_keying = 0;
