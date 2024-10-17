@@ -50,7 +50,7 @@
 #define DRAM_HDMI_BUF_LENGTH	(DRAM_PCM_BUF_LENGTH * 4)
 
 struct spsoc_runtime_data {
-	spinlock_t	lock; //lock
+	//spinlock_t	lock; //lock
 	dma_addr_t	dma_buffer; /* physical address of dma buffer */
 	dma_addr_t	dma_buffer_end;	/* first address beyond DMA buffer */
 	size_t		period_size;
@@ -58,17 +58,17 @@ struct spsoc_runtime_data {
 	struct		hrtimer hrt;
 	struct		tasklet_struct tasklet;
 	int		poll_time_ns;
-	struct snd_pcm_substream *substream;
+	struct		snd_pcm_substream *substream;
 	int		period;
 	int		periods;
 	unsigned int	offset;
 	unsigned int	last_offset;
-	unsigned int	last_appl_ofs;
+	//unsigned int	last_appl_ofs;
 	unsigned int	size;
 	unsigned char	trigger_flag;
 	unsigned int	start_threshold;
 	unsigned char	usemmap_flag;
-	unsigned char	start_oncetime;
+	//unsigned char	start_oncetime;
 	unsigned int	last_remainder;
 	unsigned int	fifosize_from_user;
 	atomic_t	running;
