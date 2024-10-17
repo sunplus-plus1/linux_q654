@@ -12,7 +12,8 @@
 
 void __iomem *i2saudio_base;
 struct clk *cpudai_plla;
-#define	AUD_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_3LE)
+#define	AUD_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
+			//(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_3LE)
 
 void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 {

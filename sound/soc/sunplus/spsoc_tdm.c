@@ -400,7 +400,7 @@ static void sp_tdm_init_state(void)
 	regs0->tdmpdm_tx_sel	= 0x01;
 }
 
-#define	AUD_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_3LE)
+#define	AUD_FORMATS	SNDRV_PCM_FMTBIT_S16_LE
 static struct snd_soc_dai_driver sp_tdm_dai = {
 	.name		= "spsoc-tdm-driver-dai",
 	//.id		= 0,
