@@ -3497,6 +3497,24 @@
 	};
 
 	gmac_pins: pinmux_gmac-pins {
+#if defined(ETHERNET_WITH_RMII_PHY)
+		pinmux{
+			function = "GMAC";
+			groups = "GMAC_RMII";
+		};
+		pinconf0 {
+			pins = "GPIO7","GPIO8","GPIO10","GPIO11";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_16400_IOL_16500UA>;
+		};
+		pinconf1 {
+			pins = "GPIO4","GPIO5","GPIO6";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA>;
+		};
+		pinconf3 {
+			pins = "GPIO9","GPIO12";
+			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA>;
+		};
+#else
 		pinmux{
 			function = "GMAC";
 			groups = "GMAC_RGMII";
@@ -3513,6 +3531,7 @@
 			pins = "GPIO9","GPIO12";
 			drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_8200_IOL_8300UA>;
 		};
+#endif
 	};
 
 	otg_pins: pinmux_otg_pins {
