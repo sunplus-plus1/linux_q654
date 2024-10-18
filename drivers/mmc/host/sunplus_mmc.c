@@ -415,7 +415,6 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 			hs400_value = bitfield_replace(hs400_value, 21 + i, 1, 1);//DO FF BYPASS TM:Don not bypass IP input data
 		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[1]);
 		mdelay(1);
-		spmmc_pr(WARNING, "Do not bypass IP input data\n");
 		break;
 	case MMC_TIMING_MMC_HS400:
 		host->ddr_enabled = 1;
@@ -424,12 +423,10 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 		hs400_value = readl(&host->base->sd_config0);
 		hs400_value = bitfield_replace(hs400_value, 19, 1, 1);//sdhs400mode
 		writel(hs400_value, &host->base->sd_config0);
-		//spmmc_pr(WARNING, "sdhs400mode=1\n");
 		mdelay(1);
 		hs400_value = readl(&host->base->card_mediatype_srcdst);
 		hs400_value = bitfield_replace(hs400_value, 11, 1, 1);
 		writel(hs400_value, &host->base->card_mediatype_srcdst);
-		//spmmc_pr(WARNING, "enhanced_strobe=1\n");
 		mdelay(1);
 		hs400_value = readl(&host->base->sd_vol_ctrl);
 		hs400_value = bitfield_replace(hs400_value, 31, 1, 0);
@@ -449,7 +446,6 @@ static void spmmc_set_bus_timing(struct spmmc_host *host, unsigned int timing)
 		hs400_value = bitfield_replace(hs400_value, 13, 1, 1);//EMMC_DS_DO_FF_BYPASS_TM: Do not bypass IP input data.
 		hs400_value = bitfield_replace(hs400_value, 14, 2, 2);//EMMC_DS_DI_DEL_SEL.
 		writel(hs400_value, &host->pad_ctl2_base->emmc_sftpad_ctl[2]);
-		//spmmc_pr(WARNING, "Do not bypass IP input data\n");
 		mdelay(1);
 		break;
 	default:
@@ -2528,7 +2524,7 @@ probe_free_host:
 	return ret;
 }
 
-static int spmmc_drv_remove(struct platform_device *dev)
+static void spmmc_drv_remove(struct platform_device *dev)
 {
 	struct spmmc_host *host = platform_get_drvdata(dev);
 
@@ -2541,8 +2537,6 @@ static int spmmc_drv_remove(struct platform_device *dev)
 	platform_set_drvdata(dev, NULL);
 	mmc_free_host(host->mmc);
 	spmmc_device_remove_sysfs(dev);
-
-	return 0;
 }
 
 static int spmmc_drv_suspend(struct platform_device *dev, pm_message_t state)
@@ -2620,7 +2614,7 @@ MODULE_DEVICE_TABLE(of, spmmc_of_table);
 
 static struct platform_driver spmmc_driver = {
 	.probe = spmmc_drv_probe,
-	.remove = spmmc_drv_remove,
+	.remove_new = spmmc_drv_remove,
 	.suspend = spmmc_drv_suspend,
 	.resume = spmmc_drv_resume,
 	.driver = {

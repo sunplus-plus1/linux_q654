@@ -32,12 +32,6 @@
 //#define DSI_BRIDGE_OPERATION_MANUALLY  1
 //#endif
 
-#define	SP7350_DRM_LAYER_TYPE_OSD3 0x0 /* SP7350_DMIX_L0 set to OSD3 (zpos = 0) */
-#define	SP7350_DRM_LAYER_TYPE_VPP0 0x1 /* SP7350_DMIX_L1 set to VPP0 (zpos = 1) */
-#define	SP7350_DRM_LAYER_TYPE_OSD2 0x2 /* SP7350_DMIX_L2 set to OSD2 (zpos = 2) */
-#define	SP7350_DRM_LAYER_TYPE_OSD1 0x3 /* SP7350_DMIX_L3 set to OSD1 (zpos = 3) */
-#define	SP7350_DRM_LAYER_TYPE_OSD0 0x4 /* SP7350_DMIX_L4 set to OSD0 (zpos = 4) */
-
 #define XRES_MIN    16
 #define YRES_MIN    16
 

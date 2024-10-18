@@ -1367,22 +1367,20 @@ static void hal_udc_fill_ep_desc(struct sp_udc *udc, struct udc_endpoint *ep)
 
 }
 
-static struct trb_data *hal_udc_fill_trb(struct sp_udc	*udc, struct udc_endpoint *ep, uint32_t zero)
+static struct trb_data *hal_udc_fill_trb(struct sp_udc *udc, struct udc_endpoint *ep, uint32_t zero)
 {
 	struct trb_data *end_trb;
 	struct trb_data *fill_trb = NULL;
 	struct endpoint0_desc *tmp_ep0_desc = NULL;
-	struct trb_data *t_trb = NULL;
 	struct normal_trb *tmp_trb = NULL;
 	uint32_t dptr;
 
-	if ((ep->num == 0) && (udc->first_enum_xfer == true)) {
+	if ((ep->num == EP0) && (udc->first_enum_xfer == true)) {
 		dptr = SHIFT_LEFT_BIT4(ep->ep_transfer_ring.trb_pa +
 				       ((ep->ep_trb_ring_dq - ep->ep_transfer_ring.trb_va) *
 					sizeof(struct trb_data)));
 
 		tmp_trb = (struct normal_trb *)ep->ep_trb_ring_dq;
-		t_trb = ep->ep_trb_ring_dq;
 	}
 
 	end_trb = ep->ep_transfer_ring.end_trb_va;
@@ -1448,13 +1446,13 @@ static struct trb_data *hal_udc_fill_trb(struct sp_udc	*udc, struct udc_endpoint
 
 	wmb();
 
-	if (ep->num == 0) {
+	if (ep->num == EP0) {
 		if (udc->first_enum_xfer == true) {
 			/* bypass the unexecuted ep0 Transfer TRBs (last connection) after bus */ 
 			/* reset (new connection) for 1st data transfer of the enumeration.    */
 			udc->first_enum_xfer = false;
 
-			tmp_ep0_desc = (struct endpoint0_desc *)ep->dev->ep_desc;
+			tmp_ep0_desc = (struct endpoint0_desc *)udc->ep_desc;
 			tmp_ep0_desc->dptr = dptr;
 			tmp_ep0_desc->dcs = tmp_trb->cycbit;
 
