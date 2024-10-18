@@ -8,6 +8,7 @@
 #include <linux/of_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/time.h>
+#include <linux/spinlock.h>
 #include <sound/pcm_params.h>
 #include "spsoc_pcm.h"
 #include "spsoc_util.h"
@@ -25,7 +26,7 @@ void __iomem *pcmaudio_base;
 static const struct snd_pcm_hardware spsoc_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_BATCH,
-	.formats		= (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_3LE),
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.period_bytes_min	= PERIOD_BYTES_MIN_CONS,
 	.period_bytes_max	= PERIOD_BYTES_MAX_CONS,
 	.periods_min		= 2,
@@ -39,7 +40,18 @@ static const struct snd_pcm_hardware spsoc_pcm_hardware = {
 //		Global Parameters
 //--------------------------------------------------------------------------
 auddrv_param aud_param;
+static DEFINE_SPINLOCK(set_lock);
 
+void run_start(int ch, int run_length)
+{
+	volatile register_audio *regs0 = (volatile register_audio *)pcmaudio_base;
+
+	//printk("ch 0x%x, val 0x%x 0x%x\n", ch, run_length, iprtd->period);
+	spin_lock(&set_lock);
+	regs0->aud_delta_0 = run_length;
+	regs0->aud_inc_0 |= ch;
+	spin_unlock(&set_lock);
+}
 //--------------------------------------------------------------------------
 //
 //--------------------------------------------------------------------------
@@ -52,10 +64,10 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 	unsigned int appl_ofs;
 	volatile register_audio *regs0 = pcmaudio_base;
 
-	appl_ofs = runtime->control->appl_ptr % runtime->buffer_size;
 	if (!atomic_read(&iprtd->running))
 		return;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		appl_ofs = runtime->control->appl_ptr % runtime->buffer_size;
 		if (substream->pcm->device == SP_SPDIF)
 			iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
 		else if (substream->pcm->device == SP_I2S_1)
@@ -68,30 +80,29 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 		pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
 		if (iprtd->offset < iprtd->fifosize_from_user) {
 			if (iprtd->usemmap_flag == 1) {
-				regs0->aud_delta_0 = iprtd->period;
 				if (substream->pcm->device == SP_I2S_0) {
 					while ((regs0->aud_inc_0 & I2S_P_INC0) != 0)
 						;
-					regs0->aud_inc_0 = I2S_P_INC0;
+					run_start(I2S_P_INC0, iprtd->period);
 				} else if (substream->pcm->device == SP_I2S_1) {
 					while ((regs0->aud_inc_0 & I2S_P_INC1) != 0)
 						;
-					regs0->aud_inc_0 = I2S_P_INC1;
+					run_start(I2S_P_INC1, iprtd->period);
 				} else if (substream->pcm->device == SP_I2S_2) {
 					while ((regs0->aud_inc_0 & I2S_P_INC2) != 0)
 						;
-					regs0->aud_inc_0 = I2S_P_INC2;
+					run_start(I2S_P_INC2, iprtd->period);
 				} else if (substream->pcm->device == SP_TDM) {
 					while ((regs0->aud_inc_0 & TDM_P_INC0) != 0)
 						;
-					regs0->aud_inc_0 = TDM_P_INC0;
+					run_start(TDM_P_INC0, iprtd->period);
 				} else if (substream->pcm->device == SP_SPDIF) {
 //pr_debug("***%s IN, aud_a5_ptr=0x%x, dma_area=0x%x, pos=0x%lx count_bytes 0x%x\n", __func__,
 //	   regs0->aud_a5_ptr, hwbuf, pos, count_bytes);
 					while ((regs0->aud_inc_0 & SPDIF_P_INC0) != 0)
 						;
 					//while(regs0->aud_a5_cnt != 0)
-					regs0->aud_inc_0 = SPDIF_P_INC0;
+					run_start(SPDIF_P_INC0, iprtd->period);
 				}
 			} else {
 				if ((iprtd->offset % iprtd->period) != 0) {
@@ -132,17 +143,16 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 
 		if (delta >= iprtd->period) { //ending normal
 			if (iprtd->usemmap_flag == 1) {
-				regs0->aud_delta_0 = iprtd->period; //prtd->offset;
 				if (substream->pcm->device == SP_I2S_0)
-					regs0->aud_inc_0 = I2S_C_INC0;
+					run_start(I2S_C_INC0, iprtd->period);
 				else if (substream->pcm->device == SP_I2S_1)
-					regs0->aud_inc_0 = I2S_C_INC1;
+					run_start(I2S_C_INC1, iprtd->period);
 				else if (substream->pcm->device == SP_I2S_2)
-					regs0->aud_inc_0 = I2S_C_INC2;
+					run_start(I2S_C_INC2, iprtd->period);
 				else if (substream->pcm->device == SP_SPDIF)
-					regs0->aud_inc_0 = SPDIF_C_INC0;
+					run_start(SPDIF_C_INC0, iprtd->period);
 				else
-					regs0->aud_inc_0 = TDMPDM_C_INC0;
+					run_start(TDMPDM_C_INC0, iprtd->period);
 			}
 		}
 		iprtd->last_offset = iprtd->offset;
@@ -365,7 +375,7 @@ void hw_test(void)
 			while (regs0->aud_inc_0 != 0)
 				;
 			regs0->aud_delta_0 = run_length;
-			regs0->aud_inc_0 = I2S_P_INC0;
+			regs0->aud_inc_0 |= I2S_P_INC0;
 			while (regs0->aud_inc_0 != 0)
 				;
 			//printk("%d\n", val);
@@ -461,11 +471,13 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 
 	pr_debug("%s IN, stream device num: %d\n", __func__, substream->pcm->device);
 
-	if (substream->pcm->device == 4 && substream->stream == 1)
+	if (!IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS) &&
+	    substream->pcm->device == 4 && substream->stream == 1)
 		hw_test();
 
 	if (substream->pcm->device > SP_OTHER) {
-		pr_err("wrong device num: %d\n", substream->pcm->device);
+		pr_info("[sound] device num: %d\n", substream->pcm->device);
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -485,7 +497,7 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 		goto out;
 	}
 
-	spin_lock_init(&prtd->lock);
+	//spin_lock_init(&prtd->lock);
 	runtime->private_data = prtd;
 	prtd->substream = substream;
 	hrtimer_init(&prtd->hrt, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -523,7 +535,7 @@ static int spsoc_pcm_hw_params(struct snd_soc_component *component,
 	prtd->usemmap_flag = 0;
 	prtd->last_remainder = 0;
 	prtd->fifosize_from_user = 0;
-	prtd->last_appl_ofs = 0;
+	//prtd->last_appl_ofs = 0;
 
 	prtd->dma_buffer = runtime->dma_addr;
 	prtd->dma_buffer_end = runtime->dma_addr + runtime->dma_bytes;
@@ -765,22 +777,22 @@ static int spsoc_pcm_prepare(struct snd_soc_component *component,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (substream->pcm->device) {
 		case SP_I2S_0:
-			regs0->aud_fifo_reset = I2S_P_INC0;
+			regs0->aud_fifo_reset |= I2S_P_INC0;
 			while ((regs0->aud_fifo_reset & I2S_P_INC0) != 0)
 				;
 			break;
 		case SP_I2S_1:
-			regs0->aud_fifo_reset = I2S_P_INC1;
+			regs0->aud_fifo_reset |= I2S_P_INC1;
 			while ((regs0->aud_fifo_reset & I2S_P_INC1) != 0)
 				;
 			break;
 		case SP_I2S_2:
-			regs0->aud_fifo_reset = I2S_P_INC2;
+			regs0->aud_fifo_reset |= I2S_P_INC2;
 			while ((regs0->aud_fifo_reset & I2S_P_INC2) != 0)
 				;
 			break;
 		case SP_SPDIF:
-			regs0->aud_fifo_reset = SPDIF_P_INC0;
+			regs0->aud_fifo_reset |= SPDIF_P_INC0;
 			while ((regs0->aud_fifo_reset & SPDIF_P_INC0) != 0)
 				;
 			break;
@@ -793,24 +805,24 @@ static int spsoc_pcm_prepare(struct snd_soc_component *component,
 	} else { //if( substream->stream == SNDRV_PCM_STREAM_CAPTURE )
 		switch (substream->pcm->device) {
 		case SP_I2S_0:
-			regs0->aud_fifo_reset = I2S_C_INC0;
+			regs0->aud_fifo_reset |= I2S_C_INC0;
 			while ((regs0->aud_fifo_reset & I2S_C_INC0) != 0)
 				;
 			break;
 		case SP_I2S_1:
-			regs0->aud_fifo_reset = I2S_C_INC1;
+			regs0->aud_fifo_reset |= I2S_C_INC1;
 			while ((regs0->aud_fifo_reset & I2S_C_INC1) != 0)
 				;
 			break;
 		case SP_I2S_2:
-			regs0->aud_fifo_reset = I2S_C_INC2;
+			regs0->aud_fifo_reset |= I2S_C_INC2;
 			while ((regs0->aud_fifo_reset & I2S_C_INC2) != 0)
 				;
 			break;
 		case SP_TDM:
 			break;
 		case SP_SPDIF:
-			regs0->aud_fifo_reset = SPDIF_C_INC0;
+			regs0->aud_fifo_reset |= SPDIF_C_INC0;
 			while ((regs0->aud_fifo_reset & SPDIF_C_INC0) != 0)
 				;
 			break;
@@ -848,37 +860,36 @@ static int spsoc_pcm_trigger(struct snd_soc_component *component,
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			if (prtd->trigger_flag == 0) {
-				regs0->aud_delta_0 = prtd->period;
 				if (substream->pcm->device == SP_I2S_0) {
-					while ((regs0->aud_inc_0 & I2S_P_INC0) != 0)
-						;
-					regs0->aud_inc_0 = I2S_P_INC0;
 					pr_debug("a0_ptr=0x%x cnt 0x%x\n", regs0->aud_a0_ptr,
 						 regs0->aud_a0_cnt);
+					while ((regs0->aud_inc_0 & I2S_P_INC0) != 0)
+						;
+					run_start(I2S_P_INC0, prtd->period);
 				} else if (substream->pcm->device == SP_I2S_1) {
 					pr_debug("a6_ptr=0x%x cnt 0x%x\n", regs0->aud_a6_ptr,
 						 regs0->aud_a6_cnt);
 					while ((regs0->aud_inc_0 & I2S_P_INC1) != 0)
 						;
-					regs0->aud_inc_0 = I2S_P_INC1;
+					run_start(I2S_P_INC1, prtd->period);
 				} else if (substream->pcm->device == SP_I2S_2) {
 					pr_debug("a19_ptr=0x%x cnt 0x%x\n", regs0->aud_a19_ptr,
 						 regs0->aud_a19_cnt);
 					while ((regs0->aud_inc_0 & I2S_P_INC2) != 0)
 						;
-					regs0->aud_inc_0 = I2S_P_INC2;
+					run_start(I2S_P_INC2, prtd->period);
 				} else if (substream->pcm->device == SP_TDM) {
 					pr_debug("a0_ptr=0x%x cnt 0x%x\n", regs0->aud_a0_ptr,
 						 regs0->aud_a0_cnt);
 					while ((regs0->aud_inc_0 & TDM_P_INC0) != 0)
 						;
-					regs0->aud_inc_0 = TDM_P_INC0;
+					run_start(TDM_P_INC0, prtd->period);
 				} else if (substream->pcm->device == SP_SPDIF) {
 					pr_debug("a5_ptr=0x%x cnt 0x%x\n", regs0->aud_a5_ptr,
 						 regs0->aud_a5_cnt);
 					while ((regs0->aud_inc_0 & SPDIF_P_INC0) != 0)
 						;
-					regs0->aud_inc_0 = SPDIF_P_INC0;
+					run_start(SPDIF_P_INC0, prtd->period);
 				}
 			}
 
@@ -1017,7 +1028,6 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 	//__func__, regs0->aud_a0_ptr, hwbuf, pos, count_bytes);
 		pr_debug("%s IN, aud_a0_ptr=0x%x ", __func__, regs0->aud_a0_ptr);
 		if (prtd->trigger_flag) {
-			regs0->aud_delta_0 = prtd->period;
 			if (substream->pcm->device == SP_I2S_0) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
@@ -1025,7 +1035,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					;
 				while (regs0->aud_a0_cnt != 0)
 					;
-				regs0->aud_inc_0 = I2S_P_INC0;
+				run_start(I2S_P_INC0, count_bytes);
 			} else if (substream->pcm->device == SP_TDM) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
@@ -1033,7 +1043,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					;
 				while (regs0->aud_a0_cnt != 0)
 					;
-				regs0->aud_inc_0 = TDM_P_INC0;
+				run_start(TDM_P_INC0, count_bytes);
 			} else if (substream->pcm->device == SP_I2S_1) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
@@ -1041,7 +1051,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					;
 				while (regs0->aud_a6_cnt != 0)
 					;
-				regs0->aud_inc_0 = I2S_P_INC1;
+				run_start(I2S_P_INC1, count_bytes);
 			} else if (substream->pcm->device == SP_I2S_2) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
@@ -1049,7 +1059,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					;
 				while (regs0->aud_a19_cnt != 0)
 					;
-				regs0->aud_inc_0 = I2S_P_INC2;
+				run_start(I2S_P_INC2, count_bytes);
 			} else if (substream->pcm->device == SP_SPDIF) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
@@ -1057,7 +1067,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					;
 				while (regs0->aud_a5_cnt != 0)
 					;
-				regs0->aud_inc_0 = SPDIF_P_INC0;
+				run_start(SPDIF_P_INC0, count_bytes);
 			}
 			//hrtimer_forward_now(&prtd->hrt, ns_to_ktime(prtd->poll_time_ns));
 			hrtimer_start(&prtd->hrt, ns_to_ktime(prtd->poll_time_ns),
@@ -1117,17 +1127,16 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 
 		copy_to_iter_fromio(buf, hwbuf, count_bytes);
 
-		regs0->aud_delta_0 = count_bytes;//prtd->offset;
 		if (substream->pcm->device == SP_I2S_0)
-			regs0->aud_inc_0 = I2S_C_INC0;
+			run_start(I2S_C_INC0, count_bytes);
 		else if (substream->pcm->device == SP_I2S_1)
-			regs0->aud_inc_0 = I2S_C_INC1;
+			run_start(I2S_C_INC1, count_bytes);
 		else if (substream->pcm->device == SP_I2S_2)
-			regs0->aud_inc_0 = I2S_C_INC2;
+			run_start(I2S_C_INC2, count_bytes);
 		else if (substream->pcm->device == SP_SPDIF)
-			regs0->aud_inc_0 = SPDIF_C_INC0;
+			run_start(SPDIF_C_INC0, count_bytes);
 		else
-			regs0->aud_inc_0 = TDMPDM_C_INC0;
+			run_start(TDMPDM_C_INC0, count_bytes);
 	}
 	return ret;
 }
