@@ -497,6 +497,80 @@ int sp7350_vpp_vpost_adj_slope_set(struct drm_plane *plane, const u16 *slope, u3
 	return 0;
 }
 
+int sp7350_osd_gpost_contrast_adj_enable(struct drm_plane *plane, int enable)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+
+	value = SP7350_PLANE_READ(GPOST_CONTRAST_CONFIG + (sp_plane->osd_layer_sel << 7));
+	if (enable)
+		value |= 0x1;
+	else
+		value &= ~0x1;
+
+	SP7350_PLANE_WRITE(GPOST_CONTRAST_CONFIG + (sp_plane->osd_layer_sel << 7), value);
+
+	return 0;
+}
+
+int sp7350_osd_gpost_contrast_adj_turning_point_set(struct drm_plane *plane,
+						const u8 *cp_src, const u8 *cp_sdt, u32 cp_size)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+	if (cp_size != 2)
+		return -1;
+
+	value = 0;
+	value = cp_src[0] + (cp_src[1] << 8);
+	SP7350_PLANE_WRITE(GPOST_ADJ_SRC + (sp_plane->osd_layer_sel << 7), value);
+
+	value = 0;
+	value = cp_sdt[0] + (cp_sdt[1] << 8);
+	SP7350_PLANE_WRITE(GPOST_ADJ_DES + (sp_plane->osd_layer_sel << 7), value);
+
+	return 0;
+}
+
+int sp7350_osd_gpost_contrast_adj_slope_set(struct drm_plane *plane,
+						const u16 *slope, u32 slope_size)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+	if (slope_size != 3)
+		return -1;
+
+	value = slope[0] & 0x1FF;
+	SP7350_PLANE_WRITE(GPOST_ADJ_SLOPE0 + (sp_plane->osd_layer_sel << 7), value);
+
+	value = slope[1] & 0x1FF;
+	SP7350_PLANE_WRITE(GPOST_ADJ_SLOPE1 + (sp_plane->osd_layer_sel << 7), value);
+
+	value = slope[2] & 0x1FF;
+	SP7350_PLANE_WRITE(GPOST_ADJ_SLOPE2 + (sp_plane->osd_layer_sel << 7), value);
+
+	return 0;
+}
+
+int sp7350_osd_gpost_brightness_adj_set(struct drm_plane *plane, int brightness)
+{
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+	struct sp7350_dev *sp_dev = to_sp7350_dev(sp_plane->base.dev);
+	u32 value;
+
+	value = 0;
+	value = brightness < 0 ? (0x80 | (brightness & 0x7F)) : (brightness & 0x7F);
+	SP7350_PLANE_WRITE(GPOST_BRI_VALUE + (sp_plane->osd_layer_sel << 7), value);
+
+	return 0;
+}
+
 int sp7350_vpp_vpost_adj_luma_boundary_set(struct drm_plane *plane, u8 upper, u8 lower)
 {
 	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
@@ -523,33 +597,40 @@ int sp7350_vpp_vpost_adj_luma_boundary_set(struct drm_plane *plane, u8 upper, u8
 
 static u32 sp7350_plane_brightness_setting(struct drm_plane *plane, int brightness)
 {
-	u8 srcY[2];
-	u8 destY[2];
-	u16 slope[3];
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 
-	if (brightness >= 0) {
-		srcY[0] = 0;
-		srcY[1] = 0xFF - brightness;
-		destY[0] = brightness;
-		destY[1] = 0xFF;
+	if (sp_plane->is_media_plane) {
+		u8 srcY[2];
+		u8 destY[2];
+		u16 slope[3];
+
+		if (brightness >= 0) {
+			srcY[0] = 0;
+			srcY[1] = 0xFF - brightness;
+			destY[0] = brightness;
+			destY[1] = 0xFF;
+		} else {
+			srcY[0] = 0 - brightness;
+			srcY[1] = 0xFF;
+			destY[0] = 0;
+			destY[1] = 0xFF + brightness;
+		}
+
+		slope[0] = slope[2] = 0;
+		slope[1] = 0x100;
+		sp7350_vpp_vpost_adj_turning_point_set(plane, srcY, destY, 2);
+		sp7350_vpp_vpost_adj_slope_set(plane, slope, 3);
+		sp7350_vpp_vpost_adj_enable(plane, 1);
 	} else {
-		srcY[0] = 0 - brightness;
-		srcY[1] = 0xFF;
-		destY[0] = 0;
-		destY[1] = 0xFF + brightness;
+		/* [-128, 127] */
+		sp7350_osd_gpost_brightness_adj_set(plane, brightness);
 	}
-
-	slope[0] = slope[2] = 0;
-	slope[1] = 0x100;
-	sp7350_vpp_vpost_adj_turning_point_set(plane, srcY, destY, 2);
-	sp7350_vpp_vpost_adj_slope_set(plane, slope, 3);
-	sp7350_vpp_vpost_adj_enable(plane, 1);
-
 	return 0;
 }
 
 static u32 sp7350_plane_contrast_setting(struct drm_plane *plane, int contrast)
 {
+	struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
 	u8 srcY[2];
 	u8 destY[2];
 	u16 slope[3];
@@ -573,9 +654,15 @@ static u32 sp7350_plane_contrast_setting(struct drm_plane *plane, int contrast)
 		destY[1] = 0xFF + contrast / 2;
 	}
 
-	sp7350_vpp_vpost_adj_turning_point_set(plane, srcY, destY, 2);
-	sp7350_vpp_vpost_adj_slope_set(plane, slope, 3);
-	sp7350_vpp_vpost_adj_enable(plane, 1);
+	if (sp_plane->is_media_plane) {
+		sp7350_vpp_vpost_adj_turning_point_set(plane, srcY, destY, 2);
+		sp7350_vpp_vpost_adj_slope_set(plane, slope, 3);
+		sp7350_vpp_vpost_adj_enable(plane, 1);
+	} else {
+		sp7350_osd_gpost_contrast_adj_turning_point_set(plane, srcY, destY, 2);
+		sp7350_osd_gpost_contrast_adj_slope_set(plane, slope, 3);
+		sp7350_osd_gpost_contrast_adj_enable(plane, 1);
+	}
 
 	return 0;
 }
@@ -896,10 +983,6 @@ static int sp7350_plane_atomic_set_property(struct drm_plane *plane,
 						  plane->index, val ? "enable" : "disable");
 
 		sp_state->scaling_adjustment_enable = val ? true : false;
-
-	} else if (!strcmp(property->name, "SCL_ADJ") &&
-		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_SCALE)) {
-		sp_state->scaling_adjustment_enable = val;
 
 	} else if (!strcmp(property->name, "BG_ALPHA") &&
 		      (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BG_BLEND)) {
@@ -1231,7 +1314,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 		&& (new_state->alpha != sp_plane->updated_alpha)) {
 		/*
 		 * Auto resize alpha region from 0 ~ 0xffff to 0 ~ 0x3f.
-		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~0x3f.
+		 *  0x00 ~ 0x3f remark as 0, 0x00xx ~ 0xffxx remark as 0 ~ 0x3f.
 		 */
 		DRM_DEBUG_ATOMIC("Set plane[%d] alpha %d(src:%d)\n",
 				 plane->index, new_state->alpha >> 10, new_state->alpha);
@@ -1250,12 +1333,14 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	}
 
 	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS)
-		&& (!old_sp_state || sp_state->brightness != old_sp_state->brightness)) {
+		&& (!old_sp_state || (!sp_state->contrast &&
+		    (sp_state->brightness != old_sp_state->brightness)))) {
 		sp7350_plane_brightness_setting(plane, sp_state->brightness);
 	}
 
 	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_CONTRAST)
-		&& (!old_sp_state || sp_state->contrast != old_sp_state->contrast)) {
+		&& (!old_sp_state || (!sp_state->brightness &&
+		   (sp_state->contrast != old_sp_state->contrast)))) {
 		sp7350_plane_contrast_setting(plane, sp_state->contrast);
 	}
 
@@ -1271,6 +1356,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *old_state = NULL;
 	struct drm_plane_state *new_state = NULL;
 	struct sp7350_plane_state *sp_state = NULL;
+	struct sp7350_plane_state *old_sp_state = NULL;
 	struct sp7350_osd_region *info = NULL;
 	//struct drm_format_name_buf format_name;
 	bool updated = false;
@@ -1291,6 +1377,8 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	DRM_DEBUG_ATOMIC("plane-%d zpos:%d\n", plane->index, sp_plane->zpos);
 	sp_state = to_sp7350_plane_state(new_state);
+	if (old_state)
+		old_sp_state = to_sp7350_plane_state(old_state);
 	info = &sp_state->info;
 
 	/* Check parameter updates first  */
@@ -1443,6 +1531,16 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 				 plane->index, new_state->alpha >> 10, new_state->alpha);
 		sp7350_drm_plane_alpha_config(plane, sp_plane->dmix_layer, 1, 0, new_state->alpha >> 10);
 		sp_plane->updated_alpha = new_state->alpha;
+	}
+
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS)
+		&& (!old_sp_state || sp_state->brightness != old_sp_state->brightness)) {
+		sp7350_plane_brightness_setting(plane, sp_state->brightness);
+	}
+
+	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_CONTRAST)
+		&& (!old_sp_state || sp_state->contrast != old_sp_state->contrast)) {
+		sp7350_plane_contrast_setting(plane, sp_state->contrast);
 	}
 
 	sp7350_drm_plane_set(plane, sp_plane->dmix_fg_sel, SP7350_DMIX_BLENDING);
@@ -1607,8 +1705,12 @@ static void sp7350_plane_create_propertys(struct sp7350_plane *sp_plane)
 	}
 	if (sp_plane->capabilities & SP7350_DRM_PLANE_CAP_BRIGHTNESS) {
 		/* region: 0~100 */
-		sp_plane->brightness_property = drm_property_create_signed_range(sp_plane->base.dev,
-					 DRM_MODE_PROP_ATOMIC, "brightness", -255, 255);
+		if (sp_plane->is_media_plane)
+			sp_plane->brightness_property = drm_property_create_signed_range(sp_plane->base.dev,
+						 DRM_MODE_PROP_ATOMIC, "brightness", -255, 255);
+		else
+			sp_plane->brightness_property = drm_property_create_signed_range(sp_plane->base.dev,
+						 DRM_MODE_PROP_ATOMIC, "brightness", -128, 127);
 		drm_object_attach_property(&sp_plane->base.base,
 			 sp_plane->brightness_property, 0);
 		if (sp_plane->state)
