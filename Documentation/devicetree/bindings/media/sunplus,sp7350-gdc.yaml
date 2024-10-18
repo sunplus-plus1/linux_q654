@@ -51,13 +51,13 @@ properties:
       - const: axi
       - const: apb
       
-  sunplus,max_config_size:
+  sunplus,max-config-size:
     description: | 
         The size(in byte) of internal buffer which is for binary configuration data.
         The size must be aligned to 4-byte.   
     $ref: /schemas/types.yaml#/definitions/uint32
     
-  sunplus,devnode_number:
+  sunplus,devnode-number:
     description: | 
         The device node number which is used while registering v4l2 video device.
         If this property is omitted, driver will use the default value(-1).
@@ -72,7 +72,7 @@ required:
   - clock-names
   - resets
   - reset-names
-  - sunplus,max_config_size
+  - sunplus,max-config-size
 
 additionalProperties: false
 
@@ -92,6 +92,6 @@ examples:
         clock-names = "sys", "axi", "apb";
         resets = <&rstc RST_VCL>, <&rstc RST_VCL5>, <&rstc RST_VCL3>;
         reset-names = "sys", "axi", "apb";
-        sunplus,max_config_size = <0x100000>;
-        sunplus,devnode_number = <96>;
+        sunplus,max-config-size = <0x100000>;
+        sunplus,devnode-number = <96>;
     };
