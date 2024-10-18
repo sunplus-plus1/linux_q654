@@ -14,6 +14,11 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 
+//#define RTL8211F_WOL_TEST
+#ifdef RTL8211F_WOL_TEST
+#include <linux/netdevice.h>
+#endif
+
 #define RTL821x_PHYSR				0x11
 #define RTL821x_PHYSR_DUPLEX			BIT(13)
 #define RTL821x_PHYSR_SPEED			GENMASK(15, 14)
@@ -313,6 +318,105 @@ static irqreturn_t rtl8211f_handle_interrupt(struct phy_device *phydev)
 	return IRQ_HANDLED;
 }
 
+#ifdef RTL8211F_WOL_TEST
+static void rtl8211f_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	int wolreg;
+
+	wol->supported = WAKE_MAGIC | WAKE_UCAST | WAKE_BCAST;
+	wolreg = phy_read_paged(phydev, 0x0d8a, 16);
+	if (wolreg > 0) {
+		if (wolreg & BIT(12))
+			wol->wolopts |= WAKE_MAGIC;
+		if (wolreg & BIT(10))
+			wol->wolopts |= WAKE_UCAST;
+		if (wolreg & BIT(8))
+			wol->wolopts |= WAKE_BCAST;
+	}
+}
+
+static int rtl8211f_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol)
+{
+	int ret;
+	u16 events = 0;
+	int oldpage;
+
+	ret = phy_save_page(phydev);
+	if (ret < 0)
+		goto err_restore_page;
+
+	oldpage = ret;
+
+	if (wol->wolopts == 0) {
+		ret = rtl821x_write_page(phydev, 0x0a42);
+		if (ret >= 0)
+			ret = __phy_clear_bits(phydev, 18, BIT(7));
+		if (ret >= 0)
+			ret = rtl821x_write_page(phydev, 0x0a43);
+		if (ret >= 0)
+			ret = __phy_read(phydev, 29);
+		if (ret >= 0)
+			ret = rtl821x_write_page(phydev, 0x0d8a);
+		if (ret >= 0)
+			ret = __phy_write(phydev, 16, 0);
+		if (ret >= 0)
+			ret = __phy_write(phydev, 17, 0x1fff);
+		if (ret >= 0)
+			ret = __phy_clear_bits(phydev, 19, BIT(15));
+		goto err_restore_page;
+	}
+
+	if (wol->wolopts & WAKE_MAGIC)
+		events |= BIT(12);
+	if (wol->wolopts & WAKE_UCAST)
+		events |= BIT(10);
+	if (wol->wolopts & WAKE_BCAST)
+		events |= BIT(8);
+
+	if (wol->wolopts & (WAKE_MAGIC | WAKE_UCAST)) {
+		ret = rtl821x_write_page(phydev, 0x0d8c);
+		if (ret >= 0)
+			ret = __phy_write(phydev, 16,
+					  (phydev->attached_dev->dev_addr[1] << 8) |
+					   phydev->attached_dev->dev_addr[0]);
+		if (ret >= 0)
+			ret = __phy_write(phydev, 17,
+					  (phydev->attached_dev->dev_addr[3] << 8) |
+					   phydev->attached_dev->dev_addr[2]);
+		if (ret >= 0)
+			ret = __phy_write(phydev, 18,
+					  (phydev->attached_dev->dev_addr[5] << 8) |
+					   phydev->attached_dev->dev_addr[4]);
+		if (ret < 0)
+			goto err_restore_page;
+	}
+
+	ret = rtl821x_write_page(phydev, 0x0d8a);
+	if (ret >= 0)
+		ret = __phy_write(phydev, 17, 0x9fff);
+	if (ret >= 0)
+		ret = __phy_write(phydev, 16, events);
+	if (ret >= 0)
+		ret = rtl821x_write_page(phydev, 0x0d8a);
+	if (ret >= 0)
+		ret = __phy_set_bits(phydev, 19, BIT(15));
+	if (ret >= 0)
+		ret = rtl821x_write_page(phydev, 0x0a42);
+	if (ret >= 0)
+		ret = __phy_set_bits(phydev, 18, BIT(7));
+	if (ret >= 0)
+		ret = rtl821x_write_page(phydev, 0x0a43);
+	if (ret >= 0)
+		ret = __phy_read(phydev, 29);
+
+err_restore_page:
+	if (ret > 0)
+		ret = 0;
+
+	return phy_restore_page(phydev, oldpage, ret);
+}
+#endif
+
 static int rtl8211_config_aneg(struct phy_device *phydev)
 {
 	int ret;
@@ -449,6 +553,16 @@ static int rtl821x_resume(struct phy_device *phydev)
 {
 	struct rtl821x_priv *priv = phydev->priv;
 	int ret;
+
+	if (phydev->wol_enabled) {
+		if (phydev->drv->phy_id == 0x001cc916) {
+			phy_modify_paged(phydev, 0x0a42, 18, BIT(7), 0);
+			phy_read_paged(phydev, 0x0a43, 29);
+			phy_write_paged(phydev, 0x0d8a, 16, 0);
+			phy_write_paged(phydev, 0x0d8a, 17, 0x1fff);
+			phy_write_paged(phydev, 0x0d8a, 19, 0);
+		}
+	}
 
 	if (!phydev->wol_enabled)
 		clk_prepare_enable(priv->clk);
@@ -962,6 +1076,10 @@ static struct phy_driver realtek_drvs[] = {
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.flags		= PHY_ALWAYS_CALL_SUSPEND,
+#ifdef RTL8211F_WOL_TEST
+		.get_wol	= rtl8211f_get_wol,
+		.set_wol	= rtl8211f_set_wol,
+#endif
 	}, {
 		PHY_ID_MATCH_EXACT(RTL_8211FVD_PHYID),
 		.name		= "RTL8211F-VD Gigabit Ethernet",

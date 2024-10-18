@@ -1,16 +1,22 @@
 #
-# AXI Monitor subsystem configuration
+# AXI Bus subsystem configuration
 #
-
-menu "Sunplus AXI Monitor"
+menu "Sunplus SoC drivers"
 
 config SUNPLUS_AXI_MONITOR
-	tristate "Sunplus AXI monitor support"
+	tristate "Sunplus AXI monitor driver"
 	default n
 	help
 	  Sunplus breakpoint analysis of backbone-dram problem.
 	  In order to speed up the breakpoint analysis of the
 	  BackBone-Dram proble. Quickly locate which Master/Slave
 	  caused the system to crash.
+
+config SUNPLUS_AXI_ARBITER
+	tristate "Sunplus AXI arbiter driver"
+	default n
+	help
+	  Support issue rate limiter. Support dynamic AMBA Qos.
+	  Support total data accumulation for write and read.
 
 endmenu
