@@ -26,7 +26,7 @@ void __iomem *pcmaudio_base;
 static const struct snd_pcm_hardware spsoc_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_PAUSE |
 		SNDRV_PCM_INFO_BATCH,
-	.formats		= (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_3LE),
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.period_bytes_min	= PERIOD_BYTES_MIN_CONS,
 	.period_bytes_max	= PERIOD_BYTES_MAX_CONS,
 	.periods_min		= 2,
@@ -461,11 +461,13 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 
 	pr_debug("%s IN, stream device num: %d\n", __func__, substream->pcm->device);
 
-	if ((substream->pcm->device == 4) && (substream->stream == 1))
+	if (!IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS) &&
+	    (substream->pcm->device == 4) && (substream->stream == 1))
 		hw_test();
 
 	if (substream->pcm->device > SP_OTHER) {
-		pr_err("wrong device num: %d\n", substream->pcm->device);
+		pr_info("device num: %d\n", substream->pcm->device);
+		ret = -EINVAL;
 		goto out;
 	}
 
