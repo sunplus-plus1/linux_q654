@@ -544,7 +544,7 @@ static int gdc_parse_dt(struct platform_device *pdev, struct gdc_device *gdev)
 		return PTR_ERR(gdev->pclk);
 	}
 
-	ret = device_property_read_u32(&pdev->dev, "sunplus,max_config_size",
+	ret = device_property_read_u32(&pdev->dev, "sunplus,max-config-size",
 				       &gdev->max_config_size);
 	if (ret) {
 		dev_err(&pdev->dev, "No sunplus,max_config_size from DT\n");
@@ -558,7 +558,7 @@ static int gdc_parse_dt(struct platform_device *pdev, struct gdc_device *gdev)
 		return -EINVAL;
 	}
 
-	ret = device_property_read_u32(&pdev->dev, "sunplus,devnode_number",
+	ret = device_property_read_u32(&pdev->dev, "sunplus,devnode-number",
 				       &gdev->v4l2.devnode_number);
 	if (ret) {
 		dev_info(
