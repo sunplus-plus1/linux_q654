@@ -1,0 +1,15 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause) */
+
+#ifndef __DT_BINDINGS_SUNPLUS_SP7350_REGULATOR_H
+#define __DT_BINDINGS_SUNPLUS_SP7350_REGULATOR_H
+
+#define BIT(nr) (1 << (nr))
+
+#define SP7350_ISO_CORE0 BIT(0)
+#define SP7350_ISO_CORE1 BIT(1)
+#define SP7350_ISO_CORE2 BIT(2)
+#define SP7350_ISO_CORE3 BIT(3)
+#define SP7350_ISO_NPU BIT(4)
+#define SP7350_ISO_VIDEO BIT(5)
+
+#endif
