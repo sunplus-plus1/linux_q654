@@ -135,29 +135,30 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 		else // tdm, pdm
 			iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
 
-		pr_debug("C:?_ptr=0x%x\n", iprtd->offset);
-		if (iprtd->offset >= iprtd->last_offset)
-			delta = iprtd->offset - iprtd->last_offset;
-		else
-			delta = iprtd->size + iprtd->offset - iprtd->last_offset;
+		pr_debug("C:?_ptr=0x%x cnt_a11 0x%x\n", iprtd->offset, regs0->aud_a11_cnt);
+		if (iprtd->usemmap_flag == 1) {
+			if (iprtd->offset >= iprtd->last_offset)
+				delta = iprtd->offset - iprtd->last_offset;
+			else
+				delta = iprtd->size + iprtd->offset - iprtd->last_offset;
 
-		if (delta >= iprtd->period) { //ending normal
-			if (iprtd->usemmap_flag == 1) {
+			if (delta >= iprtd->period / 2) { //ending normal
+
 				if (substream->pcm->device == SP_I2S_0)
-					run_start(I2S_C_INC0, iprtd->period);
+					run_start(I2S_C_INC0, delta);
 				else if (substream->pcm->device == SP_I2S_1)
-					run_start(I2S_C_INC1, iprtd->period);
+					run_start(I2S_C_INC1, delta);
 				else if (substream->pcm->device == SP_I2S_2)
-					run_start(I2S_C_INC2, iprtd->period);
+					run_start(I2S_C_INC2, delta);
 				else if (substream->pcm->device == SP_SPDIF)
-					run_start(SPDIF_C_INC0, iprtd->period);
+					run_start(SPDIF_C_INC0, delta);
 				else
-					run_start(TDMPDM_C_INC0, iprtd->period);
+					run_start(TDMPDM_C_INC0, delta);
+				pr_debug("C1:?_ptr=0x%x\n", iprtd->offset);
 			}
 		}
 		iprtd->last_offset = iprtd->offset;
 		snd_pcm_period_elapsed(substream);
-		pr_debug("C1:?_ptr=0x%x\n", iprtd->offset);
 	}
 }
 
@@ -971,14 +972,14 @@ static snd_pcm_uframes_t spsoc_pcm_pointer(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct spsoc_runtime_data *prtd = runtime->private_data;
-	snd_pcm_uframes_t offset, prtd_offset;
+	snd_pcm_uframes_t offset;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		prtd_offset = prtd->offset;
-	else
-		prtd_offset = prtd->offset;
+	//if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	//	prtd_offset = prtd->offset;
+	//else
+	//	prtd_offset = prtd->offset;
 
-	offset = bytes_to_frames(runtime, prtd_offset);
+	offset = bytes_to_frames(runtime, prtd->offset);
 	pr_debug("offset=0x%lx\n", offset);
 	return offset;
 }
