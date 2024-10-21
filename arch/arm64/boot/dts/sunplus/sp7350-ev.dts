@@ -483,7 +483,7 @@
 		regulator-max-microvolt = <1800000>;
 		regulator-always-on;
 	};
-
+	
 #if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 	lt8912b_1p8v: lt8912b_1p8v {
 		compatible = "regulator-fixed";
@@ -533,6 +533,14 @@
 };
 
 &video_codec_core_0v8 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&video_codec_pwr_en_pins>;
+	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+	regulator-boot-on;
+};
+
+&gdc_video_isp_0v8 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&video_codec_pwr_en_pins>;
 	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
@@ -3152,6 +3160,7 @@
 
 &gdc {
 	memory-region = <&gdc_reserve>;
+	gdc-supply = <&gdc_video_isp_0v8>;
 };
 
 &watchdog {
