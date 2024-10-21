@@ -427,6 +427,7 @@ static int gdc_v4l2_init(struct gdc_device *gdev)
 	int ret;
 
 	mutex_init(&v4l2->lock);
+	spin_lock_init(&v4l2->spin_lock);
 
 	ret = v4l2_device_register(gdev->dev, &v4l2->v4l2_dev);
 	if (ret)
@@ -506,6 +507,12 @@ static int gdc_parse_dt(struct platform_device *pdev, struct gdc_device *gdev)
 	if (IS_ERR(gdev->reg_base)) {
 		dev_err(gdev->dev, "ioremap reg_base error\n");
 		return -EINVAL;
+	}
+
+	gdev->supply = devm_regulator_get(&pdev->dev, "gdc");
+	if (IS_ERR(gdev->supply)) {
+		dev_err(&pdev->dev, "Failed to get regulator\n");
+		return PTR_ERR(gdev->supply);
 	}
 
 	gdev->srst = devm_reset_control_get(&pdev->dev, "sys");
@@ -722,6 +729,12 @@ static int gdc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = regulator_enable(gdev->supply);
+	if (ret) {
+		dev_err(&pdev->dev, "gdc enable regulator error\n");
+		return ret;
+	}
+
 	ret = gdc_clock_enable(gdev);
 	if (ret) {
 		dev_err(&pdev->dev, "gdc enable clock error\n");
@@ -770,6 +783,7 @@ static int gdc_remove(struct platform_device *pdev)
 	pm_runtime_disable(gdev->dev);
 	gdc_reset_assert(gdev);
 	gdc_clock_disable(gdev);
+	regulator_disable(gdev->supply);
 
 	return 0;
 }

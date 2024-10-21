@@ -63,6 +63,7 @@ struct gdc_device {
 	struct reset_control *srst;
 	struct reset_control *arst;
 	struct reset_control *prst;
+	struct regulator *supply;
 	int irq;
 	u32 max_config_size;
 	void __iomem *reg_base;
