@@ -404,19 +404,19 @@ static const struct fixed_dev_type fixed_iso_data = {
 
 static const struct of_device_id fixed_of_match[] = {
 	{
-		.compatible = "sunplus,regulator-fixed",
+		.compatible = "sunplus,sp7350-regulator-fixed",
 		.data = &fixed_voltage_data,
 	},
 	{
-		.compatible = "sunplus,regulator-fixed-clock",
+		.compatible = "sunplus,sp7350-regulator-fixed-clock",
 		.data = &fixed_clkenable_data,
 	},
 	{
-		.compatible = "sunplus,regulator-fixed-domain",
+		.compatible = "sunplus,sp7350-regulator-fixed-domain",
 		.data = &fixed_domain_data,
 	},
 	{
-		.compatible = "sunplus,regulator-fixed-iso",
+		.compatible = "sunplus,sp7350-regulator-fixed-iso",
 		.data = &fixed_iso_data,
 	},
 	{
@@ -428,7 +428,7 @@ MODULE_DEVICE_TABLE(of, fixed_of_match);
 static struct platform_driver regulator_fixed_voltage_driver = {
 	.probe		= reg_fixed_voltage_probe,
 	.driver		= {
-		.name		= "sunplus-fixed",
+		.name		= "sp7350-fixed",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(fixed_of_match),
 	},

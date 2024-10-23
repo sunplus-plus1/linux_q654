@@ -291,7 +291,7 @@
 	};
 	
 	gdc_video_isp_0v8: gdc_video_isp_0v8@f880125c {
-		compatible = "sunplus,regulator-fixed-iso";
+		compatible = "sunplus,sp7350-regulator-fixed-iso";
 		reg = <0x00 0xf880125c 0x00 0x4>;
 		regulator-name = "0v8";
 		regulator-min-microvolt = <800000>;
