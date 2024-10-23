@@ -1670,8 +1670,8 @@ config REGULATOR_STI8070X
 	help
 	  This adds support for voltage regulator of the STI8070x series.
 	  
-config REGULATOR_SUNPLUS_FIXED_VOLTAGE
-	tristate "Sunplus Fixed voltage regulator support"
+config REGULATOR_FIXED_VOLTAGE_SP7350
+	tristate "Sunplus Fixed voltage regulator support for sp7350"
 	help
 	  This driver provides support for fixed voltage regulators,
 	  useful for systems which use a combination of software
