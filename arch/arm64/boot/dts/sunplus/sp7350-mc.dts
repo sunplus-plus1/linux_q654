@@ -535,9 +535,9 @@
 &spi_controller0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_master0_pins>;
-	dmas = <&ahbdma1 0 0 0>,
-	       <&ahbdma1 1 0 0>;
-	dma-names = "rx", "tx";
+	//dmas = <&ahbdma1 0 0 0>,
+	//       <&ahbdma1 1 0 0>;
+	//dma-names = "rx", "tx";
 	status = "disabled";
 
 	spi@0 {
@@ -551,9 +551,9 @@
 &spi_controller1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_master1_pins>;
-	dmas = <&ahbdma1 2 0 0>,
-	       <&ahbdma1 3 0 0>;
-	dma-names = "rx", "tx";
+	//dmas = <&ahbdma1 2 0 0>,
+	//       <&ahbdma1 3 0 0>;
+	//dma-names = "rx", "tx";
 	status = "disabled";
 
 	spi@0 {
@@ -567,9 +567,9 @@
 &spi_controller2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_master2_pins>;
-	dmas = <&ahbdma1 4 0 0>,
-	       <&ahbdma1 5 0 0>;
-	dma-names = "rx", "tx";
+	//dmas = <&ahbdma1 4 0 0>,
+	//       <&ahbdma1 5 0 0>;
+	//dma-names = "rx", "tx";
 	status = "disabled";
 
 	spi@0 {
@@ -599,9 +599,9 @@
 &spi_controller4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_master4_pins>;
-	dmas = <&ahbdma1 6 0 0>,
-	       <&ahbdma1 7 0 0>;
-	dma-names = "rx", "tx";
+	//dmas = <&ahbdma1 6 0 0>,
+	//       <&ahbdma1 7 0 0>;
+	//dma-names = "rx", "tx";
 	status = "disabled";
 
 	spi@0 {
