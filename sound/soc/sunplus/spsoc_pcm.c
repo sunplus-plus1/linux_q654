@@ -81,30 +81,25 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 		if (iprtd->offset < iprtd->fifosize_from_user) {
 			if (iprtd->usemmap_flag == 1) {
 				if (substream->pcm->device == SP_I2S_0) {
-					while (((regs0->aud_inc_0 & I2S_P_INC0) != 0) ||
-					       (regs0->aud_a0_cnt != 0))
+					while ((regs0->aud_inc_0 & I2S_P_INC0) != 0)
 						;
 					run_start(I2S_P_INC0, iprtd->period);
 				} else if (substream->pcm->device == SP_I2S_1) {
-					while (((regs0->aud_inc_0 & I2S_P_INC1) != 0) ||
-					       (regs0->aud_a6_cnt != 0))
+					while ((regs0->aud_inc_0 & I2S_P_INC1) != 0)
 						;
 					run_start(I2S_P_INC1, iprtd->period);
 				} else if (substream->pcm->device == SP_I2S_2) {
-					while (((regs0->aud_inc_0 & I2S_P_INC2) != 0) ||
-					       (regs0->aud_a19_cnt != 0))
+					while ((regs0->aud_inc_0 & I2S_P_INC2) != 0)
 						;
 					run_start(I2S_P_INC2, iprtd->period);
 				} else if (substream->pcm->device == SP_TDM) {
-					while (((regs0->aud_inc_0 & TDM_P_INC0) != 0) ||
-					       (regs0->aud_a0_cnt != 0))
+					while ((regs0->aud_inc_0 & TDM_P_INC0) != 0)
 						;
 					run_start(TDM_P_INC0, iprtd->period);
 				} else if (substream->pcm->device == SP_SPDIF) {
 //pr_debug("***%s IN, aud_a5_ptr=0x%x, dma_area=0x%x, pos=0x%lx count_bytes 0x%x\n", __func__,
 //	   regs0->aud_a5_ptr, hwbuf, pos, count_bytes);
-					while (((regs0->aud_inc_0 & SPDIF_P_INC0) != 0) ||
-					       (regs0->aud_a5_cnt != 0))
+					while ((regs0->aud_inc_0 & SPDIF_P_INC0) != 0)
 						;
 					run_start(SPDIF_P_INC0, iprtd->period);
 				}
@@ -1036,36 +1031,41 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 			if (substream->pcm->device == SP_I2S_0) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
-				while (((regs0->aud_inc_0 & I2S_P_INC0) != 0) ||
-				       (regs0->aud_a0_cnt != 0))
+				while ((regs0->aud_inc_0 & I2S_P_INC0) != 0)
+					;
+				while (regs0->aud_a0_cnt != 0)
 					;
 				run_start(I2S_P_INC0, count_bytes);
 			} else if (substream->pcm->device == SP_TDM) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
-				while (((regs0->aud_inc_0 & TDM_P_INC0) != 0) ||
-				       (regs0->aud_a0_cnt != 0))
+				while ((regs0->aud_inc_0 & TDM_P_INC0) != 0)
+					;
+				while (regs0->aud_a0_cnt != 0)
 					;
 				run_start(TDM_P_INC0, count_bytes);
 			} else if (substream->pcm->device == SP_I2S_1) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
-				while (((regs0->aud_inc_0 & I2S_P_INC1) != 0) ||
-				       (regs0->aud_a6_cnt != 0))
+				while ((regs0->aud_inc_0 & I2S_P_INC1) != 0)
+					;
+				while (regs0->aud_a6_cnt != 0)
 					;
 				run_start(I2S_P_INC1, count_bytes);
 			} else if (substream->pcm->device == SP_I2S_2) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
-				while (((regs0->aud_inc_0 & I2S_P_INC2) != 0) ||
-				       (regs0->aud_a19_cnt != 0))
+				while ((regs0->aud_inc_0 & I2S_P_INC2) != 0)
+					;
+				while (regs0->aud_a19_cnt != 0)
 					;
 				run_start(I2S_P_INC2, count_bytes);
 			} else if (substream->pcm->device == SP_SPDIF) {
 				pr_debug("dma_area=0x%p pos=0x%lx count_bytes 0x%lx count 0x%lx\n",
 					 hwbuf, pos, count_bytes, count);
-				while (((regs0->aud_inc_0 & SPDIF_P_INC0) != 0) ||
-				       (regs0->aud_a5_cnt != 0))
+				while ((regs0->aud_inc_0 & SPDIF_P_INC0) != 0)
+					;
+				while (regs0->aud_a5_cnt != 0)
 					;
 				run_start(SPDIF_P_INC0, count_bytes);
 			}
