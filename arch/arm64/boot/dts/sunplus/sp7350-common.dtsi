@@ -9,7 +9,7 @@
 #include <dt-bindings/clock/sp-sp7350.h>
 #include <dt-bindings/reset/sp-sp7350.h>
 #include <dt-bindings/pinctrl/sppctl-sp7350.h>
-#include <dt-bindings/regulator/sunplus,sp7350-regulator.h>
+#include <dt-bindings/regulator/sunplus,sp7350-iso.h>
 
 / {
 	compatible = "sunplus,sp7350";
@@ -290,12 +290,10 @@
 		regulator-max-microvolt = <800000>;
 	};
 	
-	gdc_video_isp_0v8: gdc_video_isp_0v8@f880125c {
-		compatible = "sunplus,sp7350-regulator-fixed-iso";
+	gdc_video_isp_iso: gdc_video_isp_iso@f880125c {
+		compatible = "sunplus,sp7350-regulator-iso";
 		reg = <0x00 0xf880125c 0x00 0x4>;
-		regulator-name = "0v8";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <800000>;
+		regulator-name = "sp7350-iso";
 		sunplus,iso-selector = <SP7350_ISO_VIDEO>;
 	};
 	

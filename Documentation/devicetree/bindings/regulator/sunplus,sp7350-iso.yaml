@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/sunplus,sp7350-iso.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sunplus Power Isolation
+
+maintainers:
+  - YuBo Leng <yb.leng@sunmeida.com.cn>
+
+description:
+  Sunplus Power Isolation could isolate power cells to avoid mutual interference between them.
+  
+properties:
+  compatible:
+    enum:
+      - sunplus,sp7350-regulator-iso
+
+  regulator-name: true
+  
+  reg:
+    description: register address of power isolation cell(ISO).
+    maxItems: 2
+    
+  sunplus,iso-selector:
+    description: Select ISO.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    
+required:
+  - compatible
+  - reg
+  - regulator-name
+  - sunplus,iso-selector
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/regulator/sunplus,sp7350-iso.h>
+    reg_iso: regulator-iso@f880125c {
+      compatible = "sunplus,sp7350-regulator-iso";
+      reg = <0x00 0xf880125c 0x00 0x4>;
+      regulator-name = "sp7350-iso";
+      sunplus,iso-selector = <SP7350_ISO_VIDEO>;
+    };
+...
