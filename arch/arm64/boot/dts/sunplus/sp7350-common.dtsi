@@ -283,7 +283,7 @@
 		regulator-max-microvolt = <800000>;
 	};
 
-	video_codec_core_0v8: video_0p8v {
+	gdc_video_isp_0v8: gdc_video_isp_0v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "video_codec_core";
 		regulator-min-microvolt = <800000>;

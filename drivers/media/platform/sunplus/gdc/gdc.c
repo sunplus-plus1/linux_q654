@@ -509,10 +509,16 @@ static int gdc_parse_dt(struct platform_device *pdev, struct gdc_device *gdev)
 		return -EINVAL;
 	}
 
-	gdev->supply = devm_regulator_get(&pdev->dev, "gdc");
+	gdev->supply = devm_regulator_get(&pdev->dev, "power");
 	if (IS_ERR(gdev->supply)) {
-		dev_err(&pdev->dev, "Failed to get regulator\n");
+		dev_err(&pdev->dev, "Failed to get power regulator\n");
 		return PTR_ERR(gdev->supply);
+	}
+
+	gdev->iso = devm_regulator_get(&pdev->dev, "iso");
+	if (IS_ERR(gdev->iso)) {
+		dev_err(&pdev->dev, "Failed to get iso regulator\n");
+		return PTR_ERR(gdev->iso);
 	}
 
 	gdev->srst = devm_reset_control_get(&pdev->dev, "sys");
@@ -735,6 +741,12 @@ static int gdc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = regulator_enable(gdev->iso);
+	if (ret) {
+		dev_err(&pdev->dev, "gdc remove iso error\n");
+		return ret;
+	}
+
 	ret = gdc_clock_enable(gdev);
 	if (ret) {
 		dev_err(&pdev->dev, "gdc enable clock error\n");
@@ -783,6 +795,7 @@ static int gdc_remove(struct platform_device *pdev)
 	pm_runtime_disable(gdev->dev);
 	gdc_reset_assert(gdev);
 	gdc_clock_disable(gdev);
+	regulator_disable(gdev->iso);
 	regulator_disable(gdev->supply);
 
 	return 0;
