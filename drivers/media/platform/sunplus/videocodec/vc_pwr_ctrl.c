@@ -49,7 +49,6 @@
 #define CHIP_VERSION_REG 	0xF8800000
 
 static void __iomem *_chip_version_reg_base = NULL;
-static void __iomem *_vc_iso_reg_base = NULL;
 
 static int _chip_version = 0x0;
 static bool _vc_pwr_on = false;
@@ -60,6 +59,7 @@ static DEFINE_MUTEX(_vc_mtx);
 
 /* vc video codec */
 static struct regulator *_vc_regl = NULL;
+static struct regulator *_vc_iso_regl = NULL;
 
 static struct clk *_vc_clk = NULL;
 static struct reset_control *_vc_rstc;
@@ -73,21 +73,19 @@ static struct clk *_vc_enc_clk = NULL;
 static struct reset_control *_vc_enc_rstc;
 
 static void _vc_iso_control(int enable){
+    int ret;
 
-    unsigned int reg_read_value;
-
-    if (IS_ERR(_vc_iso_reg_base)) {
+    if (IS_ERR(_vc_iso_regl)) {
         printk(KERN_ERR "failed to get iso base\n");
         return;
     }
 
-    reg_read_value = readl(_vc_iso_reg_base);
-
     if (enable)
-        reg_read_value = reg_read_value|0x20;
+        // if(!regulator_is_enabled(_vc_iso_regl))
+            ret = regulator_enable(_vc_iso_regl);
     else
-        reg_read_value = reg_read_value&0xFFFFFFDF;
-    writel(reg_read_value, _vc_iso_reg_base);
+        // if(regulator_is_enabled(_vc_iso_regl))
+            ret = regulator_disable(_vc_iso_regl);
 
     _PRINTK(KERN_DEBUG "VC ISO %s\n", (enable?"enable":"disable"));
 }
@@ -183,27 +181,16 @@ static void _vc_pwr_control(int enable){
     }
 
     if(enable){
-        if(!regulator_is_enabled(_vc_regl)) {
-            ret = regulator_enable(_vc_regl);
-            if (ret != 0){
-                printk(KERN_ERR "regulator enable failed: %d\n", ret);
-                return;
-            }
-            _PRINTK(KERN_DEBUG "VCL regulator enable %s\n",
-            regulator_is_enabled(_vc_regl)?"success":"failed");
-
-            mdelay(50);
+        ret = regulator_enable(_vc_regl);
+        if (ret != 0){
+            printk(KERN_ERR "regulator enable failed: %d\n", ret);
         }
+        mdelay(50);
     }
     else{
-        if(regulator_is_enabled(_vc_regl)) {
-            ret = regulator_disable(_vc_regl);
-            if (ret != 0){
-                printk(KERN_ERR "regulator disable failed: %d\n", ret);
-                return;
-            }
-            _PRINTK(KERN_DEBUG "VC regulator disable %s\n",
-            regulator_is_enabled(_vc_regl)?"failed":"success");
+        ret = regulator_disable(_vc_regl);
+        if (ret != 0){
+            printk(KERN_ERR "regulator disable failed: %d\n", ret);
         }
     }
 }
@@ -234,7 +221,7 @@ void vc_regulator_control(struct platform_device *dev, int ctrl){
         _vc_regl = devm_regulator_get(&dev->dev, "video_codec");
 
         if(IS_ERR(_vc_regl)) {
-            dev_info(&dev->dev, "failed to get regulator\n");
+            dev_info(&dev->dev, "failed to get vc regulator\n");
             return;
         }
 
@@ -244,6 +231,18 @@ void vc_regulator_control(struct platform_device *dev, int ctrl){
             _vc_pwr_on = true;
         }
     }
+
+    if(!_vc_iso_regl){
+         _vc_iso_regl = devm_regulator_get(&dev->dev, "video_codec_iso");
+
+        if(IS_ERR(_vc_iso_regl)) {
+            dev_info(&dev->dev, "failed to get vc iso regulator\n");
+            return;
+        }
+        ret = regulator_enable(_vc_iso_regl);
+        _vc_pwr_on = true;
+    }
+
 #if PWR_CONTROL_EN
 #if CHIP_VERSION_CHK
     /* No support for C3V-W version A */
@@ -267,7 +266,7 @@ void vc_power_on(void){
     }
 #endif
     /* No regulator, return */
-    if(!_vc_regl){
+    if(!_vc_regl || !_vc_iso_regl){
         return;
     }
 
@@ -280,7 +279,7 @@ void vc_power_on(void){
         _vc_pwr_control(1);
 
         /* Disable VCL ISO (Register G36. ISO_CTRL_ENABLE [5]) */
-        _vc_iso_control(0);
+        _vc_iso_control(1);
 
         /* VCL HW reset deassert */
         _vc_reset_control(1);
@@ -306,7 +305,7 @@ void vc_power_off(void){
     }
 #endif
     /* No regulator, return */
-    if(!_vc_regl){
+    if(!_vc_regl || !_vc_iso_regl){
         return;
     }
 
@@ -322,7 +321,7 @@ void vc_power_off(void){
         _vc_reset_control(0);
 
         /* enable VCL ISO (Register G36. ISO_CTRL_ENABLE [5]) */
-        _vc_iso_control(1);
+        _vc_iso_control(0);
 
         /* VCL Power off */
         _vc_pwr_control(0);
@@ -364,12 +363,6 @@ int vc_power_ctrl_init(struct platform_device *dev, struct reset_control *rstc, 
         return PTR_ERR(_vc_rstc);
     }
 
-    _vc_iso_reg_base = of_iomap((&dev->dev)->of_node, 0);
-    if (!_vc_iso_reg_base) {
-        dev_err(&dev->dev, "failed to get iso base\n");
-        return -1;
-    }
-
     return 0;
 }
 
@@ -408,13 +401,9 @@ int vc_power_ctrl_init_enc(struct platform_device *dev, struct reset_control *rs
 }
 
 int vc_power_ctrl_terminate(void){
-
-    if(_vc_iso_reg_base){
-        iounmap(_vc_iso_reg_base);
-        _vc_iso_reg_base = NULL;
-    }
-
+  
     _vc_regl = NULL;
+    _vc_iso_regl = NULL;
 
     return 0;
 }
