@@ -85,7 +85,7 @@ static int codec_chrdev_probe(struct platform_device *dev)
     if (codec_reset_release(dev, "rstc_vcodec")) goto PROBE_ERR;
 
     vc_power_ctrl_init(dev, rstc, clk); /* init rstc and clk */
-    vc_regulator_control(dev, 0); /* regulator control */
+    vc_regulator_control(dev, -1); /* regulator control */
     vc_power_off(); /* power down the VCL after dec, enc probe */
 
     return 0;
