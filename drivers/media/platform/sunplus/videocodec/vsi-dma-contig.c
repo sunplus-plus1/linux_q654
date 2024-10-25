@@ -253,7 +253,7 @@ static void *vb2_dc_alloc(struct vb2_buffer *vb,
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
-	dev_info (dev, "2. size = %lx\n", size);
+	// dev_info (dev, "2. size = %lx\n", size);
 
 	buf->attrs = vb->vb2_queue->dma_attrs;
 	buf->dma_dir = vb->vb2_queue->dma_dir;

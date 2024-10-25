@@ -508,6 +508,7 @@
 	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
 	regulator-boot-on;
+	regulator-enable-ramp-delay = <50000>;
 };
 
 &uart0 {
@@ -2534,14 +2535,21 @@
 	status = "disabled";
 };
 
+&video_codec {
+	video_codec-supply = <&gdc_video_isp_0v8>;
+	video_codec_iso-supply = <&gdc_video_isp_iso>;
+};
+
 &vcodec_emem {
 	memory-region = <&video_codec_encode>;
-	video_codec-supply = <&video_codec_core_0v8>;
+	video_codec-supply = <&gdc_video_isp_0v8>;
+	video_codec_iso-supply = <&gdc_video_isp_iso>;
 };
 
 &vcodec_dmem {
 	memory-region = <&video_codec_decode>;
-	video_codec-supply = <&video_codec_core_0v8>;
+	video_codec-supply = <&gdc_video_isp_0v8>;
+	video_codec_iso-supply = <&gdc_video_isp_iso>;
 };
 
 &vcodec_v4l2_mem {
