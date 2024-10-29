@@ -45,12 +45,13 @@ static DEFINE_SPINLOCK(set_lock);
 void run_start(int ch, int run_length)
 {
 	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pcmaudio_base;
-
+	u32 value;
 	//printk("ch 0x%x, val 0x%x 0x%x\n", ch, run_length, iprtd->period);
-	spin_lock(&set_lock);
-	regs0->aud_delta_0 = run_length;
-	regs0->aud_inc_0 |= ch;
-	spin_unlock(&set_lock);
+	//spin_lock(&set_lock);
+	writel(run_length, &regs0->aud_delta_0);
+	value = readl(&regs0->aud_inc_0);
+	writel(value | ch, &regs0->aud_inc_0);
+	//spin_unlock(&set_lock);
 }
 //--------------------------------------------------------------------------
 //
@@ -81,27 +82,34 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 		pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
 		if (iprtd->offset < iprtd->fifosize_from_user) {
 			if (iprtd->usemmap_flag == 1) {
+				spin_lock(&set_lock);
 				if (substream->pcm->device == SP_I2S_0) {
-					while ((regs0->aud_inc_0 & I2S_P_INC0) != 0)
+					while (regs0->aud_a0_cnt != 0)
 						;
 					run_start(I2S_P_INC0, iprtd->period);
+					iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_I2S_1) {
-					while ((regs0->aud_inc_0 & I2S_P_INC1) != 0)
+					while (regs0->aud_a6_cnt != 0)
 						;
 					run_start(I2S_P_INC1, iprtd->period);
+					iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_I2S_2) {
-					while ((regs0->aud_inc_0 & I2S_P_INC2) != 0)
+					while (regs0->aud_a19_cnt != 0)
 						;
 					run_start(I2S_P_INC2, iprtd->period);
+					iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_TDM) {
-					while ((regs0->aud_inc_0 & TDM_P_INC0) != 0)
+					while (regs0->aud_a0_cnt != 0)
 						;
 					run_start(TDM_P_INC0, iprtd->period);
+					iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_SPDIF) {
-					while ((regs0->aud_inc_0 & SPDIF_P_INC0) != 0)
+					while (regs0->aud_a5_cnt != 0)
 						;
 					run_start(SPDIF_P_INC0, iprtd->period);
+					iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
 				}
+				spin_unlock(&set_lock);
 			} else {
 				if ((iprtd->offset % iprtd->period) != 0) {
 					appl_ofs = (iprtd->offset + (iprtd->period >> 2)) / iprtd->period;
@@ -134,6 +142,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 
 		pr_debug("C:?_ptr=0x%x cnt_a11 0x%x\n", iprtd->offset, regs0->aud_a11_cnt);
 		if (iprtd->usemmap_flag == 1) {
+			spin_lock(&set_lock);
 			if (iprtd->offset >= iprtd->last_offset)
 				delta = iprtd->offset - iprtd->last_offset;
 			else
@@ -152,6 +161,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 					run_start(TDMPDM_C_INC0, delta);
 				pr_debug("C1:?_ptr=0x%x\n", iprtd->offset);
 			}
+			spin_unlock(&set_lock);
 		}
 		iprtd->last_offset = iprtd->offset;
 		snd_pcm_period_elapsed(substream);
@@ -961,9 +971,8 @@ static int spsoc_pcm_mmap(struct snd_soc_component *component, struct snd_pcm_su
 	struct spsoc_runtime_data *prtd = runtime->private_data;
 	int ret = 0;
 
-	dev_dbg(component->dev, "%s IN\n", __func__);
+	dev_info(component->dev, "%s IN, dir %d\n", __func__, substream->stream);
 	prtd->usemmap_flag = 1;
-	pr_debug("%s IN, stream direction: %d\n", __func__, substream->stream);
 #ifdef USE_KELNEL_MALLOC
 	pr_debug("dev: 0x%p, dma_area 0x%p dma_addr 0x%llx dma_bytes 0x%zx\n", substream->pcm->card->dev, runtime->dma_area, runtime->dma_addr, runtime->dma_bytes);
 	ret = dma_mmap_wc(substream->pcm->card->dev, vma,
@@ -992,6 +1001,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 	unsigned long count_bytes = count;
 	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pcmaudio_base;
 
+	spin_lock(&set_lock);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		//pr_debug("###%s IN, aud_a0_ptr=0x%x, dma_area=0x%x, pos=0x%lx count_bytes 0x%x\n", __func__, regs0->aud_a0_ptr, hwbuf, pos, count_bytes);
 		if (prtd->trigger_flag) {
@@ -1092,6 +1102,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 		else
 			run_start(TDMPDM_C_INC0, count_bytes);
 	}
+	spin_unlock(&set_lock);
 	return ret;
 }
 //#if 0
