@@ -9,6 +9,7 @@
 //#define SPI_LOOPBACK_MTTEST
 
 //#define MIPI_CSI_4VC
+//#define AP1302_IN5
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
@@ -209,6 +210,13 @@
 	};
 
 	clocks {
+#ifdef AP1302_IN5
+		ap1302_clk: camera-ap1302-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <54000000>;
+		};
+#endif
 		imx219_clk: camera-imx219-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -290,6 +298,15 @@
 		};*/
 	};
 
+#ifdef AP1302_IN5
+	reg_ap1302: reg_ap1302 {
+		compatible = "regulator-fixed";
+		regulator-name = "reg_ap1302";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+#endif
 	imx219_vana_2v8: imx219_vana_2v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "imx219_vana";
@@ -1245,12 +1262,56 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo6_pins>;
-#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
+#if defined(AP1302_IN5) || defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
 #endif
 
+#ifdef AP1302_IN5 /* Add ap1302 subnode in i2c6 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: ap1302@3c {
+		compatible = "onnn,ap1302";
+		reg = <0x3c>;
+		clocks = <&ap1302_clk>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_5_pins>;
+		reset-gpios = <&pctl 60 GPIO_ACTIVE_LOW>;
+		standby-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&reg_ap1302>;
+
+		port {
+			ap1302_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2 3 4>;
+				link-frequencies = /bits/ 64 <443000000>;
+			};
+		};
+
+		sensors {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sensor,model = "ar2020";
+			sensor,resolution = <1920 1080>;
+			sensor,format = <0x200f>; // MEDIA_BUS_FMT_UYVY8_1X16
+
+			sensor@0 {
+				reg = <0>;
+				status = "okay";
+				sip = <0xf36c>;
+			};
+
+			sensor@1 {
+				reg = <1>;
+				status = "okay";
+				sip = <0x376c>;
+			};
+		};
+	};
+#endif
 #ifdef IMX219_IN5 /* Add imx219 subnode in i2c6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -1993,7 +2054,7 @@
 };
 
 &mipicsirx5 {
-#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
+#if defined(AP1302_IN5) || defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -2001,7 +2062,7 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5)
+#if defined(AP1302_IN5) || defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5)
 	num_channels = <1>;
 #elif defined(TP2815_IN5)
 	#ifdef TP2815_IN5_4VC
@@ -2020,6 +2081,19 @@
 		#size-cells = <0>;
 
 		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
+#ifdef AP1302_IN5 /* Add ap1302 subnode in i2c6 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&ap1302_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+#endif
 #ifdef IMX219_IN5 /* Add imx219 subnode in i2c6 */
 		port@0 {
 			reg = <0>;
@@ -2123,7 +2197,7 @@
 
 &vin10 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
+#if defined(AP1302_IN5) || defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -2749,7 +2823,12 @@
 		function = "GPIO";
 		pins = "GPIO66";
 	};
-
+#ifdef AP1302_IN5 /* Add ap1302 subnode in i2cm6 */
+	camera_5_pins: pinmux_camera_0-pins {
+		function = "GPIO";
+		pins = "GPIO60","GPIO61";
+	};
+#endif
 	uart0_pins: pinmux_uart0-pins {
 		function = "UART0";
 		groups = "UART0_X1";
