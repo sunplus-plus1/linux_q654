@@ -760,6 +760,24 @@
 #define DMIX_LUMA_SLOPE_MIN	(0.60)
 #define DMIX_LUMA_SLOPE_MAX	(1.40)
 
+/* TCON_GAMMA0_CTRL && TCON_GAMMA1_CTRL  && TCON_GAMMA2_CTRL */
+#define SP7350_TCON_GM_UPD_SCHEME                  BIT(15)
+#define SP7350_TCON_GM_S2D_ODD_ORDER_MASK          GENMASK(14, 12)
+#define SP7350_TCON_GM_S2D_ODD_ORDER_SET(order)    FIELD_PREP(GENMASK(14, 12), order)
+#define SP7350_TCON_GM_S2D_EVEN_ORDER_MASK         GENMASK(11, 9)
+#define SP7350_TCON_GM_S2D_EVEN_ORDER_SET(order)   FIELD_PREP(GENMASK(11, 9), order)
+#define SP7350_TCON_GM_S2D_EN                      BIT(8)
+#define SP7350_TCON_GM_BYPASS                      BIT(5)
+#define SP7350_TCON_GM_UPDWE                       BIT(4)
+#define SP7350_TCON_GM_UPDDEL_RGB_MASK             GENMASK(3, 2)
+#define SP7350_TCON_GM_UPDDEL_RGB_SET(sel)         FIELD_PREP(GENMASK(3, 2), sel)
+#define SP7350_TCON_GM_UPDDEL_RGB_ALL              0x0
+#define SP7350_TCON_GM_UPDDEL_RGB_R                0x1
+#define SP7350_TCON_GM_UPDDEL_RGB_G                0x2
+#define SP7350_TCON_GM_UPDDEL_RGB_B                0x3
+#define SP7350_TCON_GM_UPDEN                       BIT(1)
+#define SP7350_TCON_GM_EN                          BIT(0)
+
 /*
  * define for sp7350_drm_debugfs.c use
  */
