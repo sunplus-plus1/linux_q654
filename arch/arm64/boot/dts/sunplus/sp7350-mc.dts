@@ -432,7 +432,7 @@
 	enable-active-high;
 };
 
-&video_codec_core_0v8 {
+&gdc_video_isp_0v8 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&video_codec_pwr_en_pins>;
 	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
@@ -1420,12 +1420,12 @@
 
 &vcodec_emem {
 	memory-region = <&video_codec_encode>;
-	video_codec-supply = <&video_codec_core_0v8>;
+	video_codec-supply = <&gdc_video_isp_0v8>;
 };
 
 &vcodec_dmem {
 	memory-region = <&video_codec_decode>;
-	video_codec-supply = <&video_codec_core_0v8>;
+	video_codec-supply = <&gdc_video_isp_0v8>;
 };
 
 &vcodec_v4l2_mem {
