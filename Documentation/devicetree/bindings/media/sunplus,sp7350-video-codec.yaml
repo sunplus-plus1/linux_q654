@@ -23,10 +23,18 @@ properties:
     const: clk_vcodec
 
   resets:
-    maxItems: 1
+    maxItems: 8
 
   reset-names:
-    const: rstc_vcodec
+    items:
+      - const: rstc_vcodec
+      - const: rstc_vcl
+      - const: rstc_vcl0
+      - const: rstc_vcl1
+      - const: rstc_vcl2
+      - const: rstc_vcl3
+      - const: rstc_vcl4
+      - const: rstc_vcl5
 
 required:
   - compatible
@@ -49,6 +57,6 @@ examples:
       compatible = "sunplus,sp7350-hantro-codec";
       clocks = <&clkc VIDEO_CODEC>;
       clock-names = "clk_vcodec";
-      resets = <&rstc RST_VIDEO_CODEC>;
-      reset-names = "rstc_vcodec";
+      resets = <&rstc RST_VIDEO_CODEC>, <&rstc RST_VCL>, <&rstc RST_VCL0>, <&rstc RST_VCL1>, <&rstc RST_VCL2>, <&rstc RST_VCL3>, <&rstc RST_VCL4>, <&rstc RST_VCL5>;
+      reset-names = "rstc_vcodec", "rstc_vcl", "rstc_vcl0", "rstc_vcl1", "rstc_vcl2", "rstc_vcl3", "rstc_vcl4", "rstc_vcl5";
     };
