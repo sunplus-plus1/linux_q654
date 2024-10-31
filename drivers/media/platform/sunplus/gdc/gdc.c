@@ -521,19 +521,19 @@ static int gdc_parse_dt(struct platform_device *pdev, struct gdc_device *gdev)
 		return PTR_ERR(gdev->iso);
 	}
 
-	gdev->srst = devm_reset_control_get(&pdev->dev, "sys");
+	gdev->srst = devm_reset_control_get_shared(&pdev->dev, "sys");
 	if (IS_ERR(gdev->srst)) {
 		dev_err(&pdev->dev, "Failed to get sys reset controller\n");
 		return PTR_ERR(gdev->srst);
 	}
 
-	gdev->arst = devm_reset_control_get(&pdev->dev, "axi");
+	gdev->arst = devm_reset_control_get_shared(&pdev->dev, "axi");
 	if (IS_ERR(gdev->arst)) {
 		dev_err(&pdev->dev, "Failed to get axi reset controller\n");
 		return PTR_ERR(gdev->arst);
 	}
 
-	gdev->prst = devm_reset_control_get(&pdev->dev, "apb");
+	gdev->prst = devm_reset_control_get_shared(&pdev->dev, "apb");
 	if (IS_ERR(gdev->prst)) {
 		dev_err(&pdev->dev, "Failed to get APB reset controller\n");
 		return PTR_ERR(gdev->prst);
