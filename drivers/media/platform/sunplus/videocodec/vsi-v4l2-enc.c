@@ -2688,9 +2688,11 @@ static int vsi_setup_enc_ctrls(struct vsi_v4l2_ctx *ctx)
 			ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 		if (handler->error) {
-			v4l2_klog(LOGLVL_ERROR, "fail to set ctrl %d 0x%x:%d",
+			v4l2_klog(LOGLVL_WARNING, "fail to set ctrl %d 0x%x:%d",
 								i, vsi_v4l2_encctrl_defs[i].id, handler->error);
 			handler->error = 0;
+			/*To avoid vsi_daemon return failed*/
+			udelay(50);
 		}
 	}
 

@@ -47,6 +47,7 @@
 
 #define CHIP_VERSION_CHK	1
 #define CHIP_VERSION_REG 	0xF8800000
+#define VCL_RST_CNT         7
 
 static void __iomem *_chip_version_reg_base = NULL;
 static void __iomem *_vc_iso_reg_base = NULL;
@@ -71,6 +72,50 @@ static struct reset_control *_vc_dec_rstc;
 /* vc encode */
 static struct clk *_vc_enc_clk = NULL;
 static struct reset_control *_vc_enc_rstc;
+
+/* vcl rst */
+struct reset_control {
+	struct reset_controller_dev *rcdev;
+	struct list_head list;
+	unsigned int id;
+	struct kref refcnt;
+	bool acquired;
+	bool shared;
+	bool array;
+	atomic_t deassert_count;
+	atomic_t triggered_count;
+};
+static struct reset_control *_vc_vcl_rstc[VCL_RST_CNT];
+
+static int _vc_vcl_rst_control(int deassert){
+    int ret, i;
+
+    for(i = 0; i< VCL_RST_CNT; i++){
+        if(!_vc_vcl_rstc[i]){
+            printk(KERN_ERR "can't find vcl reset control %d", i);
+            continue;
+        }
+
+        if (deassert)
+            ret = reset_control_deassert(_vc_vcl_rstc[i]);
+        else
+            ret = reset_control_assert(_vc_vcl_rstc[i]);
+
+        if(ret)
+            printk(KERN_ERR "failed to control vcl reset line %d", i);
+    }
+
+    return ret;
+}
+
+static int _vc_vcl_rst_deast_count(void){
+    int i, count;
+    for(i = 0; i < VCL_RST_CNT; i++){
+        struct reset_control *rstc = _vc_vcl_rstc[i];
+        count |= atomic_read(&rstc->deassert_count);
+    }
+    return count;
+}
 
 static void _vc_iso_control(int enable){
 
@@ -110,32 +155,44 @@ static void _vc_reset_control(int deassert){
     }
 
     if(deassert){
-        if(reset_control_deassert(_vc_dec_rstc)){
-            printk(KERN_ERR "failed to deassert vc dec reset line\n");
-            return;
+        if(reset_control_status(_vc_dec_rstc)){
+            if(reset_control_deassert(_vc_dec_rstc)){
+                printk(KERN_ERR "failed to deassert vc dec reset line\n");
+                return;
+            }
         }
-        if(reset_control_deassert(_vc_enc_rstc)){
-            printk(KERN_ERR "failed to deassert vc enc reset line\n");
-            return;
+        if(reset_control_status(_vc_enc_rstc)){
+            if(reset_control_deassert(_vc_enc_rstc)){
+                printk(KERN_ERR "failed to deassert vc enc reset line\n");
+                return;
+            }
         }
-        if(reset_control_deassert(_vc_rstc)){
-            printk(KERN_ERR "failed to deassert vc reset line\n");
-            return;
+        if(reset_control_status(_vc_rstc)){
+            if(reset_control_deassert(_vc_rstc)){
+                printk(KERN_ERR "failed to deassert vc reset line\n");
+                return;
+            }
         }
         _PRINTK(KERN_DEBUG "VC HW reset deassert\n");
     }
     else{
-        if(reset_control_assert(_vc_rstc)){
-            printk(KERN_ERR "failed to assert vc reset line\n");
-            return;
+        if(!reset_control_status(_vc_rstc)){
+            if(reset_control_assert(_vc_rstc)){
+                printk(KERN_ERR "failed to assert vc reset line\n");
+                return;
+            }
         }
-        if(reset_control_assert(_vc_enc_rstc)){
-            printk(KERN_ERR "failed to assert vc enc reset line\n");
-            return;
+        if(!reset_control_status(_vc_enc_rstc)){
+            if(reset_control_assert(_vc_enc_rstc)){
+                printk(KERN_ERR "failed to assert vc enc reset line\n");
+                return;
+            }
         }
-        if(reset_control_assert(_vc_dec_rstc)){
-            printk(KERN_ERR "failed to assert dec reset line\n");
-            return;
+        if(!reset_control_status(_vc_dec_rstc)){
+            if(reset_control_assert(_vc_dec_rstc)){
+                printk(KERN_ERR "failed to assert dec reset line\n");
+                return;
+            }
         }
         _PRINTK(KERN_DEBUG "VC HW reset assert\n");
     }
@@ -192,7 +249,7 @@ static void _vc_pwr_control(int enable){
             _PRINTK(KERN_DEBUG "VCL regulator enable %s\n",
             regulator_is_enabled(_vc_regl)?"success":"failed");
 
-            mdelay(50);
+            mdelay(10);
         }
     }
     else{
@@ -232,7 +289,7 @@ void vc_regulator_control(struct platform_device *dev, int ctrl){
         _vc_regl = devm_regulator_get(&dev->dev, "video_codec");
 
         if(IS_ERR(_vc_regl)) {
-            dev_info(&dev->dev, "failed to get regulator\n");
+            dev_info(&dev->dev, "failed to get vc regulator\n");
             return;
         }
 
@@ -241,6 +298,8 @@ void vc_regulator_control(struct platform_device *dev, int ctrl){
             regulator_enable(_vc_regl);
             _vc_pwr_on = true;
         }
+
+        _vc_vcl_rst_control(1);
     }
 #if PWR_CONTROL_EN
 #if CHIP_VERSION_CHK
@@ -253,6 +312,7 @@ void vc_regulator_control(struct platform_device *dev, int ctrl){
         _vc_pwr_control(ctrl);
     }
 #endif
+    return;
 }
 
 void vc_power_on(void){
@@ -276,6 +336,9 @@ void vc_power_on(void){
         /* VC power on */
         _vc_pwr_control(1);
 
+        /* MOON0_REG->sft_cfg[2] = RF_MASK_V_CLR(0x1FC0) */
+        _vc_vcl_rst_control(1);
+
         /* Disable VCL ISO (Register G36. ISO_CTRL_ENABLE [5]) */
         _vc_iso_control(0);
 
@@ -287,7 +350,7 @@ void vc_power_on(void){
 
         _vc_pwr_on = true;
 
-        _PRINTK(KERN_INFO "VCL power on\n");
+        _PRINTK(KERN_INFO "VC power on\n");
     }
 
     mutex_unlock(&_vc_mtx);
@@ -316,10 +379,13 @@ void vc_power_off(void){
         _vc_clk_control(0);
 
         /* VCL HW Reset assert */
-        _vc_reset_control(0);
+        if(_vc_vcl_rst_deast_count() == 1)
+            _vc_reset_control(0);
 
         /* enable VCL ISO (Register G36. ISO_CTRL_ENABLE [5]) */
         _vc_iso_control(1);
+        /* MOON0_REG->sft_cfg[2] = RF_MASK_V_SET(0x1FC0) */
+        _vc_vcl_rst_control(0);
 
         /* VCL Power off */
         _vc_pwr_control(0);
@@ -338,6 +404,7 @@ bool vc_power_is_on(void){
 }
 
 int vc_power_ctrl_init(struct platform_device *dev, struct reset_control *rstc, struct clk *clk){
+    int i = 0;
 #if PWR_CONTROL_EN
     printk(KERN_INFO "chip version: 0x%x\n", _chip_version_get());
 #if CHIP_VERSION_CHK
@@ -365,6 +432,17 @@ int vc_power_ctrl_init(struct platform_device *dev, struct reset_control *rstc, 
     if (!_vc_iso_reg_base) {
         dev_err(&dev->dev, "failed to get iso base\n");
         return -1;
+    }
+
+	if(IS_ERR( _vc_vcl_rstc[i++] = devm_reset_control_get_shared(&dev->dev, "rstc_vcl") )
+        || IS_ERR( _vc_vcl_rstc[i++] = devm_reset_control_get_shared(&dev->dev, "rstc_vcl0") )
+         || IS_ERR( _vc_vcl_rstc[i++] = devm_reset_control_get_shared(&dev->dev, "rstc_vcl1") )
+          || IS_ERR( _vc_vcl_rstc[i++] = devm_reset_control_get_shared(&dev->dev, "rstc_vcl2") )
+           || IS_ERR( _vc_vcl_rstc[i++] = devm_reset_control_get_shared(&dev->dev, "rstc_vcl3") )
+            || IS_ERR( _vc_vcl_rstc[i++] = devm_reset_control_get_shared(&dev->dev, "rstc_vcl4") )
+             || IS_ERR( _vc_vcl_rstc[i++] = devm_reset_control_get_shared(&dev->dev, "rstc_vcl5") )
+    ){
+        dev_err(&dev->dev, "can't find vcl reset control :%d\n", i - 1);
     }
 
     return 0;
