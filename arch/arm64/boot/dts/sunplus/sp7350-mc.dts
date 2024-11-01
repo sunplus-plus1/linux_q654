@@ -378,6 +378,14 @@
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 	};
+	#ifdef AP6256_BT
+	rfkill_bluetooth {
+		compatible = "rfkill-gpio";
+		gpios = <&pctl 57 GPIO_ACTIVE_LOW>;
+		rfkill-name = "bluetooth";
+		rfkill-type = "bluetooth";
+	};
+	#endif
 #endif
 
 	running_led {
