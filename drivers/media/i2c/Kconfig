@@ -41,6 +41,17 @@ config VIDEO_APTINA_PLL
 config VIDEO_CCS_PLL
 	tristate
 
+config VIDEO_AP1302
+	tristate "ON Semiconductor AP1302 external ISP support"
+	select REGMAP_I2C
+	help
+		This is a Video4Linux2 sensor-level driver for the external
+		ISP AP1302.
+
+		AP1302 is an external ISP.
+
+		It only supports very limited feature
+
 config VIDEO_AR0521
 	tristate "ON Semiconductor AR0521 sensor support"
 	help
