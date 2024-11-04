@@ -518,7 +518,7 @@
 	#ifdef AP6256_BT
 	rfkill_bluetooth {
 		compatible = "rfkill-gpio";
-		gpios = <&pctl 57 GPIO_ACTIVE_LOW>;
+		shutdown-gpios = <&pctl 57 GPIO_ACTIVE_HIGH>;
 		rfkill-name = "bluetooth";
 		rfkill-type = "bluetooth";
 	};
