@@ -1427,14 +1427,21 @@
 	status = "disabled";
 };
 
+&video_codec {
+	video_codec-supply = <&gdc_video_isp_0v8>;
+	video_codec_iso-supply = <&gdc_video_isp_iso>;
+};
+
 &vcodec_emem {
 	memory-region = <&video_codec_encode>;
 	video_codec-supply = <&gdc_video_isp_0v8>;
+	video_codec_iso-supply = <&gdc_video_isp_iso>;
 };
 
 &vcodec_dmem {
 	memory-region = <&video_codec_decode>;
 	video_codec-supply = <&gdc_video_isp_0v8>;
+	video_codec_iso-supply = <&gdc_video_isp_iso>;
 };
 
 &vcodec_v4l2_mem {
