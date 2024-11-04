@@ -176,6 +176,8 @@
 	pinctrl-0 = <&video_codec_pwr_en_pins>;
 	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
+	regulator-boot-on;
+	regulator-enable-ramp-delay = <50000>;
 	status = "disabled";
 };
 
@@ -746,6 +748,9 @@
 };
 
 &gdc {
+	memory-region = <&gdc_reserve>;
+	iso-supply = <&gdc_video_isp_iso>;
+	power-supply = <&gdc_video_isp_0v8>;
 	status = "disabled";
 };
 

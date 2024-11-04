@@ -2564,10 +2564,8 @@
 
 &gdc {
 	memory-region = <&gdc_reserve>;
-	memory-region = <&gdc_reserve>;
 	iso-supply = <&gdc_video_isp_iso>;
 	power-supply = <&gdc_video_isp_0v8>;
-	status = "disabled";
 };
 
 &watchdog {
