@@ -4,6 +4,7 @@
 // Author: ChingChou Huang <chingchouhuang@sunplus.com>
 //
 //
+
 #include <sound/pcm_params.h>
 #include <linux/clk.h>
 #include "aud_hw.h"
@@ -403,7 +404,8 @@ static int aud_cpudai_hw_params(struct snd_pcm_substream *substream,
 {
 	volatile register_audio *regs0 = i2saudio_base;
 
-	pr_debug("%s, params = %x\n", __func__, params_format(params));
+	pr_debug("%s, %s-params = %x\n", __func__, substream->stream ? "cap" : "play",
+		 params_format(params));
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		if (substream->pcm->device == SP_I2S_0)	{
@@ -414,7 +416,7 @@ static int aud_cpudai_hw_params(struct snd_pcm_substream *substream,
 		sp_i2s_spdif_tx_dma_en(substream->pcm->device, true);
 	}
 
-	pr_debug("%s IN! aud_asrc_ctrl 0x%x\n", __func__, regs0->aud_asrc_ctrl);
+	//pr_debug("%s IN! aud_asrc_ctrl 0x%x\n", __func__, regs0->aud_asrc_ctrl);
 	return 0;
 }
 
@@ -498,7 +500,7 @@ static void aud_cpudai_shutdown(struct snd_pcm_substream *substream, struct snd_
 {
 	int capture = (substream->stream == SNDRV_PCM_STREAM_CAPTURE);
 
-	dev_dbg(dai->dev, "%s IN\n", __func__);
+	dev_dbg(dai->dev, "%s IN, capture %d\n", __func__, capture);
 	if (capture)
 		sp_i2s_spdif_rx_dma_en(substream->pcm->device, false);
 	else
@@ -511,7 +513,7 @@ static void aud_cpudai_shutdown(struct snd_pcm_substream *substream, struct snd_
 static int spsoc_cpu_set_pll(struct snd_soc_dai	*dai, int pll_id, int source,
 			     unsigned int freq_in, unsigned int freq_out)
 {
-	dev_dbg(dai->dev, "%s IN %d %d\n", __func__, freq_out, pll_id);
+	pr_debug("%s IN %d %d\n", __func__, freq_out, pll_id);
 	aud_clk_cfg(pll_id, freq_in, freq_out);
 	return 0;
 }
