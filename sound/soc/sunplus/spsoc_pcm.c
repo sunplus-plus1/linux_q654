@@ -140,7 +140,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 		else // tdm, pdm
 			iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
 
-		pr_debug("C:?_ptr=0x%x cnt_a11 0x%x\n", iprtd->offset, regs0->aud_a11_cnt);
+		pr_debug("C:?_ptr=0x%x cnt_a11 0x%x ", iprtd->offset, regs0->aud_a11_cnt);
 		if (iprtd->usemmap_flag == 1) {
 			spin_lock(&set_lock);
 			if (iprtd->offset >= iprtd->last_offset)
@@ -159,7 +159,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 					run_start(SPDIF_C_INC0, delta);
 				else
 					run_start(TDMPDM_C_INC0, delta);
-				pr_debug("C1:?_ptr=0x%x\n", iprtd->offset);
+				pr_debug("C? inc\n");
 			}
 			spin_unlock(&set_lock);
 		}
@@ -172,7 +172,8 @@ static enum hrtimer_restart snd_hrtimer_callback(struct hrtimer *hrt)
 {
 	struct spsoc_runtime_data *iprtd = container_of(hrt, struct spsoc_runtime_data, hrt);
 
-	pr_debug("%s %d\n", __func__, atomic_read(&iprtd->running));
+	pr_debug("%s %s-run %d\n", __func__, iprtd->substream->stream ? "c" : "p",
+		 atomic_read(&iprtd->running));
 	//if (!atomic_read(&iprtd->running))
 	if (atomic_read(&iprtd->running) == 2) {
 		pr_debug("cancel htrimer !!!\n");
@@ -468,7 +469,8 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 	struct spsoc_runtime_data *prtd;
 	int ret = 0;
 
-	pr_debug("%s IN, stream device num: %d\n", __func__, substream->pcm->device);
+	pr_debug("%s IN, %s-devnum: %d\n", __func__, substream->stream ? "cap" : "play",
+		 substream->pcm->device);
 
 	if (!IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS) &&
 	    (substream->pcm->device == 4) && (substream->stream == 1))
@@ -511,7 +513,7 @@ static int spsoc_pcm_close(struct snd_soc_component *component, struct snd_pcm_s
 {
 	struct spsoc_runtime_data *prtd = substream->runtime->private_data;
 
-	dev_dbg(component->dev, "%s IN\n", __func__);
+	pr_debug("%s IN, %s\n", __func__, substream->stream ? "cap" : "play");
 	hrtimer_cancel(&prtd->hrt);
 	kfree(prtd);
 	return 0;
@@ -752,7 +754,8 @@ static int spsoc_pcm_hw_free(struct snd_soc_component *component, struct snd_pcm
 		memset((void *)aud_param.fifoInfo.pcmtx_virtAddrBase, 0, aud_param.fifoInfo.RxBuf_TotalLen);
 	}
 
-	pr_debug("%s IN, stream direction: %d,device=%d\n", __func__, substream->stream, substream->pcm->device);
+	pr_debug("%s IN, %s-device=%d\n", __func__, substream->stream ? "cap" : "play",
+		 substream->pcm->device);
 	return 0;
 }
 
@@ -762,7 +765,8 @@ static int spsoc_pcm_prepare(struct snd_soc_component *component, struct snd_pcm
 	struct spsoc_runtime_data *iprtd = runtime->private_data;
 	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pcmaudio_base;
 
-	pr_debug("%s IN, buffer_size=0x%lx devname %s\n", __func__, runtime->buffer_size, dev_name(component->dev));
+	pr_debug("%s IN, buffer_size=0x%lx %s-dev %d\n", __func__, runtime->buffer_size,
+		 substream->stream ? "cap" : "play", substream->pcm->device);
 	//tasklet_kill(&iprtd->tasklet);
 	iprtd->offset = 0;
 	iprtd->last_offset = 0;
@@ -834,7 +838,8 @@ static int spsoc_pcm_trigger(struct snd_soc_component *component, struct snd_pcm
 	unsigned int startthreshold = 0;
 	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pcmaudio_base;
 
-	pr_debug("%s IN, cmd %d pcm->device %d\n", __func__, cmd, substream->pcm->device);
+	pr_debug("%s IN, %s-cmd %d pcm->device %d\n", __func__, substream->stream ? "cap" : "play",
+		 cmd, substream->pcm->device);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -891,7 +896,7 @@ static int spsoc_pcm_trigger(struct snd_soc_component *component, struct snd_pcm
 #endif
 
 		if (atomic_read(&prtd->running) == 2) {
-			hrtimer_start(&prtd->hrt, ns_to_ktime(prtd->poll_time_ns), HRTIMER_MODE_REL);
+			//hrtimer_start(&prtd->hrt, ns_to_ktime(prtd->poll_time_ns), HRTIMER_MODE_REL);
 			pr_debug("!!!hrtimer non stop!!!\n");
 			//snd_hrtimer_callback(&prtd->hrt);
 			//while (atomic_read(&prtd->running) != 0)
@@ -961,7 +966,7 @@ static snd_pcm_uframes_t spsoc_pcm_pointer(struct snd_soc_component *component, 
 	//	prtd_offset = prtd->offset;
 
 	offset = bytes_to_frames(runtime, prtd->offset);
-	pr_debug("offset=0x%lx", offset);
+	pr_debug("%s-offset=0x%lx\n", substream->stream ? "c" : "p", offset);
 	return offset;
 }
 
