@@ -148,7 +148,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 			else
 				delta = iprtd->size + iprtd->offset - iprtd->last_offset;
 
-			if (delta >= iprtd->period / 2) { //ending normal
+			if (delta > 0) { //ending normal
 				if (substream->pcm->device == SP_I2S_0)
 					run_start(I2S_C_INC0, delta);
 				else if (substream->pcm->device == SP_I2S_1)
