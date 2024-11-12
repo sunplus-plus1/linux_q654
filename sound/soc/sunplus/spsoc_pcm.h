@@ -46,7 +46,7 @@
 #define aud_enable_tdmpdm_c	(0x01 << 12)
 
 #define aud_test_mode		(0)
-
+#define chktimeout		1000
 #define DRAM_HDMI_BUF_LENGTH	(DRAM_PCM_BUF_LENGTH * 4)
 
 struct spsoc_runtime_data {
@@ -58,12 +58,13 @@ struct spsoc_runtime_data {
 	struct		hrtimer hrt;
 	struct		tasklet_struct tasklet;
 	int		poll_time_ns;
+	int		timeoutcount;
 	struct		snd_pcm_substream *substream;
 	int		period;
 	int		periods;
 	unsigned int	offset;
 	unsigned int	last_offset;
-	//unsigned int	last_appl_ofs;
+	unsigned int	speed;
 	unsigned int	size;
 	unsigned char	trigger_flag;
 	unsigned int	start_threshold;

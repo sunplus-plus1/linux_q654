@@ -63,7 +63,7 @@ EXPORT_SYMBOL_GPL(AUDHW_Mixer_Setting);
 void AUDHW_Cfg_AdcIn(void *auddrvdata)
 {
 	struct sunplus_audio_base *pauddrvdata = auddrvdata;
-	int val;
+	int val, tout = 0;
 	volatile register_audio *regs0 = pauddrvdata->audio_base;
 
 	regs0->adcp_ch_enable	= 0x0; //adcp_ch_enable
@@ -80,7 +80,10 @@ void AUDHW_Cfg_AdcIn(void *auddrvdata)
 	regs0->adcp_init_ctrl =	val;
 	do {
 		val = regs0->adcp_init_ctrl;
-	} while	((val & ONEHOT_B12) != 0);
+		tout++;
+	} while	((val & ONEHOT_B12) != 0 && tout < chktimeout);
+	if (tout >= chktimeout)
+		pr_err("XXX AUDHW_Cfg_AdcIn TIMEOUT 1\n");
 
 	val = (1 << 6) | 2 | ONEHOT_B10;
 	regs0->adcp_init_ctrl =	val;
@@ -93,11 +96,15 @@ void AUDHW_Cfg_AdcIn(void *auddrvdata)
 	val = val | 1;
 	regs0->adcp_risc_gain =	val;
    //ch1
+	tout = 0;
 	val = (1 << 6) | (1 << 4) | ONEHOT_B11;
 	regs0->adcp_init_ctrl =	val;
 	do {
 		val = regs0->adcp_init_ctrl;
-	} while	((val & ONEHOT_B12) != 0);
+		tout++;
+	} while	((val & ONEHOT_B12) != 0 && tout < chktimeout);
+	if (tout >= chktimeout)
+		pr_err("XXX AUDHW_Cfg_AdcIn TIMEOUT 2\n");
 
 	val = (1 << 6) | (1 << 4) | 2 | ONEHOT_B10;
 	regs0->adcp_init_ctrl =	val;
@@ -115,6 +122,7 @@ void AUDHW_SystemInit(void *auddrvdata)
 {
 	struct sunplus_audio_base *pauddrvdata = auddrvdata;
 	volatile register_audio *regs0 = pauddrvdata->audio_base;
+	int tout = 0;
 
 	pr_debug("!!!audio_base 0x%p\n", regs0);
 	pr_debug("!!!aud_fifo_reset 0x%p\n", &regs0->aud_fifo_reset);
@@ -122,8 +130,10 @@ void AUDHW_SystemInit(void *auddrvdata)
 	regs0->audif_ctrl = 0x1; //aud_ctrl=1
 	pr_debug("aud_fifo_reset 0x%x\n", regs0->aud_fifo_reset);
 	regs0->audif_ctrl = 0x0; //aud_ctrl=0
-	while (regs0->aud_fifo_reset)
-		;
+	while (regs0->aud_fifo_reset && tout < chktimeout)
+		tout++;
+	if (tout >= chktimeout)
+		pr_err("XXX AUDHW_SystemInit TIMEOUT\n");
 
 	regs0->pcm_cfg		= 0x71;	//sp7350 tx0
 	regs0->ext_adc_cfg	= 0x71;	//rx0
