@@ -196,29 +196,34 @@
 			compatible = "cache";
 			cache-level = <2>;
 			next-level-cache = <&L3>;
+			cache-unified;
 		};
 
 		L2_1: l2-cache-1 {
 			compatible = "cache";
 			cache-level = <2>;
 			next-level-cache = <&L3>;
+			cache-unified;
 		};
 
 		L2_2: l2-cache-2 {
 			compatible = "cache";
 			cache-level = <2>;
 			next-level-cache = <&L3>;
+			cache-unified;
 		};
 
 		L2_3: l2-cache-3 {
 			compatible = "cache";
 			cache-level = <2>;
 			next-level-cache = <&L3>;
+			cache-unified;
 		};
 
 		L3: l3-cache {
 			compatible = "cache";
 			cache-level = <3>;
+			cache-unified;
 		};
 	};
 
