@@ -10,6 +10,7 @@
 
 //#define MIPI_CSI_4VC
 //#define AP1302_IN5
+//#define AP1302_IN5_2VC
 //#define IMX219_IN2
 //#define IMX219_IN3
 //#define IMX219_IN4
@@ -1281,6 +1282,9 @@
 		reset-gpios = <&pctl 60 GPIO_ACTIVE_LOW>;
 		standby-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
 		vcc-supply = <&reg_ap1302>;
+	#ifdef AP1302_IN5_2VC
+		virtual-channel;
+	#endif
 
 		port {
 			ap1302_5: endpoint {
@@ -2062,7 +2066,13 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(AP1302_IN5) || defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5)
+#if defined(AP1302_IN5)
+	#ifdef AP1302_IN5_2VC
+	num_channels = <2>;
+	#else
+	num_channels = <1>;
+	#endif
+#elif defined(IMX219_IN5) || defined(IMX708_IN5) || defined(OV5640_IN5) || defined(OV5647_IN5)
 	num_channels = <1>;
 #elif defined(TP2815_IN5)
 	#ifdef TP2815_IN5_4VC
@@ -2224,7 +2234,7 @@
 
 &vin11 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN5) && defined(TP2815_IN5_2VC)
+#if (defined(AP1302_IN5) && defined(AP1302_IN5_2VC)) || (defined(TP2815_IN5) && defined(TP2815_IN5_2VC))
 	status = "okay";
 #else
 	status = "disabled";
