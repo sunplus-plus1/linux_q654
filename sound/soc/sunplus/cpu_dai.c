@@ -264,6 +264,7 @@ void aud_clk_cfg(int pll_id, int source, unsigned int SAMPLE_RATE)
 void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 {
 	volatile register_audio *regs0 = i2saudio_base;
+	int tout = 0;
 
 	if (dev_no == SP_I2S_0)	{
 		if (on)	{
@@ -272,8 +273,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= I2S_P_INC0;
 			regs0->aud_fifo_reset	|= I2S_P_INC0;
-			while ((regs0->aud_fifo_reset &	I2S_P_INC0))
-				;
+			while ((regs0->aud_fifo_reset &	I2S_P_INC0) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_i2stdm_p;
 		} else {
 			regs0->aud_fifo_enable &= (~I2S_P_INC0);
@@ -286,8 +287,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= I2S_P_INC1;
 			regs0->aud_fifo_reset	|= I2S_P_INC1;
-			while ((regs0->aud_fifo_reset &	I2S_P_INC1))
-				;
+			while ((regs0->aud_fifo_reset &	I2S_P_INC1) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_i2s1_p;
 		} else {
 			regs0->aud_fifo_enable &= (~I2S_P_INC1);
@@ -300,8 +301,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= I2S_P_INC2;
 			regs0->aud_fifo_reset	|= I2S_P_INC2;
-			while ((regs0->aud_fifo_reset &	I2S_P_INC2))
-				;
+			while ((regs0->aud_fifo_reset &	I2S_P_INC2) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_i2s2_p;
 		} else {
 			regs0->aud_fifo_enable &= (~I2S_P_INC2);
@@ -314,8 +315,8 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= SPDIF_P_INC0;
 			regs0->aud_fifo_reset	|= SPDIF_P_INC0;
-			while ((regs0->aud_fifo_reset &	SPDIF_P_INC0))
-				;
+			while ((regs0->aud_fifo_reset &	SPDIF_P_INC0) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_spdiftx0_p;
 		} else {
 			regs0->aud_fifo_enable &= (~SPDIF_P_INC0);
@@ -324,14 +325,16 @@ void sp_i2s_spdif_tx_dma_en(int	dev_no,	bool on)
 	} else {
 		pr_err("no support channel\n");
 	}
-
+	if (tout >= chktimeout)
+		pr_err("XXX sp_i2s_spdif_tx_dma_en TIMEOUT\n");
 	pr_debug("tx:fifo_enable 0x%x enable 0x%x\n", regs0->aud_fifo_enable, regs0->aud_enable);
 }
 
 void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 {
 	volatile register_audio *regs0 = i2saudio_base;
-
+	int tout = 0;
+	
 	if (dev_no == SP_I2S_0)	{
 		if (on)	{
 			if ((regs0->aud_fifo_enable & I2S_C_INC0))
@@ -339,8 +342,8 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= I2S_C_INC0;
 			regs0->aud_fifo_reset	|= I2S_C_INC0;
-			while ((regs0->aud_fifo_reset &	I2S_C_INC0))
-				;
+			while ((regs0->aud_fifo_reset &	I2S_C_INC0) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_i2s0_c;
 		} else {
 			regs0->aud_fifo_enable	&= (~I2S_C_INC0);
@@ -353,8 +356,8 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= I2S_C_INC1;
 			regs0->aud_fifo_reset	|= I2S_C_INC1;
-			while ((regs0->aud_fifo_reset &	I2S_C_INC1))
-				;
+			while ((regs0->aud_fifo_reset &	I2S_C_INC1) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_i2s1_c;
 		} else {
 			regs0->aud_fifo_enable	&= (~I2S_C_INC1);
@@ -367,8 +370,8 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= I2S_C_INC2;
 			regs0->aud_fifo_reset	|= I2S_C_INC2;
-			while ((regs0->aud_fifo_reset &	I2S_C_INC2))
-				;
+			while ((regs0->aud_fifo_reset &	I2S_C_INC2) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_i2s2_c;
 		} else {
 			regs0->aud_fifo_enable	&= (~I2S_C_INC2);
@@ -381,14 +384,16 @@ void sp_i2s_spdif_rx_dma_en(int	dev_no,	bool on)
 
 			regs0->aud_fifo_enable	|= SPDIF_C_INC0;
 			regs0->aud_fifo_reset	|= SPDIF_C_INC0;
-			while ((regs0->aud_fifo_reset &	SPDIF_C_INC0))
-				;
+			while ((regs0->aud_fifo_reset &	SPDIF_C_INC0) && tout < chktimeout)
+				tout++;
 			regs0->aud_enable |= aud_enable_spdif_c;
 		} else {
 			regs0->aud_fifo_enable	&= (~SPDIF_C_INC0);
 			regs0->aud_enable	&= (~aud_enable_spdif_c);
 		}
 	}
+	if (tout >= chktimeout)
+		pr_err("XXX sp_i2s_spdif_rx_dma_en TIMEOUT\n");
 	pr_debug("rx:fifo_enable 0x%x enable 0x%x\n", regs0->aud_fifo_enable, regs0->aud_enable);
 }
 
