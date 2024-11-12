@@ -10,6 +10,7 @@
 #include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/reset.h>
+#include <linux/delay.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -32,6 +33,7 @@
  */
 #define SP7350_DRM_CRTC_CAP_BG_FORMAT   (1 << 0)
 #define SP7350_DRM_CRTC_CAP_BG_COLOR    (1 << 1)
+#define SP7350_DRM_CRTC_CAP_GAMMA_LUT   (1 << 2)
 
 #define SP7350_CRTC_READ(offset) readl(sp_crtc->regs + (offset))
 #define SP7350_CRTC_WRITE(offset, val) writel(val, sp_crtc->regs + (offset))
@@ -94,6 +96,7 @@ struct sp7350_drm_tcon_timing_param {
 
 struct sp7350_crtc_state {
 	struct drm_crtc_state base;
+	bool gamma_lut_adjustment_enable;
 	unsigned int background_format;
 	unsigned int background_color;
 	bool background_changed;
@@ -106,10 +109,12 @@ struct sp7350_crtc {
 	void __iomem *regs;
 	bool is_enabled;
 	unsigned int background_color;
+	bool gamma_lut_enabled;
 
 	uint32_t capabilities;  /* SP7350_DRM_CRTC_CAP_XXX */
 	struct drm_property *background_format_property;
 	struct drm_property *background_color_property;
+	struct drm_property *gamma_lut_adjustment_property;
 
 	struct sp7350_crtc_tgen_timing_param tgen_timing;
 	struct sp7350_drm_tcon_timing_param tcon_timing;
@@ -1248,6 +1253,106 @@ static void sp7350_crtc_tcon_tpg_setting(struct drm_crtc *crtc, struct drm_displ
 }
 #endif
 
+static void sp7350_crtc_tcon_gamma_table_set(struct drm_crtc *crtc,
+					     u32 updsel_rgb, const u16 *table, u32 tablesize)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+	int i;
+	u32 value = 0;
+
+	/* Prepare */
+	do {
+		value = SP7350_CRTC_READ(TCON_GAMMA0); //G200.00
+		if (!(value & SP7350_TCON_GM_UPDEN))
+			break;
+
+		udelay(100);
+	} while (1);
+
+	value &= ~(SP7350_TCON_GM_UPDDEL_RGB_MASK);
+	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_UPD_SCHEME | SP7350_TCON_GM_BYPASS |
+			SP7350_TCON_GM_UPDWE | SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
+	SP7350_CRTC_WRITE(TCON_GAMMA0, value);
+
+	/* Write data to SRAM. */
+	for (i = 0; i < tablesize; i++) {
+		SP7350_CRTC_WRITE(TCON_GAMMA1, i);
+		SP7350_CRTC_WRITE(TCON_GAMMA2, table[i]);
+		value |= SP7350_TCON_GM_UPDEN;
+		SP7350_CRTC_WRITE(TCON_GAMMA0, value);
+		do {
+			value = SP7350_CRTC_READ(TCON_GAMMA0); //G200.00
+			if (!(value & SP7350_TCON_GM_UPDEN))
+				break;
+
+			udelay(100);
+		} while (1);
+	}
+
+	/* workaround for write, write last -> read first. */
+	//#if C3V_DISP_TCON_GAMMA_WORKAROUND_EN
+	value = 0x00000021;
+	SP7350_CRTC_WRITE(TCON_GAMMA0, value);
+	//#endif
+}
+
+//static void sp7350_crtc_tcon_gamma_table_get(struct drm_crtc *crtc,
+//					       u32 updsel_rgb, u16 table[], u32 tablesize)
+//{
+//	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+//	int i;
+//	u32 value = 0;
+//
+//	/* Prepare */
+//	do {
+//		value = SP7350_CRTC_READ(TCON_GAMMA0); //G200.00
+//		if (!(value & SP7350_TCON_GM_UPDEN))
+//			break;
+//		udelay(100);
+//	} while(1);
+//
+//	//value2 = value;
+//	value &= ~(SP7350_TCON_GM_UPDDEL_RGB_MASK);
+//	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_BYPASS |
+//			SP7350_TCON_GM_UPDDEL_RGB_SET(updsel_rgb);
+//
+//	value &= ~(SP7350_TCON_GM_UPDWE);
+//	SP7350_CRTC_WRITE(TCON_GAMMA0, value);
+//
+//	/* Read data from SRAM. */
+//	for(i = 0; i < tablesize ; i++) {
+//		SP7350_CRTC_WRITE(TCON_GAMMA1, i);
+//		value |= SP7350_TCON_GM_UPDEN;
+//		SP7350_CRTC_WRITE(TCON_GAMMA0, value);
+//		do {
+//			value = SP7350_CRTC_READ(TCON_GAMMA0); //G200.00
+//			if (!(value & SP7350_TCON_GM_UPDEN)) {
+//				table[i] = SP7350_CRTC_READ(TCON_GAMMA2); //G200.00
+//				break;
+//			}
+//			udelay(100);
+//		} while(1);
+//	}
+//}
+
+static void sp7350_crtc_tcon_gamma_table_enable(struct drm_crtc *crtc, int enable)
+{
+	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
+	u32 value = 0;
+
+	value = SP7350_CRTC_READ(TCON_GAMMA0); //G200.00
+	if (enable) {
+		/* Enable Gamma Correction */
+		value |= SP7350_TCON_GM_EN;
+		value &= ~(SP7350_TCON_GM_BYPASS | SP7350_TCON_GM_UPDWE);
+	} else {
+		value &= ~(SP7350_TCON_GM_EN);
+		value |= SP7350_TCON_GM_BYPASS;
+	}
+
+	SP7350_CRTC_WRITE(TCON_GAMMA0, value);
+}
+
 static struct drm_crtc_state *
 sp7350_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 {
@@ -1296,11 +1401,88 @@ static void sp7350_crtc_reset(struct drm_crtc *crtc)
 	__drm_atomic_helper_crtc_reset(crtc, &sp_state->base);
 
 	/* reset to default crtc property parameters */
+	if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT)
+		sp_state->gamma_lut_adjustment_enable = 1;
 	if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_BG_FORMAT)
 		sp_state->background_format = 1;
 	if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_BG_COLOR)
 		sp_state->background_color = SP7350_DMIX_PTG_BLACK;
 	sp_state->background_changed = true;
+}
+
+//static u16 tmptable2[512];
+int sp7350_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+	 uint32_t size,
+	 struct drm_modeset_acquire_ctx *ctx)
+{
+	//pr_info("Set crtc-%d gamma table size:%d\n", crtc->index, size);
+	int enable = 0;
+
+	if (size > 512) {
+		DRM_DEBUG_DRIVER("the gamma table size[%d] isn't supported by the driver!\n", size);
+		return -EINVAL;
+	}
+
+	if (r) {
+		enable = 1;
+		sp7350_crtc_tcon_gamma_table_set(crtc, SP7350_TCON_GM_UPDDEL_RGB_R, r, size);
+		//sp7350_crtc_tcon_gamma_table_get(crtc, SP7350_TCON_GM_UPDDEL_RGB_R, tmptable2, size);
+		//if (memcmp(r, tmptable2, size*sizeof(u16))) {
+		//	pr_info("Gamma table R update fail.\n");
+		//	pr_info("Input gamma table[%d]:\n", size);
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		r, size*sizeof(u16), true);
+		//	pr_info("Output gamma table:\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		tmptable2, size*sizeof(u16), true);
+		//}
+		//else {
+		//	pr_info("\nGamma table R update success.\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		tmptable2, size*sizeof(u16), true);
+		//}
+	}
+	if (g) {
+		enable = 1;
+		sp7350_crtc_tcon_gamma_table_set(crtc, SP7350_TCON_GM_UPDDEL_RGB_G, g, size);
+		//sp7350_crtc_tcon_gamma_table_get(crtc, SP7350_TCON_GM_UPDDEL_RGB_G, tmptable2, size);
+		//if (memcmp(g, tmptable2, size*sizeof(u16))) {
+		//	pr_info("Gamma table G update fail.\n");
+		//	pr_info("Input gamma table:\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		g, size*sizeof(u16), true);
+		//	pr_info("Output gamma table:\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		tmptable2, size*sizeof(u16), true);
+		//}
+		//else {
+		//	pr_info("Gamma table G update success.\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		tmptable2, size*sizeof(u16), true);
+		//}
+	}
+	if (b) {
+		enable = 1;
+		sp7350_crtc_tcon_gamma_table_set(crtc, SP7350_TCON_GM_UPDDEL_RGB_B, b, size);
+		//sp7350_crtc_tcon_gamma_table_get(crtc, SP7350_TCON_GM_UPDDEL_RGB_B, tmptable2, size);
+		//if (memcmp(b, tmptable2, size*sizeof(u16))) {
+		//	pr_info("Gamma table B update fail.\n");
+		//	pr_info("Input gamma table:\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		b, size*sizeof(u16), true);
+		//	pr_info("Output gamma table:\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		tmptable2, size*sizeof(u16), true);
+		//}
+		//else {
+		//	pr_info("Gamma table B update success.\n");
+		//	print_hex_dump(KERN_INFO, "DISP DBG", DUMP_PREFIX_OFFSET, 16, 1,
+		//		tmptable2, size*sizeof(u16), true);
+		//}
+	}
+	sp7350_crtc_tcon_gamma_table_enable(crtc, enable);
+
+	return 0;
 }
 
 static int sp7350_crtc_atomic_set_property(struct drm_crtc *crtc,
@@ -1325,8 +1507,6 @@ static int sp7350_crtc_atomic_set_property(struct drm_crtc *crtc,
 		DRM_DEBUG_ATOMIC("Set crtc-%d background color format: %4.4s\n",
 						  crtc->index, drm_crtc_bg_format_enum_list[bg_format_val].name);
 
-		DRM_DEBUG_ATOMIC("update background color format by the property!\n");
-
 		sp_state->background_format = bg_format_val;
 	} else if (!strcmp(property->name, "BG_COLOR")) {
 		u32 bg_color_val = val;
@@ -1339,9 +1519,15 @@ static int sp7350_crtc_atomic_set_property(struct drm_crtc *crtc,
 		DRM_DEBUG_ATOMIC("Set crtc-%d background color: 0x%06x\n",
 						  crtc->index, bg_color_val);
 
-		DRM_DEBUG_ATOMIC("update background color value by the property!\n");
-
 		sp_state->background_color = bg_color_val;
+	} else if (!strcmp(property->name, "GAMMA_LUT_ADJ")) {
+		if (!(sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT)) {
+			DRM_DEBUG_ATOMIC("the property isn't supported by the driver!\n");
+			return -EINVAL;
+		}
+
+		sp_state->gamma_lut_adjustment_enable = val ? true : false;
+
 	} else {
 		DRM_DEBUG_ATOMIC("the property isn't implemented by the driver!\n");
 		return -EINVAL;
@@ -1368,6 +1554,11 @@ static int sp7350_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == sp_crtc->background_color_property) {
 		if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_BG_COLOR) {
 			*val = sp_state->background_color;
+			return 0;
+		}
+	} else if (property == sp_crtc->gamma_lut_adjustment_property) {
+		if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT) {
+			*val = sp_state->gamma_lut_adjustment_enable;
 			return 0;
 		}
 	}
@@ -1500,6 +1691,18 @@ static int sp7350_crtc_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
+	if ((sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT) &&
+		new_state->color_mgmt_changed && new_state->gamma_lut) {
+		unsigned int len;
+
+		len = drm_color_lut_size(new_state->gamma_lut);
+		if (len != crtc->gamma_size) {
+			DRM_DEBUG_DRIVER("Invalid LUT size; got %d, expected %d\n",
+				      len, crtc->gamma_size);
+			return -EINVAL;
+		}
+	}
+
 	if ((sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_BG_FORMAT)
 		&& (sp_new_state->background_format != sp_old_state->background_format)) {
 		sp_new_state->background_changed = true;
@@ -1619,7 +1822,8 @@ static void sp7350_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	/* TODO reference to vkms_crtc_atomic_flush */
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
-	struct sp7350_crtc_state *sp_state = to_sp7350_crtc_state(crtc->state);
+	struct drm_crtc_state *new_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct sp7350_crtc_state *sp_state = to_sp7350_crtc_state(new_state);
 	struct drm_pending_vblank_event *event = crtc->state->event;
 
 	DRM_DEBUG_DRIVER("[Start]\n");
@@ -1644,6 +1848,41 @@ static void sp7350_crtc_atomic_flush(struct drm_crtc *crtc,
 		sp_state->background_changed = false;
 		/* TODO: For YUV444 pixel format only!!! */
 		sp_crtc->background_color = sp_state->background_color;
+	}
+
+	if ((sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT)
+		 && new_state->color_mgmt_changed) {
+		if (new_state->gamma_lut) {
+			struct drm_color_lut *gamma_lut = new_state->gamma_lut->data;
+			unsigned int gamma_lut_len = drm_color_lut_size(new_state->gamma_lut);
+			uint16_t *r_base, *g_base, *b_base;
+			int i;
+
+			drm_WARN_ON(crtc->dev, gamma_lut_len != crtc->gamma_size);
+
+			r_base = crtc->gamma_store;
+			g_base = r_base + crtc->gamma_size;
+			b_base = g_base + crtc->gamma_size;
+			if (sp_state->gamma_lut_adjustment_enable)
+				for (i = 0; i < gamma_lut_len; i++) {
+					/* from [0-65535]([0, 0xFFFF]) quantify to [0-4095]([0, 0xFFF]) */
+					r_base[i] = gamma_lut[i].red >> 4;
+					g_base[i] = gamma_lut[i].green >> 4;
+					b_base[i] = gamma_lut[i].blue >> 4;
+				}
+			else
+				for (i = 0; i < gamma_lut_len; i++) {
+					r_base[i] = gamma_lut[i].red;
+					g_base[i] = gamma_lut[i].green;
+					b_base[i] = gamma_lut[i].blue;
+				}
+
+			sp7350_crtc_gamma_set(crtc, r_base, g_base, b_base, gamma_lut_len, NULL);
+			sp_crtc->gamma_lut_enabled = true;
+		} else {
+			sp7350_crtc_gamma_set(crtc, NULL, NULL, NULL, 0, NULL);
+			sp_crtc->gamma_lut_enabled = false;
+		}
 	}
 
 	/*
@@ -1717,6 +1956,7 @@ static const struct drm_crtc_funcs sp7350_crtc_funcs = {
 	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= drm_atomic_helper_page_flip,
 	.reset		= sp7350_crtc_reset,
+	//.gamma_set  = sp7350_crtc_gamma_set,
 	.atomic_duplicate_state	= sp7350_crtc_atomic_duplicate_state,
 	.atomic_destroy_state	= sp7350_crtc_atomic_destroy_state,
 	.atomic_set_property = sp7350_crtc_atomic_set_property,
@@ -1840,6 +2080,24 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_init_with_planes\n");
 	ret = drm_crtc_init_with_planes(drm, crtc, sp_crtc->planes[0],
 				 sp_crtc->planes[SP7350_MAX_PLANE-1], crtc_funcs, NULL);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev, "failed to init crtc: %d\n", ret);
+		return ret;
+	}
+
+	ret = drm_mode_crtc_set_gamma_size(crtc, 512);
+	if (ret) {
+		DRM_DEV_ERROR(drm->dev, "failed to set gamma size: %d\n", ret);
+		return ret;
+	}
+	drm_crtc_enable_color_mgmt(crtc, 0, false, 512);
+	sp_crtc->capabilities |=  SP7350_DRM_CRTC_CAP_GAMMA_LUT;
+	if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT) {
+		sp_crtc->gamma_lut_adjustment_property = drm_property_create_bool(crtc->dev,
+						DRM_MODE_PROP_ATOMIC, "GAMMA_LUT_ADJ");
+		drm_object_attach_property(&crtc->base,
+			 sp_crtc->gamma_lut_adjustment_property, 1);
+	}
 
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_helper_add\n");
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);
@@ -1858,7 +2116,7 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 
 	sp_crtc->is_enabled = false;
 
-	sp_crtc->capabilities =  SP7350_DRM_CRTC_CAP_BG_FORMAT | SP7350_DRM_CRTC_CAP_BG_COLOR;
+	sp_crtc->capabilities |=  SP7350_DRM_CRTC_CAP_BG_FORMAT | SP7350_DRM_CRTC_CAP_BG_COLOR;
 	if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_BG_FORMAT) {
 		sp_crtc->background_format_property = drm_property_create_enum(crtc->dev,
 						DRM_MODE_PROP_IMMUTABLE, "BG_FORMAT",
@@ -2154,6 +2412,14 @@ static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 			value = 0;
 			value |= (sp_crtc->background_color & 0xFFFFFF);
 			SP7350_CRTC_WRITE(DMIX_PTG_CONFIG_2, value);
+			if (sp_crtc->gamma_lut_enabled) {
+				uint16_t *r_base, *g_base, *b_base;
+
+				r_base = sp_crtc->base.gamma_store;
+				g_base = r_base + sp_crtc->base.gamma_size;
+				b_base = g_base + sp_crtc->base.gamma_size;
+				sp7350_crtc_gamma_set(&sp_crtc->base, r_base, g_base, b_base, sp_crtc->base.gamma_size, NULL);
+			}
 		}
 		if (sp_crtc->drm_dev && sp_crtc->base.dev) {
 			drm_for_each_plane(plane, sp_crtc->drm_dev) {

@@ -91,10 +91,15 @@
 #define SP7350_DRM_PLANE_CAP_ZPOS       (1 << 1)
 #define SP7350_DRM_PLANE_CAP_ROTATION   (1 << 2)
 #define SP7350_DRM_PLANE_CAP_PIX_BLEND           (1 << 3)
-#define SP7350_DRM_PLANE_CAP_WIN_BLEND           (1 << 4)
-#define SP7350_DRM_PLANE_CAP_REGION_BLEND        (1 << 5)
+#define SP7350_DRM_PLANE_CAP_ALPHA_BLEND         (1 << 4)
+#define SP7350_DRM_PLANE_CAP_WIN_BLEND           (1 << 5)
 #define SP7350_DRM_PLANE_CAP_REGION_COLOR_KEYING (1 << 6)
 #define SP7350_DRM_PLANE_CAP_COLOR_KEYING        (1 << 7)
+#define SP7350_DRM_PLANE_CAP_BG_BLEND            (1 << 8)
+#define SP7350_DRM_PLANE_CAP_BG_FORMAT           (1 << 9)
+#define SP7350_DRM_PLANE_CAP_BG_COLOR            (1 << 10)
+#define SP7350_DRM_PLANE_CAP_BRIGHTNESS          (1 << 11)
+#define SP7350_DRM_PLANE_CAP_CONTRAST            (1 << 12)
 
 enum sp7350_plane_type {
 	SP7350_PLANE_TYPE_VPP0,
@@ -170,9 +175,16 @@ struct sp7350_osd_region {
 
 struct sp7350_plane_state {
 	struct drm_plane_state base;
-	struct sp7350_plane_region_alpha_info region_alpha;
+	bool scaling_adjustment_enable;
+	unsigned int win_alpha;
+	//struct sp7350_plane_region_alpha_info region_alpha;
 	struct sp7350_plane_region_color_keying_info region_color_keying;
 	unsigned int color_keying;
+	unsigned int bg_color;
+	unsigned int bg_format;
+	unsigned int bg_alpha;
+	int brightness;
+	int contrast;
 	struct sp7350_osd_region info;
 	/* updated by struct drm_display_mode adjusted_mode */
 	int hdisplay;
@@ -191,13 +203,19 @@ struct sp7350_plane {
 	uint32_t scl_h_max, scl_w_max;
 	uint32_t out_h_max, out_w_max;
 	bool is_media_plane;
-	struct drm_property *region_alpha_property;
+	struct drm_property *scaling_adjustment_property;
+	struct drm_property *win_alpha_property;
 	struct drm_property *region_color_keying_property;
 	struct drm_property *color_keying_property;
-	struct drm_property_blob *region_alpha_blob;
+	struct drm_property *background_format_property;
+	struct drm_property *background_color_property;
+	struct drm_property *background_alpha_property;
+	struct drm_property *brightness_property;
+	struct drm_property *contrast_property;
 	struct drm_property_blob *region_color_keying_blob;
 	u16 updated_alpha;
-	struct sp7350_plane_region_alpha_info updated_region_alpha;
+	unsigned int updated_win_alpha;
+	//struct sp7350_plane_region_alpha_info updated_region_alpha;
 	struct sp7350_plane_region_color_keying_info updated_region_color_keying;
 	unsigned int updated_color_keying;
 
