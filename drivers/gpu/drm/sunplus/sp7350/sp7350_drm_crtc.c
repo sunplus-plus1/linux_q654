@@ -109,6 +109,7 @@ struct sp7350_crtc {
 	void __iomem *regs;
 	bool is_enabled;
 	unsigned int background_color;
+	bool gamma_lut_enabled;
 
 	uint32_t capabilities;  /* SP7350_DRM_CRTC_CAP_XXX */
 	struct drm_property *background_format_property;
@@ -1266,7 +1267,7 @@ static void sp7350_crtc_tcon_gamma_table_set(struct drm_crtc *crtc,
 			break;
 
 		udelay(100);
-	} while(1);
+	} while (1);
 
 	value &= ~(SP7350_TCON_GM_UPDDEL_RGB_MASK);
 	value |= SP7350_TCON_GM_EN | SP7350_TCON_GM_UPD_SCHEME | SP7350_TCON_GM_BYPASS |
@@ -1274,7 +1275,7 @@ static void sp7350_crtc_tcon_gamma_table_set(struct drm_crtc *crtc,
 	SP7350_CRTC_WRITE(TCON_GAMMA0, value);
 
 	/* Write data to SRAM. */
-	for(i = 0; i < tablesize; i++) {
+	for (i = 0; i < tablesize; i++) {
 		SP7350_CRTC_WRITE(TCON_GAMMA1, i);
 		SP7350_CRTC_WRITE(TCON_GAMMA2, table[i]);
 		value |= SP7350_TCON_GM_UPDEN;
@@ -1285,7 +1286,7 @@ static void sp7350_crtc_tcon_gamma_table_set(struct drm_crtc *crtc,
 				break;
 
 			udelay(100);
-		} while(1);
+		} while (1);
 	}
 
 	/* workaround for write, write last -> read first. */
@@ -1300,7 +1301,7 @@ static void sp7350_crtc_tcon_gamma_table_set(struct drm_crtc *crtc,
 //{
 //	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 //	int i;
-//	u32 value = 0 /*, value2*/;
+//	u32 value = 0;
 //
 //	/* Prepare */
 //	do {
@@ -1344,8 +1345,7 @@ static void sp7350_crtc_tcon_gamma_table_enable(struct drm_crtc *crtc, int enabl
 		/* Enable Gamma Correction */
 		value |= SP7350_TCON_GM_EN;
 		value &= ~(SP7350_TCON_GM_BYPASS | SP7350_TCON_GM_UPDWE);
-	}
-	else {
+	} else {
 		value &= ~(SP7350_TCON_GM_EN);
 		value |= SP7350_TCON_GM_BYPASS;
 	}
@@ -1416,6 +1416,7 @@ int sp7350_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 	 struct drm_modeset_acquire_ctx *ctx)
 {
 	//pr_info("Set crtc-%d gamma table size:%d\n", crtc->index, size);
+	int enable = 0;
 
 	if (size > 512) {
 		DRM_DEBUG_DRIVER("the gamma table size[%d] isn't supported by the driver!\n", size);
@@ -1423,6 +1424,7 @@ int sp7350_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 	}
 
 	if (r) {
+		enable = 1;
 		sp7350_crtc_tcon_gamma_table_set(crtc, SP7350_TCON_GM_UPDDEL_RGB_R, r, size);
 		//sp7350_crtc_tcon_gamma_table_get(crtc, SP7350_TCON_GM_UPDDEL_RGB_R, tmptable2, size);
 		//if (memcmp(r, tmptable2, size*sizeof(u16))) {
@@ -1441,6 +1443,7 @@ int sp7350_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		//}
 	}
 	if (g) {
+		enable = 1;
 		sp7350_crtc_tcon_gamma_table_set(crtc, SP7350_TCON_GM_UPDDEL_RGB_G, g, size);
 		//sp7350_crtc_tcon_gamma_table_get(crtc, SP7350_TCON_GM_UPDDEL_RGB_G, tmptable2, size);
 		//if (memcmp(g, tmptable2, size*sizeof(u16))) {
@@ -1459,6 +1462,7 @@ int sp7350_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		//}
 	}
 	if (b) {
+		enable = 1;
 		sp7350_crtc_tcon_gamma_table_set(crtc, SP7350_TCON_GM_UPDDEL_RGB_B, b, size);
 		//sp7350_crtc_tcon_gamma_table_get(crtc, SP7350_TCON_GM_UPDDEL_RGB_B, tmptable2, size);
 		//if (memcmp(b, tmptable2, size*sizeof(u16))) {
@@ -1476,7 +1480,7 @@ int sp7350_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 		//		tmptable2, size*sizeof(u16), true);
 		//}
 	}
-	sp7350_crtc_tcon_gamma_table_enable(crtc, 1);
+	sp7350_crtc_tcon_gamma_table_enable(crtc, enable);
 
 	return 0;
 }
@@ -1847,30 +1851,38 @@ static void sp7350_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 
 	if ((sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT)
-		 && new_state->color_mgmt_changed && new_state->gamma_lut) {
-		struct drm_color_lut *gamma_lut = new_state->gamma_lut->data;
-		unsigned int gamma_lut_len = drm_color_lut_size(new_state->gamma_lut);
-		uint16_t *r_base, *g_base, *b_base;
-		int i;
+		 && new_state->color_mgmt_changed) {
+		if (new_state->gamma_lut) {
+			struct drm_color_lut *gamma_lut = new_state->gamma_lut->data;
+			unsigned int gamma_lut_len = drm_color_lut_size(new_state->gamma_lut);
+			uint16_t *r_base, *g_base, *b_base;
+			int i;
 
-		r_base = crtc->gamma_store;
-		g_base = r_base + crtc->gamma_size;
-		b_base = g_base + crtc->gamma_size;
-		if (sp_state->gamma_lut_adjustment_enable)
-			for (i = 0; i < gamma_lut_len; i++) {
-				/* from [0-65535]([0, 0xFFFF]) quantify to [0-4095]([0, 0xFFF]) */
-				r_base[i] = gamma_lut[i].red >> 4;
-				g_base[i] = gamma_lut[i].green >> 4;
-				b_base[i] = gamma_lut[i].blue >> 4;
-			}
-		else
-			for (i = 0; i < gamma_lut_len; i++) {
-				r_base[i] = gamma_lut[i].red;
-				g_base[i] = gamma_lut[i].green;
-				b_base[i] = gamma_lut[i].blue;
-			}
+			drm_WARN_ON(crtc->dev, gamma_lut_len != crtc->gamma_size);
 
-		sp7350_crtc_gamma_set(crtc, r_base, g_base, b_base, gamma_lut_len, NULL);
+			r_base = crtc->gamma_store;
+			g_base = r_base + crtc->gamma_size;
+			b_base = g_base + crtc->gamma_size;
+			if (sp_state->gamma_lut_adjustment_enable)
+				for (i = 0; i < gamma_lut_len; i++) {
+					/* from [0-65535]([0, 0xFFFF]) quantify to [0-4095]([0, 0xFFF]) */
+					r_base[i] = gamma_lut[i].red >> 4;
+					g_base[i] = gamma_lut[i].green >> 4;
+					b_base[i] = gamma_lut[i].blue >> 4;
+				}
+			else
+				for (i = 0; i < gamma_lut_len; i++) {
+					r_base[i] = gamma_lut[i].red;
+					g_base[i] = gamma_lut[i].green;
+					b_base[i] = gamma_lut[i].blue;
+				}
+
+			sp7350_crtc_gamma_set(crtc, r_base, g_base, b_base, gamma_lut_len, NULL);
+			sp_crtc->gamma_lut_enabled = true;
+		} else {
+			sp7350_crtc_gamma_set(crtc, NULL, NULL, NULL, 0, NULL);
+			sp_crtc->gamma_lut_enabled = false;
+		}
 	}
 
 	/*
@@ -2400,6 +2412,14 @@ static int sp7350_crtc_dev_resume(struct platform_device *pdev)
 			value = 0;
 			value |= (sp_crtc->background_color & 0xFFFFFF);
 			SP7350_CRTC_WRITE(DMIX_PTG_CONFIG_2, value);
+			if (sp_crtc->gamma_lut_enabled) {
+				uint16_t *r_base, *g_base, *b_base;
+
+				r_base = sp_crtc->base.gamma_store;
+				g_base = r_base + sp_crtc->base.gamma_size;
+				b_base = g_base + sp_crtc->base.gamma_size;
+				sp7350_crtc_gamma_set(&sp_crtc->base, r_base, g_base, b_base, sp_crtc->base.gamma_size, NULL);
+			}
 		}
 		if (sp_crtc->drm_dev && sp_crtc->base.dev) {
 			drm_for_each_plane(plane, sp_crtc->drm_dev) {
