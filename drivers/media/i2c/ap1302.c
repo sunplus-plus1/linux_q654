@@ -27,7 +27,7 @@
 #include <media/v4l2-fwnode.h>
 
 #define DRIVER_NAME "ap1302"
-#define AP1302_DRV_TAG "v1.1"
+#define AP1302_DRV_TAG "v1.2"
 
 #define AP1302_CTRL_PIXEL_RATE
 
@@ -3608,6 +3608,11 @@ static int ap1302_parse_of(struct ap1302_device *ap1302)
 	if (!ap1302->bus_cfg.nr_of_link_frequencies) {
 		dev_err(ap1302->dev, "no link frequencies defined");
 		return -EINVAL;
+	}
+
+	if (of_find_property(ap1302->dev->of_node, "virtual-channel", NULL)) {
+		dev_info(ap1302->dev, "Use virtual channel\n");
+		ap1302->use_vcid = 1;
 	}
 
 	/* Sensors */
