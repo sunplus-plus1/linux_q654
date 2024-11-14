@@ -108,7 +108,7 @@ static void sp_tdm_rx_en(bool on)
 static void sp_tdm_tx_dma_en(bool on)
 {
 	volatile RegisterFile_Audio *regs0 = (volatile	RegisterFile_Audio *) tdmaudio_base;
-	unsigned int val;
+	unsigned int val, tout = 0;
 
 	val = regs0->aud_fifo_enable;
 	if (on)	{
@@ -125,8 +125,10 @@ static void sp_tdm_tx_dma_en(bool on)
 
 	if (on)	{
 		regs0->aud_fifo_reset =	val;
-		while ((regs0->aud_fifo_reset &	val))
-			;
+		while ((regs0->aud_fifo_reset &	val) && tout < chktimeout)
+			tout++;
+		if (tout >= chktimeout)
+			pr_err("XXX sp_tdm_tx_dma_en TIMEOUT\n");
 	}
 
 	val = regs0->aud_enable;
@@ -143,7 +145,7 @@ static void sp_tdm_tx_dma_en(bool on)
 static void sp_tdm_rx_dma_en(bool on)
 {
 	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) tdmaudio_base;
-	unsigned int val;
+	unsigned int val, tout = 0;
 
 	val = regs0->aud_fifo_enable;
 	if (on)
@@ -157,8 +159,10 @@ static void sp_tdm_rx_dma_en(bool on)
 
 	if (on)	{
 		regs0->aud_fifo_reset =	val;
-		while ((regs0->aud_fifo_reset & val))
-			;
+		while ((regs0->aud_fifo_reset & val) && tout < chktimeout)
+			tout++;
+		if (tout >= chktimeout)
+			pr_err("XXX sp_tdm_rx_dma_en TIMEOUT\n");
 	}
 
 	val = regs0->aud_enable;
