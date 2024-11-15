@@ -63,6 +63,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int delta, appl_ofs, tout = 0;
 	volatile RegisterFile_Audio *regs0 = (volatile RegisterFile_Audio *) pcmaudio_base;
+	unsigned long flags;
 
 	if (!atomic_read(&iprtd->running))
 		return;
@@ -81,7 +82,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 		pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
 		if (iprtd->offset < iprtd->fifosize_from_user) {
 			if (iprtd->usemmap_flag == 1) {
-				spin_lock(&set_lock);
+				spin_lock_irqsave(&set_lock, flags);
 				if (substream->pcm->device == SP_I2S_0) {
 					while (regs0->aud_a0_cnt != 0 && tout < iprtd->timeoutcount) {
 						udelay(1);
@@ -123,7 +124,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 					run_start(SPDIF_P_INC0, iprtd->period);
 					iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
 				}
-				spin_unlock(&set_lock);
+				spin_unlock_irqrestore(&set_lock, flags);
 				if (tout >= iprtd->timeoutcount)
 					pr_err("XXX hrtimer_pcm_tasklet TIMEOUT\n");
 			} else {
@@ -158,7 +159,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 
 		pr_debug("C:?_ptr=0x%x cnt_a11 0x%x ", iprtd->offset, regs0->aud_a11_cnt);
 		if (iprtd->usemmap_flag == 1) {
-			spin_lock(&set_lock);
+			spin_lock_irqsave(&set_lock, flags);
 			if (iprtd->offset >= iprtd->last_offset)
 				delta = iprtd->offset - iprtd->last_offset;
 			else
@@ -177,7 +178,7 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 					run_start(TDMPDM_C_INC0, delta);
 				pr_debug("C? inc\n");
 			}
-			spin_unlock(&set_lock);
+			spin_unlock_irqrestore(&set_lock, flags);
 		}
 		iprtd->last_offset = iprtd->offset;
 		snd_pcm_period_elapsed(substream);
