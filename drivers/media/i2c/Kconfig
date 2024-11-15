@@ -880,6 +880,19 @@ config VIDEO_AP1302
 
 		It only supports very limited feature
 
+config VIDEO_SP000
+	tristate "Sunplus dummy sensor support"
+	depends on I2C && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
+	help
+	  This is a Video4Linux2 sensor driver for the Sunplus
+	  dummy camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp000.
+
 config VIDEO_OV2640
 	tristate "OmniVision OV2640 sensor support"
 	depends on VIDEO_V4L2 && I2C

@@ -43,6 +43,8 @@
 //#define TP2815_IN5_2LANES
 //#define TP2815_IN5_2VC
 //#define TP2815_IN5_4VC
+//#define SP000_IN0
+//#define SP000_IN5
 
 //#define AP6256_WIFI
 //#define AP6256_BT
@@ -703,7 +705,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo0_pins>;
-#if defined(IMX219_IN0) || defined(IMX219_IN2) || defined(IMX415_IN2) || defined(TP2815_IN0) || defined(TP2815_IN2)
+#if defined(IMX219_IN0) || defined(IMX219_IN2) || defined(IMX415_IN2) || defined(SP000_IN0) || defined(TP2815_IN0) || defined(TP2815_IN2)
 	status = "okay";
 #else
 	status = "disabled";
@@ -789,6 +791,32 @@
 				data-lanes = <1 2 3 4>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <891000000>;
+			};
+		};
+	};
+#endif
+#ifdef SP000_IN0 /* Add sp000 subnode in i2c0 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_0: sp000@10 {
+		compatible = "sunplus,sp000";
+		reg = <0x10>;
+		clocks = <&imx219_clk>;
+		VANA-supply = <&imx219_vana_2v8>;
+		VDIG-supply = <&imx219_vdig_1v8>;
+		VDDL-supply = <&imx219_vddl_1v2>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&camera_0_pins>;
+		//power-gpios = <&pctl 71 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 72 GPIO_ACTIVE_HIGH>;
+
+		port {
+			sp000_0: endpoint {
+				remote-endpoint = <&csi2_0>;
+				data-lanes = <1 2 3 4>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
 	};
@@ -1187,7 +1215,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo3_pins>;
-#if defined(IMX219_IN5) || defined(IMX415_IN5) || defined(TP2815_IN5)
+#if defined(IMX219_IN5) || defined(IMX415_IN5) || defined(SP000_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1239,6 +1267,33 @@
 				data-lanes = <1 2 3 4>;
 				clock-noncontinuous;
 				link-frequencies = /bits/ 64 <891000000>;
+			};
+		};
+	};
+#endif
+#ifdef SP000_IN5 /* Add sp000 subnode in i2c3 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_5: sp000@10 {
+		compatible = "sunplus,sp000";
+		reg = <0x10>;
+		clocks = <&imx219_clk>;
+		VANA-supply = <&imx219_vana_2v8>;
+		VDIG-supply = <&imx219_vdig_1v8>;
+		VDDL-supply = <&imx219_vddl_1v2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_5_pins>;
+		//power-gpios = <&pctl 81 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 82 GPIO_ACTIVE_HIGH>;
+		//stream-gpios = <&pctl 32 GPIO_ACTIVE_HIGH>;
+
+		port {
+			sp000_5: endpoint {
+				remote-endpoint = <&csi2_5>;
+				data-lanes = <1 2 3 4>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
 	};
@@ -1442,7 +1497,7 @@
 };
 
 &mipicsirx0 {
-#if defined(IMX219_IN0) || defined(TP2815_IN0)
+#if defined(IMX219_IN0) || defined(SP000_IN0) || defined(TP2815_IN0)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1450,7 +1505,7 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#ifdef IMX219_IN0
+#if defined(IMX219_IN0) || defined(SP000_IN0)
 	num_channels = <1>;
 #elif defined(TP2815_IN0)
 	#ifdef TP2815_IN0_2VC
@@ -1474,6 +1529,19 @@
 			/* MIPI CSI-2 bus endpoint */
 			csi2_0: endpoint {
 				remote-endpoint = <&imx219_0>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+			};
+		};
+#endif
+#ifdef SP000_IN0 /* Add sp000 subnode in i2c0 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_0: endpoint {
+				remote-endpoint = <&sp000_0>;
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
@@ -1520,7 +1588,7 @@
 
 &vin0 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN0) || defined(TP2815_IN0)
+#if defined(IMX219_IN0) || defined(SP000_IN0) || defined(TP2815_IN0)
 	status = "okay";
 #else
 	status = "disabled";
@@ -2211,7 +2279,7 @@
 };
 
 &mipicsirx5 {
-#if defined(IMX219_IN5) || defined(IMX415_IN5) || defined(TP2815_IN5)
+#if defined(IMX219_IN5) || defined(IMX415_IN5) || defined(SP000_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -2219,7 +2287,7 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(IMX219_IN5) || defined(IMX415_IN5)
+#if defined(IMX219_IN5) || defined(IMX415_IN5) || defined(SP000_IN5)
 	num_channels = <1>;
 #elif defined(TP2815_IN5)
 	#ifdef TP2815_IN5_4VC
@@ -2258,6 +2326,19 @@
 			/* MIPI CSI-2 bus endpoint */
 			csi2_5: endpoint {
 				remote-endpoint = <&imx415_5>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+#endif
+#ifdef SP000_IN5 /* Add sp000 subnode in i2c3 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_5: endpoint {
+				remote-endpoint = <&sp000_5>;
 				bus-type = <4>;
 				clock-lanes = <0>;
 				data-lanes = <1 2 3 4>;
@@ -2316,7 +2397,7 @@
 
 &vin10 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN5) || defined(IMX415_IN5) || defined(TP2815_IN5)
+#if defined(IMX219_IN5) || defined(IMX415_IN5) || defined(SP000_IN5) || defined(TP2815_IN5)
 	status = "okay";
 #else
 	status = "disabled";
@@ -3092,6 +3173,13 @@
 		pins = "GPIO66";
 		sunplus,output-invert-disable;
 	};
+
+#ifdef SP000_IN5 /* Add sp000 subnode in i2cm3 */
+	camera_5_pins: pinmux_camera_0-pins {
+		function = "GPIO";
+		pins = "GPIO32";
+	};
+#endif
 
 	uart0_pins: pinmux_uart0-pins {
 		function = "UART0";
