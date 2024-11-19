@@ -419,19 +419,17 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins &uart1_fc_pins>;
+	pinctrl-0 = <&uart1_pins>;
 };
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pins &uart2_fc_pins>;
-	status = "disabled";
+	pinctrl-0 = <&uart2_pins>;
 };
 
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
-	status = "disabled";
 };
 
 &uadbg {
@@ -748,7 +746,7 @@
 		};
 	};
 #endif
-#ifdef IMX219_IN2 /* Add imx219 subnode in i2c2 */
+#ifdef IMX219_IN2 /* Add imx219 subnode in i2c6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -760,7 +758,7 @@
 		VDIG-supply = <&imx219_vdig_1v8>;
 		VDDL-supply = <&imx219_vddl_1v2>;
 		//pinctrl-names = "default";
-		//pinctrl-0 = <&camera_4_pins>;
+		//pinctrl-0 = <&camera_2_pins>;
 		//power-gpios = <&pctl 74 GPIO_ACTIVE_HIGH>;
 		//reset-gpios = <&pctl 75 GPIO_ACTIVE_HIGH>;
 
@@ -774,7 +772,7 @@
 		};
 	};
 #endif
-#ifdef IMX708_IN2 /* Add imx708 subnode in i2c2 */
+#ifdef IMX708_IN2 /* Add imx708 subnode in i2c6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -783,10 +781,10 @@
 		reg = <0x1a>;
 		clocks = <&imx708_clk>;
 		clock-names = "inclk";
-		vana1-supply = <&imx708_vana1_2v8>;	/* 2.8v */
-		vana2-supply = <&imx708_vana2_1v8>;	/* 1.8v */
-		vdig-supply = <&imx708_vdig_1v1>;	/* 1.1v */
-		vddl-supply = <&imx708_vddl_1v8>;	/* 1.8v */
+		vana1-supply = <&imx708_vana1_2v8>;
+		vana2-supply = <&imx708_vana2_1v8>;
+		vdig-supply = <&imx708_vdig_1v1>;
+		vddl-supply = <&imx708_vddl_1v8>;
 
 		port {
 			imx708_2: endpoint {
@@ -798,7 +796,7 @@
 		};
 	};
 #endif
-#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c2 */
+#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -820,7 +818,7 @@
 		};
 	};
 #endif
-#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c2 */
+#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c6 */
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -944,7 +942,7 @@
 			};
 		};
 #endif
-#ifdef IMX219_IN2 /* Add imx219 subnode in i2c0 */
+#ifdef IMX219_IN2 /* Add imx219 subnode in i2c6 */
 		port@0 {
 			reg = <0>;
 
@@ -957,7 +955,7 @@
 			};
 		};
 #endif
-#ifdef IMX708_IN2 /* Add imx708 subnode in i2c0 */
+#ifdef IMX708_IN2 /* Add imx708 subnode in i2c6 */
 		port@0 {
 			reg = <0>;
 
@@ -970,7 +968,7 @@
 			};
 		};
 #endif
-#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c0 */
+#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c6 */
 		port@0 {
 			reg = <0>;
 
@@ -983,7 +981,7 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c0 */
+#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c6 */
 		port@0 {
 			reg = <0>;
 
@@ -1056,7 +1054,7 @@
 
 &vin5 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(AP1302_IN2) || defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2)
+#if defined(AP1302_IN2)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1559,13 +1557,8 @@
 
 	uart3_pins: pinmux_uart3-pins {
 		function = "UART3";
-#if 1 // X1
 		groups = "UART3_X1";
 		drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
-#else // X2
-		groups = "UART3_X2";
-		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
-#endif
 	};
 
 	uadbg_pins: pinmux_uadbg-pins {
@@ -1588,13 +1581,8 @@
 
 	spi_master0_pins: pinmux_spi_master0-pins {
 		function = "SPI_MASTER0";
-#if 1 // X1
 		groups = "SPI_MASTER0_X1";
 		drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
-#else // X2
-		groups = "SPI_MASTER0_X2";
-		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
-#endif
 	};
 	spi_master1_pins: pinmux_spi_master1-pins {
 		function = "SPI_MASTER1";
@@ -1618,13 +1606,8 @@
 	};
 	spi_slave0_pins: pinmux_spi_slave0-pins {
 		function = "SPI_SLAVE0";
-#if 1 // X1
 		groups = "SPI_SLAVE0_X1";
 		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
-#else // X2
-		groups = "SPI_SLAVE0_X2";
-		drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_15200_IOL_18700UA>;
-#endif
 	};
 
 	i2c_combo0_pins: pinmux_i2c_combo0-pins {
@@ -1796,8 +1779,8 @@
 		pins = "GPIO0";
 	};
 
-#ifdef AP1302_IN2 /* Add ap1302 subnode in i2cm6 */
-	camera_2_pins: pinmux_camera_0-pins {
+#ifdef AP1302_IN2 /* Add ap1302 subnode in i2c6 */
+	camera_2_pins: pinmux_camera_2-pins {
 		function = "GPIO";
 		pins = "GPIO60","GPIO61";
 	};
