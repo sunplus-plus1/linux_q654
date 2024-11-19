@@ -1054,7 +1054,7 @@
 
 &vin5 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(AP1302_IN2)
+#if (defined(AP1302_IN2) && defined(AP1302_IN2_2VC))
 	status = "okay";
 #else
 	status = "disabled";
