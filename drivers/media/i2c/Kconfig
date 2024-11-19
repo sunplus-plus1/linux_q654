@@ -657,6 +657,16 @@ config VIDEO_S5K6A3
 	  This is a V4L2 sensor driver for Samsung S5K6A3 raw
 	  camera sensor.
 
+config VIDEO_SP000
+	tristate "Sunplus dummy sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a Video4Linux2 sensor driver for the Sunplus
+	  dummy camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sp000.
+
 config VIDEO_ST_VGXY61
 	tristate "ST VGXY61 sensor support"
 	depends on OF && GPIOLIB
