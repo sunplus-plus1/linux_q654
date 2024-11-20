@@ -26,7 +26,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Sunplus SP7350 DMB";
+	model = "Sunplus SP7350 MCB";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
@@ -1412,7 +1412,7 @@
 &audio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
-	//status = "disabled";
+	status = "disabled";
 };
 
 &sp_spinor0 {
