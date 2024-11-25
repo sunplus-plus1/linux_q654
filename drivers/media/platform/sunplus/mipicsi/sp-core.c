@@ -46,73 +46,6 @@
  */
 
 /* group lock should be held when calling this function. */
-// JW: checkpatch.py #if 0 should be remove
-// #if 0
-// static int vin_group_entity_to_csi_id(struct vin_group *group,
-//				       struct media_entity *entity)
-// {
-//	struct v4l2_subdev *sd;
-//	unsigned int i;
-
-//	sd = media_entity_to_v4l2_subdev(entity);
-
-//	for (i = 0; i < VIN_CSI_MAX; i++)
-//		if (group->csi[i].subdev == sd)
-//			return i;
-
-//	return -ENODEV;
-// }
-
-// static unsigned int vin_group_get_mask(struct vin_dev *vin,
-//					enum vin_csi_id csi_id,
-//					unsigned char channel)
-// {
-//	const struct vin_group_route *route;
-//	unsigned int mask = 0;
-
-//	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-
-//	for (route = vin->info->routes; route->mask; route++) {
-//		if (route->vin == vin->id &&
-//		    route->csi == csi_id &&
-//		    route->channel == channel) {
-//			vin_dbg(vin,
-//				"Adding route: vin: %d csi: %d channel: %d\n",
-//				route->vin, route->csi, route->channel);
-//			mask |= route->mask;
-//		}
-//	}
-
-//	dev_dbg(vin->dev, "mask: 0x%08x\n", mask);
-
-//	return mask;
-// }
-// #endif
-
-/*
- * Link setup for the links between a VIN and a CSI-2 receiver is a bit
- * complex. The reason for this is that the register controlling routing
- * is not present in each VIN instance. There are special VINs which
- * control routing for themselves and other VINs. There are not many
- * different possible links combinations that can be enabled at the same
- * time, therefor all already enabled links which are controlled by a
- * master VIN need to be taken into account when making the decision
- * if a new link can be enabled or not.
- *
- * 1. Find out which VIN the link the user tries to enable is connected to.
- * 2. Lookup which master VIN controls the links for this VIN.
- * 3. Start with a bitmask with all bits set.
- * 4. For each previously enabled link from the master VIN bitwise AND its
- *    route mask (see documentation for mask in struct vin_group_route)
- *    with the bitmask.
- * 5. Bitwise AND the mask for the link the user tries to enable to the bitmask.
- * 6. If the bitmask is not empty at this point the new link can be enabled
- *    while keeping all previous links enabled. Update the CHSEL value of the
- *    master VIN and inform the user that the link could be enabled.
- *
- * Please note that no link can be enabled if any VIN in the group is
- * currently open.
- */
 static int vin_group_link_notify(struct media_link *link, u32 flags,
 				  unsigned int notification)
 {
@@ -123,21 +56,17 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 	struct vin_dev *vin = NULL;
 	int ret;
 
-	dev_dbg(vin->dev, "%s, %d\n", __func__, __LINE__);
-
 	ret = v4l2_pipeline_link_notify(link, flags, notification);
 	if (ret)
 		return ret;
 
-	/* Only care about link enablement for VIN nodes. */
-	if (!(flags & MEDIA_LNK_FL_ENABLED) ||
-	    !is_media_entity_v4l2_video_device(link->sink->entity))
+	/* Only care about the VIN nodes. */
+	if (!is_media_entity_v4l2_video_device(link->sink->entity))
 		return 0;
 
 	/*
 	 * Don't allow link changes if any entity in the graph is
-	 * streaming, modifying the CHSEL register fields can disrupt
-	 * running streams.
+	 * streaming.
 	 */
 	media_device_for_each_entity(entity, &group->mdev)
 		if (media_entity_is_streaming(entity))
@@ -145,73 +74,13 @@ static int vin_group_link_notify(struct media_link *link, u32 flags,
 
 	mutex_lock(&group->lock);
 
-	/* Find the master VIN that controls the routes. */
+	/* Show the link information. */
 	vdev = media_entity_to_video_device(link->sink->entity);
 	vin = container_of(vdev, struct vin_dev, vdev);
-	dev_dbg(vin->dev, "%s, %d vin->id:%d flags:%d\n", __func__, __LINE__, vin->id, flags);
+	dev_dbg(vin->dev, "%s: VIN device is VIN%02d\n", __func__, vin->id);
+	dev_dbg(vin->dev, "link %s -> %s, flags: %d\n",
+		link->sink->entity->name, link->source->entity->name, flags);
 
-// JW: checkpatch.py #if 0 should be remove
-//#if 0
-//	master_id = vin_group_id_to_master(vin->id);
-
-//	if (WARN_ON(!group->vin[master_id])) {
-//		ret = -ENODEV;
-//		goto out;
-//	}
-
-//	/* Build a mask for already enabled links. */
-//	for (i = master_id; i < master_id + 4; i++) {
-
-//		dev_dbg(vin->dev, "i:%d, group->vin[i]: 0x%p\n", i, group->vin[i]);
-
-//		if (!group->vin[i])
-//			continue;
-
-//		/* Get remote CSI-2, if any. */
-//		csi_pad = media_entity_remote_pad(
-//				&group->vin[i]->vdev.entity.pads[0]);
-//		if (!csi_pad)
-//			continue;
-
-//		csi_id = vin_group_entity_to_csi_id(group, csi_pad->entity);
-//		channel = vin_group_csi_pad_to_channel(csi_pad->index);
-
-//		dev_dbg(vin->dev, "csi_id: %d, channel: %d\n", csi_id, channel);
-
-//		mask &= vin_group_get_mask(group->vin[i], csi_id, channel);
-//	}
-
-//	dev_dbg(vin->dev, "mask: 0x%08x\n", mask);
-
-//	/* Add the new link to the existing mask and check if it works. */
-//	csi_id = vin_group_entity_to_csi_id(group, link->source->entity);
-
-//	if (csi_id == -ENODEV) {
-//		vin_err(vin, "Subdevice %s not registered to any VIN\n",
-//			link->source->entity->name);
-//		ret = -ENODEV;
-//		goto out;
-//	}
-
-//	channel = vin_group_csi_pad_to_channel(link->source->index);
-
-//	dev_dbg(vin->dev, "csi_id:%d, channel: %d\n", csi_id, channel);
-
-//	mask_new = mask & vin_group_get_mask(vin, csi_id, channel);
-//	vin_dbg(vin, "Try link change mask: 0x%x new: 0x%x\n", mask, mask_new);
-
-//	if (!mask_new) {
-//		ret = -EMLINK;
-//		goto out;
-//	}
-
-//	/* New valid CHSEL found, set the new value. */
-//	ret = vin_set_channel_routing(group->vin[master_id], __ffs(mask_new));
-//	if (ret)
-//		goto out;
-
-// out:
-// #endif
 	mutex_unlock(&group->lock);
 
 	return ret;
