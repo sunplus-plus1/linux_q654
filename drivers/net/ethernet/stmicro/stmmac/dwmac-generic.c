@@ -79,6 +79,7 @@ static void sunplus_fix_mac_speed(void *priv, unsigned int speed)
 		dev_err(stmmac->device, "Failed to configure stmmac clock rate!\n");
 	clk_prepare_enable(stmmac->plat->stmmac_clk);
 }
+#endif
 
 static int dwmac_generic_probe(struct platform_device *pdev)
 {
