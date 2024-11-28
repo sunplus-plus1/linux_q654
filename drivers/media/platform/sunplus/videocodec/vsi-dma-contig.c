@@ -30,34 +30,13 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-memops.h>
 #include <linux/version.h>
+#include "vsi-dma-priv.h"
 #if defined(CONFIG_SOC_SP7350)
 static bool remap;
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 
 MODULE_IMPORT_NS(DMA_BUF);
-struct vb2_dc_buf {
-	struct device			*dev;
-	void				*vaddr;
-	unsigned long			size;
-	void				*cookie;
-	dma_addr_t			dma_addr;
-	unsigned long			attrs;
-	enum dma_data_direction		dma_dir;
-	struct sg_table			*dma_sgt;
-	struct frame_vector		*vec;
-
-	/* MMAP related */
-	struct vb2_vmarea_handler	handler;
-	refcount_t			refcount;
-	struct sg_table			*sgt_base;
-
-	/* DMABUF related */
-	struct dma_buf_attachment	*db_attach;
-
-	struct vb2_buffer		*vb;
-	bool				non_coherent_mem;
-};
 
 /*********************************************/
 /*        scatterlist table functions        */
@@ -1018,29 +997,6 @@ const struct vb2_mem_ops *get_vsi_mmop(void)
 #include <media/videobuf2-memops.h>
 //
 static struct vb2_mem_ops vsi_dma_contig_memops;
-//
-struct vb2_dc_buf {
-	struct device			*dev;
-	void				*vaddr;
-	unsigned long			size;
-	void				*cookie;
-	dma_addr_t			dma_addr;
-	unsigned long			attrs;
-	enum dma_data_direction		dma_dir;
-	struct sg_table			*dma_sgt;
-	struct frame_vector		*vec;
-
-	/* MMAP related */
-	struct vb2_vmarea_handler	handler;
-	refcount_t			refcount;
-	struct sg_table			*sgt_base;
-
-	/* DMABUF related */
-	struct dma_buf_attachment	*db_attach;
-
-	struct vb2_buffer		*vb;
-	bool				non_coherent_mem;
-};
 
 /*********************************************/
 /*        scatterlist table functions        */
