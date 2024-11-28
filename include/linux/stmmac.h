@@ -205,5 +205,9 @@ struct plat_stmmacenet_data {
 	u8 vlan_fail_q;
 	unsigned int eee_usecs_rate;
 	bool sph_disable;
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+	u32 rgmii_tx_softpad_100m;
+	u32 rgmii_tx_softpad_1000m;
+#endif	
 };
 #endif

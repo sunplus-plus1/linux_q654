@@ -16,11 +16,18 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+#define GMAC_TX_SOFTPAD_REG	0xF8803378
+#endif
+
+#if IS_ENABLED(CONFIG_SOC_SP7350)
 static void sunplus_fix_mac_speed(void *priv, unsigned int speed)
 {
-	struct stmmac_priv *stmmac = (struct stmmac_priv*)priv;
+	struct stmmac_priv *stmmac = (struct stmmac_priv *)priv;
 	unsigned long rate;
 	int ret;
+	void __iomem *rgmii_tx_softpad_reg  = NULL;
+	unsigned int rgmii_tx_softpad;
 
 	clk_disable(stmmac->plat->stmmac_clk);
 	clk_unprepare(stmmac->plat->stmmac_clk);
@@ -38,22 +45,35 @@ static void sunplus_fix_mac_speed(void *priv, unsigned int speed)
 			break;
 		}
 	} else {
+		rgmii_tx_softpad_reg = ioremap(GMAC_TX_SOFTPAD_REG, 4);
+		if (rgmii_tx_softpad_reg == NULL) {
+			dev_err(stmmac->device, "failed to get gmac tx softpad reg\n");
+		}
+
 		switch (speed) {
 		case SPEED_1000:
 			rate = 125000000;
+			rgmii_tx_softpad = stmmac->plat->rgmii_tx_softpad_1000m;
 			break;
 		case SPEED_100:
 			rate = 25000000;
+			rgmii_tx_softpad = stmmac->plat->rgmii_tx_softpad_100m;
 			break;
 		case SPEED_10:
 			rate = 2500000;
+			rgmii_tx_softpad = stmmac->plat->rgmii_tx_softpad_100m;
 			break;
 		default:
 			dev_err(stmmac->device, "Invalid speed!\n");
+			rgmii_tx_softpad = 0xFFFFFFFF;
 			break;
+		}
+		if ((rgmii_tx_softpad_reg != NULL) && (rgmii_tx_softpad != 0xFFFFFFFF)) {
+			writel(rgmii_tx_softpad, rgmii_tx_softpad_reg);
 		}
 	}
 
+	iounmap(rgmii_tx_softpad_reg);
 	ret = clk_set_rate(stmmac->plat->stmmac_clk, rate);
 	if (ret)
 		dev_err(stmmac->device, "Failed to configure stmmac clock rate!\n");

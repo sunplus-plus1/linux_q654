@@ -2542,6 +2542,9 @@
 	clk_csr = <4>;
 	phy-mode = "rgmii";
 	phy-handle = <&phy0>;
+	/*Different RGMII TX softpad setting for PHY-link-speed 100M and 1000M*/
+	rgmii-tx-softpad-100m = <0x00045E00>;
+	rgmii-tx-softpad-1000m = <0x00025600>;
 	/*id-->use phy hardway tx/rx delay 2ns, txid-->use phy hardway tx delay 2ns, rxid-->use phy hardway rx delay 2ns*/
 	//phy-mode = "rgmii-id";
 	//phy-mode = "rgmii-txid";
