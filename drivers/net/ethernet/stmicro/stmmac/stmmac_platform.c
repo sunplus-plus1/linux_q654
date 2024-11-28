@@ -449,6 +449,13 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	if (of_property_read_u32(np, "snps,clk-csr", &plat->clk_csr))
 		of_property_read_u32(np, "clk_csr", &plat->clk_csr);
 
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+	plat->rgmii_tx_softpad_100m = 0xFFFFFFFF;
+	plat->rgmii_tx_softpad_1000m = 0xFFFFFFFF;
+	of_property_read_u32(np, "rgmii-tx-softpad-100m", &plat->rgmii_tx_softpad_100m);
+	of_property_read_u32(np, "rgmii-tx-softpad-1000m", &plat->rgmii_tx_softpad_1000m);
+#endif
+
 	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
 	 * and warn of its use. Remove this when phy node support is added.
 	 */

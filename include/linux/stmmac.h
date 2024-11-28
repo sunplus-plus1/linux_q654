@@ -314,5 +314,9 @@ struct plat_stmmacenet_data {
 	int msi_tx_base_vec;
 	const struct dwmac4_addrs *dwmac4_addrs;
 	unsigned int flags;
+#if IS_ENABLED(CONFIG_SOC_SP7350)
+	u32 rgmii_tx_softpad_100m;
+	u32 rgmii_tx_softpad_1000m;
+#endif
 };
 #endif
