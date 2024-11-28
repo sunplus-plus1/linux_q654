@@ -39,7 +39,10 @@
 #include <media/videobuf2-vmalloc.h>
 #include <linux/delay.h>
 #include <linux/version.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include "vsi-v4l2-priv.h"
+#include "vsi-dma-priv.h"
 
 static int vsi_enc_querycap(
 	struct file *file,
@@ -117,7 +120,122 @@ static int vsi_enc_create_bufs(struct file *filp, void *priv,
 		q->num_buffers, ret, ctx->status);
 	return ret;
 }
+///////////////////////
 
+static void __dmaengine_callback_result(void *dma_async_param,
+	                                 const struct dmaengine_result *result)
+{
+	struct vsi_v4l2_ctx *ctx = dma_async_param;
+	ctx->dma_result = result->result;
+	complete(&ctx->memcpy_done);
+}
+static int __do_dma_copy(struct vsi_v4l2_ctx *ctx, dma_addr_t dma_dst, dma_addr_t dma_src, int size)
+{
+	int ret = -1;
+	struct dma_async_tx_descriptor *desc;
+	struct dma_chan *chan;
+	dma_cap_mask_t mask;
+	dma_cookie_t cookie;
+
+	dma_cap_zero(mask);
+	dma_cap_set(DMA_MEMCPY, mask);
+
+	chan = dma_request_channel(mask, NULL, NULL);
+	if (!chan){
+		printk(KERN_ERR "request dma channel failed");
+		return -1;
+	}
+
+	if (ctx->comp_init == 0) {
+        init_completion(&ctx->memcpy_done);
+		ctx->comp_init = 1;
+	}
+
+	reinit_completion(&ctx->memcpy_done);
+
+	// dma code
+	desc = dmaengine_prep_dma_memcpy(chan, dma_dst, dma_src, size, 0);
+	if (!desc){
+		printk(KERN_ERR "get dma descriptor failed!\n");
+		goto out_dma_mem_free;
+	}
+
+	desc->callback_result = __dmaengine_callback_result;
+	desc->callback_param = ctx;
+
+	cookie = dmaengine_submit(desc);
+	if (dma_submit_error(cookie) != 0){
+		printk(KERN_ERR "dms submit failed!\n");
+		goto out_dma_mem_free;
+	}
+
+	dma_async_issue_pending(chan);
+
+	if (!wait_for_completion_timeout(&ctx->memcpy_done, msecs_to_jiffies(5000))) {
+		printk(KERN_ERR "DMA memcpy timeout");
+		goto out_dma_mem_free;
+	}
+
+	if (ctx->dma_result != DMA_TRANS_NOERROR) {
+		printk(KERN_ERR "DMA memcpy error %d\n", ctx->dma_result);
+		goto out_dma_mem_free;
+	}
+
+	ret = 0;
+
+out_dma_mem_free:
+	// printk(KERN_ERR "DMA copy %llx to %llx result %d\n",dma_src, dma_dst dma_result);
+	dma_release_channel(chan);
+
+	return ret;
+}
+
+static int __vsi_do_dma_copy(struct vsi_v4l2_ctx *ctx, struct v4l2_streamparm *parm)
+{
+	__s32 exp_fd;
+	__u32 exp_buf_idx;
+	__u32 buf_idx;
+	int size;
+
+	struct dma_buf *dma_buf_s;
+	struct vb2_dc_buf *dc_buf_s;
+
+	struct vb2_queue *q;
+	struct vb2_buffer *vb_buf_d;
+	struct vb2_dc_buf *dc_buf_d;
+
+	dma_addr_t dma_src;
+	dma_addr_t dma_dst;
+
+	int *data_ptr = (int*)&parm->parm.raw_data[100];
+
+	exp_buf_idx = data_ptr[0];
+	exp_fd = data_ptr[1];
+	buf_idx = data_ptr[2];
+	size = data_ptr[3];
+
+	/* record the fd for release */
+	if(!ctx->exp_fd[exp_buf_idx]){
+		ctx->exp_fd[exp_buf_idx] = exp_fd;
+	}
+
+	/* get the source dma buffer */
+	dma_buf_s = dma_buf_get(exp_fd);
+	dc_buf_s = dma_buf_s->priv;
+
+	/* get the target dma buffer */
+	q = &ctx->input_que;
+	vb_buf_d = q->bufs[buf_idx];
+	dc_buf_d = vb_buf_d->planes[0].mem_priv;
+
+	/* get the dma addr */
+	dma_src = dc_buf_s->dma_addr;
+	dma_dst = dc_buf_d->dma_addr;
+
+	// printk(KERN_ERR "##idx %d addr %x",buf_idx, dc_buf_d->dma_addr);
+
+	return __do_dma_copy(ctx, dma_dst, dma_src, size);
+}
 static int vsi_enc_s_parm(struct file *filp, void *priv, struct v4l2_streamparm *parm)
 {
 	struct vsi_v4l2_ctx *ctx = fh_to_ctx(filp->private_data);
@@ -131,6 +249,18 @@ static int vsi_enc_s_parm(struct file *filp, void *priv, struct v4l2_streamparm 
 	if (mutex_lock_interruptible(&ctx->ctxlock))
 		return -EBUSY;
 	if (binputqueue(parm->type)) {
+		//for dma copy
+		if( parm->parm.raw_data[99] == 0xf1){
+
+			if(__vsi_do_dma_copy(ctx, parm)){
+				mutex_unlock(&ctx->ctxlock);
+				return -1;
+			}
+
+			mutex_unlock(&ctx->ctxlock);
+			return 0;
+		}
+
 		memset(parm->parm.output.reserved, 0, sizeof(parm->parm.output.reserved));
 		if (!parm->parm.output.timeperframe.denominator)
 			parm->parm.output.timeperframe.denominator = 25;		//default val
@@ -389,6 +519,11 @@ static int vsi_enc_streamoff(
 		clear_bit(CTX_FLAG_FORCEIDR_BIT, &ctx->flag);
 		for (i = 0; i < VIDEO_MAX_FRAME; i++)
 			ctx->srcvbufflag[i] = 0;
+
+		for (i = 0; i < VIDEO_MAX_FRAME; i++){
+			dma_export_buf_release(ctx->exp_fd[i]);
+			ctx->exp_fd[i] = 0;
+		}
 	}
 
 	return_all_buffers(q, VB2_BUF_STATE_DONE, 1);
