@@ -35,7 +35,7 @@ static inline void dma_export_buf_release(__s32 exp_fd)
 		d_buf = dma_buf_get(exp_fd);
 		vb_buf = d_buf->priv;
 
-		vb_buf->handler.put(vb_buf);
+		vb_buf->handler.put(vb_buf->handler.arg);
 	}
 }
 
