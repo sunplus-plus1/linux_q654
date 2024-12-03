@@ -114,7 +114,7 @@
 			no-map;
 		};
 
-		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
+		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bbfffff, total 200M */
 		mipicsirx_reserve: mipicsirx@4f400000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x4f400000 0x0 0x0c800000>; // 4M alignment
