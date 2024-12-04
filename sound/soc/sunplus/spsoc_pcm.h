@@ -69,8 +69,9 @@ struct spsoc_runtime_data {
 	unsigned char	trigger_flag;
 	unsigned int	start_threshold;
 	unsigned char	usemmap_flag;
-	//unsigned char	start_oncetime;
-	unsigned int	last_remainder;
+	unsigned int	irq_num;
+	int		irq_done;
+	//unsigned int	last_remainder;
 	unsigned int	fifosize_from_user;
 	atomic_t	running;
 };
