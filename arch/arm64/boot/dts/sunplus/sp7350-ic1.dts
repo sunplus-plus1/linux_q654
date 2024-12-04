@@ -11,8 +11,8 @@
 //#define MIPI_CSI_4VC
 //#define OV5640_IN5
 
-//#define AP6256_WIFI
-//#define AP6256_BT
+#define AP6275S_WIFI
+//#define AP6275S_BT
 
 
 #include "sp7350-common.dtsi"
@@ -232,16 +232,16 @@
 	};
 #endif
 
-#ifdef AP6256_WIFI
+#ifdef AP6275S_WIFI
 	bcmdhd_wlan {
 		compatible = "android,bcmdhd_wlan";
 		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_int0_pins &ap6256_ctrl_pins>;
-		gpio_wl_reg_on = <&pctl 56 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&gpio_int0_pins &ap6275s_ctrl_pins>;
+		gpio_wl_reg_on = <&pctl 59 GPIO_ACTIVE_LOW>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 	};
-	#ifdef AP6256_BT
+	#ifdef AP6275S_BT
 	rfkill_bluetooth {
 		compatible = "rfkill-gpio";
 		shutdown-gpios = <&pctl 57 GPIO_ACTIVE_HIGH>;
@@ -295,8 +295,8 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins &uart1_fc_pins>;
-#ifndef AP6256_WIFI
-	#ifndef AP6256_BT
+#ifndef AP6275S_WIFI
+	#ifndef AP6275S_BT
 	status = "disabled";
 	#endif
 #endif
@@ -1393,10 +1393,10 @@
 		pins = "GPIO0";
 	};
 
-#ifdef AP6256_WIFI
-	ap6256_ctrl_pins: ap6256_ctrl-pins {
+#ifdef AP6275S_WIFI
+	AP6275S_ctrl_pins: ap6275s_ctrl-pins {
 		function = "GPIO";
-		pins = "GPIO56", "GPIO57";
+		pins = "GPIO59", "GPIO57";
 	};
 #endif
 };
