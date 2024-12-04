@@ -255,7 +255,7 @@ static void wl_update_hidden_ap_ie(wl_bss_info_v109_t *bi, const u8 *ie_stream, 
 	remaining_ie_buf_len = available_buffer_len - (int)ssidie[1];
 	unused_buf_len = WL_EXTRA_BUF_MAX - (4 + bi->length + *ie_size);
 	if (ssidie[1] > available_buffer_len) {
-		WL_ERR_MEM(("wl_update_hidden_ap_ie: skip wl_update_hidden_ap_ie : overflow\n"));
+		WL_ERR_MEM(("skip : overflow\n"));
 		return;
 	}
 
@@ -265,7 +265,7 @@ static void wl_update_hidden_ap_ie(wl_bss_info_v109_t *bi, const u8 *ie_stream, 
 
 	if (ssidie[1] != ssid_len) {
 		if (ssidie[1]) {
-			WL_ERR_RLMT(("wl_update_hidden_ap_ie: Wrong SSID len: %d != %d\n",
+			WL_ERR_RLMT(("Wrong SSID len: %d != %d\n",
 				ssidie[1], bi->SSID_len));
 		}
 		/* ssidie[1] is 1 in beacon on CISCO hidden networks. */
@@ -293,7 +293,7 @@ static void wl_update_hidden_ap_ie(wl_bss_info_v109_t *bi, const u8 *ie_stream, 
 			*ie_size = *ie_size + ssid_len - ssidie[1];
 			ssidie[1] = ssid_len;
 		} else if (ssid_len < ssidie[1]) {
-			WL_ERR_MEM(("wl_update_hidden_ap_ie: Invalid SSID len: %d < %d\n",
+			WL_ERR_MEM(("Invalid SSID len: %d < %d\n",
 				bi->SSID_len, ssidie[1]));
 		}
 		return;
@@ -782,6 +782,7 @@ wl_cfg80211_add_iw_ie(struct bcm_cfg80211 *cfg, struct net_device *ndev, s32 bss
 		return BCME_BADARG;
 	}
 
+	/* Add sizeof(ie_info_t) in case BCM_FLEX_ARRAY is empty. */
 	buf_len = IE_SET_ONE_BUF_LEN + data_len - 1;
 
 	ie_getbufp.id = DOT11_MNG_INTERWORKING_ID;
@@ -1534,7 +1535,7 @@ wl_cfgscan_notify_pfn_complete(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgd
 	err = wl_notify_gscan_event(cfg, cfgdev, e, data);
 	return err;
 #endif /* DISABLE_ANDROID_GSCAN */
-#endif
+#endif /* GSCAN_SUPPORT */
 	mutex_lock(&cfg->scan_sync);
 
 	if (!cfg->sched_scan_req) {
@@ -1824,17 +1825,19 @@ wl_cfgscan_populate_scan_channels(struct bcm_cfg80211 *cfg,
 	is_p2p_scan = p2p_is_on(cfg) && p2p_scan(cfg);
 
 	for (i = 0; i < n_channels; i++) {
-		if (skip_dfs && (IS_RADAR_CHAN(channels[i]->flags))) {
-			WL_DBG(("Skipping radar channel. freq:%d\n",
-				(channels[i]->center_freq)));
-			continue;
-		}
-
 		chanspec = wl_freq_to_chanspec(channels[i]->center_freq);
 		if (chanspec == INVCHANSPEC) {
 			WL_ERR(("Invalid chanspec! Skipping channel\n"));
 			continue;
 		}
+
+#ifndef DHD_DFS_MASTER
+		if (skip_dfs && (IS_RADAR_CHAN(channels[i]->flags))) {
+			WL_SCAN(("Skipping radar chan: %s-%d, chanspec: %x\n",
+				CHSPEC2BANDSTR(chanspec), wf_chspec_ctlchan(chanspec), channel_list[j]));
+			continue;
+		}
+#endif /* DHD_DFS_MASTER */
 
 		support_chanspec = wl_channel_to_chanspec(cfg->wdev->wiphy,
 			bcmcfg_to_prmry_ndev(cfg), CHSPEC_CHANNEL(chanspec), WL_CHANSPEC_BW_80);
@@ -6227,7 +6230,8 @@ wl_cfgscan_get_band_freq_list(struct bcm_cfg80211 *cfg, struct wireless_dev *wde
 	return err;
 }
 
-#if defined(WL_SOFTAP_ACS)
+#if defined(WL_SOFTAP_ACS) && \
+	((LINUX_VERSION_CODE > KERNEL_VERSION(3, 13, 0)) || defined(WL_VENDOR_EXT_SUPPORT))
 #define SEC_FREQ_HT40_OFFSET 20
 static acs_delay_work_t delay_work_acs = { .init_flag = 0 };
 
