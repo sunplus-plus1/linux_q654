@@ -1394,7 +1394,7 @@
 	};
 
 #ifdef AP6275S_WIFI
-	AP6275S_ctrl_pins: ap6275s_ctrl-pins {
+	ap6275s_ctrl_pins: ap6275s_ctrl-pins {
 		function = "GPIO";
 		pins = "GPIO59", "GPIO57";
 	};
