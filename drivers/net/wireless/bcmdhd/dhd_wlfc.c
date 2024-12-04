@@ -716,9 +716,9 @@ _dhd_wlfc_find_table_entry(athost_wl_status_info_t* ctx, void* p)
 
 	for (i = 0; i < WLFC_MAC_DESC_TABLE_SIZE; i++) {
 		if (table[i].occupied) {
-			if (table[i].interface_id == ifid ||
-				iftype == WLC_E_IF_ROLE_WDS) {
-				if (!memcmp(table[i].ea, dstn, ETHER_ADDR_LEN)) {
+			if (!memcmp(table[i].ea, dstn, ETHER_ADDR_LEN)) {
+				if (table[i].interface_id == ifid ||
+					iftype == WLC_E_IF_ROLE_WDS) {
 					entry = &table[i];
 					break;
 				}
@@ -1377,6 +1377,8 @@ _dhd_wlfc_deque_delayedq(athost_wl_status_info_t* ctx, int prec,
 	uint8 credit_spent = ((prec == AC_COUNT) && !ctx->bcmc_credit_supported) ? 0 : 1;
 	uint16 qlen;
 	bool change_entry = FALSE;
+	int max_transit = WL_TXSTATUS_FREERUNCTR_MASK;
+	dhd_pub_t *dhdp = ctx->dhdp;
 
 	BCM_REFERENCE(qlen);
 	BCM_REFERENCE(change_entry);
@@ -1400,11 +1402,14 @@ _dhd_wlfc_deque_delayedq(athost_wl_status_info_t* ctx, int prec,
 		}
 		ASSERT(entry);
 
+		if (ctx->simutx_cntdown)
+			max_transit = dhdp->simutx_limit;
+
 		if (entry->occupied && _dhd_wlfc_is_destination_open(ctx, entry, prec) &&
 #ifdef PROPTX_MAXCOUNT
 			(entry->transit_count < entry->transit_maxcount) &&
 #endif /* PROPTX_MAXCOUNT */
-			(entry->transit_count < WL_TXSTATUS_FREERUNCTR_MASK) &&
+			(entry->transit_count < max_transit) &&
 			(!entry->suppressed)) {
 			*ac_credit_spent = credit_spent;
 			if (entry->state == WLFC_STATE_CLOSE) {
@@ -1709,7 +1714,6 @@ _dhd_wlfc_pktq_flush(athost_wl_status_info_t* ctx, struct pktq *pq,
 						q->tail = prev;
 					}
 				}
-
 				if (q_type == Q_TYPE_PSQ) {
 					if (!WLFC_GET_AFQ(dhdp->wlfc_mode) && (prec & 1)) {
 						_dhd_wlfc_hanger_remove_reference(ctx->hanger, p);
@@ -1748,7 +1752,8 @@ _dhd_wlfc_pktq_flush(athost_wl_status_info_t* ctx, struct pktq *pq,
 					}
 					if (dhdp->proptxstatus_mode == WLFC_FCMODE_EXPLICIT_CREDIT)
 						_dhd_wlfc_return_explicit_credit(ctx, p);
-					else if (dhdp->proptxstatus_mode == WLFC_FCMODE_IMPLIED_CREDIT)
+					else if (dhdp->proptxstatus_mode ==
+							WLFC_FCMODE_IMPLIED_CREDIT)
 						_dhd_wlfc_return_implied_credit(ctx, p);
 					ctx->stats.cleanup_fw_cnt++;
 				}
@@ -2487,6 +2492,17 @@ _dhd_wlfc_compressed_txstatus_update(dhd_pub_t *dhd, uint8* pkt_info, uint8 len,
 		fifo_id = DHD_PKTTAG_FIFO(PKTTAG(pktbuf));
 
 		entry = _dhd_wlfc_find_table_entry(wlfc, pktbuf);
+
+		if (entry && (len > SIMUTX_VALID_COMP_TXS)) {
+			if (entry->interface_id != wlfc->last_ifid) {
+				wlfc->simutx_cntdown = SIMUTX_MAX_CNT_DOWN;
+			} else {
+				if (wlfc->simutx_cntdown) {
+					wlfc->simutx_cntdown--;
+				}
+			}
+			wlfc->last_ifid = entry->interface_id;
+		}
 
 		if (!remove_from_hanger) {
 			/* this packet was suppressed */
@@ -4418,7 +4434,6 @@ dhd_wlfc_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 			other->psq.q[9].n_pkts,
 			other->afq.q[4].n_pkts);
 	}
-
 #ifdef PROP_TXSTATUS_DEBUG
 	{
 		int avg;

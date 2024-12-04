@@ -88,6 +88,7 @@ uint android_msg_level = ANDROID_ERROR_LEVEL | ANDROID_MSG_LEVEL;
 #define CMD_SET_SUSPEND_BCN_LI_DTIM		"SET_SUSPEND_BCN_LI_DTIM"
 #define CMD_WLMSGLEVEL			"WLMSGLEVEL"
 #ifdef WL_EXT_IAPSTA
+#ifdef ISAM_CONFIG
 #define CMD_IAPSTA_INIT			"IAPSTA_INIT"
 #define CMD_IAPSTA_CONFIG		"IAPSTA_CONFIG"
 #define CMD_IAPSTA_ENABLE		"IAPSTA_ENABLE"
@@ -96,6 +97,7 @@ uint android_msg_level = ANDROID_ERROR_LEVEL | ANDROID_MSG_LEVEL;
 #define CMD_ISAM_CONFIG			"ISAM_CONFIG"
 #define CMD_ISAM_ENABLE			"ISAM_ENABLE"
 #define CMD_ISAM_DISABLE		"ISAM_DISABLE"
+#endif /* ISAM_CONFIG */
 #define CMD_ISAM_STATUS			"ISAM_STATUS"
 #define CMD_ISAM_PEER_PATH		"ISAM_PEER_PATH"
 #define CMD_ISAM_PARAM			"ISAM_PARAM"
@@ -170,20 +172,22 @@ const auth_name_map_t auth_name_map[] = {
 	{WL_AUTH_SHARED_KEY,	WPA_AUTH_DISABLED,	"shared"},
 	{WL_AUTH_OPEN_SYSTEM,	WPA_AUTH_PSK,		"wpa/psk"},
 	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK,		"wpa2/psk"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa2/psk/sha256"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_FT|WPA2_AUTH_PSK,			"wpa2/psk/ft"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA_AUTH_PSK|WPA2_AUTH_PSK,			"wpa/wpa2/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK|WPA2_AUTH_PSK_SHA256,	"wpa2/sha256/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK|WPA2_AUTH_FT,			"wpa2/ft/psk"},
 	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_UNSPECIFIED,				"wpa2/eap"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_FT|WPA2_AUTH_UNSPECIFIED,	"wpa2/eap/ft"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_FT|WPA2_AUTH_UNSPECIFIED,	"wpa2/ft/eap"},
 	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK,	"wpa3/psk"},
 	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK,	"wpa3sae/psk"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK,	"wpa3/psk"},
-	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK,	"wpa3sae/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK|WPA3_AUTH_SAE_PSK,	"wpa2/wpa3/psk"},
+	{WL_AUTH_SAE_KEY,		WPA2_AUTH_PSK|WPA3_AUTH_SAE_PSK,	"wpa2/wpa3sae/psk"},
 	{WL_AUTH_OPEN_SYSTEM,	0x20,	"wpa3/psk"},
 	{WL_AUTH_SAE_KEY,		0x20,	"wpa3sae/psk"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3/psk/sha256"},
-	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3sae/psk/sha256"},
-	{WL_AUTH_OPEN_SYSTEM,	0x20|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3/psk/sha256"},
-	{WL_AUTH_SAE_KEY,		0x20|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3sae/psk/sha256"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK|WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256,	"wpa3/sha256/psk"},
+	{WL_AUTH_SAE_KEY,		WPA2_AUTH_PSK|WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256,	"wpa3sae/sha256/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	0x20|WPA2_AUTH_PSK|WPA2_AUTH_PSK_SHA256,	"wpa3/sha256/psk"},
+	{WL_AUTH_SAE_KEY,		0x20|WPA2_AUTH_PSK|WPA2_AUTH_PSK_SHA256,	"wpa3sae/sha256/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_1X_SUITE_B_SHA384,	"wpa3/suiteB192sha384/eap"},
 	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_OWE,	"owe"},
 	{WL_AUTH_OPEN_SYSTEM,	BRCM_AUTH_DPT,	"owe"},
 };
@@ -2894,6 +2898,7 @@ wl_android_ext_priv_cmd(struct net_device *net, char *command,
 	}
 #endif /* WL_CFG80211 */
 #ifdef WL_EXT_IAPSTA
+#ifdef ISAM_CONFIG
 	else if (strnicmp(command, CMD_IAPSTA_INIT, strlen(CMD_IAPSTA_INIT)) == 0 ||
 			strnicmp(command, CMD_ISAM_INIT, strlen(CMD_ISAM_INIT)) == 0) {
 		*bytes_written = wl_ext_isam_init(net, command, total_len);
@@ -2910,6 +2915,7 @@ wl_android_ext_priv_cmd(struct net_device *net, char *command,
 			strnicmp(command, CMD_ISAM_DISABLE, strlen(CMD_ISAM_DISABLE)) == 0) {
 		*bytes_written = wl_ext_iapsta_disable(net, command, total_len);
 	}
+#endif /* ISAM_CONFIG */
 	else if (strnicmp(command, CMD_ISAM_STATUS, strlen(CMD_ISAM_STATUS)) == 0) {
 		*bytes_written = wl_ext_isam_status(net, command, total_len);
 	}
