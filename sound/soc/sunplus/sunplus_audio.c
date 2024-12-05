@@ -70,6 +70,14 @@ static int sunplus_audio_probe(struct platform_device *pdev)
 	}
 	//pr_info("start=%zx end=%zx\n", res->start, res->end);
 	dev_dbg(&pdev->dev, "audio_base=%p\n", spauddata->audio_base);
+	//fifo irq
+#if (MMAP_IRQ)
+	spauddata->irq = platform_get_irq(pdev, 0);
+	if (spauddata->irq <= 0) {
+		dev_dbg(spauddata->dev, "get aud fifo irq resource fail\n");
+		return -EINVAL;
+	}
+#endif
 	//clock	enable
 	spauddata->aud_clocken = devm_clk_get(&pdev->dev, "aud");
 	if (IS_ERR(spauddata->aud_clocken)) {
