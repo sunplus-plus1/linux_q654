@@ -1172,8 +1172,8 @@
 };
 
 &i2c4 {
-	i2c-sda-hold-time-ns = <1000>;
-	clock-frequency = <400000>;
+	i2c-sda-hold-time-ns = <2000>;
+	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo4_pins>;
 	status = "okay";
@@ -1259,8 +1259,13 @@
 };
 
 &i2c5 {
+#if defined(LT8912B_HDMI_ENABLE)
+	i2c-sda-hold-time-ns = <2000>;
+	clock-frequency = <100000>;
+#else
 	i2c-sda-hold-time-ns = <1000>;
 	clock-frequency = <400000>;
+#endif
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo5_pins>;
 #if defined(LT8912B_HDMI_ENABLE)

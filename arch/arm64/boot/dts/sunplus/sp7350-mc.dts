@@ -806,8 +806,8 @@
 };
 
 &i2c4 {
-	i2c-sda-hold-time-ns = <1000>;
-	clock-frequency = <400000>;
+	i2c-sda-hold-time-ns = <2000>;
+	clock-frequency = <100000>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo4_pins>;
