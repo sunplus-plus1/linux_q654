@@ -933,8 +933,13 @@
 };
 
 &i2c5 {
+#ifdef LT8912B_HDMI_ENABLE
+	i2c-sda-hold-time-ns = <2000>;
+	clock-frequency = <100000>;
+#else
 	i2c-sda-hold-time-ns = <1000>;
 	clock-frequency = <400000>;
+#endif
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo5_pins>;
 #ifdef LT8912B_HDMI_ENABLE
