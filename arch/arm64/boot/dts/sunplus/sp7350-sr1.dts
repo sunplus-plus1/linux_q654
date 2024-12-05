@@ -81,7 +81,7 @@
 			reusable;
 		};
 
-		/* 0x5bc0000-0x5be00000, total 2M no use */
+		/* 0x51c0000-0x5be00000, total 162M no use */
 
 		/* remoteproc reserve memory: 0x5be00000-0x5befffff, total 1M */
 		vdev0buffer: vdev0buffer@5be00000 {
@@ -487,7 +487,6 @@
 	i2c-sda-hold-time-ns = <1000>;
 	//i2c-sda-falling-time-ns = <1>;
 	//i2c-scl-falling-time-ns = <1>;
-	//clock-frequency = <3400000>;
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo0_pins>;
@@ -507,7 +506,6 @@
 	i2c-sda-hold-time-ns = <1000>;
 	//i2c-sda-falling-time-ns = <1>;
 	//i2c-scl-falling-time-ns = <1>;
-	//clock-frequency = <3400000>;
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo1_pins>;
