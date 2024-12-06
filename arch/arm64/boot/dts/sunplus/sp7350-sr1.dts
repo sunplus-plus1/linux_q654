@@ -479,9 +479,9 @@
 		negate_x = <1>;
  		negate_y = <0>;
  		negate_z = <0>;
-	  inven,secondary_type = "none";
-	  inven,aux_type = "none";
-	  inven,read_only_slave_type = "none"
+	  //inven,secondary_type = "none";
+	  //inven,aux_type = "none";
+	  //inven,read_only_slave_type = "none"
 		//status = "disabled";
   };
 
