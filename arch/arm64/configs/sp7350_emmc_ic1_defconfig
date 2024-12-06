@@ -413,7 +413,7 @@ CONFIG_SUNPLUS_THERMAL=y
 CONFIG_PWM=y
 CONFIG_PWM_SUNPLUS=y
 #
-# APEAK support
+# AMPAK support
 #
 CONFIG_BCMDHD=y
 CONFIG_BCMDHD_FW_PATH="/etc/firmware/fw_bcmdhd.bin"
