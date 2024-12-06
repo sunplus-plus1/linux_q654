@@ -253,6 +253,23 @@
 		regulator-always-on;
 	};
 #endif
+
+	invn42670_vdd: invn42670_vdd_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "invn42670_vdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	invn42670_vddio: invn42670_vddio_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "invn42670_vddio";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
 #if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 	lt8912b_1p8v: lt8912b_1p8v {
 		compatible = "regulator-fixed";
@@ -469,12 +486,12 @@
 	//       <&ahbdma1 7 0 0>;
 	//dma-names = "rx", "tx";
 
-  icm42670@68 {
+	icm42670@0 {
 		compatible = "invensense,icm43600";
 		spi-max-frequency = <1000000>;
 		reg = <0x0>;
-		//inven,vdd_ana-supply = <&invn_vdd>;
-		//inven,vcc_i2c-supply = <&invn_vddio>;
+		inven,vdd_ana-supply = <&invn42670_vdd>;
+		inven,vcc_i2c-supply = <&invn42670_vddio>;
 		axis_map_x = <1>;
  		axis_map_y = <0>;
 		axis_map_z = <2>;
@@ -484,13 +501,6 @@
 		inven,secondary_type = "none";
 		inven,aux_type = "none";
 		inven,read_only_slave_type = "none";
-  };
-
-	spi@0 {
-		compatible = "rohm,dh2228fv";
-		spi-max-frequency = <5000000>;
-		reg = <0x0>;
-		status = "disabled";
 	};
 };
 
