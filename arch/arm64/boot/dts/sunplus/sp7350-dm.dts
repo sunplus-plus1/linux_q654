@@ -504,7 +504,7 @@
 	pinctrl-0 = <&video_codec_pwr_en_pins>;
 	gpio = <&pctl 66 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
-	status = "disabled";
+	regulator-boot-on;
 };
 
 &uart0 {
@@ -2678,6 +2678,10 @@
 
 &paranand0 {
 	status = "disabled";
+};
+
+&video_codec {
+	video_codec-supply = <&video_codec_core_0v8>;
 };
 
 &vcodec_emem {
