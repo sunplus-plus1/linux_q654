@@ -479,7 +479,6 @@
 };
 
 &spi_controller4 {
-	mode = <1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi_master4_pins>;
 	//dmas = <&ahbdma1 6 0 0>,
@@ -490,6 +489,8 @@
 		compatible = "invensense,icm43600";
 		spi-max-frequency = <1000000>;
 		reg = <0x0>;
+		spi-cpol;
+		spi-cpha;
 		inven,vdd_ana-supply = <&invn42670_vdd>;
 		inven,vcc_i2c-supply = <&invn42670_vddio>;
 		axis_map_x = <1>;
