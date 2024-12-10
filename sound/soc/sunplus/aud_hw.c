@@ -176,7 +176,7 @@ void AUDHW_SystemInit(void *auddrvdata)
 	//regs0->aud_asrc_ctrl = regs0->G063_reserved_7|0x1; // enable
 	pr_debug("!!!aud_misc_ctrl 0x%x\n", regs0->aud_misc_ctrl);
 	//regs0->aud_misc_ctrl |= 0x2;
-#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+#if IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS) || IS_ENABLED(CONFIG_SND_SOC_ES8326_SUNPLUS)
 	regs0->aud_ext_dac_xck_cfg	= 0x6883;
 	regs0->aud_ext_dac_bck_cfg	= 0x6007;
 #endif
