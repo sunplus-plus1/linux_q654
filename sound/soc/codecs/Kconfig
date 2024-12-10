@@ -1062,6 +1062,10 @@ config SND_SOC_ES8326
 	tristate "Everest Semi ES8326 CODEC"
 	depends on I2C
 
+config SND_SOC_ES8326_SUNPLUS
+	tristate "Everest Semi ES8326 CODEC For Sunplus"
+	depends on I2C
+
 config SND_SOC_ES8328
 	tristate
 
