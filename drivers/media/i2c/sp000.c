@@ -28,7 +28,8 @@
 #include <media/v4l2-mediabus.h>
 #include <asm/unaligned.h>
 
-//#define MORE_SUPPORTS
+/* The compiler switches for supported cameras */
+//#define SUPPORT_ESP776
 
 #define IMX219_REG_VALUE_08BIT		1
 #define IMX219_REG_VALUE_16BIT		2
@@ -326,29 +327,15 @@ static const char * const imx219_supply_name[] = {
 
 /*
  * The supported formats.
- * This table MUST contain 4 entries per format, to cover the various flip
- * combinations in the order
- * - no flip
- * - h flip
- * - v flip
- * - h&v flips
  */
 static const u32 codes[] = {
-	MEDIA_BUS_FMT_SRGGB10_1X10,
-	MEDIA_BUS_FMT_SGRBG10_1X10,
-	MEDIA_BUS_FMT_SGBRG10_1X10,
-	MEDIA_BUS_FMT_SBGGR10_1X10,
-
-	MEDIA_BUS_FMT_SRGGB8_1X8,
-	MEDIA_BUS_FMT_SGRBG8_1X8,
-	MEDIA_BUS_FMT_SGBRG8_1X8,
-	MEDIA_BUS_FMT_SBGGR8_1X8,
-
-#ifdef MORE_SUPPORTS
-	MEDIA_BUS_FMT_YVYU8_1X16,
+#ifdef SUPPORT_ESP776
+	MEDIA_BUS_FMT_YUYV8_2X8,
 	MEDIA_BUS_FMT_YUYV8_1X16,
-	MEDIA_BUS_FMT_VYUY8_1X16,
-	MEDIA_BUS_FMT_UYVY8_1X16,
+#else
+	MEDIA_BUS_FMT_YUYV8_2X8,
+	MEDIA_BUS_FMT_SRGGB8_1X8,
+	MEDIA_BUS_FMT_SRGGB10_1X10,
 #endif
 };
 
@@ -381,6 +368,25 @@ static const u32 codes[] = {
 
 /* Mode configs */
 static const struct imx219_mode supported_modes[] = {
+#ifdef SUPPORT_ESP776
+	{
+		/* 640x640 30fps mode */
+		.width = 640,
+		.height = 640,
+		.crop = {
+			.left = 1008,
+			.top = 760,
+			.width = 1280,
+			.height = 1280
+		},
+		.vts_def = IMX219_VTS_30FPS_640x480,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_640_480_regs),
+			.regs = mode_640_480_regs,
+		},
+		.binning = true,
+	},
+#else
 	{
 		/* 8MPix 15fps mode */
 		.width = 3280,
@@ -432,25 +438,6 @@ static const struct imx219_mode supported_modes[] = {
 		},
 		.binning = true,
 	},
-#ifdef MORE_SUPPORTS
-	{
-		/* 640x640 30fps mode */
-		.width = 640,
-		.height = 640,
-		.crop = {
-			.left = 1008,
-			.top = 760,
-			.width = 1280,
-			.height = 960
-		},
-		.vts_def = IMX219_VTS_30FPS_640x480,
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mode_640_480_regs),
-			.regs = mode_640_480_regs,
-		},
-		.binning = true,
-	},
-#endif
 	{
 		/* 640x480 30fps mode */
 		.width = 640,
@@ -468,6 +455,7 @@ static const struct imx219_mode supported_modes[] = {
 		},
 		.binning = true,
 	},
+#endif
 };
 
 struct imx219 {
@@ -481,7 +469,7 @@ struct imx219 {
 
 	struct gpio_desc *power_gpio;
 	struct gpio_desc *reset_gpio;
-#ifdef MORE_SUPPORTS
+#ifdef SUPPORT_ESP776
 	struct gpio_desc *stream_gpio;
 #endif
 	struct regulator_bulk_data supplies[IMX219_NUM_SUPPLIES];
@@ -549,7 +537,6 @@ static int imx219_write_regs(struct imx219 *imx219,
 	return 0;
 }
 
-/* Get bayer order based on flip setting. */
 static u32 imx219_get_format_code(struct imx219 *imx219, u32 code)
 {
 	unsigned int i;
@@ -563,9 +550,6 @@ static u32 imx219_get_format_code(struct imx219 *imx219, u32 code)
 	if (i >= ARRAY_SIZE(codes))
 		i = 0;
 
-	i = (i & ~3) | (imx219->vflip->val ? 2 : 0) |
-	    (imx219->hflip->val ? 1 : 0);
-
 	return codes[i];
 }
 
@@ -574,7 +558,7 @@ static void imx219_set_default_format(struct imx219 *imx219)
 	struct v4l2_mbus_framefmt *fmt;
 
 	fmt = &imx219->fmt;
-	fmt->code = MEDIA_BUS_FMT_SRGGB10_1X10;
+	fmt->code = codes[0];
 	fmt->colorspace = V4L2_COLORSPACE_SRGB;
 	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
 	fmt->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
@@ -598,8 +582,7 @@ static int imx219_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	/* Initialize try_fmt */
 	try_fmt->width = supported_modes[0].width;
 	try_fmt->height = supported_modes[0].height;
-	try_fmt->code = imx219_get_format_code(imx219,
-					       MEDIA_BUS_FMT_SRGGB10_1X10);
+	try_fmt->code = imx219_get_format_code(imx219, codes[0]);
 	try_fmt->field = V4L2_FIELD_NONE;
 
 	/* Initialize try_crop rectangle. */
@@ -709,10 +692,10 @@ static int imx219_enum_mbus_code(struct v4l2_subdev *sd,
 {
 	struct imx219 *imx219 = to_imx219(sd);
 
-	if (code->index >= (ARRAY_SIZE(codes) / 4))
+	if (code->index >= ARRAY_SIZE(codes))
 		return -EINVAL;
 
-	code->code = imx219_get_format_code(imx219, codes[code->index * 4]);
+	code->code = imx219_get_format_code(imx219, codes[code->index]);
 
 	return 0;
 }
@@ -868,6 +851,18 @@ static int imx219_set_framefmt(struct imx219 *imx219)
 	case MEDIA_BUS_FMT_SBGGR10_1X10:
 		return imx219_write_regs(imx219, raw10_framefmt_regs,
 					ARRAY_SIZE(raw10_framefmt_regs));
+
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+		return 0;
+
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+		return 0;
 	}
 
 	return -EINVAL;
@@ -897,6 +892,18 @@ static int imx219_set_binning(struct imx219 *imx219)
 		return imx219_write_reg(imx219, IMX219_REG_BINNING_MODE,
 					IMX219_REG_VALUE_16BIT,
 					IMX219_BINNING_2X2);
+
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+		return 0;
+
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+		return 0;
 	}
 
 	return -EINVAL;
@@ -1009,7 +1016,7 @@ static int imx219_start_streaming(struct imx219 *imx219)
 	__v4l2_ctrl_grab(imx219->vflip, true);
 	__v4l2_ctrl_grab(imx219->hflip, true);
 
-#ifdef MORE_SUPPORTS
+#ifdef SUPPORT_ESP776
 	/* Pull up the streaming pin */
 	gpiod_set_value_cansleep(imx219->stream_gpio, 1);
 	msleep(100);
@@ -1037,7 +1044,7 @@ static void imx219_stop_streaming(struct imx219 *imx219)
 	__v4l2_ctrl_grab(imx219->vflip, false);
 	__v4l2_ctrl_grab(imx219->hflip, false);
 
-#ifdef MORE_SUPPORTS
+#ifdef SUPPORT_ESP776
 	/* Pull down the streaming pin */
 	gpiod_set_value_cansleep(imx219->stream_gpio, 0);
 #endif
@@ -1086,22 +1093,6 @@ static int imx219_power_on(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct imx219 *imx219 = to_imx219(sd);
-	int ret;
-
-	ret = regulator_bulk_enable(IMX219_NUM_SUPPLIES,
-				    imx219->supplies);
-	if (ret) {
-		dev_err(&client->dev, "%s: failed to enable regulators\n",
-			__func__);
-		return ret;
-	}
-
-	ret = clk_prepare_enable(imx219->xclk);
-	if (ret) {
-		dev_err(&client->dev, "%s: failed to enable clock\n",
-			__func__);
-		goto reg_off;
-	}
 
 	gpiod_set_value_cansleep(imx219->power_gpio, 1);
 	udelay(1);
@@ -1110,11 +1101,6 @@ static int imx219_power_on(struct device *dev)
 		     IMX219_XCLR_MIN_DELAY_US + IMX219_XCLR_DELAY_RANGE_US);
 
 	return 0;
-
-reg_off:
-	regulator_bulk_disable(IMX219_NUM_SUPPLIES, imx219->supplies);
-
-	return ret;
 }
 
 static int imx219_power_off(struct device *dev)
@@ -1126,8 +1112,6 @@ static int imx219_power_off(struct device *dev)
 	gpiod_set_value_cansleep(imx219->reset_gpio, 0);
 	udelay(1);
 	gpiod_set_value_cansleep(imx219->power_gpio, 0);
-	regulator_bulk_disable(IMX219_NUM_SUPPLIES, imx219->supplies);
-	clk_disable_unprepare(imx219->xclk);
 
 	return 0;
 }
@@ -1168,15 +1152,7 @@ error:
 
 static int imx219_get_regulators(struct imx219 *imx219)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&imx219->sd);
-	unsigned int i;
-
-	for (i = 0; i < IMX219_NUM_SUPPLIES; i++)
-		imx219->supplies[i].supply = imx219_supply_name[i];
-
-	return devm_regulator_bulk_get(&client->dev,
-				       IMX219_NUM_SUPPLIES,
-				       imx219->supplies);
+	return 0;
 }
 
 /* Verify chip ID */
@@ -1410,13 +1386,7 @@ static int imx219_probe(struct i2c_client *client)
 		return -EINVAL;
 
 	/* Get system clock (xclk) */
-	imx219->xclk = devm_clk_get(dev, NULL);
-	if (IS_ERR(imx219->xclk)) {
-		dev_err(dev, "failed to get xclk\n");
-		return PTR_ERR(imx219->xclk);
-	}
-
-	imx219->xclk_freq = clk_get_rate(imx219->xclk);
+	imx219->xclk_freq = IMX219_XCLK_FREQ;
 	if (imx219->xclk_freq != IMX219_XCLK_FREQ) {
 		dev_err(dev, "xclk frequency not supported: %d Hz\n",
 			imx219->xclk_freq);
@@ -1436,7 +1406,7 @@ static int imx219_probe(struct i2c_client *client)
 	imx219->reset_gpio = devm_gpiod_get_optional(dev, "reset",
 						     GPIOD_OUT_HIGH);
 
-#ifdef MORE_SUPPORTS
+#ifdef SUPPORT_ESP776
 	imx219->stream_gpio = devm_gpiod_get_optional(dev, "stream",
 							GPIOD_OUT_LOW);
 #endif

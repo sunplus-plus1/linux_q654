@@ -802,10 +802,6 @@
 	camera_0: sp000@10 {
 		compatible = "sunplus,sp000";
 		reg = <0x10>;
-		clocks = <&imx219_clk>;
-		VANA-supply = <&imx219_vana_2v8>;
-		VDIG-supply = <&imx219_vdig_1v8>;
-		VDDL-supply = <&imx219_vddl_1v2>;
 		//pinctrl-names = "default";
 		//pinctrl-0 = <&camera_0_pins>;
 		//power-gpios = <&pctl 71 GPIO_ACTIVE_HIGH>;
@@ -1278,10 +1274,6 @@
 	camera_5: sp000@10 {
 		compatible = "sunplus,sp000";
 		reg = <0x10>;
-		clocks = <&imx219_clk>;
-		VANA-supply = <&imx219_vana_2v8>;
-		VDIG-supply = <&imx219_vdig_1v8>;
-		VDDL-supply = <&imx219_vddl_1v2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&camera_5_pins>;
 		//power-gpios = <&pctl 81 GPIO_ACTIVE_HIGH>;
