@@ -840,8 +840,7 @@
 			};
 		};
 	};
-#endif
-#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_800x480)
+
 	ft5x06_ts: touchscreen@38 {
 		compatible = "edt,edt-ft5406";
 		reg = <0x38>;
@@ -861,14 +860,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&audcodec_pins>;
 		audcodec-gpios = <&pctl 27 GPIO_ACTIVE_HIGH>;
-
-#if 0
-		port {
-			es8316_p0_0: endpoint {
-				remote-endpoint = <&i2s0_p0_0>;
-			};
-		};
-#endif
 	};
 };
 
@@ -1380,7 +1371,6 @@
 &audio {
 	pinctrl-names = "default";
 	pinctrl-0 = <&aud_au_adc_data0_pins &aud_dac_xck_pins>;
-	//status = "disabled";
 };
 
 &sp_spinor0 {
