@@ -24,6 +24,7 @@
 //#define TP2815_IN5_2LANES
 //#define TP2815_IN5_2VC
 //#define TP2815_IN5_4VC
+#define VD55FLOOD_IN2
 
 #define AP6256_WIFI
 #define AP6256_BT
@@ -203,6 +204,12 @@
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <27000000>;
+		};
+
+		vd55flood_clk: camera-vd55flood-clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <12000000>;
 		};
 	};
 
@@ -692,7 +699,7 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo2_pins>;
-#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2)
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2) || defined(VD55FLOOD_IN2)
 	status = "okay";
 #else
 	status = "disabled";
@@ -823,6 +830,45 @@
 				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
+	};
+#endif
+#ifdef VD55FLOOD_IN2 /* Add vd55flood subnode in i2c2 */
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	camera_2: vd55flood@18 {
+		compatible = "st,st-vd55flood";
+		reg = <0x18>;
+		clocks = <&vd55flood_clk>;
+		input-channel = <4>;
+		input-standard = <0>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&camera_2_pins>;
+		//vddlv8-gpios = <&pctl 60 GPIO_ACTIVE_HIGH>;
+		//power-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
+		//shtdn-gpios = <&pctl 27 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&pctl 26 GPIO_ACTIVE_HIGH>;
+		nvmem = <&mc24c08>;
+		nvmem-names = "vd55flood-nvmem";
+
+		port {
+			vd55flood_2: endpoint {
+				remote-endpoint = <&csi2_2>;
+				data-lanes = <1 2>;
+				clock-continuous;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+
+	mc24c08: mc24c08@50 {
+		label = "vd55flood-nvmem";
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+		pagesize = <16>;
+		size = <1056>;
+		address-width = <16>;
+		read-only;
 	};
 #endif
 };
@@ -1119,7 +1165,7 @@
 };
 
 &mipicsirx2 {
-#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2)
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2) || defined(VD55FLOOD_IN2)
 	status = "okay";
 #else
 	status = "disabled";
@@ -1127,7 +1173,7 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2)
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(VD55FLOOD_IN2)
 	num_channels = <1>;
 #elif defined(TP2815_IN2)
 	#ifdef TP2815_IN2_2VC
@@ -1144,7 +1190,7 @@
 		#size-cells = <0>;
 
 		/* Input port node, sigle endpoint, connected to the CSI-2 transmitter */
-#ifdef IMX219_IN2 /* Add imx219 subnode in i2c0 */
+#ifdef IMX219_IN2 /* Add imx219 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
@@ -1157,7 +1203,7 @@
 			};
 		};
 #endif
-#ifdef IMX708_IN2 /* Add imx708 subnode in i2c0 */
+#ifdef IMX708_IN2 /* Add imx708 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
@@ -1170,7 +1216,7 @@
 			};
 		};
 #endif
-#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c0 */
+#ifdef OV5640_IN2 /* Add ov5640 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
@@ -1183,7 +1229,7 @@
 			};
 		};
 #endif
-#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c0 */
+#ifdef OV5647_IN2 /* Add ov5647 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
@@ -1196,7 +1242,7 @@
 			};
 		};
 #endif
-#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c0 */
+#ifdef TP2815_IN2 /* Add tp2815 subnode in i2c2 */
 		port@0 {
 			reg = <0>;
 
@@ -1212,6 +1258,19 @@
 	#else
 				data-lanes = <1 2 3 4>;
 	#endif
+			};
+		};
+#endif
+#ifdef VD55FLOOD_IN2 /* Add vd55flood subnode in i2c2 */
+		port@0 {
+			reg = <0>;
+
+			/* MIPI CSI-2 bus endpoint */
+			csi2_2: endpoint {
+				remote-endpoint = <&vd55flood_2>;
+				bus-type = <4>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
 			};
 		};
 #endif
@@ -1248,7 +1307,7 @@
 
 &vin4 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2)
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2) || defined(TP2815_IN2) || defined(VD55FLOOD_IN2)
 	status = "okay";
 #else
 	status = "disabled";
