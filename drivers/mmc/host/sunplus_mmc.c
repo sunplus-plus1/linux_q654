@@ -1346,9 +1346,6 @@ static int spmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		if (!cmd.error && !data.error) {
 			if (!memcmp(blk_pattern, blk_test, blksz))
 				candidate_dly |= (1 << smpl_dly);
-		} else {
-			spmmc_pr(DEBUG, "Tuning error: cmd.error:%d, data.error:%d\n",
-				cmd.error, data.error);
 		}
 	} while (smpl_dly++ <= SPMMC_MAX_TUNABLE_DLY);
 	host->tuning_info.enable_tuning = 1;
