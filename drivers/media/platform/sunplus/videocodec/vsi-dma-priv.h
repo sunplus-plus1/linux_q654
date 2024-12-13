@@ -24,6 +24,8 @@ struct vb2_dc_buf {
 
 	struct vb2_buffer		*vb;
 	bool				non_coherent_mem;
+
+	bool remap;
 };
 
 static inline void dma_export_buf_release(__s32 exp_fd)

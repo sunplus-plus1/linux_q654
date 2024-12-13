@@ -31,9 +31,6 @@
 #include <media/videobuf2-memops.h>
 #include <linux/version.h>
 #include "vsi-dma-priv.h"
-#if defined(CONFIG_SOC_SP7350)
-static bool remap;
-#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 
 MODULE_IMPORT_NS(DMA_BUF);
@@ -117,7 +114,7 @@ static void vb2_dc_prepare(void *buf_priv)
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
 #if defined(CONFIG_SOC_SP7350)
-	if (remap) {
+	if (buf->remap) {
 		dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
 		return;
 	}
@@ -144,7 +141,7 @@ static void vb2_dc_finish(void *buf_priv)
 	struct sg_table *sgt = buf->dma_sgt;
 
 #if defined(CONFIG_SOC_SP7350)
-	if (remap) {
+	if (buf->remap) {
 		dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
 		return;
 	}
@@ -287,7 +284,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 #if defined(CONFIG_SOC_SP7350)
-	if (remap) {
+	if (buf->remap) {
 		vm_flags_set(vma, VM_LOCKED);
 		if (remap_pfn_range(vma, vma->vm_start,
 				    buf->dma_addr >> PAGE_SHIFT,
@@ -1005,39 +1002,68 @@ static struct vb2_mem_ops vsi_dma_contig_memops;
 static void vb2_dc_prepare(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
+	struct sg_table *sgt = buf->dma_sgt;
+#if defined(CONFIG_SOC_SP7350)
+	if (buf->remap) {
+		dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+#endif
+	if (!sgt)
+		return;
 
-	dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
-	return;
+	dma_sync_sgtable_for_device(buf->dev, sgt, buf->dma_dir);
 }
 
 static void vb2_dc_finish(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
+	struct sg_table *sgt = buf->dma_sgt;
+#if defined(CONFIG_SOC_SP7350)
+	if (buf->remap) {
+		dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+#endif
+	if (!sgt)
+		return;
 
-	dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
-	return;
+	dma_sync_sgtable_for_cpu(buf->dev, sgt, buf->dma_dir);
 }
 
 static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 {
 	struct vb2_dc_buf *buf = buf_priv;
-	int ret;
+	int ret = 0;
 
 	if (!buf) {
 		printk(KERN_ERR "No buffer to map\n");
 		return -EINVAL;
 	}
-
-	vma->vm_flags |= VM_LOCKED;
-	if (remap_pfn_range(vma, vma->vm_start,
-			    buf->dma_addr >> PAGE_SHIFT,
-			    vma->vm_end - vma->vm_start,
-			    vma->vm_page_prot)) {
-		pr_err("%s(): remap_pfn_range() failed\n", __func__);
-		return -ENOBUFS;
+#if defined(CONFIG_SOC_SP7350)
+	if (buf->remap) {
+		vma->vm_flags |= VM_LOCKED;
+		if (remap_pfn_range(vma, vma->vm_start,
+				    buf->dma_addr >> PAGE_SHIFT,
+				    vma->vm_end - vma->vm_start,
+				    vma->vm_page_prot)) {
+			pr_err("%s(): remap_pfn_range() failed\n", __func__);
+			return -ENOBUFS;
+		}
 	}
+	else
+#else
+	{
+		ret = dma_mmap_attrs(buf->dev, vma, buf->cookie, buf->dma_addr,
+				     buf->size, buf->attrs);
+		if (ret) {
+			pr_err("Remapping memory failed, error: %d\n", ret);
+			return ret;
+		}
+	}
+#endif
 
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_flags		|= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_private_data	= &buf->handler;
 	vma->vm_ops		= &vb2_common_vm_ops;
 
@@ -1047,21 +1073,19 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		 __func__, (unsigned long)buf->dma_addr, vma->vm_start,
 		 buf->size);
 
-	return 0;
+	return ret;
 }
 
 const struct vb2_mem_ops *get_vsi_mmop(void)
 {
 #if defined(CONFIG_SOC_SP7350)
-	if(remap){
-		memcpy(&vsi_dma_contig_memops, &vb2_dma_contig_memops, sizeof(vb2_dma_contig_memops));
+	memcpy(&vsi_dma_contig_memops, &vb2_dma_contig_memops, sizeof(vb2_dma_contig_memops));
 
-		vsi_dma_contig_memops.mmap = vb2_dc_mmap;
-		vsi_dma_contig_memops.prepare = vb2_dc_prepare;
-		vsi_dma_contig_memops.finish = vb2_dc_finish;
+	vsi_dma_contig_memops.mmap = vb2_dc_mmap;
+	vsi_dma_contig_memops.prepare = vb2_dc_prepare;
+	vsi_dma_contig_memops.finish = vb2_dc_finish;
 
-		return &vsi_dma_contig_memops;
-	}
+	return &vsi_dma_contig_memops;
 #endif
 
 	return &vb2_dma_contig_memops;
