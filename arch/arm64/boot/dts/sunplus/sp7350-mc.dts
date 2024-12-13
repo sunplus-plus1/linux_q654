@@ -6,8 +6,6 @@
 //#define ENABLE_DMATX6
 //#define ENABLE_DMATX7
 
-//#define SPI_LOOPBACK_MTTEST
-
 //#define MIPI_CSI_4VC
 //#define IMX219_IN5
 //#define IMX708_IN5
@@ -82,7 +80,7 @@
 			no-map;
 		};
 
-		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bc0000, total 200M */
+		/* mipi-csi rx dma cma reserve memory: 0x4f400000~0x5bbfffff, total 200M */
 		mipicsirx_reserve: mipicsirx@4f400000 {
 			compatible = "shared-dma-pool";
 			reg = <0x0 0x4f400000 0x0 0x0c800000>; // 4M alignment
@@ -631,7 +629,6 @@
 	i2c-sda-hold-time-ns = <1000>;
 	//i2c-sda-falling-time-ns = <1>;
 	//i2c-scl-falling-time-ns = <1>;
-	//clock-frequency = <3400000>;
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo0_pins>;
@@ -651,7 +648,6 @@
 	i2c-sda-hold-time-ns = <1000>;
 	//i2c-sda-falling-time-ns = <1>;
 	//i2c-scl-falling-time-ns = <1>;
-	//clock-frequency = <3400000>;
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo1_pins>;
@@ -810,8 +806,8 @@
 };
 
 &i2c4 {
-	i2c-sda-hold-time-ns = <1000>;
-	clock-frequency = <400000>;
+	i2c-sda-hold-time-ns = <2000>;
+	clock-frequency = <100000>;
 
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c_combo4_pins>;

@@ -25,6 +25,10 @@
 //#define CONFIG_PATH_AUTO_SELECT
 #endif
 extern char firmware_path[MOD_PARAM_PATHLEN];
+#ifdef RMMOD_POWER_DOWN_LATER
+extern atomic_t exit_in_progress;
+extern bool is_power_on;
+#endif
 #if defined(BCMSDIO)
 extern uint dhd_rxbound;
 extern uint dhd_txbound;
@@ -216,6 +220,7 @@ typedef struct dhd_conf {
 	int band;
 	int bw_cap[2];
 	int mapsta_mode;
+	bool csa;
 	wl_country_t cspec;
 	uint roam_off;
 	uint roam_off_suspend;
@@ -341,9 +346,9 @@ typedef struct dhd_conf {
 	char *wl_preinit;
 	char *wl_suspend;
 	char *wl_resume;
-	int tsq;
-	int orphan_move;
 	uint in4way;
+	char *wl_pre_in4way;
+	char *wl_post_in4way;
 	uint war;
 #ifdef WL_EXT_WOWL
 	uint wowl;
@@ -430,6 +435,7 @@ uint dhd_conf_get_chiprev(void *context);
 int dhd_conf_get_pm(dhd_pub_t *dhd);
 int dhd_conf_custom_mac(dhd_pub_t *dhd);
 int dhd_conf_reg2args(dhd_pub_t *dhd, char *cmd, bool set, uint32 index, uint32 *val);
+bool dhd_conf_set_wl_cmd(dhd_pub_t *dhd, char *data, bool down);
 int dhd_conf_check_hostsleep(dhd_pub_t *dhd, int cmd, void *buf, int len,
 	int *hostsleep_set, int *hostsleep_val, int *ret);
 void dhd_conf_get_hostsleep(dhd_pub_t *dhd,

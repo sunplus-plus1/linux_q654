@@ -990,7 +990,7 @@ wl_cfgvendor_set_scan_cfg(struct wiphy *wiphy, struct wireless_dev *wdev,
 				}
 				scan_param->nchannel_buckets = nla_get_u32(iter);
 				if (scan_param->nchannel_buckets >=
-				    GSCAN_MAX_CH_BUCKETS) {
+					GSCAN_MAX_CH_BUCKETS) {
 					WL_ERR(("ncha_buck out of range %d\n",
 					scan_param->nchannel_buckets));
 					err = -EINVAL;
@@ -1165,11 +1165,10 @@ wl_cfgvendor_hotlist_cfg(struct wiphy *wiphy,
 			err = -EINVAL;
 			goto exit;
 		}
-
 	}
 
 	if (dhd_dev_pno_set_cfg_gscan(bcmcfg_to_prmry_ndev(cfg),
-	      DHD_PNO_GEOFENCE_SCAN_CFG_ID, hotlist_params, flush) < 0) {
+		DHD_PNO_GEOFENCE_SCAN_CFG_ID, hotlist_params, flush) < 0) {
 		WL_ERR(("Could not set GSCAN HOTLIST cfg error: %d\n", err));
 		err = -EINVAL;
 		goto exit;
@@ -1861,9 +1860,6 @@ wl_cfgvendor_set_latency_mode(struct wiphy *wiphy,
 #ifdef SUPPORT_LATENCY_CRITICAL_DATA
 	bool enable;
 #endif /* SUPPORT_LATENCY_CRITICAL_DATA */
-#if defined(WL_AUTO_QOS) && defined(DHD_QOS_ON_SOCK_FLOW)
-	dhd_pub_t *dhdp = wl_cfg80211_get_dhdp(wdev->netdev);
-#endif /* WL_AUTO_QOS && DHD_QOS_ON_SOCK_FLOW */
 
 	nla_for_each_attr(iter, data, len, rem) {
 		type = nla_type(iter);
@@ -1872,10 +1868,6 @@ wl_cfgvendor_set_latency_mode(struct wiphy *wiphy,
 				latency_mode = nla_get_u32(iter);
 				WL_DBG(("%s,Setting latency mode %u\n", __FUNCTION__,
 					latency_mode));
-#if defined(WL_AUTO_QOS) && defined(DHD_QOS_ON_SOCK_FLOW)
-				/* Enable/Disable qos monitoring */
-				dhd_wl_sock_qos_set_status(dhdp, latency_mode);
-#endif /* WL_AUTO_QOS && DHD_QOS_ON_SOCK_FLOW */
 #ifdef SUPPORT_LATENCY_CRITICAL_DATA
 				enable = latency_mode ? true : false;
 				err = wldev_iovar_setint(wdev->netdev,
@@ -4140,7 +4132,6 @@ exit:
 	return ret;
 }
 
-int8 chanbuf[CHANSPEC_STR_LEN];
 static int
 wl_cfgvendor_nan_parse_datapath_args(struct wiphy *wiphy,
 	const void *buf, int len, nan_datapath_cmd_data_t *cmd_data)
@@ -11046,7 +11037,11 @@ static int
 wl_cfgvendor_cellavoid_set_cell_channels(struct wiphy *wiphy,
 	struct wireless_dev *wdev, const void  *data, int len)
 {
+#if (ANDROID_VERSION >= 13)
+	return WIFI_SUCCESS;
+#else
 	return WIFI_ERROR_NOT_SUPPORTED;
+#endif
 }
 #endif /* WL_CELLULAR_CHAN_AVOID */
 
