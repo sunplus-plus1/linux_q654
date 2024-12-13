@@ -8,12 +8,15 @@
 #include <sound/dmaengine_pcm.h>
 #include "types.h"
 
+#define MMAP_IRQ 0
+
 struct sunplus_audio_base {
 	void __iomem *audio_base;
 	struct device *dev;
 	struct regmap *regmap;
 	struct reset_control *clk_rst;
 	struct clk *aud_clocken;
+	int irq;
 	//struct clk *plla_clocken;
 	//tdm
 	struct snd_dmaengine_dai_dma_data	dma_playback;

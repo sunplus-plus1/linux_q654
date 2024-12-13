@@ -91,10 +91,10 @@ SND_SOC_DAILINK_DEFS(sp_spdif,
 		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-spdif-dai")),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
-#if 0//IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
-SND_SOC_DAILINK_DEFS(es8316,
+#if IS_ENABLED(CONFIG_SND_SOC_ES8326_SUNPLUS)
+SND_SOC_DAILINK_DEFS(es8326,
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
-		     DAILINK_COMP_ARRAY(COMP_CODEC("es8316.0-0011", "ES8316 HiFi")),
+		     DAILINK_COMP_ARRAY(COMP_CODEC("es8326.0-0019", "ES8326 HiFi")),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 #endif
 
@@ -129,12 +129,15 @@ static struct snd_soc_dai_link spsoc_aud_dai[] = {
 		.ops		= &spsoc_aud_ops,
 		SND_SOC_DAILINK_REG(sp_spdif),
 	},
-#if 0//IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+#if IS_ENABLED(CONFIG_SND_SOC_ES8326_SUNPLUS)
 	{
-		.name		= "analog_es8316",
+		.name		= "analog_es8326",
 		.stream_name	= "afe",
 		.ops		= &spsoc_aud_ops,
-		SND_SOC_DAILINK_REG(es8316),
+		.no_pcm		= 1,
+		.dpcm_playback	= 1,
+		.dpcm_capture	= 1,
+		SND_SOC_DAILINK_REG(es8326),
 	},
 #endif
 };
@@ -152,7 +155,7 @@ static struct platform_device *spsoc_snd_device;
 static int __init snd_spsoc_audio_init(void)
 {
 	int ret;
-#if 0//IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS)
+#if IS_ENABLED(CONFIG_SND_SOC_ES8326_SUNPLUS)
 	int i;
 	struct snd_soc_card *card = &spsoc_smdk;
 	struct snd_soc_dai_link *dai_link;
@@ -161,7 +164,7 @@ static int __init snd_spsoc_audio_init(void)
 	struct snd_soc_component *component;
 
 	// Get i2c codec device name
-	np = of_find_compatible_node(NULL, NULL, "everest,es8316");
+	np = of_find_compatible_node(NULL, NULL, "everest,es8326");
 	if (np) {
 		client = of_find_i2c_device_by_node(np);
 		if (client)
