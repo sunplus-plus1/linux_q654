@@ -1062,7 +1062,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		printk(KERN_ERR "No buffer to map\n");
 		return -EINVAL;
 	}
-	printk(KERN_ERR "###remap%d", buf->remap);
+
 	if(buf->remap){
 		vma->vm_flags |= VM_LOCKED;
 		if (remap_pfn_range(vma, vma->vm_start,
