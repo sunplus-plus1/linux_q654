@@ -31,9 +31,6 @@
 #include <media/videobuf2-memops.h>
 #include <linux/version.h>
 #include "vsi-dma-priv.h"
-#if defined(CONFIG_SOC_SP7350)
-static bool remap;
-#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 0)
 
 MODULE_IMPORT_NS(DMA_BUF);
@@ -117,7 +114,7 @@ static void vb2_dc_prepare(void *buf_priv)
 	struct vb2_dc_buf *buf = buf_priv;
 	struct sg_table *sgt = buf->dma_sgt;
 #if defined(CONFIG_SOC_SP7350)
-	if (remap) {
+	if (buf->remap) {
 		dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
 		return;
 	}
@@ -144,7 +141,7 @@ static void vb2_dc_finish(void *buf_priv)
 	struct sg_table *sgt = buf->dma_sgt;
 
 #if defined(CONFIG_SOC_SP7350)
-	if (remap) {
+	if (buf->remap) {
 		dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
 		return;
 	}
@@ -287,7 +284,7 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 #if defined(CONFIG_SOC_SP7350)
-	if (remap) {
+	if (buf->remap) {
 		vm_flags_set(vma, VM_LOCKED);
 		if (remap_pfn_range(vma, vma->vm_start,
 				    buf->dma_addr >> PAGE_SHIFT,
@@ -995,21 +992,65 @@ static struct vb2_mem_ops vsi_dma_contig_memops;
 /*********************************************/
 /*        scatterlist table functions        */
 /*********************************************/
+static void *vb2_dc_alloc(struct device *dev, unsigned long attrs,
+			  unsigned long size, enum dma_data_direction dma_dir,
+			  gfp_t gfp_flags)
+{
+	struct vb2_dc_buf *buf;
+
+	if (WARN_ON(!dev))
+		return ERR_PTR(-EINVAL);
+
+	buf = kzalloc(sizeof *buf, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	buf->attrs = attrs;
+	buf->cookie = dma_alloc_attrs(dev, size, &buf->dma_addr,
+					GFP_KERNEL | gfp_flags, buf->attrs);
+	if (!buf->cookie) {
+		dev_err(dev, "dma_alloc_coherent of size %lu failed\n", size);
+		kfree(buf);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	if ((buf->attrs & DMA_ATTR_NO_KERNEL_MAPPING) == 0)
+		buf->vaddr = buf->cookie;
+
+	/* Prevent the device from being released while the buffer is used */
+	buf->dev = get_device(dev);
+	buf->size = size;
+	buf->dma_dir = dma_dir;
+
+	buf->handler.refcount = &buf->refcount;
+	buf->handler.put = vb2_dma_contig_memops.put;
+	buf->handler.arg = buf;
+
+	refcount_set(&buf->refcount, 1);
+
+	return buf;
+}
 
 static void vb2_dc_prepare(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 
-	dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
-	return;
+	if(buf->remap){
+		dma_sync_single_for_device(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+	vb2_dma_contig_memops.prepare(buf_priv);
 }
 
 static void vb2_dc_finish(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 
-	dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
-	return;
+	if(buf->remap){
+		dma_sync_single_for_cpu(buf->dev, buf->dma_addr, buf->size, buf->dma_dir);
+		return;
+	}
+	vb2_dma_contig_memops.finish(buf_priv);
 }
 
 static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
@@ -1021,44 +1062,43 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 		printk(KERN_ERR "No buffer to map\n");
 		return -EINVAL;
 	}
+	printk(KERN_ERR "###remap%d", buf->remap);
+	if(buf->remap){
+		vma->vm_flags |= VM_LOCKED;
+		if (remap_pfn_range(vma, vma->vm_start,
+					buf->dma_addr >> PAGE_SHIFT,
+					vma->vm_end - vma->vm_start,
+					vma->vm_page_prot)) {
+			pr_err("%s(): remap_pfn_range() failed\n", __func__);
+			return -ENOBUFS;
+		}
 
-	vma->vm_flags |= VM_LOCKED;
-	if (remap_pfn_range(vma, vma->vm_start,
-			    buf->dma_addr >> PAGE_SHIFT,
-			    vma->vm_end - vma->vm_start,
-			    vma->vm_page_prot)) {
-		pr_err("%s(): remap_pfn_range() failed\n", __func__);
-		return -ENOBUFS;
+		vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
+		vma->vm_private_data	= &buf->handler;
+		vma->vm_ops		= &vb2_common_vm_ops;
+
+		vma->vm_ops->open(vma);
+
+		pr_debug("%s: mapped dma addr 0x%08lx at 0x%08lx, size %lu\n",
+			__func__, (unsigned long)buf->dma_addr, vma->vm_start,
+			buf->size);
+
+		return 0;
 	}
 
-	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
-	vma->vm_private_data	= &buf->handler;
-	vma->vm_ops		= &vb2_common_vm_ops;
-
-	vma->vm_ops->open(vma);
-
-	pr_debug("%s: mapped dma addr 0x%08lx at 0x%08lx, size %lu\n",
-		 __func__, (unsigned long)buf->dma_addr, vma->vm_start,
-		 buf->size);
-
-	return 0;
+	return 	vb2_dma_contig_memops.mmap(buf_priv, vma);
 }
 
 const struct vb2_mem_ops *get_vsi_mmop(void)
 {
-#if defined(CONFIG_SOC_SP7350)
-	if(remap){
-		memcpy(&vsi_dma_contig_memops, &vb2_dma_contig_memops, sizeof(vb2_dma_contig_memops));
+	memcpy(&vsi_dma_contig_memops, &vb2_dma_contig_memops, sizeof(vb2_dma_contig_memops));
 
-		vsi_dma_contig_memops.mmap = vb2_dc_mmap;
-		vsi_dma_contig_memops.prepare = vb2_dc_prepare;
-		vsi_dma_contig_memops.finish = vb2_dc_finish;
+	vsi_dma_contig_memops.alloc = vb2_dc_alloc;
+	vsi_dma_contig_memops.mmap = vb2_dc_mmap;
+	vsi_dma_contig_memops.prepare = vb2_dc_prepare;
+	vsi_dma_contig_memops.finish = vb2_dc_finish;
 
-		return &vsi_dma_contig_memops;
-	}
-#endif
-
-	return &vb2_dma_contig_memops;
+	return &vsi_dma_contig_memops;
 }
 #endif //KERNEL_VERSION >= (6, 1, 0)
 

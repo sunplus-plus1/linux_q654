@@ -365,6 +365,8 @@ struct vsi_v4l2_ctx {
 	int comp_init;
 
 	int exp_fd[VIDEO_MAX_FRAME];	//export fd from other driver
+
+	bool dma_remap;
 };
 
 int vsi_v4l2_release(struct file *filp);
