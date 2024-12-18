@@ -60,19 +60,19 @@ static int inv_spi_read(struct inv_mpu_state *st, u8 reg, int len, u8 *data)
 {
 	struct spi_message msg;
 	int res;
-	u8 d[1];
-	struct spi_transfer xfers[] = {
-		{
-		 .tx_buf = d,
-		 .bits_per_word = 8,
-		 .len = 1,
-		 },
-		{
-		 .rx_buf = data,
-		 .bits_per_word = 8,
-		 .len = len,
-		 }
-	};
+	u8 d[1],i;
+	u8 *rx;
+	struct spi_transfer xfers;
+
+	rx = kzalloc(len + 1, GFP_KERNEL); 
+	if (!rx)
+	    return -ENOMEM;
+
+	memset(&xfers, 0, sizeof(xfers));	
+	xfers.tx_buf = d;
+	xfers.rx_buf = rx;
+	xfers.bits_per_word = 8;
+	xfers.len = len + 1;
 
 	if (!data)
 		return -EINVAL;
@@ -80,9 +80,13 @@ static int inv_spi_read(struct inv_mpu_state *st, u8 reg, int len, u8 *data)
 	d[0] = (reg | INV_SPI_READ);
 
 	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
+	spi_message_add_tail(&xfers, &msg);
+	//spi_message_add_tail(&xfers[1], &msg);
 	res = spi_sync(to_spi_device(st->dev), &msg);
+
+	for(i=0; i<=len; i++)
+		data[i] = rx[i+1];
+	//memcpy(data, &rx[1], len);
 
 	if (len ==1)
 		pr_debug("reg_read: reg=0x%x length=%d data=0x%x\n",
@@ -91,6 +95,7 @@ static int inv_spi_read(struct inv_mpu_state *st, u8 reg, int len, u8 *data)
 		pr_debug("reg_read: reg=0x%x length=%d d0=0x%x d1=0x%x\n",
 					reg, len, data[0], data[1]);
 
+	kfree(rx);
 	return res;
 
 }
@@ -168,6 +173,7 @@ static int inv_mpu_probe(struct spi_device *spi)
 		goto out_no_free;
 	}
 
+	iio_device_set_drvdata(indio_dev, indio_dev);
 	st = iio_priv(indio_dev);
 	mutex_init(&st->lock);
 	st->write = inv_spi_single_write;
