@@ -28,6 +28,18 @@
 
 #define SP7350_TCON_TPG_EN  0
 
+/**
+ * @SP7350_PLANE_ZPOS_AUTO_ADJUST_EN:
+ * Enable zpos auto ajdust for sp7350 display dmix setting.
+ *
+ * User-space may set mutable zpos properties so that multiple active
+ * planes on the same CRTC have identical zpos values. This is a
+ * user-space bug, but drivers can solve the conflict by comparing the
+ * plane object IDs; the plane with a higher ID is stacked on top of a
+ * plane with a lower ID.
+ */
+#define SP7350_PLANE_ZPOS_AUTO_ADJUST_EN  1
+
 /*
  * DRM CRTC Setting
  */
@@ -917,6 +929,31 @@ static const u32 sp_tcon_tpg_para_dsi[11][10] = {
 #endif
 static void sp7350_crtc_dmix_layer_setting(struct drm_crtc *crtc);
 
+#if SP7350_PLANE_ZPOS_AUTO_ADJUST_EN
+static int sp7350_rearrange_zpos(unsigned int in[], unsigned int out[], int size)
+{
+	for (int i = size - 1; i >= 0; i--) {
+		unsigned int larger = 0;
+		unsigned int smaller = 0;
+
+		/* Check forward if the largest */
+		for (int j = 0; j < i; j++)
+			if (in[j] > in[i])
+				larger++;
+
+		/* Check backwards if smallest */
+		for (int j = i + 1; j < size; j++)
+			if (in[j] < in[i])
+				smaller++;
+
+		out[i] = i - larger + smaller;
+		//DRM_DEBUG_DRIVER("in[%d]:%d, larger:%d, out[%d]:%d\n", i, in[i], larger, i, out[i]);
+	}
+
+	return 0;
+}
+#endif
+
 static irqreturn_t sp7350_crtc_irq_handler(int irq, void *data)
 {
 	struct sp7350_crtc *sp_crtc = data;
@@ -1668,6 +1705,7 @@ static int sp7350_crtc_atomic_check(struct drm_crtc *crtc,
 	/* TODO reference to vkms_crtc_atomic_check */
 	DRM_DEBUG_DRIVER("Start");
 
+#if !SP7350_PLANE_ZPOS_AUTO_ADJUST_EN
 	if (new_state->zpos_changed) {
 		struct drm_plane *plane;
 		int zpos_flag = 0;
@@ -1675,21 +1713,22 @@ static int sp7350_crtc_atomic_check(struct drm_crtc *crtc,
 		DRM_DEBUG_DRIVER("check zpos vaild\n");
 		/* check zpos vaild */
 		drm_for_each_plane(plane, crtc->dev) {
-			struct drm_plane_state *new_state = drm_atomic_get_plane_state(state, plane);
+			struct drm_plane_state *new_plane_state = drm_atomic_get_plane_state(state, plane);
 
 			if (plane->possible_crtcs != drm_crtc_mask(crtc))
 				continue;
 
-			DRM_DEBUG_DRIVER("plane-%d zpos:%d\n", plane->index, new_state->zpos);
+			DRM_DEBUG_DRIVER("plane-%d zpos:%d\n", plane->index, new_plane_state->zpos);
 			if (zpos_flag & (1 << new_state->zpos)) {
 				/* check fail, zpos conflict */
 				DRM_DEBUG_DRIVER("check fail, zpos conflict.\n");
 				ret = -EINVAL;
 				break;
 			}
-			zpos_flag |= 1 << new_state->zpos;
+			zpos_flag |= 1 << new_plane_state->zpos;
 		}
 	}
+#endif
 
 	if ((sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT) &&
 		new_state->color_mgmt_changed && new_state->gamma_lut) {
@@ -1778,18 +1817,36 @@ static void sp7350_crtc_atomic_begin(struct drm_crtc *crtc,
 		}
 	}
 	if (new_state->zpos_changed) {
-		DRM_DEBUG_DRIVER("[TODO]zpos_changed!!!\n");
+		DRM_DEBUG_DRIVER("zpos_changed!!!\n");
 		struct drm_plane *plane = NULL;
+#if SP7350_PLANE_ZPOS_AUTO_ADJUST_EN
+		unsigned int zpos[SP7350_MAX_PLANE];
+		unsigned int zpos_adj[SP7350_MAX_PLANE];
 
+		/* check zpos vaild */
 		drm_for_each_plane(plane, crtc->dev) {
-			struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
-			struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
+			struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 
 			if (plane->possible_crtcs != drm_crtc_mask(crtc))
 				continue;
 
-			DRM_DEBUG_DRIVER("plane-%d zpos:%d\n", plane->index, new_state->zpos);
-			switch (new_state->zpos) {
+			if (new_plane_state) {
+				DRM_DEBUG_DRIVER("plane-%d zpos:%d\n", plane->index, new_plane_state->zpos);
+				zpos[plane->index] = new_plane_state->zpos;
+			}
+		}
+
+		DRM_DEBUG_DRIVER("rearrange zpos\n");
+		sp7350_rearrange_zpos(zpos, zpos_adj, SP7350_MAX_PLANE);
+
+		drm_for_each_plane(plane, crtc->dev) {
+			struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+
+			if (plane->possible_crtcs != drm_crtc_mask(crtc))
+				continue;
+
+			DRM_DEBUG_DRIVER("plane-%d, adj zpos:%d\n", plane->index, zpos_adj[plane->index]);
+			switch (zpos_adj[plane->index]) {
 			case 4:
 				sp_plane->dmix_layer = SP7350_DMIX_L6;
 				sp_plane->dtg_adjust = SP7350_TGEN_DTG_ADJ_DMIX_L6;
@@ -1811,8 +1868,42 @@ static void sp7350_crtc_atomic_begin(struct drm_crtc *crtc,
 				sp_plane->dtg_adjust = SP7350_TGEN_DTG_ADJ_DMIX_L1;
 				break;
 			}
-			sp_plane->zpos = new_state->zpos;
+			sp_plane->zpos = zpos_adj[plane->index];
 		}
+#else
+		drm_for_each_plane(plane, crtc->dev) {
+			struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
+			struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+
+			if (plane->possible_crtcs != drm_crtc_mask(crtc))
+				continue;
+
+			DRM_DEBUG_DRIVER("plane-%d zpos:%d\n", plane->index, new_plane_state->zpos);
+			switch (new_plane_state->zpos) {
+			case 4:
+				sp_plane->dmix_layer = SP7350_DMIX_L6;
+				sp_plane->dtg_adjust = SP7350_TGEN_DTG_ADJ_DMIX_L6;
+				break;
+			case 3:
+				sp_plane->dmix_layer = SP7350_DMIX_L5;
+				sp_plane->dtg_adjust = SP7350_TGEN_DTG_ADJ_DMIX_L5;
+				break;
+			case 2:
+				sp_plane->dmix_layer = SP7350_DMIX_L4;
+				sp_plane->dtg_adjust = SP7350_TGEN_DTG_ADJ_DMIX_L4;
+				break;
+			case 1:
+				sp_plane->dmix_layer = SP7350_DMIX_L3;
+				sp_plane->dtg_adjust = SP7350_TGEN_DTG_ADJ_DMIX_L3;
+				break;
+			case 0:
+				sp_plane->dmix_layer = SP7350_DMIX_L1;
+				sp_plane->dtg_adjust = SP7350_TGEN_DTG_ADJ_DMIX_L1;
+				break;
+			}
+			sp_plane->zpos = new_plane_state->zpos;
+		}
+#endif
 		sp7350_crtc_dmix_layer_setting(crtc);
 	}
 }
