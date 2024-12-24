@@ -1148,6 +1148,8 @@ static snd_pcm_uframes_t spsoc_pcm_pointer(struct snd_soc_component *component,
 	snd_pcm_uframes_t offset;
 
 #if (MMAP_IRQ)
+	volatile register_audio *regs0 = pcmaudio_base;
+	
 	if (prtd->usemmap_flag) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			if (substream->pcm->device == SP_SPDIF)
