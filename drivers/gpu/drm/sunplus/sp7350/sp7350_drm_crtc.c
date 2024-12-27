@@ -2176,19 +2176,20 @@ int sp7350_crtc_init(struct drm_device *drm, struct drm_crtc *crtc,
 		return ret;
 	}
 
-	ret = drm_mode_crtc_set_gamma_size(crtc, 512);
-	if (ret) {
-		DRM_DEV_ERROR(drm->dev, "failed to set gamma size: %d\n", ret);
-		return ret;
-	}
-	drm_crtc_enable_color_mgmt(crtc, 0, false, 512);
-	sp_crtc->capabilities |=  SP7350_DRM_CRTC_CAP_GAMMA_LUT;
-	if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT) {
-		sp_crtc->gamma_lut_adjustment_property = drm_property_create_bool(crtc->dev,
-						DRM_MODE_PROP_ATOMIC, "GAMMA_LUT_ADJ");
-		drm_object_attach_property(&crtc->base,
-			 sp_crtc->gamma_lut_adjustment_property, 1);
-	}
+	/* workaround for disable gamma table function. */
+	//ret = drm_mode_crtc_set_gamma_size(crtc, 512);
+	//if (ret) {
+	//	DRM_DEV_ERROR(drm->dev, "failed to set gamma size: %d\n", ret);
+	//	return ret;
+	//}
+	//drm_crtc_enable_color_mgmt(crtc, 0, false, 512);
+	//sp_crtc->capabilities |=  SP7350_DRM_CRTC_CAP_GAMMA_LUT;
+	//if (sp_crtc->capabilities & SP7350_DRM_CRTC_CAP_GAMMA_LUT) {
+	//	sp_crtc->gamma_lut_adjustment_property = drm_property_create_bool(crtc->dev,
+	//					DRM_MODE_PROP_ATOMIC, "GAMMA_LUT_ADJ");
+	//	drm_object_attach_property(&crtc->base,
+	//		 sp_crtc->gamma_lut_adjustment_property, 1);
+	//}
 
 	DRM_DEV_DEBUG_DRIVER(&sp_crtc->pdev->dev, "drm_crtc_helper_add\n");
 	drm_crtc_helper_add(crtc, crtc_helper_funcs);
