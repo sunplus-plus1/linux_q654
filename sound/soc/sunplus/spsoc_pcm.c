@@ -52,7 +52,6 @@ static irqreturn_t aud_fifo_int(int irq, void *dev)
 
 	/* clear interrupt flag */
 	value = readl(&regs0->G019_RESERVED[8]);
-	pr_debug("int 0x%x msk 0x%x\n",value, regs0->G019_RESERVED[10]);
 	if (value & prtd->irq_num) {
 	//if (regs0->G019_RESERVED[8] & prtd->irq_num) {
 		prtd->irq_done = 1;
@@ -61,6 +60,7 @@ static irqreturn_t aud_fifo_int(int irq, void *dev)
 		//regs0->G019_RESERVED[10] |= prtd->irq_num;
 
 		tasklet_hi_schedule(&prtd->tasklet);
+		pr_debug("int 0x%x msk 0x%x\n",value, prtd->irq_num);
 	}
 
 	return IRQ_HANDLED;
@@ -143,20 +143,20 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 	if (!atomic_read(&iprtd->running))
 		return;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (substream->pcm->device == SP_SPDIF)
-			iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_1)
-			iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_2)
-			iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
-		else
-			iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
+	if (iprtd->usemmap_flag == 1) {
+		spin_lock_irqsave(&set_lock, flags);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (substream->pcm->device == SP_SPDIF)
+				iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1)
+				iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2)
+				iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
+			else
+				iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
 
-		pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
-		if (iprtd->offset < iprtd->fifosize_from_user) {
-			if (iprtd->usemmap_flag == 1) {
-				spin_lock_irqsave(&set_lock, flags);
+			pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
+			if (iprtd->offset < iprtd->fifosize_from_user) {
 				if (substream->pcm->device == SP_I2S_0) {
 					pr_debug("regs0->aud_a0_cnt 0x%x\n", regs0->aud_a0_cnt);
 					while (regs0->aud_a0_cnt != 0 && tout < iprtd->timeoutcount) {
@@ -165,7 +165,8 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 						//schedule_timeout_interruptible(5);
 					}
 					run_start(I2S_P_INC0, iprtd->period, iprtd);
-					pr_debug("regs0->aud_a0_cnt 0x%x tout %d\n", regs0->aud_a0_cnt, tout);
+					pr_debug("regs0->aud_a0_cnt 0x%x tout %d\n",
+						 regs0->aud_a0_cnt, tout);
 					iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_I2S_1) {
 					while (regs0->aud_a6_cnt != 0 && tout < iprtd->timeoutcount) {
@@ -198,44 +199,34 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 					run_start(SPDIF_P_INC0, iprtd->period, iprtd);
 					iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
 				}
-				spin_unlock_irqrestore(&set_lock, flags);
+				//spin_unlock_irqrestore(&set_lock, flags);
 				if (tout >= iprtd->timeoutcount)
 					pr_err("XXX hrtimer_pcm_tasklet TIMEOUT\n");
-			} else {
-				if ((iprtd->offset % iprtd->period) != 0) {
-					appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
-						   iprtd->period;
-					if (appl_ofs < iprtd->periods)
-						iprtd->offset = iprtd->period * appl_ofs;
-					else
-						iprtd->offset = 0; //iprtd->period * appl_ofs;
-				}
 			}
-		}
-		// If we've transferred at least a period then report it and reset our poll time
+			// If we've transferred at least a period then report it and reset our poll time
 
-		//if (delta >= iprtd->period )  //ending normal
-		//{
-			//pr_debug("a0_ptr=0x%08x\n",iprtd->offset);
-		iprtd->last_offset = iprtd->offset;
-		snd_pcm_period_elapsed(substream);
-		//}
-	} else {
-		if (substream->pcm->device == SP_I2S_0) // i2s //need to check
-			iprtd->offset = regs0->aud_a11_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_1) // i2s
-			iprtd->offset = regs0->aud_a16_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_2) // i2s
-			iprtd->offset = regs0->aud_a10_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_SPDIF) // spdif0
-			iprtd->offset = regs0->aud_a13_ptr & 0xfffffc;
-		else // tdm, pdm
-			iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
+			//if (delta >= iprtd->period )  //ending normal
+			//{
+				//pr_debug("a0_ptr=0x%08x\n",iprtd->offset);
+			//iprtd->last_offset = iprtd->offset;
+			//snd_pcm_period_elapsed(substream);
+			//}
+		} else {
+			if (substream->pcm->device == SP_I2S_0) // i2s //need to check
+				iprtd->offset = regs0->aud_a11_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1) // i2s
+				iprtd->offset = regs0->aud_a16_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2) // i2s
+				iprtd->offset = regs0->aud_a10_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_SPDIF) // spdif0
+				iprtd->offset = regs0->aud_a13_ptr & 0xfffffc;
+			else // tdm, pdm
+				iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
 
-		pr_debug("C:?_ptr=0x%x - 0x%x cnt_a11 0x%x ", iprtd->offset, iprtd->last_offset,
-			 regs0->aud_a11_cnt);
-		if (iprtd->usemmap_flag == 1) {
-			spin_lock_irqsave(&set_lock, flags);
+			pr_debug("C:?_ptr=0x%x - 0x%x cnt_a11 0x%x ", iprtd->offset, iprtd->last_offset,
+				 regs0->aud_a11_cnt);
+
+			//spin_lock_irqsave(&set_lock, flags);
 			if (iprtd->offset >= iprtd->last_offset)
 				delta = iprtd->offset - iprtd->last_offset;
 			else
@@ -254,18 +245,58 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 					run_start(TDMPDM_C_INC0, delta, iprtd);
 				pr_debug("C? inc 0x%x\n", delta);
 			}
-			spin_unlock_irqrestore(&set_lock, flags);
+			//iprtd->last_offset = iprtd->offset;
+			//snd_pcm_period_elapsed(substream);
+		}
+		iprtd->last_offset = iprtd->offset;
+		snd_pcm_period_elapsed(substream);
+		spin_unlock_irqrestore(&set_lock, flags);
+	} else {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (substream->pcm->device == SP_SPDIF)
+				iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1)
+				iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2)
+				iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
+			else
+				iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
+			pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
+#if (!MMAP_IRQ)
+			if (iprtd->offset < iprtd->fifosize_from_user) {
+				if ((iprtd->offset % iprtd->period) != 0) {
+					appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
+						   iprtd->period;
+					if (appl_ofs < iprtd->periods)
+						iprtd->offset = iprtd->period * appl_ofs;
+					else
+						iprtd->offset = 0; //iprtd->period * appl_ofs;
+				}
+			}
+#endif
+		} else {
+			if (substream->pcm->device == SP_I2S_0) // i2s //need to check
+				iprtd->offset = regs0->aud_a11_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1) // i2s
+				iprtd->offset = regs0->aud_a16_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2) // i2s
+				iprtd->offset = regs0->aud_a10_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_SPDIF) // spdif0
+				iprtd->offset = regs0->aud_a13_ptr & 0xfffffc;
+			else // tdm, pdm
+				iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
+
+			pr_debug("C:?_ptr=0x%x - 0x%x cnt_a11 0x%x ", iprtd->offset, iprtd->last_offset,
+				 regs0->aud_a11_cnt);
 		}
 #if (MMAP_IRQ)
-		else {
-			if ((iprtd->offset % iprtd->period) != 0) {
-				appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
-					   iprtd->period;
-				if (appl_ofs < iprtd->periods)
-					iprtd->offset = iprtd->period * appl_ofs;
-				else
-					iprtd->offset = 0; //iprtd->period * appl_ofs;
-			}
+		if ((iprtd->offset % iprtd->period) != 0) {
+			appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
+				   iprtd->period;
+			if (appl_ofs < iprtd->periods)
+				iprtd->offset = iprtd->period * appl_ofs;
+			else
+				iprtd->offset = 0; //iprtd->period * appl_ofs;
 		}
 #endif
 		iprtd->last_offset = iprtd->offset;
@@ -1146,10 +1177,8 @@ static snd_pcm_uframes_t spsoc_pcm_pointer(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct spsoc_runtime_data *prtd = runtime->private_data;
 	snd_pcm_uframes_t offset;
-
-#if (MMAP_IRQ)
 	volatile register_audio *regs0 = pcmaudio_base;
-	
+
 	if (prtd->usemmap_flag) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			if (substream->pcm->device == SP_SPDIF)
@@ -1175,9 +1204,9 @@ static snd_pcm_uframes_t spsoc_pcm_pointer(struct snd_soc_component *component,
 	} else
 		offset = prtd->offset;
 	offset = bytes_to_frames(runtime, offset);
-#else
-	offset = bytes_to_frames(runtime, prtd->offset);
-#endif
+//#else
+//	offset = bytes_to_frames(runtime, prtd->offset);
+//#endif
 
 	pr_debug("%s-offset=0x%lx\n", substream->stream ? "c" : "p", offset);
 	return offset;
