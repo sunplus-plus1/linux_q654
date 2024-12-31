@@ -397,31 +397,6 @@
 			linux,default-trigger = "heartbeat";
 		};
 	};
-	adc-keys {
-		compatible = "adc-keys";
-		io-channels = <&adc 2>;
-		io-channel-names = "buttons";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <200>;
-
-		button-up {
-			label = "Volume Up";
-			linux,code = <KEY_VOLUMEUP>;
-			press-threshold-microvolt = <0>;
-		};
-
-		button-down {
-			label = "Volume Down";
-			linux,code = <KEY_VOLUMEDOWN>;
-			press-threshold-microvolt = <900000>;
-		};
-
-		button-enter {
-			label = "Enter";
-			linux,code = <KEY_ENTER>;
-			press-threshold-microvolt = <1200000>;
-		};
-	};
 };
 
 &remoteproc0 {
