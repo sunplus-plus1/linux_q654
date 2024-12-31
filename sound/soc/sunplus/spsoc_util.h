@@ -8,7 +8,7 @@
 #include <sound/dmaengine_pcm.h>
 #include "types.h"
 
-#define MMAP_IRQ 1
+#define MMAP_IRQ 0
 
 struct sunplus_audio_base {
 	void __iomem *audio_base;
