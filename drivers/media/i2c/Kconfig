@@ -674,6 +674,15 @@ config VIDEO_ST_VGXY61
 	  This is a Video4Linux2 sensor driver for the ST VGXY61
 	  camera sensor.
 
+config VIDEO_TP2815
+	tristate "Techpoint TP2815 sensor support"
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  TP2815 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tp2815.
+
 source "drivers/media/i2c/ccs/Kconfig"
 source "drivers/media/i2c/et8ek8/Kconfig"
 source "drivers/media/i2c/vd55flood/Kconfig"
