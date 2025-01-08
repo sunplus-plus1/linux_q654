@@ -1257,7 +1257,7 @@
 		phy-names = "uphy";
 	};
 
-	extcon_dwc3drd: extcon_usb3 {
+	extcon_dwc3drd: extcon_usb3@f8004a80 {
 		compatible = "linux,extcon-usb-gpio";
 		reg = <0x0 0xf8004a80 0x0 0x80>;
 		clocks = <&clkc UPHY0>;
