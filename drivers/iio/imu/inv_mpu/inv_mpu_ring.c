@@ -568,11 +568,20 @@ int inv_mpu_configure_ring(struct iio_dev *indio_dev)
 	INIT_WORK(&st->batch_work, inv_batch_work);
 #endif
 
+#ifdef SENSOR_DATA_FROM_REGISTERS
+	ret = iio_triggered_buffer_setup(indio_dev, inv_pollfunc_store_time, inv_read_sensor_register, NULL);
+	if (ret) {
+		dev_err(st->dev, "iio triggered buffer failed %d\n", ret);
+		return ret;
+	}
+#else
+
 	ret = iio_triggered_buffer_setup(indio_dev, NULL, inv_read_fifo, NULL);
 	if (ret) {
 		dev_err(st->dev, "iio triggered buffer failed %d\n", ret);
 		return ret;
 	}
+#endif
 
 	st->trig = iio_trigger_alloc(
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
