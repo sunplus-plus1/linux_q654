@@ -1234,4 +1234,9 @@ int inv_write_offset_regs(struct inv_mpu_state *st,
 #define mem_w(a, b, c) mpu_memory_write(st, st->i2c_addr, a, b, c)
 #define mem_r(a, b, c) mpu_memory_read(st, st->i2c_addr, a, b, c)
 
+#ifdef SENSOR_DATA_FROM_REGISTERS
+irqreturn_t inv_pollfunc_store_time(int irq, void *p);
+irqreturn_t inv_read_sensor_register(int irq, void *p);
+#endif
+
 #endif /* #ifndef _INV_MPU_IIO_H_ */
