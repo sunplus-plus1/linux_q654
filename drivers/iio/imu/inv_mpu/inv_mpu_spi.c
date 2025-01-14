@@ -58,6 +58,54 @@ static int inv_spi_single_write(struct inv_mpu_state *st, u8 reg, u8 data)
 
 static int inv_spi_read(struct inv_mpu_state *st, u8 reg, int len, u8 *data)
 {
+#if 1
+	struct spi_message msg;
+	int res;
+	u8 i;
+	//u8 d[1];
+	u8 *rx;
+	u8 *tx;
+	struct spi_transfer xfers;
+
+	tx = kzalloc(len + 1, GFP_KERNEL); 
+	if (!tx)
+	    return -ENOMEM;
+
+	rx = kzalloc(len + 1, GFP_KERNEL); 
+	if (!rx)
+	    return -ENOMEM;
+
+	memset(&xfers, 0, sizeof(xfers));	
+	xfers.tx_buf = tx;
+	xfers.rx_buf = rx;
+	xfers.bits_per_word = 8;
+	xfers.len = len + 1;
+
+	if (!data)
+		return -EINVAL;
+
+	tx[0] = (reg | INV_SPI_READ);
+
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfers, &msg);
+	//spi_message_add_tail(&xfers[1], &msg);
+	res = spi_sync(to_spi_device(st->dev), &msg);
+
+	for(i=0; i<len; i++)
+		data[i] = rx[i+1];
+	//memcpy(data, &rx[1], len);
+/*
+	if (len ==1)
+		pr_info("reg_read: reg=0x%x length=%d data=0x%x\n",
+							reg, len, data[0]);
+	else
+		pr_info("reg_read: reg=0x%x length=%d d0=0x%x d1=0x%x\n",
+					reg, len, data[0], data[1]);
+*/
+	kfree(rx);
+	kfree(tx);
+	return res;
+#else
 	struct spi_message msg;
 	int res;
 	u8 d[1],i;
@@ -97,7 +145,7 @@ static int inv_spi_read(struct inv_mpu_state *st, u8 reg, int len, u8 *data)
 
 	kfree(rx);
 	return res;
-
+#endif
 }
 
 #if defined(CONFIG_INV_MPU_IIO_ICM20648) || \

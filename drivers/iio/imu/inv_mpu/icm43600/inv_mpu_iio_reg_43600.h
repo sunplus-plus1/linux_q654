@@ -20,7 +20,7 @@
 #define NOT_SET_DMP_POWER_SAVE
 
 /* Comment out not to use lower power mode on accel */
-#define SUPPORT_ACCEL_LPM
+//#define SUPPORT_ACCEL_LPM
 
 /* Registers and associated bit definitions */
 /* Bank 0 */
@@ -447,7 +447,7 @@ enum INV_SENSORS {
 #define ESI_GYRO_RATE			800
 #define MPU_INIT_SENSOR_RATE_LNM	12	/* min Hz in LNM */
 #define MPU_INIT_SENSOR_RATE_LPM	3	/* min Hz in LPM */
-#define MAX_FIFO_PACKET_READ		16
+#define MAX_FIFO_PACKET_READ		1//2//16
 #define HARDWARE_FIFO_SIZE		1024
 /* ~7/8 of hardware FIFO and a multiple of packet sizes 8/16/20 */
 #define FIFO_SIZE			880
