@@ -667,7 +667,11 @@ static int _basic_attr_store(struct device *dev,
 	case ATTR_DMP_BATCHMODE_TIMEOUT:
 		if (data == st->batch.timeout)
 			return count;
+#ifdef SENSOR_DATA_FROM_REGISTERS
+		st->batch.timeout = 0;
+#else
 		st->batch.timeout = data;
+#endif
 		break;
 	case ATTR_HIGH_RES_MODE:
 		if (!!data == st->chip_config.high_res_mode)
@@ -851,6 +855,27 @@ static ssize_t inv_attr_show(struct device *dev,
 	case ATTR_HIGH_RES_MODE:
 		return snprintf(buf, MAX_WR_SZ, "%d\n",
 			st->chip_config.high_res_mode);
+			
+	case ATTR_ACCEL_X_RAW:
+		return snprintf(buf, MAX_WR_SZ, "%d\n",
+			st->accel_raw[0]);
+	case ATTR_ACCEL_Y_RAW:
+		return snprintf(buf, MAX_WR_SZ, "%d\n",
+			st->accel_raw[1]);
+	case ATTR_ACCEL_Z_RAW:
+		return snprintf(buf, MAX_WR_SZ, "%d\n",
+			st->accel_raw[2]);
+	case ATTR_GYRO_X_RAW:
+		return snprintf(buf, MAX_WR_SZ, "%d\n",
+			st->gyro_raw[0]);
+	case ATTR_GYRO_Y_RAW:
+		return snprintf(buf, MAX_WR_SZ, "%d\n",
+			st->gyro_raw[1]);
+	case ATTR_GYRO_Z_RAW:
+		return snprintf(buf, MAX_WR_SZ, "%d\n",
+			st->gyro_raw[2]);
+			
+	
 	default:
 		return -EPERM;
 	}
@@ -1170,6 +1195,19 @@ static IIO_DEVICE_ATTR(params_pedometer_int_mode, S_IRUGO | S_IWUSR,
 		inv_attr_show, inv_misc_attr_store, ATTR_DMP_PED_INT_MODE);
 #endif
 
+static IIO_DEVICE_ATTR(in_accel_x_raw, S_IRUGO | S_IWUSR,
+			inv_attr_show, NULL, ATTR_ACCEL_X_RAW);
+static IIO_DEVICE_ATTR(in_accel_y_raw, S_IRUGO | S_IWUSR,
+			inv_attr_show, NULL, ATTR_ACCEL_Y_RAW);
+static IIO_DEVICE_ATTR(in_accel_z_raw, S_IRUGO | S_IWUSR,
+			inv_attr_show, NULL, ATTR_ACCEL_Z_RAW);
+static IIO_DEVICE_ATTR(in_gyro_x_raw, S_IRUGO | S_IWUSR,
+			inv_attr_show, NULL, ATTR_GYRO_X_RAW);
+static IIO_DEVICE_ATTR(in_gyro_y_raw, S_IRUGO | S_IWUSR,
+			inv_attr_show, NULL, ATTR_GYRO_Y_RAW);
+static IIO_DEVICE_ATTR(in_gyro_z_raw, S_IRUGO | S_IWUSR,
+			inv_attr_show, NULL, ATTR_GYRO_Z_RAW);
+
 static const struct attribute *inv_raw_attributes[] = {
 	&dev_attr_debug_reg_dump.attr,
 #ifndef SUPPORT_ONLY_BASIC_FEATURES
@@ -1189,6 +1227,13 @@ static const struct attribute *inv_raw_attributes[] = {
 	&iio_dev_attr_in_accel_rate.dev_attr.attr,
 	&iio_dev_attr_in_accel_wake_rate.dev_attr.attr,
 	&iio_dev_attr_info_accel_lp_mode.dev_attr.attr,
+	
+	&iio_dev_attr_in_accel_x_raw.dev_attr.attr,
+	&iio_dev_attr_in_accel_y_raw.dev_attr.attr,
+	&iio_dev_attr_in_accel_z_raw.dev_attr.attr,
+	&iio_dev_attr_in_gyro_x_raw.dev_attr.attr,
+	&iio_dev_attr_in_gyro_y_raw.dev_attr.attr,
+	&iio_dev_attr_in_gyro_z_raw.dev_attr.attr,
 };
 
 #ifndef SUPPORT_ONLY_BASIC_FEATURES

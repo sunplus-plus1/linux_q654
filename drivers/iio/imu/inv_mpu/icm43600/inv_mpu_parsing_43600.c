@@ -140,6 +140,13 @@ static int inv_push_43600_data(struct iio_dev *indio_dev, u8 *d)
 		gyr[2] = gyr_lsb[2];
 	}
 
+	st->accel_raw[0] = acc[0];
+	st->accel_raw[1] = acc[1];
+	st->accel_raw[2] = acc[2];
+	st->gyro_raw[0] = gyr[0];
+	st->gyro_raw[1] = gyr[1];
+	st->gyro_raw[2] = gyr[2];
+
 	/* send accel data */
 	if (header.bits.accel_bit) {
 		if (st->sensor[SENSOR_ACCEL].on && valid_acc) {
@@ -183,6 +190,7 @@ static int inv_prescan_fifo_data(struct inv_mpu_state *st, u8 *data, int len)
 
 	dptr = data;
 	while (dptr < (data + len)) {
+/*
 		if (st->batch.pk_size >= 8)
 			pr_debug("FIFO 0x00: %x %x %x %x %x %x %x %x\n",
 				 dptr[0], dptr[1], dptr[2], dptr[3],
@@ -194,6 +202,7 @@ static int inv_prescan_fifo_data(struct inv_mpu_state *st, u8 *data, int len)
 		if (st->batch.pk_size >= 20)
 			pr_debug("FIFO 0x10: %x %x %x %x\n",
 				 dptr[16], dptr[17], dptr[18], dptr[19]);
+*/
 		dptr += st->batch.pk_size;
 	}
 
@@ -371,6 +380,7 @@ static int inv_process_43600_data(struct iio_dev *indio_dev)
 	dptr = d;
 	total_bytes = fifo_count;
 
+#if 0
 	if (total_bytes > pk_size * MAX_FIFO_PACKET_READ) {
 		/* set Idle bit when FIFO read will be
 		 * more than one transaction
@@ -386,7 +396,7 @@ static int inv_process_43600_data(struct iio_dev *indio_dev)
 				INV_ICM43600_MCLK_WAIT_US + 1);
 		idle_set = true;
 	}
-
+#endif
 	while (total_bytes > 0) {
 		if (total_bytes < pk_size * MAX_FIFO_PACKET_READ)
 			tmp = total_bytes;
@@ -427,7 +437,7 @@ static int inv_process_43600_data(struct iio_dev *indio_dev)
 	done_flag = false;
 
 	while (!done_flag) {
-		pr_debug("total=%d, pk=%d\n", total_bytes, pk_size);
+//		pr_info("total=%d, pk=%d\n", total_bytes, pk_size);
 		if (total_bytes >= pk_size) {
 			res = inv_push_43600_data(indio_dev, dptr);
 			if (res)
@@ -555,9 +565,62 @@ irqreturn_t inv_read_fifo(int irq, void *p)
 			goto err_reset_fifo;
 	}
 
+#if 1
 	result = inv_process_43600_data(indio_dev);
 	if (result)
 		goto err_reset_fifo;
+#else
+{
+	#if 0
+	u8 data[6];
+
+	result = inv_plat_read(st, REG_ACCEL_DATA_X0_UI, 6, data);
+	if (result)
+		goto err_reset_fifo;
+	pr_info("acc 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+	data[0], data[1], data[2], data[3], data[4], data[5]);
+	
+	result = inv_plat_read(st, REG_GYRO_DATA_X0_UI, 6, data);
+	if (result)
+		goto err_reset_fifo;
+	pr_info("gyro 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+	data[0], data[1], data[2], data[3], data[4], data[5]);
+	#endif
+	#if 0
+	u8 v;
+
+	result = inv_plat_read(st, REG_WHO_AM_I, 1, &v);
+	if (result)
+		return result;
+	
+	pr_info("whoami = %x\n", v);
+	#endif
+	#if 0
+	u8 data[6];
+	
+	//reg = REG_ACCEL_DATA_X0_UI;
+     	//reg = REG_GYRO_DATA_X0_UI;
+     	result = inv_plat_read(st, REG_ACCEL_DATA_X0_UI, 2, data);
+     	result = inv_plat_read(st, REG_ACCEL_DATA_X0_UI+2, 2, &data[2]);
+     	result = inv_plat_read(st, REG_ACCEL_DATA_X0_UI+4, 2, &data[4]);
+	//if (result)
+	//	goto err_reset_fifo;
+	pr_info("acc 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+	data[0], data[1], data[2], data[3], data[4], data[5]);
+	
+	result = inv_plat_read(st, REG_GYRO_DATA_X0_UI, 2, data);
+        result = inv_plat_read(st, REG_GYRO_DATA_X0_UI+2, 2, &data[2]);
+        result = inv_plat_read(st, REG_GYRO_DATA_X0_UI+4, 2, &data[4]);
+        
+	//if (result)
+	//	goto err_reset_fifo;
+	pr_info("gyro 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+	data[0], data[1], data[2], data[3], data[4], data[5]);
+	#endif
+	
+}
+#endif
+
 	mutex_unlock(&st->lock);
 
 	if (st->wake_sensor_received)
@@ -609,3 +672,143 @@ int inv_flush_batch_data(struct iio_dev *indio_dev, int data)
 
 	return 0;
 }
+
+#ifdef SENSOR_DATA_FROM_REGISTERS
+static int inv_process_43600_data_sensor_register(struct iio_dev *indio_dev)
+{
+	struct inv_mpu_state *st = iio_priv(indio_dev);
+	int res;
+	u8 d[6];
+	s16 acc_lsb[3] = { 0, 0, 0 };
+	s16 gyr_lsb[3] = { 0, 0, 0 };
+	s32 acc[3], gyr[3];
+	bool valid_acc = false;
+	bool valid_gyr = false;
+	long long current_time;
+
+	current_time = get_time_ns();
+
+	if (st->sensor[SENSOR_ACCEL].on) {
+		#if 0
+		res = inv_plat_read(st, REG_ACCEL_DATA_X0_UI, 6, d);
+		if (res)
+			return res;
+		#else // workaround to avoid sunplus spi mutiple read issue, read 2 byte each spi read
+		res = inv_plat_read(st, REG_ACCEL_DATA_X0_UI, 2, &d[0]);
+		res = inv_plat_read(st, REG_ACCEL_DATA_X0_UI+2, 2, &d[2]);
+		res = inv_plat_read(st, REG_ACCEL_DATA_X0_UI+4, 2, &d[4]);
+		#endif
+
+		acc_lsb[0] = (s16)be16_to_cpup((__be16 *) (&d[0]));
+		acc_lsb[1] = (s16)be16_to_cpup((__be16 *) (&d[2]));
+		acc_lsb[2] = (s16)be16_to_cpup((__be16 *) (&d[4]));
+		valid_acc = inv_validate_fifo_data(acc_lsb);
+
+		acc[0] = acc_lsb[0];
+		acc[1] = acc_lsb[1];
+		acc[2] = acc_lsb[2];
+
+		st->accel_raw[0] = acc[0];
+		st->accel_raw[1] = acc[1];
+		st->accel_raw[2] = acc[2];
+	
+		if (st->sensor[SENSOR_ACCEL].ts > current_time)
+			st->sensor[SENSOR_ACCEL].ts = current_time;
+		if (st->sensor[SENSOR_ACCEL].ts <= st->sensor[SENSOR_ACCEL].previous_ts)
+			st->sensor[SENSOR_ACCEL].ts = current_time;
+		st->sensor[SENSOR_ACCEL].previous_ts = st->sensor[SENSOR_ACCEL].ts;
+		
+		/* send accel data */
+		if (valid_acc)
+			inv_push_sensor(indio_dev, SENSOR_ACCEL, st->sensor[SENSOR_ACCEL].ts, acc);
+	}
+
+	if (st->sensor[SENSOR_GYRO].on) {
+		#if 0
+		res = inv_plat_read(st, REG_GYRO_DATA_X0_UI, 6, d);
+		if (res)
+			return res;
+		#else // workaround to avoid sunplus spi mutiple read issue, read 2 byte each spi read
+		res = inv_plat_read(st, REG_GYRO_DATA_X0_UI, 2, &d[0]);
+		res = inv_plat_read(st, REG_GYRO_DATA_X0_UI+2, 2, &d[2]);
+		res = inv_plat_read(st, REG_GYRO_DATA_X0_UI+4, 2, &d[4]);
+		#endif
+
+		gyr_lsb[0] = (s16)be16_to_cpup((__be16 *) (&d[0]));
+		gyr_lsb[1] = (s16)be16_to_cpup((__be16 *) (&d[2]));
+		gyr_lsb[2] = (s16)be16_to_cpup((__be16 *) (&d[4]));
+		valid_gyr = inv_validate_fifo_data(gyr_lsb);
+
+		gyr[0] = gyr_lsb[0];
+		gyr[1] = gyr_lsb[1];
+		gyr[2] = gyr_lsb[2];
+
+		st->gyro_raw[0] = gyr[0];
+		st->gyro_raw[1] = gyr[1];
+		st->gyro_raw[2] = gyr[2];
+
+		if (st->sensor[SENSOR_GYRO].ts > current_time)
+			st->sensor[SENSOR_GYRO].ts = current_time;
+		if (st->sensor[SENSOR_GYRO].ts <= st->sensor[SENSOR_GYRO].previous_ts)
+			st->sensor[SENSOR_GYRO].ts = current_time;
+		st->sensor[SENSOR_GYRO].previous_ts = st->sensor[SENSOR_GYRO].ts;
+
+		/* send gyro data */
+		if (valid_gyr)
+			inv_push_sensor(indio_dev, SENSOR_GYRO, st->sensor[SENSOR_GYRO].ts, gyr);
+	}
+
+//pr_info("43600 data, ms %d\n", (int)(st->sensor[SENSOR_GYRO].ts/1000000));
+
+	return 0;
+}
+
+//int int_count = 0;
+irqreturn_t inv_pollfunc_store_time(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct inv_mpu_state *st = iio_priv(indio_dev);
+
+	//pf->timestamp = iio_get_time_ns();
+	pf->timestamp = get_time_ns();
+
+//int_count++;
+//pr_info("int, %d, ms %d, delta ms %d\n", int_count, (int)(pf->timestamp/1000000), (int)((pf->timestamp - st->sensor[SENSOR_ACCEL].ts)/1000000));
+	
+	st->sensor[SENSOR_ACCEL].ts = pf->timestamp;
+	st->sensor[SENSOR_GYRO].ts = pf->timestamp;
+
+	return IRQ_WAKE_THREAD;
+}
+
+irqreturn_t inv_read_sensor_register(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct inv_mpu_state *st = iio_priv(indio_dev);
+	int result;
+
+	result = wait_event_interruptible_timeout(st->wait_queue,
+					st->resume_state, msecs_to_jiffies(300));
+	if (result <= 0)
+		goto exit_handled;
+
+	mutex_lock(&st->lock);
+	st->wake_sensor_received = false;
+	result = inv_process_43600_data_sensor_register(indio_dev);
+	mutex_unlock(&st->lock);
+
+	if (st->wake_sensor_received)
+#ifdef CONFIG_HAS_WAKELOCK
+		wake_lock_timeout(&st->wake_lock, msecs_to_jiffies(200));
+#else
+		__pm_wakeup_event(st->wake_lock, 200); /* 200 msecs */
+#endif
+	goto exit_handled;
+
+exit_handled:
+	iio_trigger_notify_done(indio_dev->trig);
+	return IRQ_HANDLED;
+}
+#endif
