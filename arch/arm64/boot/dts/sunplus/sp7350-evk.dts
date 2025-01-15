@@ -18,10 +18,10 @@
 //#define IMX708_IN3
 //#define IMX708_IN4
 //#define IMX708_IN5
-//#define OV5640_IN2
-//#define OV5640_IN3
-//#define OV5640_IN4
-//#define OV5640_IN5
+#define OV5640_IN2
+#define OV5640_IN3
+#define OV5640_IN4
+#define OV5640_IN5
 //#define OV5647_IN2
 //#define OV5647_IN3
 //#define OV5647_IN4
@@ -56,7 +56,7 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	model = "Sunplus SP7350 DMB";
+	model = "Sunplus SP7350 EVK";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlycon loglevel=8 no_console_suspend ";
