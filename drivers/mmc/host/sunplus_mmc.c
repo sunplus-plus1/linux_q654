@@ -1172,9 +1172,15 @@ static void spmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mutex_unlock(&host->mrq_lock);
 		mmc_request_done(host->mmc, mrq);
 	} else {
-		if (data)
+		if (data) { 
 			spmmc_prepare_data(host, data);
-
+			if (data->error) { 
+				mutex_unlock(&host->mrq_lock);
+				mmc_request_done(host->mmc, mrq);
+				return;
+			}
+		}
+		
 		if (unlikely(host->dmapio_mode == SPMMC_PIO_MODE && data)) {
 			u32 value;
 			/* pio data transfer do not use interrupt */
@@ -1348,9 +1354,6 @@ static int spmmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		if (!cmd.error && !data.error) {
 			if (!memcmp(blk_pattern, blk_test, blksz))
 				candidate_dly |= (1 << smpl_dly);
-		} else {
-			spmmc_pr(DEBUG, "Tuning error: cmd.error:%d, data.error:%d\n",
-				cmd.error, data.error);
 		}
 	} while (smpl_dly++ <= SPMMC_MAX_TUNABLE_DLY);
 	host->tuning_info.enable_tuning = 1;

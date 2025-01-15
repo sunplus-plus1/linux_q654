@@ -158,6 +158,7 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 	struct elf32_phdr *phdr;
 	int i, ret = 0;
 	const u8 *elf_data = fw->data;
+	bool is_iomem = false;
 
 	ehdr = (struct elf32_hdr *)elf_data;
 	phdr = (struct elf32_phdr *)(elf_data + ehdr->e_phoff);
@@ -187,9 +188,9 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 
 		/* grab the kernel address for this device address */
 		if (da > local->bootaddr)
-			ptr = rproc_da_to_va(rproc, da, memsz, NULL);
+			ptr = rproc_da_to_va(rproc, da, memsz, &is_iomem);
 		else
-			ptr = rproc_da_to_va(rproc, local->bootaddr + (da & 0xFFFFF), memsz, NULL);
+			ptr = rproc_da_to_va(rproc, local->bootaddr + (da & 0xFFFFF), memsz, &is_iomem);
 		if (!ptr) {
 			dev_err(dev, "bad phdr da 0x%llx mem 0x%x\n", local->bootaddr, memsz);
 			ret = -EINVAL;
@@ -197,8 +198,12 @@ static int sp_rproc_load(struct rproc *rproc, const struct firmware *fw)
 		}
 
 		/* put the segment where the remote processor expects it */
-		if (phdr->p_filesz)
-			memcpy(ptr, elf_data + offset, phdr->p_filesz);
+		if (phdr->p_filesz){
+			if (is_iomem)
+				memcpy_toio((void __iomem *)ptr, elf_data + offset, phdr->p_filesz);
+			else
+				memcpy(ptr, elf_data + offset, phdr->p_filesz);
+			}
 	}
 	return ret;
 }
@@ -351,8 +356,10 @@ static int sp_parse_fw(struct rproc *rproc, const struct firmware *fw)
 			if (strstr(node->name, "cm4runaddr")) {
 				local->bootaddr = rmem->base;
 				mem->va = devm_ioremap(dev, rmem->base, rmem->size);
+				mem->is_iomem = true;
 			} else {
 				mem->va = devm_ioremap_wc(dev, rmem->base, rmem->size);
+				mem->is_iomem = true;
 			}
 			if (!mem->va)
 				return -ENOMEM;

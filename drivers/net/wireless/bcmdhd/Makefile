@@ -52,6 +52,7 @@ CONFIG_BCMDHD ?= m
 CONFIG_BCMDHD_PROPTXSTATUS := y
 CONFIG_DHD_USE_STATIC_BUF := y
 CONFIG_BCMDHD_STATIC_BUF_IN_DHD := y
+#CONFIG_BCMDHD_STATIC_BUF_IN_KERNEL := y
 #CONFIG_BCMDHD_ANDROID_VERSION := 12
 CONFIG_BCMDHD_AUTO_SELECT := y
 CONFIG_BCMDHD_DEBUG := y
@@ -77,18 +78,18 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
 	-DPKTPRIO_OVERRIDE                                                    \
 	-DKEEP_ALIVE -DPKT_FILTER_SUPPORT -DDHDTCPACK_SUPPRESS                \
 	-DDHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT -DOEM_ANDROID             \
-	-DMULTIPLE_SUPPLICANT -DTSQ_MULTIPLIER -DMFP -DDHD_8021X_DUMP         \
+	-DMULTIPLE_SUPPLICANT -DTSQ_MULTIPLIER=10 -DMFP -DDHD_8021X_DUMP      \
 	-DPOWERUP_MAX_RETRY=1 -DIFACE_HANG_FORCE_DEV_CLOSE -DWAIT_DEQUEUE     \
 	-DUSE_NEW_RSPEC_DEFS                                                  \
 	-DWL_EXT_IAPSTA -DWL_ESCAN -DCCODE_LIST -DSUSPEND_EVENT               \
 	-DKEY_INSTALL_CHECK                                                   \
 	-DENABLE_INSMOD_NO_FW_LOAD
 
-DHDOFILES = aiutils.o siutils.o sbutils.o                                 \
+DHDOFILES = aiutils.o siutils.o sbutils.o hndpmu.o hndjtag.o              \
 	bcmutils.o bcmwifi_channels.o bcmxtlv.o bcm_app_utils.o bcmstdlib_s.o \
 	dhd_linux.o dhd_linux_platdev.o dhd_linux_sched.o dhd_pno.o           \
 	dhd_common.o dhd_ip.o dhd_linux_wq.o dhd_custom_gpio.o                \
-	bcmevent.o hndpmu.o linux_osl.o wldev_common.o wl_android.o           \
+	bcmevent.o linux_osl.o wldev_common.o wl_android.o                    \
 	dhd_debug_linux.o dhd_debug.o dhd_mschdbg.o dhd_dbg_ring.o            \
 	hnd_pktq.o hnd_pktpool.o linux_pkt.o frag.o                           \
 	dhd_linux_exportfs.o dhd_linux_pktdump.o dhd_mschdbg.o linuxerrmap.o  \
@@ -114,14 +115,14 @@ ifneq ($(CONFIG_CFG80211),)
 #	DHDCFLAGS += -DCONFIG_6GHZ_BKPORT
 	DHDCFLAGS += -DWL_IFACE_COMB_NUM_CHANNELS
 	DHDCFLAGS += -DCUSTOM_PNO_EVENT_LOCK_xTIME=10
-	DHDCFLAGS += -DWL_SUPPORT_AUTO_CHANNEL
 	DHDCFLAGS += -DWL_SUPPORT_BACKPORTED_KPATCHES
 	DHDCFLAGS += -DESCAN_RESULT_PATCH -DESCAN_BUF_OVERFLOW_MGMT
 	DHDCFLAGS += -DVSDB -DWL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST
 	DHDCFLAGS += -DWLTDLS -DMIRACAST_AMPDU_SIZE=8
 #	DHDCFLAGS += -DHOSTAPD_BW_SUPPORT
 	DHDCFLAGS += -DWL_VIRTUAL_APSTA -DSOFTAP_UAPSD_OFF #-DSTA_MGMT
-	DHDCFLAGS += -DWL_SOFTAP_ACS #-DACS_MONITOR
+	DHDCFLAGS += -DWL_SUPPORT_AUTO_CHANNEL -DWL_SOFTAP_ACS #-DACS_MONITOR
+#	DHDCFLAGS += -DDHD_DFS_MASTER
 	DHDCFLAGS += -DNUM_SCB_MAX_PROBE=3
 	DHDCFLAGS += -DWL_SCB_TIMEOUT=10
 #	DHDCFLAGS += -DWL_BEACON_RATE
@@ -184,6 +185,7 @@ BUS_TYPE := pcie
 	DHDCFLAGS += -DINSMOD_FW_LOAD
 	DHDCFLAGS += -DCONFIG_HAS_WAKELOCK #-DDHD_DEBUG_WAKE_LOCK
 	DHDCFLAGS += -DDHD_PACKET_TIMEOUT_MS=50 -DMAX_TX_TIMEOUT=50
+#	DHDCFLAGS += -DRMMOD_POWER_DOWN_LATER -DPCIE_ATU_FIXUP
 ifeq ($(CONFIG_BCMDHD),y)
 	DHDCFLAGS += -DWAKEUP_KSOFTIRQD_POST_NAPI_SCHEDULE
 endif
@@ -224,7 +226,6 @@ endif
 ifeq ($(CONFIG_BCMDHD_MULTIPLE_DRIVER),y)
 	DHDCFLAGS += -DBCMDHD_MDRIVER
 ifneq ($(CONFIG_BCMDHD_ADAPTER_INDEX),)
-	CONFIG_BCMDHD_STATIC_BUF_IN_DHD := y
 	MODULE_NAME := dhd$(BUS_TYPE)_$(CONFIG_BCMDHD_ADAPTER_INDEX)
 	DHDCFLAGS += -DADAPTER_IDX=$(CONFIG_BCMDHD_ADAPTER_INDEX)
 	DHDCFLAGS += -DBUS_TYPE=\"-$(BUS_TYPE)-$(CONFIG_BCMDHD_ADAPTER_INDEX)\"
@@ -461,10 +462,10 @@ ifeq ($(CONFIG_BCMDHD_FW_SIGNATURE),y)
 endif
 
 ifeq ($(CONFIG_DHD_USE_STATIC_BUF),y)
-ifeq  ($(CONFIG_BCMDHD_STATIC_BUF_IN_DHD),y)
+ifeq ($(CONFIG_BCMDHD_STATIC_BUF_IN_DHD),y)
 	DHDOFILES += dhd_static_buf.o
 	DHDCFLAGS += -DDHD_STATIC_IN_DRIVER
-else
+else ifneq ($(CONFIG_BCMDHD_STATIC_BUF_IN_KERNEL),y)
 	obj-m += dhd_static_buf.o
 endif
 	DHDCFLAGS += -DSTATIC_WL_PRIV_STRUCT -DENHANCED_STATIC_BUF

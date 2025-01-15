@@ -294,14 +294,14 @@
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <800000>;
 	};
-	
+
 	gdc_video_isp_iso: gdc_video_isp_iso@f880125c {
 		compatible = "sunplus,sp7350-regulator-iso";
 		reg = <0x00 0xf880125c 0x00 0x4>;
 		regulator-name = "sp7350-iso";
 		sunplus,iso-selector = <SP7350_ISO_VIDEO>;
 	};
-	
+
 #ifdef ENABLE_DMATX1
 	uartdmatx1: serial@sp_uartdmatx1 {
 		compatible = "sunplus,sp7350-uart";
@@ -1176,7 +1176,7 @@
 		reg = <0x0 0xf815a000 0x0 0x2E8>, <0x0 0xf815b000 0x0 0x33c>, <0x0 0xf815c000 0x0 0x4fc>;
 		reg-names = "nic_main", "nic_pai", "nic_paii";
 	};
-	
+
 	mmc1: mmc@f8003e80 {
 		compatible = "sunplus,sp7350-sd";
 		reg = <0x0 0xf8003e80 0x0 0x180>;
@@ -1257,7 +1257,7 @@
 		phy-names = "uphy";
 	};
 
-	extcon_dwc3drd: extcon_usb3 {
+	extcon_dwc3drd: extcon_usb3@f8004a80 {
 		compatible = "linux,extcon-usb-gpio";
 		reg = <0x0 0xf8004a80 0x0 0x80>;
 		clocks = <&clkc UPHY0>;
@@ -1306,6 +1306,8 @@
 		compatible = "sunplus,audio";
 		reg = <0x00 0xf8800480 0x00 0x700>;
 		reg-names = "audio";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc AUD>;
 		clock-names = "aud";
 		resets = <&rstc RST_AUD>;

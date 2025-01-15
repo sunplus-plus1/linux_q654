@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/version.h>
 #include "vsi-v4l2-priv.h"
+#include "vsi-dma-priv.h"
 
 static int vsi_dec_querycap(
 	struct file *file,
@@ -145,6 +146,13 @@ static int vsi_dec_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 	if (mutex_lock_interruptible(&ctx->ctxlock))
 		return -EBUSY;
+
+	if(f->fmt.raw_data[0] == 0xf1){
+		ctx->dma_remap = f->fmt.raw_data[1];
+		mutex_unlock(&ctx->ctxlock);
+		return 0;
+	}
+
 	ret = vsiv4l2_setfmt(ctx, f);
 
 	if (V4L2_TYPE_IS_OUTPUT(f->type) && !test_bit(CTX_FLAG_SRCCHANGED_BIT, &ctx->flag)) {
@@ -796,6 +804,13 @@ static void vsi_dec_buf_queue(struct vb2_buffer *vb)
 
 static int vsi_dec_buf_init(struct vb2_buffer *vb)
 {
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct vsi_v4l2_ctx *ctx = fh_to_ctx(vq->drv_priv);
+	struct vb2_dc_buf *dc_buf;
+
+	dc_buf = vb->planes[0].mem_priv;
+	dc_buf->remap = ctx->dma_remap;
+
 	return 0;
 }
 
