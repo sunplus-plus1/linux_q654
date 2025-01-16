@@ -394,11 +394,6 @@ static int enc_memalloc_release(struct inode *inode, struct file *filp)
     }
     *((int *)filp->private_data) = ID_UNUSED;
 
-    for (i = 0; i < MAX_OPEN; i++)
-    {
-        eid[i] = ID_UNUSED;
-    }
-
     return 0;
 }
 
