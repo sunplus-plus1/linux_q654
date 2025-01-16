@@ -813,7 +813,7 @@
 };
 
 &mmc0 {
-	max-frequency = <200000000>;
+	max-frequency = <160000000>;
 	#mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	#mmc-hs400-1_8v;
@@ -1036,7 +1036,7 @@
 	emmc_pins: pinmux_emmc-pins {
 		function = "EMMC";
 		groups = "EMMC";
-		drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_22700_IOL_27900UA>;	// DS=7 for HS200
+		drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_17700_IOL_21800UA>;	// DS=5for HS200
 		//drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_30300_IOL_37200UA>;	// DS=10 for HS400
 	};
 

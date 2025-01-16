@@ -987,9 +987,15 @@ static void spsdc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		mutex_unlock(&host->mrq_lock);
 		mmc_request_done(host->mmc, mrq);
 	} else {
-		if (data)
+		if (data) {
 			spsdc_prepare_data(host, data);
-
+			if (data->error) { 
+				mutex_unlock(&host->mrq_lock);
+				mmc_request_done(host->mmc, mrq);
+				return;
+			}
+		}
+		
 		if (unlikely(host->dmapio_mode == SPSDC_PIO_MODE && data)) {
 			u32 value;
 			/* pio data transfer do not use interrupt */

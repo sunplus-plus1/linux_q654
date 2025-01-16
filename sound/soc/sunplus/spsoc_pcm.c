@@ -52,15 +52,14 @@ static irqreturn_t aud_fifo_int(int irq, void *dev)
 
 	/* clear interrupt flag */
 	value = readl(&regs0->G019_RESERVED[8]);
-	pr_debug("int 0x%x msk 0x%x\n",value, regs0->G019_RESERVED[10]);
 	if (value & prtd->irq_num) {
 	//if (regs0->G019_RESERVED[8] & prtd->irq_num) {
 		prtd->irq_done = 1;
 		value = readl(&regs0->G019_RESERVED[10]) | prtd->irq_num;
 		writel(value, &regs0->G019_RESERVED[10]);
-		//regs0->G019_RESERVED[10] |= prtd->irq_num;
 
 		tasklet_hi_schedule(&prtd->tasklet);
+		pr_debug("int 0x%x msk 0x%x\n",value, prtd->irq_num);
 	}
 
 	return IRQ_HANDLED;
@@ -72,8 +71,6 @@ void run_start(int ch, int run_length, struct spsoc_runtime_data *pprtd)
 	volatile register_audio *regs0 = (volatile register_audio *)pcmaudio_base;
 	u32 value;
 
-	//printk("ch 0x%x, val 0x%x 0x%x\n", ch, run_length, iprtd->period);
-	//spin_lock(&set_lock);
 	writel(run_length, &regs0->aud_delta_0);
 	value = readl(&regs0->aud_inc_0);
 	writel(value | ch, &regs0->aud_inc_0);
@@ -83,28 +80,89 @@ void run_start(int ch, int run_length, struct spsoc_runtime_data *pprtd)
 	if (pprtd->irq_done) {
 		switch (ch) {
 		case I2S_P_INC0:
+		case TDM_P_INC0:
 			value = run_length > 512 ? 40 : run_length / 40;
 			temp_val = value | (readl(&regs0->G019_RESERVED[0]) & 0xffff0000);
 			writel(temp_val, &regs0->G019_RESERVED[0]);
-			pr_debug("0 [0] 0x%x\n", temp_val);
+			pr_debug("a0 [0] 0x%x\n", temp_val);
+			break;
+		case I2S_P_INC1:
+			value = run_length > 512 ? 40 : run_length / 40;
+			temp_val = value | (readl(&regs0->G019_RESERVED[3]) & 0xffff0000);
+			writel(temp_val, &regs0->G019_RESERVED[3]);
+			pr_debug("a6 [3] 0x%x\n", temp_val);
+			break;
+		case I2S_P_INC2:
+			value = (run_length > 512 ? 40 : run_length / 40) << 16;
+			temp_val = value | (readl(&regs0->G019_RESERVED[14]) & 0x0000ffff);
+			writel(temp_val, &regs0->G019_RESERVED[14]);
+			pr_debug("a19 [14] 0x%x\n", temp_val);
+			break;
+		case SPDIF_P_INC0:
+			value = (run_length > 512 ? 40 : run_length / 40) << 16;
+			temp_val = value | (readl(&regs0->G019_RESERVED[2]) & 0x0000ffff);
+			writel(temp_val, &regs0->G019_RESERVED[2]);
+			pr_debug("a5 [2] 0x%x\n", temp_val);
 			break;
 		case I2S_C_INC0:
-			if (regs0->aud_a11_cnt <= pprtd->period) {
+			if (regs0->aud_a11_cnt <= pprtd->period)
 				temp_val = (pprtd->period / 4) |
 					   (readl(&regs0->G019_RESERVED[5]) & 0xffff0000);
-				//regs0->G019_RESERVED[5] |= pprtd->period / 4;
-			} else {
+			else
 				temp_val = (run_length / 4) |
 					   (readl(&regs0->G019_RESERVED[5]) & 0xffff0000);
-				//regs0->G019_RESERVED[5] |= run_length / 4;
-			}
+
 			writel(temp_val, &regs0->G019_RESERVED[5]);
 			pr_debug("0 a11_cnt 0x%x [5] 0x%x\n", regs0->aud_a11_cnt, temp_val);
+			break;
+		case I2S_C_INC1:
+			if (regs0->aud_a16_cnt <= pprtd->period)
+				temp_val = (pprtd->period << 14) |
+					   (readl(&regs0->G019_RESERVED[7]) & 0x0000ffff);
+			else
+				temp_val = (run_length << 14) |
+					   (readl(&regs0->G019_RESERVED[7]) & 0x0000ffff);
+
+			writel(temp_val, &regs0->G019_RESERVED[7]);
+			pr_debug("0 a16_cnt 0x%x [7] 0x%x\n", regs0->aud_a16_cnt, temp_val);
+			break;
+		case I2S_C_INC2:
+			if (regs0->aud_a10_cnt <= pprtd->period)
+				temp_val = (pprtd->period << 14) |
+					   (readl(&regs0->G019_RESERVED[4]) & 0x0000ffff);
+			else
+				temp_val = (run_length << 14) |
+					   (readl(&regs0->G019_RESERVED[4]) & 0x0000ffff);
+
+			writel(temp_val, &regs0->G019_RESERVED[4]);
+			pr_debug("0 a10_cnt 0x%x [4] 0x%x\n", regs0->aud_a10_cnt, temp_val);
+			break;
+		case TDMPDM_C_INC0:
+			if (regs0->aud_a22_cnt <= pprtd->period)
+				temp_val = (pprtd->period >> 2) |
+					   (readl(&regs0->G019_RESERVED[16]) & 0xffff0000);
+			else
+				temp_val = (run_length >> 2) |
+					   (readl(&regs0->G019_RESERVED[16]) & 0xffff0000);
+
+			writel(temp_val, &regs0->G019_RESERVED[16]);
+			pr_debug("0 a22_cnt 0x%x [16] 0x%x\n", regs0->aud_a22_cnt, temp_val);
+			break;
+		case SPDIF_C_INC0:
+			if (regs0->aud_a13_cnt <= pprtd->period)
+				temp_val = (pprtd->period << 14) |
+					   (readl(&regs0->G019_RESERVED[6]) & 0x0000ffff);
+			else
+				temp_val = (run_length << 14) |
+					   (readl(&regs0->G019_RESERVED[6]) & 0x0000ffff);
+
+			writel(temp_val, &regs0->G019_RESERVED[6]);
+			pr_debug("0 a13_cnt 0x%x [6] 0x%x\n", regs0->aud_a13_cnt, temp_val);
 			break;
 		default:
 			break;
 		}
-		//regs0->G019_RESERVED[8] = pprtd->irq_num;
+
 		writel(pprtd->irq_num, &regs0->G019_RESERVED[8]);
 		value = 0;
 		do {
@@ -116,11 +174,10 @@ void run_start(int ch, int run_length, struct spsoc_runtime_data *pprtd)
 			pprtd->irq_done = 0;
 			temp_val = readl(&regs0->G019_RESERVED[10]) & (~pprtd->irq_num);
 			writel(temp_val, &regs0->G019_RESERVED[10]);
-			//regs0->G019_RESERVED[10] &= ~pprtd->irq_num;
 		} else {
+			tasklet_hi_schedule(&pprtd->tasklet);
 			pr_debug("@@@@@ no op int [8] 0x%x, 0x%x @@@@@\n", regs0->G019_RESERVED[8],
 				 temp_val);
-			tasklet_hi_schedule(&pprtd->tasklet);
 		}
 
 		pr_debug("1 [8] 0x%x [10] 0x%x\n", regs0->G019_RESERVED[8], regs0->G019_RESERVED[10]);
@@ -143,99 +200,78 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 	if (!atomic_read(&iprtd->running))
 		return;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (substream->pcm->device == SP_SPDIF)
-			iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_1)
-			iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_2)
-			iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
-		else
-			iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
+	if (iprtd->usemmap_flag == 1) {
+		spin_lock_irqsave(&set_lock, flags);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (substream->pcm->device == SP_SPDIF)
+				iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1)
+				iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2)
+				iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
+			else
+				iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
 
-		pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
-		if (iprtd->offset < iprtd->fifosize_from_user) {
-			if (iprtd->usemmap_flag == 1) {
-				spin_lock_irqsave(&set_lock, flags);
+			pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
+			if (iprtd->offset < iprtd->fifosize_from_user) {
 				if (substream->pcm->device == SP_I2S_0) {
 					pr_debug("regs0->aud_a0_cnt 0x%x\n", regs0->aud_a0_cnt);
 					while (regs0->aud_a0_cnt != 0 && tout < iprtd->timeoutcount) {
-						udelay(1);
+						fsleep(1);
 						tout++;
-						//schedule_timeout_interruptible(5);
 					}
 					run_start(I2S_P_INC0, iprtd->period, iprtd);
-					pr_debug("regs0->aud_a0_cnt 0x%x tout %d\n", regs0->aud_a0_cnt, tout);
+					//pr_debug("regs0->aud_a0_cnt 0x%x tout %d\n",
+					//	 regs0->aud_a0_cnt, tout);
 					iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_I2S_1) {
 					while (regs0->aud_a6_cnt != 0 && tout < iprtd->timeoutcount) {
-						udelay(1);
+						fsleep(1);
 						tout++;
 					}
 					run_start(I2S_P_INC1, iprtd->period, iprtd);
 					iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_I2S_2) {
 					while (regs0->aud_a19_cnt != 0 && tout < iprtd->timeoutcount) {
-						udelay(1);
+						fsleep(1);
 						tout++;
 					}
 					run_start(I2S_P_INC2, iprtd->period, iprtd);
 					iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_TDM) {
 					while (regs0->aud_a0_cnt != 0 && tout < iprtd->timeoutcount) {
-						udelay(1);
+						fsleep(1);
 						tout++;
 					}
 					run_start(TDM_P_INC0, iprtd->period, iprtd);
 					iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
 				} else if (substream->pcm->device == SP_SPDIF) {
-//pr_debug("***%s IN, aud_a5_ptr=0x%x, dma_area=0x%x, pos=0x%lx count_bytes 0x%x\n", __func__,
-//	   regs0->aud_a5_ptr, hwbuf, pos, count_bytes);
 					while (regs0->aud_a5_cnt != 0 && tout < iprtd->timeoutcount) {
-						udelay(1);
+						fsleep(1);
 						tout++;
 					}
 					run_start(SPDIF_P_INC0, iprtd->period, iprtd);
 					iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
 				}
-				spin_unlock_irqrestore(&set_lock, flags);
+
 				if (tout >= iprtd->timeoutcount)
 					pr_err("XXX hrtimer_pcm_tasklet TIMEOUT\n");
-			} else {
-				if ((iprtd->offset % iprtd->period) != 0) {
-					appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
-						   iprtd->period;
-					if (appl_ofs < iprtd->periods)
-						iprtd->offset = iprtd->period * appl_ofs;
-					else
-						iprtd->offset = 0; //iprtd->period * appl_ofs;
-				}
 			}
-		}
-		// If we've transferred at least a period then report it and reset our poll time
+		} else {
+			if (substream->pcm->device == SP_I2S_0) // i2s //need to check
+				iprtd->offset = regs0->aud_a11_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1) // i2s
+				iprtd->offset = regs0->aud_a16_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2) // i2s
+				iprtd->offset = regs0->aud_a10_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_SPDIF) // spdif0
+				iprtd->offset = regs0->aud_a13_ptr & 0xfffffc;
+			else // tdm, pdm
+				iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
 
-		//if (delta >= iprtd->period )  //ending normal
-		//{
-			//pr_debug("a0_ptr=0x%08x\n",iprtd->offset);
-		iprtd->last_offset = iprtd->offset;
-		snd_pcm_period_elapsed(substream);
-		//}
-	} else {
-		if (substream->pcm->device == SP_I2S_0) // i2s //need to check
-			iprtd->offset = regs0->aud_a11_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_1) // i2s
-			iprtd->offset = regs0->aud_a16_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_I2S_2) // i2s
-			iprtd->offset = regs0->aud_a10_ptr & 0xfffffc;
-		else if (substream->pcm->device == SP_SPDIF) // spdif0
-			iprtd->offset = regs0->aud_a13_ptr & 0xfffffc;
-		else // tdm, pdm
-			iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
+			pr_debug("C:?_ptr=0x%x - 0x%x cnt_a11 0x%x ", iprtd->offset, iprtd->last_offset,
+				 regs0->aud_a11_cnt);
 
-		pr_debug("C:?_ptr=0x%x - 0x%x cnt_a11 0x%x ", iprtd->offset, iprtd->last_offset,
-			 regs0->aud_a11_cnt);
-		if (iprtd->usemmap_flag == 1) {
-			spin_lock_irqsave(&set_lock, flags);
 			if (iprtd->offset >= iprtd->last_offset)
 				delta = iprtd->offset - iprtd->last_offset;
 			else
@@ -254,18 +290,56 @@ static void hrtimer_pcm_tasklet(unsigned long priv)
 					run_start(TDMPDM_C_INC0, delta, iprtd);
 				pr_debug("C? inc 0x%x\n", delta);
 			}
-			spin_unlock_irqrestore(&set_lock, flags);
+		}
+		iprtd->last_offset = iprtd->offset;
+		snd_pcm_period_elapsed(substream);
+		spin_unlock_irqrestore(&set_lock, flags);
+	} else {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			if (substream->pcm->device == SP_SPDIF)
+				iprtd->offset = regs0->aud_a5_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1)
+				iprtd->offset = regs0->aud_a6_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2)
+				iprtd->offset = regs0->aud_a19_ptr & 0xfffffc;
+			else
+				iprtd->offset = regs0->aud_a0_ptr & 0xfffffc;
+			pr_debug("P:?_ptr=0x%x\n", iprtd->offset);
+#if (!MMAP_IRQ)
+			if (iprtd->offset < iprtd->fifosize_from_user) {
+				if ((iprtd->offset % iprtd->period) != 0) {
+					appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
+						   iprtd->period;
+					if (appl_ofs < iprtd->periods)
+						iprtd->offset = iprtd->period * appl_ofs;
+					else
+						iprtd->offset = 0; //iprtd->period * appl_ofs;
+				}
+			}
+#endif
+		} else {
+			if (substream->pcm->device == SP_I2S_0) // i2s //need to check
+				iprtd->offset = regs0->aud_a11_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_1) // i2s
+				iprtd->offset = regs0->aud_a16_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_I2S_2) // i2s
+				iprtd->offset = regs0->aud_a10_ptr & 0xfffffc;
+			else if (substream->pcm->device == SP_SPDIF) // spdif0
+				iprtd->offset = regs0->aud_a13_ptr & 0xfffffc;
+			else // tdm, pdm
+				iprtd->offset = regs0->aud_a22_ptr & 0xfffffc;
+
+			pr_debug("C:?_ptr=0x%x - 0x%x cnt_a11 0x%x ", iprtd->offset, iprtd->last_offset,
+				 regs0->aud_a11_cnt);
 		}
 #if (MMAP_IRQ)
-		else {
-			if ((iprtd->offset % iprtd->period) != 0) {
-				appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
-					   iprtd->period;
-				if (appl_ofs < iprtd->periods)
-					iprtd->offset = iprtd->period * appl_ofs;
-				else
-					iprtd->offset = 0; //iprtd->period * appl_ofs;
-			}
+		if ((iprtd->offset % iprtd->period) != 0) {
+			appl_ofs = (iprtd->offset + (iprtd->period >> 2)) /
+				   iprtd->period;
+			if (appl_ofs < iprtd->periods)
+				iprtd->offset = iprtd->period * appl_ofs;
+			else
+				iprtd->offset = 0; //iprtd->period * appl_ofs;
 		}
 #endif
 		iprtd->last_offset = iprtd->offset;
@@ -923,21 +997,25 @@ static int spsoc_pcm_prepare(struct snd_soc_component *component,
 				tout++;
 			break;
 		case SP_I2S_1:
+			iprtd->irq_num = 0x1 << 6;
 			regs0->aud_fifo_reset |= I2S_P_INC1;
 			while ((regs0->aud_fifo_reset & I2S_P_INC1) != 0 && tout < chktimeout)
 				tout++;
 			break;
 		case SP_I2S_2:
+			iprtd->irq_num = 0x1 << 17;
 			regs0->aud_fifo_reset |= I2S_P_INC2;
 			while ((regs0->aud_fifo_reset & I2S_P_INC2) != 0 && tout < chktimeout)
 				tout++;
 			break;
 		case SP_SPDIF:
+			iprtd->irq_num = 0x1 << 5;
 			regs0->aud_fifo_reset |= SPDIF_P_INC0;
 			while ((regs0->aud_fifo_reset & SPDIF_P_INC0) != 0 && tout < chktimeout)
 				tout++;
 			break;
 		case SP_TDM:
+			iprtd->irq_num = 0x1 << 0;
 			break;
 		default:
 			pr_err("###Wrong device no.\n");
@@ -953,18 +1031,22 @@ static int spsoc_pcm_prepare(struct snd_soc_component *component,
 				tout++;
 			break;
 		case SP_I2S_1:
+			iprtd->irq_num = 0x1 << 14;
 			regs0->aud_fifo_reset |= I2S_C_INC1;
 			while ((regs0->aud_fifo_reset & I2S_C_INC1) != 0 && tout < chktimeout)
 				tout++;
 			break;
 		case SP_I2S_2:
+			iprtd->irq_num = 0x1 << 9;
 			regs0->aud_fifo_reset |= I2S_C_INC2;
 			while ((regs0->aud_fifo_reset & I2S_C_INC2) != 0 && tout < chktimeout)
 				tout++;
 			break;
 		case SP_TDM:
+			iprtd->irq_num = 0x1 << 20;
 			break;
 		case SP_SPDIF:
+			iprtd->irq_num = 0x1 << 12;
 			regs0->aud_fifo_reset |= SPDIF_C_INC0;
 			while ((regs0->aud_fifo_reset & SPDIF_C_INC0) != 0 && tout < chktimeout)
 				tout++;
@@ -1056,9 +1138,21 @@ static int spsoc_pcm_trigger(struct snd_soc_component *component,
 			if (substream->pcm->device == SP_I2S_0) {
 				regs0->G019_RESERVED[5] &= 0xffff0000;
 				regs0->G019_RESERVED[5] |= prtd->period / 4;
-				regs0->G019_RESERVED[8] = prtd->irq_num;
-				regs0->G019_RESERVED[10] &= ~prtd->irq_num;
+			} else if (substream->pcm->device == SP_I2S_1) {
+				regs0->G019_RESERVED[7] &= 0x0000ffff;
+				regs0->G019_RESERVED[7] |= prtd->period << 14;
+			} else if (substream->pcm->device == SP_I2S_2) {
+				regs0->G019_RESERVED[4] &= 0x0000ffff;
+				regs0->G019_RESERVED[4] |= prtd->period << 14;
+			} else if (substream->pcm->device == SP_TDM) {
+				regs0->G019_RESERVED[16] &= 0xffff0000;
+				regs0->G019_RESERVED[16] |= prtd->period / 4;
+			} else if (substream->pcm->device == SP_SPDIF) {
+				regs0->G019_RESERVED[6] &= 0x0000ffff;
+				regs0->G019_RESERVED[6] |= prtd->period << 14;
 			}
+			regs0->G019_RESERVED[8] |= prtd->irq_num;
+			regs0->G019_RESERVED[10] &= ~prtd->irq_num;
 			prtd->irq_done = 0;
 			pr_debug("2 [8] 0x%x [10] 0x%x\n", regs0->G019_RESERVED[8],
 				 regs0->G019_RESERVED[10]);
@@ -1096,7 +1190,6 @@ static int spsoc_pcm_trigger(struct snd_soc_component *component,
 			if (substream->pcm->device == SP_I2S_0) {
 				while ((regs0->aud_inc_0 & I2S_P_INC0) != 0 && tout < chktimeout)
 					tout++;
-				//regs0->aud_inc_0 = regs0->aud_inc_0&(~I2S_P_INC0);
 			} else if (substream->pcm->device == SP_I2S_1) {
 				while ((regs0->aud_inc_0 & I2S_P_INC1) != 0 && tout < chktimeout)
 					tout++;
@@ -1110,7 +1203,6 @@ static int spsoc_pcm_trigger(struct snd_soc_component *component,
 				while ((regs0->aud_inc_0 & SPDIF_P_INC0) != 0 && tout < chktimeout)
 					tout++;
 			}
-			//regs0->aud_inc_0 = regs0->aud_inc_0&(~SPDIF_P_INC0);
 		} else { //if( substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 			if (substream->pcm->device == SP_I2S_0) {
 				while ((regs0->aud_inc_0 & I2S_C_INC0) != 0 && tout < chktimeout)
@@ -1146,8 +1238,8 @@ static snd_pcm_uframes_t spsoc_pcm_pointer(struct snd_soc_component *component,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct spsoc_runtime_data *prtd = runtime->private_data;
 	snd_pcm_uframes_t offset;
+	volatile register_audio *regs0 = pcmaudio_base;
 
-#if (MMAP_IRQ)
 	if (prtd->usemmap_flag) {
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			if (substream->pcm->device == SP_SPDIF)
@@ -1173,9 +1265,9 @@ static snd_pcm_uframes_t spsoc_pcm_pointer(struct snd_soc_component *component,
 	} else
 		offset = prtd->offset;
 	offset = bytes_to_frames(runtime, offset);
-#else
-	offset = bytes_to_frames(runtime, prtd->offset);
-#endif
+//#else
+//	offset = bytes_to_frames(runtime, prtd->offset);
+//#endif
 
 	pr_debug("%s-offset=0x%lx\n", substream->stream ? "c" : "p", offset);
 	return offset;
@@ -1246,7 +1338,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					tout++;
 				tout = 0;
 				while (regs0->aud_a0_cnt != 0 && tout < prtd->timeoutcount) {
-					udelay(1);
+					fsleep(1);
 					tout++;
 				}
 				run_start(I2S_P_INC0, count_bytes, prtd);
@@ -1257,7 +1349,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					tout++;
 				tout = 0;
 				while (regs0->aud_a0_cnt != 0 && tout < prtd->timeoutcount) {
-					udelay(1);
+					fsleep(1);
 					tout++;
 				}
 				run_start(TDM_P_INC0, count_bytes, prtd);
@@ -1268,7 +1360,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					tout++;
 				tout = 0;
 				while (regs0->aud_a6_cnt != 0 && tout < prtd->timeoutcount) {
-					udelay(1);
+					fsleep(1);
 					tout++;
 				}
 				run_start(I2S_P_INC1, count_bytes, prtd);
@@ -1279,7 +1371,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					tout++;
 				tout = 0;
 				while (regs0->aud_a19_cnt != 0 && tout < prtd->timeoutcount) {
-					udelay(1);
+					fsleep(1);
 					tout++;
 				}
 				run_start(I2S_P_INC2, count_bytes, prtd);
@@ -1290,7 +1382,7 @@ static int spsoc_pcm_copy(struct snd_soc_component *component, struct snd_pcm_su
 					tout++;
 				tout = 0;
 				while (regs0->aud_a5_cnt != 0 && tout < prtd->timeoutcount) {
-					udelay(1);
+					fsleep(1);
 					tout++;
 				}
 				run_start(SPDIF_P_INC0, count_bytes, prtd);
