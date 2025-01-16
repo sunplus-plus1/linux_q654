@@ -68,6 +68,8 @@
 
 /* #define BIAS_CONFIDENCE_HIGH 1 */
 
+#define SENSOR_DATA_FROM_REGISTERS // use DRDY, read from register
+
 #define MAX_FIFO_READ_SIZE       128
 #define MAX_DMP_READ_SIZE        16
 
@@ -800,6 +802,10 @@ struct inv_mpu_state {
 	struct inv_ois ois;
 	bool sensor_acurracy_flag[SENSOR_ACCURACY_NUM_MAX];
 	short irq;
+	
+	s32 accel_raw[3];
+	s32 gyro_raw[3];
+	
 	int accel_bias[3];
 	int gyro_bias[3];
 	int accel_st_bias[3];
@@ -988,6 +994,14 @@ enum MPU_IIO_ATTR_ADDR {
 	ATTR_DEBUG_WRITE_CFG,
 	ATTR_DEBUG_REG_ADDR,
 	ATTR_WOM_THLD,
+	
+	ATTR_ACCEL_X_RAW,
+	ATTR_ACCEL_Y_RAW,
+	ATTR_ACCEL_Z_RAW,
+	ATTR_GYRO_X_RAW,
+	ATTR_GYRO_Y_RAW,
+	ATTR_GYRO_Z_RAW,
+	
 	/* *****above this line, are DMP features, power needs on/off */
 	/* *****below this line, are DMP features, no power needed */
 	ATTR_IN_POWER_ON,
@@ -1219,5 +1233,10 @@ int inv_write_offset_regs(struct inv_mpu_state *st,
 
 #define mem_w(a, b, c) mpu_memory_write(st, st->i2c_addr, a, b, c)
 #define mem_r(a, b, c) mpu_memory_read(st, st->i2c_addr, a, b, c)
+
+#ifdef SENSOR_DATA_FROM_REGISTERS
+irqreturn_t inv_pollfunc_store_time(int irq, void *p);
+irqreturn_t inv_read_sensor_register(int irq, void *p);
+#endif
 
 #endif /* #ifndef _INV_MPU_IIO_H_ */

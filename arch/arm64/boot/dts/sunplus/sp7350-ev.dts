@@ -23,6 +23,8 @@
 //#define OV5640_IN4
 //#define OV5647_IN1
 //#define OV5647_IN4
+//#define SP000_IN0
+//#define SP000_IN5
 //#define TP2815_IN0
 //#define TP2815_IN0_1LANE
 //#define TP2815_IN0_2VC
@@ -44,8 +46,6 @@
 //#define TP2815_IN5_2LANES
 //#define TP2815_IN5_2VC
 //#define TP2815_IN5_4VC
-//#define SP000_IN0
-//#define SP000_IN5
 
 //#define AP6256_WIFI
 //#define AP6256_BT

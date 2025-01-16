@@ -56,7 +56,15 @@ struct sp7350_plane_format {
 	u32 hw_format;
 };
 
-u32 sp7350_kms_vpp_formats[5] = {
+static const u64 sp7350_kms_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	//DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_32x8 |
+	//			AFBC_FORMAT_MOD_SPLIT |
+	//			AFBC_FORMAT_MOD_SPARSE),
+	DRM_FORMAT_MOD_INVALID,
+};
+
+static const u32 sp7350_kms_vpp_formats[5] = {
 	DRM_FORMAT_YUYV,  /* SP7350_VPP_IMGREAD_DATA_FMT_YUY2 */
 	DRM_FORMAT_UYVY,  /* SP7350_VPP_IMGREAD_DATA_FMT_UYVY */
 	DRM_FORMAT_NV12,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV12 */
@@ -64,7 +72,7 @@ u32 sp7350_kms_vpp_formats[5] = {
 	DRM_FORMAT_NV24,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV24 */
 };
 
-u32 sp7350_kms_osd_formats[8] = {
+static const u32 sp7350_kms_osd_formats[8] = {
 	DRM_FORMAT_C8,        /* SP7350_OSD_COLOR_MODE_8BPP ??? */
 	DRM_FORMAT_YUYV,      /* SP7350_OSD_COLOR_MODE_YUY2 */
 	DRM_FORMAT_RGB565,    /* SP7350_OSD_COLOR_MODE_RGB565 */
@@ -1910,7 +1918,7 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 	ret = drm_universal_plane_init(drm, plane, GENMASK(drm->mode_config.num_crtc, 0),
 					&sp7350_plane_funcs,
 				sp_plane->pixel_formats, sp_plane->num_pixel_formats,
-				NULL, type, NULL);
+				sp7350_kms_modifiers, type, NULL);
 	if (ret)
 		return ERR_PTR(ret);
 
