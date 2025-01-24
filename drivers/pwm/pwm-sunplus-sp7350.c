@@ -46,7 +46,7 @@ static int sunplus_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			     const struct pwm_state *state)
 {
 	struct sunplus_pwm *priv = to_sunplus_pwm(chip);
-	u32 dd_freq, duty, mode0, mode1, mode1_pol;
+	u32 dd_freq, duty, mode0, mode1;
 	u64 clk_rate;
 
 	/*
