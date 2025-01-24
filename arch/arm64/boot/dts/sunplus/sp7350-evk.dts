@@ -3186,10 +3186,6 @@
 		function = "GPIO";
 		pins = "GPIO79";
 	};
-	panel_ts_irq_pins: pinmux_panel_ts_irq-pins {
-		function = "GPIO";
-		pins = "GPIO88";
-	};
 
 };
 

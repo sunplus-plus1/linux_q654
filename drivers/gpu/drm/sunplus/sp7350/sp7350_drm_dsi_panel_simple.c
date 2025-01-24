@@ -23,9 +23,6 @@
 #include <drm/drm_print.h>
 #include <drm/drm_panel.h>
 
-#include <linux/of_gpio.h>
-#include <linux/of.h>
-
 /* always keep 0 */
 #define SP7350_DRM_TODO    0
 
@@ -510,7 +507,7 @@ static const struct sp7350_dsi_panel_desc gm_70p476ck_desc = {
 	.lanes = 4,
 	.format = MIPI_DSI_FMT_RGB888,
 	.mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
-		      MIPI_DSI_MODE_LPM,
+		      MIPI_DSI_MODE_LPM | BIT(15),
 	.init_cmds = gm_70p476ck_init_cmd,
 };
 
@@ -639,8 +636,6 @@ static int sp7350_panel_init_dcs_cmd(struct sp7350_panel_simple_dsi *sp_panel)
 	struct mipi_dsi_device *dsi = sp_panel->dsi;
 	int i, err = 0;
 
-	sp_panel->reset_gpio = of_get_named_gpio(sp_panel->base.dev->of_node, "reset-gpios", 0);
-
 	if (sp_panel->desc->init_cmds) {
 		const struct panel_init_cmd *init_cmds = sp_panel->desc->init_cmds;
 
@@ -714,6 +709,11 @@ static int sp7350_panel_simple_unprepare(struct drm_panel *panel)
 		msleep(20);
 	}
 
+	//if (sp_panel->reset_gpio) {
+	//	gpiod_set_value_cansleep(sp_panel->reset_gpio, 0);
+	//	msleep(20);
+	//}
+
 	regulator_disable(sp_panel->supply);
 
 	sp_panel->flags &= ~FLAG_PANEL_PREPARED;
@@ -740,6 +740,15 @@ static int sp7350_panel_simple_prepare(struct drm_panel *panel)
 		gpiod_set_value_cansleep(sp_panel->enable_gpio, 1);
 	}
 
+	//if (sp_panel->reset_gpio) {
+	//	gpiod_set_value_cansleep(sp_panel->reset_gpio, 1);
+	//	msleep(5);
+	//	gpiod_set_value_cansleep(sp_panel->reset_gpio, 0);
+	//	msleep(10);
+	//	gpiod_set_value_cansleep(sp_panel->reset_gpio, 1);
+	//	msleep(120);
+	//}
+
 	ret = sp7350_panel_init_dcs_cmd(sp_panel);
 	if (ret < 0) {
 		dev_err(panel->dev, "failed to init panel: %d\n", ret);
@@ -757,6 +766,11 @@ poweroff:
 		gpiod_set_value_cansleep(sp_panel->enable_gpio, 0);
 		msleep(20);
 	}
+
+	//if (sp_panel->reset_gpio) {
+	//	gpiod_set_value_cansleep(sp_panel->reset_gpio, 0);
+	//	msleep(20);
+	//}
 
 	return ret;
 }
@@ -879,6 +893,13 @@ static int sp7350_panel_simple_add(struct sp7350_panel_simple_dsi *sp_panel)
 	}
 	if (sp_panel->enable_gpio)
 		gpiod_set_value_cansleep(sp_panel->enable_gpio, 0);
+
+	//sp_panel->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	//if (IS_ERR(sp_panel->reset_gpio)) {
+	//	dev_err(dev, "cannot get reset-gpios %ld\n",
+	//		PTR_ERR(sp_panel->reset_gpio));
+	//	return PTR_ERR(sp_panel->reset_gpio);
+	//}
 
 	ddc = of_parse_phandle(dev->of_node, "ddc-i2c-bus", 0);
 	if (ddc) {
