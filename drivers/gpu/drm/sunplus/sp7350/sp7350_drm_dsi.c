@@ -597,6 +597,11 @@ static void sp7350_mipitx_clock_init(struct sp7350_dsi_host *sp_dsi_host)
 {
 	DRM_DEBUG_DRIVER("clock init");
 
+	DRM_DEBUG_DRIVER("lanes=%d flags=0x%08x format=%s\n",
+		sp_dsi_host->lanes,
+		sp_dsi_host->mode_flags,
+		sp7350_dsi_fmt[sp_dsi_host->format]);
+
 	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL9, 0x80000000); //init clock
 
 	/*
@@ -607,8 +612,13 @@ static void sp7350_mipitx_clock_init(struct sp7350_dsi_host *sp_dsi_host)
 	 */
 	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_15, 0xffff40be);
 	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_16, 0xffff0009);
-	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, 0xffff0b50); //PST_DIV = div9
-	SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, 0x07800180); //MIPITX_SEL = div4
+	if (sp_dsi_host->mode_flags & BIT(15)) { //for gm-70p476ck panel
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, 0xffff05f8); //PST_DIV = div9
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, 0x07800080); //MIPITX_SEL = div2
+	} else {
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_14, 0xffff0b50); //PST_DIV = div9
+		SP7350_DSI_PLLH_WRITE(MIPITX_AO_MOON3_25, 0x07800180); //MIPITX_SEL = div4
+	}
 
 	/*
 	 * TXPLL
@@ -618,7 +628,12 @@ static void sp7350_mipitx_clock_init(struct sp7350_dsi_host *sp_dsi_host)
 	 *                   PRE_DIV * POST_DIV * 5^EN_DIV5       2
 	 */
 	SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL5, 0x00000003); //enable and reset
-	SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL6, 0x00003001); //MIPITX CLK = 600MHz
+
+	if (sp_dsi_host->mode_flags & BIT(15)) //for gm-70p476ck panel
+		SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL6, 0x00001200); //MIPITX CLK = 450MHz
+	else
+		SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL6, 0x00003001); //MIPITX CLK = 600MHz
+
 	SP7350_DSI_TXPLL_WRITE(MIPITX_ANALOG_CTRL7, 0x00000140); //BNKSEL = 0x0 (320~640MHz)
 
 	/*
@@ -626,7 +641,10 @@ static void sp7350_mipitx_clock_init(struct sp7350_dsi_host *sp_dsi_host)
 	 * MIPITX LP CLK = ------------ = 8.3MHz
 	 *                   8 * div9
 	 */
-	SP7350_DSI_TXPLL_WRITE(MIPITX_LP_CK, 0x00000008); //(600/8/div9)=8.3MHz
+	if (sp_dsi_host->mode_flags & BIT(15)) //for gm-70p476ck panel
+		SP7350_DSI_TXPLL_WRITE(MIPITX_LP_CK, 0x00000006); //(450/8/div7)=8.03MHz
+	else
+		SP7350_DSI_TXPLL_WRITE(MIPITX_LP_CK, 0x00000008); //(600/8/div9)=8.3MHz
 
 	SP7350_DSI_HOST_WRITE(MIPITX_ANALOG_CTRL9, 0x00000000); //init clock done
 
