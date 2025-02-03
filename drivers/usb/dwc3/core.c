@@ -113,7 +113,9 @@ void dwc3_enable_susphy(struct dwc3 *dwc, bool enable)
 		reg |= DWC3_GUSB3PIPECTL_SUSPHY;
 	else
 		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
-
+	/* Add this settings for sunplus usb3 */
+	reg |= DWC3_GUSB3PIPECTL_SUSPHY;
+	
 	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
 
 	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
@@ -626,7 +628,8 @@ static int dwc3_phy_setup(struct dwc3 *dwc)
 	 * cleared after power-on reset, and it can be set after core
 	 * initialization.
 	 */
-	reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
+	/* Mark this settings for sunplus usb3 */
+	//reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
 
 	if (dwc->u2ss_inp3_quirk)
 		reg |= DWC3_GUSB3PIPECTL_U2SSINP3OK;
