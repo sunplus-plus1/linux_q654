@@ -48,7 +48,6 @@
 
 //#define DISP_MIPITX_DSI_PANEL_240X320
 //#define DISP_MIPITX_DSI_PANEL_480X1280
-//#define DISP_MIPITX_DSI_PANEL_800X1280
 //#define DISP_MIPITX_DSI_PANEL_800x480
 #define RASPBERRYPI_DSI_PANEL
 #define LT8912B_HDMI_ENABLE
@@ -1206,16 +1205,6 @@
 		touchscreen-inverted-y;
 	};
 #endif
-#if defined(DISP_MIPITX_DSI_PANEL_800X1280)
-	gt911_ts: touchscreen@5d {
-			compatible = "goodix,gt911";
-			reg = <0x5d>;
-			status = "okay";
-
-			touchscreen-size-x = <800>;
-			touchscreen-size-y = <1280>;
-	};
-#endif
 #if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode in i2c4 */
 	lontium_lt8912b: hdmi@48 {
 		compatible = "lontium,lt8912b";
@@ -2355,11 +2344,6 @@
 };
 &display_subsystem { /* drm display on */
 	memory-region = <&disp_reserve>;
-#if defined(DISP_MIPITX_DSI_PANEL_800X1280)
-	pinctrl-names = "default";
-	pinctrl-0 = <&panel_reset_pins>;
-	reset-gpios = <&pctl 79 GPIO_ACTIVE_HIGH>;
-#endif
 	status = "okay";
 };
 &display_crtc0 { /* drm display on */
@@ -2416,21 +2400,6 @@
 		};
 	};
 #endif
-#if defined(DISP_MIPITX_DSI_PANEL_800X1280)
-	#address-cells = <1>;
-	#size-cells = <0>;
-	gm70p476ck_lcd: mipi_dsi_lcd@3 {
-		compatible = "sunplus,gm-70p476ck";
-		reg = <3>;
-		status = "okay";
-
-		port {
-			panel_dsi_port: endpoint {
-				remote-endpoint = <&dsi0_out1>;
-			};
-		};
-	};
-#endif
 
 	ports {
 		#address-cells = <1>;
@@ -2463,8 +2432,7 @@
 
 			/* dsi output port 0 for mipi panel */
 			#if defined(RASPBERRYPI_DSI_PANEL) || defined(DISP_MIPITX_DSI_PANEL_480X1280) || \
-				defined(DISP_MIPITX_DSI_PANEL_800X1280) || defined(DISP_MIPITX_DSI_PANEL_240X320) || \
-				defined(DISP_MIPITX_DSI_PANEL_800x480)
+				defined(DISP_MIPITX_DSI_PANEL_240X320) || defined(DISP_MIPITX_DSI_PANEL_800x480)
 			dsi0_out1: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&panel_dsi_port>;
