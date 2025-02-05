@@ -512,16 +512,8 @@ static int goodix_ts_poll_handler(void *data)
 {
 	struct goodix_ts_data *ts = (struct goodix_ts_data *)data;
 
-	while(!kthread_should_stop()) {
-		goodix_process_events(ts);
-
-		if (goodix_i2c_write_u8(ts->client, GOODIX_READ_COOR_ADDR, 0) < 0)
-			dev_err(&ts->client->dev, "I2C write end_cmd error\n");
-
-		fsleep(200000); //200ms
-	}
-
-	fsleep(1000); //1ms
+	goodix_process_events(ts);
+	goodix_i2c_write_u8(ts->client, GOODIX_READ_COOR_ADDR, 0);
 
 	return 0;
 }
@@ -1460,25 +1452,47 @@ static void goodix_ts_remove(struct i2c_client *client)
 {
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 
+	if (ts->load_cfg_from_disk)
+		wait_for_completion(&ts->firmware_loading_complete);
+
 	#if defined(GOODIX_POLLING_MODE)
 	del_timer(&ts->timer);
 	cancel_work_sync(&ts->work_i2c_poll);
 	#endif
-
-	if (ts->load_cfg_from_disk)
-		wait_for_completion(&ts->firmware_loading_complete);
 }
 
+
+#if defined(GOODIX_POLLING_MODE)
+static int goodix_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct goodix_ts_data *ts = i2c_get_clientdata(client);
+
+	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_NONE) {
+		del_timer(&ts->timer);
+		cancel_work_sync(&ts->work_i2c_poll);
+		return 0;
+	}
+	return 0;
+}
+
+static int goodix_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct goodix_ts_data *ts = i2c_get_clientdata(client);
+
+	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_NONE) {
+		add_timer(&ts->timer);
+		return 0;
+	}
+	return 0;
+}
+#else
 static int goodix_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 	int error;
-
-	#if defined(GOODIX_POLLING_MODE)
-	del_timer(&ts->timer);
-	cancel_work_sync(&ts->work_i2c_poll);
-	#endif
 
 	if (ts->load_cfg_from_disk)
 		wait_for_completion(&ts->firmware_loading_complete);
@@ -1489,10 +1503,8 @@ static int goodix_suspend(struct device *dev)
 		return 0;
 	}
 
-	#if !defined(GOODIX_POLLING_MODE)
 	/* Free IRQ as IRQ pin is used as output in the suspend sequence */
 	goodix_free_irq(ts);
-	#endif
 
 	/* Save reference (calibration) info if necessary */
 	goodix_save_bak_ref(ts);
@@ -1500,9 +1512,7 @@ static int goodix_suspend(struct device *dev)
 	/* Output LOW on the INT pin for 5 ms */
 	error = goodix_irq_direction_output(ts, 0);
 	if (error) {
-		#if !defined(GOODIX_POLLING_MODE)
 		goodix_request_irq(ts);
-		#endif
 		return error;
 	}
 
@@ -1512,9 +1522,7 @@ static int goodix_suspend(struct device *dev)
 				    GOODIX_CMD_SCREEN_OFF);
 	if (error) {
 		goodix_irq_direction_input(ts);
-		#if !defined(GOODIX_POLLING_MODE)
 		goodix_request_irq(ts);
-		#endif
 		return -EAGAIN;
 	}
 
@@ -1533,10 +1541,6 @@ static int goodix_resume(struct device *dev)
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 	u8 config_ver;
 	int error;
-
-	#if defined(GOODIX_POLLING_MODE)
-	add_timer(&ts->timer);
-	#endif
 
 	if (ts->irq_pin_access_method == IRQ_PIN_ACCESS_NONE) {
 		enable_irq(client->irq);
@@ -1573,14 +1577,13 @@ static int goodix_resume(struct device *dev)
 			return error;
 	}
 
-	#if !defined(GOODIX_POLLING_MODE)
 	error = goodix_request_irq(ts);
 	if (error)
 		return error;
-	#endif
 
 	return 0;
 }
+#endif
 
 static DEFINE_SIMPLE_DEV_PM_OPS(goodix_pm_ops, goodix_suspend, goodix_resume);
 
