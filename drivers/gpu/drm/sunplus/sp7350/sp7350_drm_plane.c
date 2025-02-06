@@ -1401,7 +1401,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 		#endif
 
 		DRM_DEBUG_ATOMIC("plane-%d update fb (%dx%d)",
-				 plane->index, new_state->fb->width, new_state->fb->width);
+				 plane->index, new_state->fb->width, new_state->fb->height);
 
 		if (!obj || !paddr) {
 			DRM_DEBUG_ATOMIC("plane-%d drm_fb_cma_get_gem_obj fail.\n", plane->index);

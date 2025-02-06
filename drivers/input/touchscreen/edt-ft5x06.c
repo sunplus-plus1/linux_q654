@@ -316,7 +316,9 @@ static const struct regmap_config edt_M06_i2c_regmap_config = {
 static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 {
 	struct edt_ft5x06_ts_data *tsdata = dev_id;
+#if !defined(FT5X06_POLLING_MODE)
 	struct device *dev = &tsdata->client->dev;
+#endif
 	u8 rdbuf[63];
 	int i, type, x, y, id;
 	int error;
@@ -331,8 +333,10 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	error = regmap_bulk_read(tsdata->regmap, tsdata->tdata_cmd, rdbuf,
 				 tsdata->tdata_len);
 	if (error) {
+#if !defined(FT5X06_POLLING_MODE)
 		dev_err_ratelimited(dev, "Unable to fetch data, error: %d\n",
 				    error);
+#endif
 		goto out;
 	}
 
