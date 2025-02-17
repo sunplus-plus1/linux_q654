@@ -466,9 +466,9 @@
 			press-threshold-microvolt = <900000>;
 		};
 
-		button-enter {
-			label = "Enter";
-			linux,code = <KEY_ENTER>;
+		button-reset {
+			label = "Factory Reset";
+			linux,code = <KEY_MAX>;
 			press-threshold-microvolt = <1200000>;
 		};
 	};
