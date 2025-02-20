@@ -1552,6 +1552,7 @@ static int spsdc_drv_probe(struct platform_device *pdev)
 	 * a.k.a. max scattered memory segments per request
 	 */
 	mmc->max_segs = host->segs_no;
+	mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 	//mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
 	mmc->max_seg_size = SPSDC_MAX_BLK_CNT * 512;
 	mmc->max_req_size = SPSDC_MAX_BLK_CNT * 512;
