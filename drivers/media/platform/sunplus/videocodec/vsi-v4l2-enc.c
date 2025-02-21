@@ -271,6 +271,7 @@ static int vsi_enc_s_parm(struct file *filp, void *priv, struct v4l2_streamparm 
 			ctx->mediacfg.m_encparams.m_framerate.inputRateDenom = parm->parm.output.timeperframe.numerator;
 			ctx->mediacfg.m_encparams.m_framerate.inputRateNumer = parm->parm.output.timeperframe.denominator;
 			flag_updateparam(m_framerate)
+			flag_updateparam(m_bitrate)	//bitrate need to be update
 		}
 		parm->parm.output.capability = V4L2_CAP_TIMEPERFRAME;
 	} else {
