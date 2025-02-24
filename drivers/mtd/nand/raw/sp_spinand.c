@@ -823,108 +823,19 @@ static void sp_spinand_select_chip(struct nand_chip *chip, int chipnr)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sp_spinand_info *info = (struct sp_spinand_info *)mtd->priv;
 
-	if (info->chip_num > 1 && info->cur_chip != chipnr && chipnr >= 0) {
+	if ((info->chip_num > 0) && (info->cur_chip != chipnr) && (chipnr >= 0)) {
 		info->cur_chip = chipnr;
 		spi_nand_select_die(info, chipnr);
 	}
 }
 
-static void sp_spinand_cmd_ctrl(struct nand_chip *chip, int cmd, u32 ctrl)
-{
-}
-
-static void sp_spinand_cmdfunc(struct nand_chip *chip, u32 cmd, int col, int row)
+static int sp_spinand_waitrdy(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct sp_spinand_info *info = (struct sp_spinand_info *)mtd->priv;
-
-	info->cmd = cmd;
-	switch (cmd) {
-	case NAND_CMD_READOOB:
-		info->buff.idx = 0;
-		info->col = col + info->mtd->writesize;
-		info->row = row;
-		break;
-	case NAND_CMD_READ0:
-		info->buff.idx = 0;
-		info->col = col;
-		info->row = row;
-		break;
-	case NAND_CMD_SEQIN:
-		info->buff.idx = 0;
-		info->col = col;
-		info->row = row;
-		break;
-	case NAND_CMD_PAGEPROG:
-		if (info->buff.idx) {
-			u32 size = info->buff.idx;
-
-			info->buff.idx = 0;
-			sp_spinand_write_raw(info, info->row, info->col, size);
-		}
-		break;
-	case NAND_CMD_ERASE1:
-		row &= ~(info->mtd->erasesize / info->mtd->writesize - 1);
-		spi_nand_blkerase(info, row);
-		break;
-	case NAND_CMD_ERASE2:
-		break;
-	case NAND_CMD_STATUS:
-		info->buff.idx = 0;
-		break;
-	case NAND_CMD_RESET:
-		spi_nand_reset(info);
-		break;
-	case NAND_CMD_READID:
-		info->buff.idx = 0;
-		info->col = col;
-		break;
-	case NAND_CMD_PARAM:
-	case NAND_CMD_GET_FEATURES:
-	case NAND_CMD_SET_FEATURES:
-		/* these cmds are p-nand related, ignore them */
-		break;
-	default:
-		SPINAND_LOGW("unknown command=0x%02x.\n", cmd);
-		break;
-	}
-}
-
-static int sp_spinand_dev_ready(struct nand_chip *chip)
-{
-	//struct sp_spinand_info *info = (struct sp_spinand_info *)mtd->priv;
-	//return ((spi_nand_getfeatures(info, DEVICE_STATUS_ADDR) & 0x01) == 0);
-	return 1;
-}
-
-static int sp_spinand_waitfunc(struct nand_chip *chip)
-{
-	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct sp_spinand_info *info = (struct sp_spinand_info *)mtd->priv;
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
-	int status;
 	int ret;
 
-	do {
-		status = spi_nand_getfeatures(info, DEVICE_STATUS_ADDR);
-		if ((status & 0x01) == 0)
-			break;
-		cond_resched();
-	} while (time_before(jiffies, timeout));
-
-	/* program/erase fail bit */
-	if (info->cmd == NAND_CMD_PAGEPROG && (status&0x08))
-		ret = 1;
-	else if ((info->cmd == NAND_CMD_ERASE2) && (status&0x04))
-		ret = 1;
-	else
-		ret = (status & 0x0c) ? 0x01 : 0x00;
-
-	/* ready bit */
-	ret |= (status & 0x01) ? 0x00 : 0x40;
-
-	/* write protection bit */
-	ret |= (info->dev_protection & PROTECT_STATUS) ? 0x00 : 0x80;
+	ret = wait_spi_idle(info);
 
 	return ret;
 }
@@ -981,6 +892,168 @@ static void sp_spinand_write_buf(struct nand_chip *chip, const u8 *buf, int len)
 	info->buff.idx += len;
 }
 
+static int sp_spinand_op_parser(struct nand_chip *chip,
+				const struct nand_operation *op)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct sp_spinand_info *info = (struct sp_spinand_info *)mtd->priv;
+	const struct nand_op_instr *instr;
+	unsigned int i, j;
+	u32 cmd_idx;
+	u32 col_addr, col_size, row_addr;
+
+	/* Initialize the command array */
+	cmd_idx = 0;
+	info->nnandcmd = 0;
+	memset(info->nandcmd, 0, sizeof(info->nandcmd));
+
+	for(i = 0; i < op->ninstrs; i++) {
+		instr = &op->instrs[i];
+		switch (instr->type) {
+		case NAND_OP_CMD_INSTR:
+			if (instr->ctx.cmd.opcode == NAND_CMD_READSTART) {
+				/* Skip the read-start and next wait-for-ready instructions. */
+				i++;
+				break;
+			}
+
+			cmd_idx = info->nnandcmd;
+			info->nandcmd[cmd_idx].opcode = instr->ctx.cmd.opcode;
+			info->nnandcmd++;
+			break;
+		case NAND_OP_ADDR_INSTR:
+			col_addr = 0;
+			row_addr = 0;
+			if (info->nandcmd[cmd_idx].opcode == NAND_CMD_ERASE1) {
+				col_size = 0;
+			} else if ((info->nandcmd[cmd_idx].opcode == NAND_CMD_READ0) ||
+					   (info->nandcmd[cmd_idx].opcode == NAND_CMD_SEQIN)) {
+				col_size = 2;
+			} else {
+				col_size = 1;
+			}
+
+			for (j = 0; j < instr->ctx.addr.naddrs; j++) {
+				if (j < col_size)
+					col_addr += instr->ctx.addr.addrs[j]<<(8*j);
+				else
+					row_addr += instr->ctx.addr.addrs[j]<<(8*(j-col_size));
+			}
+			info->nandcmd[cmd_idx].col = col_addr;
+			info->nandcmd[cmd_idx].row = row_addr;
+			break;
+		case NAND_OP_DATA_IN_INSTR:
+			memcpy(&info->nandcmd[cmd_idx].data, &instr->ctx.data,
+					sizeof(struct nand_op_data_instr));
+			break;
+		case NAND_OP_DATA_OUT_INSTR:
+			cmd_idx = info->nnandcmd;
+			info->nandcmd[cmd_idx].opcode = 0x101;	/* Do the write-buf instruction */
+			info->nnandcmd++;
+
+			memcpy(&info->nandcmd[cmd_idx].data, &instr->ctx.data,
+					sizeof(struct nand_op_data_instr));
+			break;
+		case NAND_OP_WAITRDY_INSTR:
+			cmd_idx = info->nnandcmd;
+			info->nandcmd[cmd_idx].opcode = 0x100;	/* Do the wait-for-ready instruction */
+			info->nnandcmd++;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int sp_spinand_exec_instrs(struct nand_chip *chip)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct sp_spinand_info *info = (struct sp_spinand_info *)mtd->priv;
+	unsigned int i, j;
+	int ret = 0;
+
+	/* Reset previous command */
+	info->pre_cmd = 0;
+
+	for (i = 0; i < info->nnandcmd; i++) {
+		info->cmd = info->nandcmd[i].opcode;
+
+		switch(info->nandcmd[i].opcode) {
+		case NAND_CMD_READ0:
+		case NAND_CMD_READ1:
+		case NAND_CMD_READOOB:
+			info->row = info->nandcmd[i].row;
+			info->col = info->nandcmd[i].col;
+			info->buff.idx = 0;
+			sp_spinand_read_buf(chip, info->nandcmd[i].data.buf.in,
+					info->nandcmd[i].data.len);
+			break;
+		case NAND_CMD_PAGEPROG:
+			if (info->buff.idx) {
+				u32 size = info->buff.idx;
+			
+				info->buff.idx = 0;
+				sp_spinand_write_raw(info, info->row, info->col, size);
+			}
+			break;
+		case NAND_CMD_ERASE1:
+			info->row = info->nandcmd[i].row;
+			info->col = 0;
+			info->row &= ~(info->mtd->erasesize / info->mtd->writesize - 1);
+			ret = spi_nand_blkerase(info, info->row);
+			break;
+		case NAND_CMD_STATUS:
+		case NAND_CMD_READID:
+			info->row = info->nandcmd[i].row;
+			info->col = info->nandcmd[i].col;
+			info->buff.idx = 0;
+			for (j = 0; j < info->nandcmd[i].data.len; j++) {
+				u8 *id = info->nandcmd[i].data.buf.in;
+
+				id[j] = sp_spinand_read_byte(chip);
+			}
+			break;
+		case NAND_CMD_SEQIN:
+			info->buff.idx = 0;
+			info->col = info->nandcmd[i].col;
+			info->row = info->nandcmd[i].row;
+			break;
+		case NAND_CMD_ERASE2:
+			break;
+		case NAND_CMD_RESET:			
+			ret = spi_nand_reset(info);
+			break;
+		case 0x100: /* Do the wait-for-ready instruction */
+			ret = sp_spinand_waitrdy(chip);
+			break;
+		case 0x101: /* Do the write-buf instruction */
+			sp_spinand_write_buf(chip, info->nandcmd[i].data.buf.out,
+					info->nandcmd[i].data.len);
+			break;
+		default:
+			SPINAND_LOGE("Unsupported command!\n");
+			break;
+		}
+
+		/* Store previous command */
+		info->pre_cmd = info->cmd;
+	}
+
+	return ret;
+}
+
+static int sp_spinand_exec_op(struct nand_chip *chip,
+				const struct nand_operation *op,
+				bool check_only)
+{
+	if (check_only)
+		return 0;
+
+	sp_spinand_select_chip(chip, op->cs);
+	sp_spinand_op_parser(chip, op);
+	return sp_spinand_exec_instrs(chip);
+}
+
 static int sp_spinand_read_page(struct nand_chip *chip, u8 *buf,
 				int oob_required, int page)
 {
@@ -991,6 +1064,8 @@ static int sp_spinand_read_page(struct nand_chip *chip, u8 *buf,
 	dma_addr_t data_pa = info->buff.phys;
 	dma_addr_t oob_pa = info->buff.phys + mtd->writesize;
 	int ret;
+
+	sp_spinand_select_chip(chip, chip->cur_cs);
 
 	info->row = page;
 	info->buff.idx = 0;
@@ -1010,6 +1085,7 @@ static int sp_spinand_read_page(struct nand_chip *chip, u8 *buf,
 	memcpy(buf, data_va, mtd->writesize);
 	if (oob_required)
 		memcpy(chip->oob_poi, oob_va, mtd->oobsize);
+
 	return 0;
 }
 
@@ -1024,6 +1100,8 @@ static int sp_spinand_write_page(struct nand_chip *chip, const u8 *buf,
 	dma_addr_t oob_pa = info->buff.phys + mtd->writesize;
 	int ret;
 
+	sp_spinand_select_chip(chip, chip->cur_cs);
+
 	info->row = page;
 	info->buff.idx = 0;
 	memcpy(data_va, buf, mtd->writesize);
@@ -1036,6 +1114,7 @@ static int sp_spinand_write_page(struct nand_chip *chip, const u8 *buf,
 		ret = sp_spinand_write_raw(info,
 			info->row, 0, mtd->writesize+mtd->oobsize);
 	}
+
 	return ret;
 }
 
@@ -1118,6 +1197,7 @@ static int sp_spinand_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops sp_spinand_controller_ops = {
 	.attach_chip = sp_spinand_attach_chip,
+	.exec_op = sp_spinand_exec_op,
 };
 
 static int sp_spinand_probe(struct platform_device *pdev)
@@ -1286,12 +1366,15 @@ static int sp_spinand_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-
 	ret = sp_bch_probe(pdev);
 	if (ret) {
 		SPINAND_LOGE("failed to probe BCH: %d\n", ret);
 		goto err1;
 	}
+
+	/* Initialize NAND controller structure */
+	nand_controller_init(&info->controller);
+	info->controller.ops = &sp_spinand_controller_ops;
 
 	info->dev = dev;
 	info->mtd = &info->nand.base.mtd;
@@ -1299,16 +1382,7 @@ static int sp_spinand_probe(struct platform_device *pdev)
 	info->mtd->name = NAND_DEVICE_NAME;//dev_name(dev);
 	info->mtd->owner = THIS_MODULE;
 	info->nand.options = NAND_NO_SUBPAGE_WRITE;
-	info->nand.legacy.select_chip = sp_spinand_select_chip;
-	info->nand.legacy.cmd_ctrl = sp_spinand_cmd_ctrl;
-	info->nand.legacy.cmdfunc = sp_spinand_cmdfunc;
-	info->nand.legacy.dev_ready = sp_spinand_dev_ready;
-	info->nand.legacy.waitfunc = sp_spinand_waitfunc;
-	info->nand.legacy.chip_delay = 0;
-	info->nand.legacy.read_byte = sp_spinand_read_byte;
-	info->nand.legacy.read_buf = sp_spinand_read_buf;
-	info->nand.legacy.write_buf = sp_spinand_write_buf;
-	info->nand.legacy.dummy_controller.ops = &sp_spinand_controller_ops;
+	info->nand.controller = &info->controller;
 	info->nand.ecc.read_page = sp_spinand_read_page;
 	info->nand.ecc.write_page = sp_spinand_write_page;
 	info->nand.ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;

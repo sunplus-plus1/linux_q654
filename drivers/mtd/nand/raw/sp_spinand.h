@@ -342,6 +342,13 @@ struct sp_spinand_regs {
 	unsigned int device_parity_addr; // 87.20
 };
 
+struct sp_spinand_cmd {
+	u32 opcode;             /* current command code */
+	u32 row;                /* row address of current command */
+	u32 col;                /* column address of current command */
+	struct nand_op_data_instr data;
+};
+
 struct sp_spinand_info {
 	struct device *dev;
 	struct clk *clk;
@@ -364,9 +371,15 @@ struct sp_spinand_info {
 
 	u32 parity_sector_size;
 	u32 plane_sel_mode;
+
+	struct nand_controller controller;
+	struct sp_spinand_cmd nandcmd[5];
+	u32 nnandcmd;
 	u32 cmd;                /* current command code */
 	u32 row;                /* row address of current command */
 	u32 col;                /* column address of current command */
+	u32 pre_cmd;            /* previous command code */
+
 	u8 spi_clk_div;         /* used as the parameter of SPINAND_SCK_DIV */
 	u8 read_bitmode;        /* bit mode in read case, refer to SPINAND_BIT_MODE */
 	u8 write_bitmode;       /* bit mode in write case, refer to SPINAND_BIT_MODE */
