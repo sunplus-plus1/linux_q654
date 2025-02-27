@@ -1071,9 +1071,13 @@ static int spmmc_card_busy(struct mmc_host *mmc)
 {
 	struct spsdc_host *host = mmc_priv(mmc);
 
-	if (host->mode == SPSDC_MODE_SD)
-		spsdc_pr(host->mode, INFO, "card_busy! %d\n", !(readl(&host->base->sd_status)
+	if(!(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS)
+		&& (host->work_clk > 500000))
+		spsdc_txdummy(host, 1);
+
+	spsdc_pr(host->mode, INFO, "card_busy! %d\n", !(readl(&host->base->sd_status)
 			& SPSDC_SDSTATUS_DAT0_PIN_STATUS));
+
 	return !(readl(&host->base->sd_status) & SPSDC_SDSTATUS_DAT0_PIN_STATUS);
 }
 
