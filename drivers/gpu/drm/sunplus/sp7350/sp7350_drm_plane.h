@@ -225,6 +225,7 @@ struct sp7350_plane {
 	int dmix_fg_sel; /* one of SP7350_DMIX_XXX_SEL, ex.SP7350_DMIX_OSD1_SEL */
 	int dmix_layer;  /* one of SP7350_DMIX_XX, ex.SP7350_DMIX_L1 */
 	int dtg_adjust;  /* tgen dtg adjust value, default value ex.SP7350_DTG_ADJ_DMIX_L1 */
+	int layer_mode;  /* one of SP7350_DMIX_BLENDING, SP7350_DMIX_TRANSPARENT, SP7350_DMIX_OPACITY */
 };
 
 #define to_sp7350_plane(plane) \

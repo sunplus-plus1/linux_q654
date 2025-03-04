@@ -136,12 +136,17 @@ static void sp7350_drm_plane_set(struct drm_plane *plane, int fg_sel, int layer_
 	}
 
 	/* Set layer mode */
-	value1 = SP7350_PLANE_READ(DMIX_LAYER_CONFIG_1);
+	value = value1 = SP7350_PLANE_READ(DMIX_LAYER_CONFIG_1);
 	if (layer != SP7350_DMIX_BG) {
 		value1 &= ~(GENMASK(1, 0) << ((layer - 1) << 1));
 		value1 |= (layer_mode << ((layer - 1) << 1));
 	}
-	SP7350_PLANE_WRITE(DMIX_LAYER_CONFIG_1, value1);
+
+	if (value != value1) {
+		SP7350_PLANE_WRITE(DMIX_LAYER_CONFIG_1, value1);
+		DRM_DEBUG_DRIVER("Update DMIX_LAYER_CONFIG_1:0x%X =>0x%X.\n", value, value1);
+	}
+	sp_plane->layer_mode = layer_mode;
 }
 
 static int sp7350_vpp_plane_vpost_opif_alpha_set(struct drm_plane *plane, int alpha, int mask_alpha)
@@ -1241,7 +1246,7 @@ static void sp7350_kms_plane_vpp_atomic_update(struct drm_plane *plane,
 	/* reference to ade_plane_atomic_update */
 	if (!new_state || !new_state->fb || !new_state->crtc) {
 		/* do nothing */
-		DRM_DEBUG_ATOMIC("plane-%d SP7350_DMIX_TRANSPARENT.\n", plane->index);
+		DRM_DEBUG_ATOMIC("plane-%d, %d SP7350_DMIX_TRANSPARENT VPP.\n", plane->index, sp_plane->zpos);
 		sp7350_drm_plane_set(plane, sp_plane->dmix_fg_sel, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
@@ -1378,7 +1383,7 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 
 	if (!new_state || !new_state->fb || !new_state->crtc) {
 		/* disable this plane */
-		DRM_DEBUG_ATOMIC("plane-%d SP7350_DMIX_TRANSPARENT.\n", plane->index);
+		DRM_DEBUG_ATOMIC("plane-%d, %d SP7350_DMIX_TRANSPARENT OSD.\n", plane->index, sp_plane->zpos);
 		sp7350_drm_plane_set(plane, sp_plane->dmix_fg_sel, SP7350_DMIX_TRANSPARENT);
 		return;
 	}
@@ -1954,6 +1959,8 @@ struct drm_plane *sp7350_plane_init(struct drm_device *drm,
 		DRM_DEBUG_ATOMIC("plane-%d Invalid dmix_layer select index!!!.\n", plane->index);
 		return ERR_PTR(-EINVAL);
 	}
+	/* default SP7350_DMIX_TRANSPARENT */
+	sp_plane->layer_mode = SP7350_DMIX_TRANSPARENT;
 
 	if (!sp_plane->is_media_plane)
 		sp7350_osd_plane_init(plane);
