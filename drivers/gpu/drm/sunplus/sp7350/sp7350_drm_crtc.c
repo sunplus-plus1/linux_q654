@@ -1076,15 +1076,19 @@ static void sp7350_crtc_dmix_layer_setting(struct drm_crtc *crtc)
 	struct sp7350_crtc *sp_crtc = to_sp7350_crtc(crtc);
 	struct drm_plane *plane = NULL;
 	u32 dtg_adj1_value, dtg_adj2_value, dtg_adj3_value, dtg_adj4_value;
-	u32 value;
+	u32 dmix_config1;
+	u32 value, value1;
 
 	/* DMIX Layer and DTG Adjust Setting.
 	 */
-	value = SP7350_CRTC_READ(DMIX_LAYER_CONFIG_0);
+	value = value1 = SP7350_CRTC_READ(DMIX_LAYER_CONFIG_0);
 	dtg_adj1_value = SP7350_CRTC_READ(TGEN_DTG_ADJUST1);
 	dtg_adj2_value = SP7350_CRTC_READ(TGEN_DTG_ADJUST2);
 	dtg_adj3_value = SP7350_CRTC_READ(TGEN_DTG_ADJUST3);
 	dtg_adj4_value = SP7350_CRTC_READ(TGEN_DTG_ADJUST4);
+
+	/* Set layer mode */
+	dmix_config1 = SP7350_CRTC_READ(DMIX_LAYER_CONFIG_1);
 
 	drm_for_each_plane(plane, crtc->dev) {
 		struct sp7350_plane *sp_plane = to_sp7350_plane(plane);
@@ -1145,9 +1149,18 @@ static void sp7350_crtc_dmix_layer_setting(struct drm_crtc *crtc)
 			dtg_adj4_value |= SP7350_TGEN_DTG_ADJ_MASKA_SET(sp_plane->dtg_adjust);
 			break;
 		}
+
+		/* Update layer mode */
+		dmix_config1 &= ~(GENMASK(1, 0) << ((sp_plane->dmix_layer - 1) << 1));
+		dmix_config1 |= (sp_plane->layer_mode << ((sp_plane->dmix_layer - 1) << 1));
 	}
 
-	SP7350_CRTC_WRITE(DMIX_LAYER_CONFIG_0, value);
+	if (value != value1) {
+		DRM_DEBUG_DRIVER("Update DMIX_LAYER_CONFIG_0:0x%X =>0x%X.\n", value1, value);
+		DRM_DEBUG_DRIVER("Update DMIX_LAYER_CONFIG_1:0x%X =>0x%X.\n", SP7350_CRTC_READ(DMIX_LAYER_CONFIG_1), dmix_config1);
+		SP7350_CRTC_WRITE(DMIX_LAYER_CONFIG_0, value);
+		SP7350_CRTC_WRITE(DMIX_LAYER_CONFIG_1, dmix_config1);
+	}
 	SP7350_CRTC_WRITE(TGEN_DTG_ADJUST1, dtg_adj1_value);
 	SP7350_CRTC_WRITE(TGEN_DTG_ADJUST2, dtg_adj2_value);
 	SP7350_CRTC_WRITE(TGEN_DTG_ADJUST3, dtg_adj3_value);
