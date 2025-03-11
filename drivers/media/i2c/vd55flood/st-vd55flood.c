@@ -615,11 +615,11 @@ static int vd55flood_wait_state(struct vd55flood_dev *sensor, int state,
 
 static int vd55flood_apply_reset(struct vd55flood_dev *sensor)
 {
-	gpiod_set_value_cansleep(sensor->reset_gpio, 0);
-	usleep_range(5000, 10000);
 	gpiod_set_value_cansleep(sensor->reset_gpio, 1);
 	usleep_range(5000, 10000);
 	gpiod_set_value_cansleep(sensor->reset_gpio, 0);
+	usleep_range(5000, 10000);
+	gpiod_set_value_cansleep(sensor->reset_gpio, 1);
 	usleep_range(40000, 100000);
 	return vd55flood_wait_state(sensor, VD55FLOOD_SYSTEM_FSM_UP,
 				 VD55FLOOD_TIMEOUT_MS);
