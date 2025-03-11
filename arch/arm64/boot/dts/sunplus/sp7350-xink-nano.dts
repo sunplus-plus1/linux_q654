@@ -849,6 +849,7 @@
 		//power-gpios = <&pctl 61 GPIO_ACTIVE_HIGH>;
 		//shtdn-gpios = <&pctl 27 GPIO_ACTIVE_HIGH>;
 		//reset-gpios = <&pctl 26 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pctl 58 GPIO_ACTIVE_HIGH>;
 		nvmem = <&mc24c08>;
 		nvmem-names = "vd55flood-nvmem";
 
