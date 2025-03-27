@@ -31,6 +31,8 @@ properties:
       - sunplus,xinli-tcxd024iblon-2
         # Sunplus support wks technology 7.0 inch 800*(RGB)480 TFT-LCD panel
       - sunplus,wks-wks70wv055-wct
+        # Sunplus support geetronic technology 7.0 inch 800*(RGB)1280 TFT-LCD panel
+      - sunplus,gm-70p476ck
 
   reg:
     maxItems: 1
