@@ -141,6 +141,7 @@ struct sp7350_osd_region_info {
 struct sp7350_osd_alpha_info {
 	u32 region_alpha_en;
 	u32 region_alpha;
+	bool region_alpha_fixed;
 	u32 color_key_en;
 	u32 color_key;
 };
