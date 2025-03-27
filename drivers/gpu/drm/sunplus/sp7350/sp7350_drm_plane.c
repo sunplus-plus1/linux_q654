@@ -50,6 +50,18 @@
 #define SP7350_PLANE_READ(offset) readl(sp_dev->crtc_regs + (offset))
 #define SP7350_PLANE_WRITE(offset, val) writel(val, sp_dev->crtc_regs + (offset))
 
+/**
+ * @brief Check if a DRM FourCC format contains an X channel (unused/reserved bits)
+ * @param fourcc FourCC code of the DRM format (e.g., DRM_FORMAT_XRGB8888)
+ * @return true if X channel is present, false otherwise
+ */
+#define DRM_FORMAT_HAS_X(fourcc) ( \
+	((fourcc) & 0xFF)        == 'X' || /* 1st character (LSB in little-endian) */ \
+	((fourcc >> 8) & 0xFF)   == 'X' || /* 2nd character */ \
+	((fourcc >> 16) & 0xFF)  == 'X' || /* 3rd character */ \
+	((fourcc >> 24) & 0xFF)  == 'X'    /* 4th character (MSB in little-endian) */ \
+)
+
 /* sp7350-hw-format translate table */
 struct sp7350_plane_format {
 	u32 pixel_format;
@@ -64,7 +76,7 @@ static const u64 sp7350_kms_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID,
 };
 
-static const u32 sp7350_kms_vpp_formats[5] = {
+static const u32 sp7350_kms_vpp_formats[] = {
 	DRM_FORMAT_YUYV,  /* SP7350_VPP_IMGREAD_DATA_FMT_YUY2 */
 	DRM_FORMAT_UYVY,  /* SP7350_VPP_IMGREAD_DATA_FMT_UYVY */
 	DRM_FORMAT_NV12,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV12 */
@@ -72,7 +84,7 @@ static const u32 sp7350_kms_vpp_formats[5] = {
 	DRM_FORMAT_NV24,  /* SP7350_VPP_IMGREAD_DATA_FMT_NV24 */
 };
 
-static const u32 sp7350_kms_osd_formats[8] = {
+static const u32 sp7350_kms_osd_formats[] = {
 	DRM_FORMAT_C8,        /* SP7350_OSD_COLOR_MODE_8BPP ??? */
 	DRM_FORMAT_YUYV,      /* SP7350_OSD_COLOR_MODE_YUY2 */
 	DRM_FORMAT_RGB565,    /* SP7350_OSD_COLOR_MODE_RGB565 */
@@ -81,11 +93,11 @@ static const u32 sp7350_kms_osd_formats[8] = {
 	DRM_FORMAT_ARGB1555,  /* SP7350_OSD_COLOR_MODE_ARGB1555 */
 	DRM_FORMAT_RGBA8888,  /* SP7350_OSD_COLOR_MODE_RGBA8888 */
 	DRM_FORMAT_ARGB8888,  /* SP7350_OSD_COLOR_MODE_ARGB8888 */
-	//DRM_FORMAT_XRGB8888,  /* SP7350_OSD_COLOR_MODE_ARGB8888 */
-	//DRM_FORMAT_RGBX8888,  /* SP7350_OSD_COLOR_MODE_RGBA8888 */
-	//DRM_FORMAT_RGBX4444,  /* SP7350_OSD_COLOR_MODE_RGBA4444 */
-	//DRM_FORMAT_XRGB4444,  /* SP7350_OSD_COLOR_MODE_ARGB4444 */
-	//DRM_FORMAT_XRGB1555,  /* SP7350_OSD_COLOR_MODE_ARGB1555 */
+	DRM_FORMAT_XRGB8888,  /* SP7350_OSD_COLOR_MODE_ARGB8888 */
+	DRM_FORMAT_RGBX8888,  /* SP7350_OSD_COLOR_MODE_RGBA8888 */
+	DRM_FORMAT_RGBX4444,  /* SP7350_OSD_COLOR_MODE_RGBA4444 */
+	DRM_FORMAT_XRGB4444,  /* SP7350_OSD_COLOR_MODE_ARGB4444 */
+	DRM_FORMAT_XRGB1555,  /* SP7350_OSD_COLOR_MODE_ARGB1555 */
 };
 
 static const struct sp7350_plane_format sp7350_vpp_formats[] = {
@@ -99,19 +111,19 @@ static const struct sp7350_plane_format sp7350_vpp_formats[] = {
 static const struct sp7350_plane_format sp7350_osd_formats[] = {
 	{ DRM_FORMAT_C8, SP7350_OSD_COLOR_MODE_8BPP },
 	/* 16bpp RGB: */
-	{ DRM_FORMAT_RGB565, SP7350_OSD_COLOR_MODE_RGB565 },
+	{ DRM_FORMAT_YUYV,     SP7350_OSD_COLOR_MODE_YUY2 },
+	{ DRM_FORMAT_RGB565,   SP7350_OSD_COLOR_MODE_RGB565 },
 	{ DRM_FORMAT_ARGB1555, SP7350_OSD_COLOR_MODE_ARGB1555 },
-	{ DRM_FORMAT_YUYV,   SP7350_OSD_COLOR_MODE_YUY2 },
 	{ DRM_FORMAT_RGBA4444, SP7350_OSD_COLOR_MODE_RGBA4444 },
 	{ DRM_FORMAT_ARGB4444, SP7350_OSD_COLOR_MODE_ARGB4444 },
 	/* 32bpp [A]RGB: */
 	{ DRM_FORMAT_RGBA8888, SP7350_OSD_COLOR_MODE_RGBA8888 },
 	{ DRM_FORMAT_ARGB8888, SP7350_OSD_COLOR_MODE_ARGB8888 },
-	//{ DRM_FORMAT_XRGB1555, SP7350_OSD_COLOR_MODE_ARGB1555 },
-	//{ DRM_FORMAT_RGBX4444, SP7350_OSD_COLOR_MODE_RGBA4444 },
-	//{ DRM_FORMAT_XRGB4444, SP7350_OSD_COLOR_MODE_ARGB4444 },
-	//{ DRM_FORMAT_RGBX8888, SP7350_OSD_COLOR_MODE_RGBA8888 },
-	//{ DRM_FORMAT_XRGB8888, SP7350_OSD_COLOR_MODE_ARGB8888 },
+	{ DRM_FORMAT_XRGB1555, SP7350_OSD_COLOR_MODE_ARGB1555 },
+	{ DRM_FORMAT_RGBX4444, SP7350_OSD_COLOR_MODE_RGBA4444 },
+	{ DRM_FORMAT_XRGB4444, SP7350_OSD_COLOR_MODE_ARGB4444 },
+	{ DRM_FORMAT_RGBX8888, SP7350_OSD_COLOR_MODE_RGBA8888 },
+	{ DRM_FORMAT_XRGB8888, SP7350_OSD_COLOR_MODE_ARGB8888 },
 };
 
 #define SP7350_FORMAT_UNSUPPORT 0xF
@@ -802,8 +814,10 @@ static void sp7350_osd_plane_set_by_region(struct drm_plane *plane, struct sp735
 	value |= (tmp_color_mode << 24) | SP7350_OSD_HDR_BS;
 
 	/* setting region alpha */
-	if (info->alpha_info.region_alpha_en)
-		value |= SP7350_OSD_HDR_BL | info->alpha_info.region_alpha;
+	if (info->alpha_info.region_alpha_en) {
+		value |= info->alpha_info.region_alpha_fixed ? SP7350_OSD_HDR_BL : SP7350_OSD_HDR_BL2;
+		value |= info->alpha_info.region_alpha;
+	}
 
 	if (info->alpha_info.color_key_en)
 		value |= SP7350_OSD_HDR_KEY;
@@ -1453,6 +1467,15 @@ static void sp7350_kms_plane_osd_atomic_update(struct drm_plane *plane,
 	}
 
 	/* no scale state */
+
+	/* check X channel. */
+	if (DRM_FORMAT_HAS_X(new_state->fb->format->format)) {
+		info->alpha_info.region_alpha_en = 1;
+		info->alpha_info.region_alpha = sp_state->win_alpha;
+		info->alpha_info.region_alpha_fixed = true;
+	} else {
+		info->alpha_info.region_alpha_fixed = false;
+	}
 
 	if ((sp_plane->capabilities & SP7350_DRM_PLANE_CAP_WIN_BLEND)
 		&& (sp_state->win_alpha != sp_plane->updated_win_alpha)) {
