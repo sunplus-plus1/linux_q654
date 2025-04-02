@@ -196,6 +196,7 @@
 #define AP1302_AE_CTRL_MODE_MASK		0x000f
 #define AP1302_AE_MANUAL_GAIN			AP1302_REG_16BIT(0x5006)
 #define AP1302_AE_MANUAL_GAIN_MASK		0xFFFF
+#define AP1302_AE_EXPOSURE_TIME			AP1302_REG_32BIT(0x0194)
 #define AP1302_AE_BV_OFF			AP1302_REG_16BIT(0x5014)
 #define AP1302_AE_MET				AP1302_REG_16BIT(0x503E)
 #define AP1302_AE_MET_MASK			0x0003
@@ -1562,6 +1563,19 @@ static int ap1302_get_exposure(struct ap1302_device *ap1302, s32 *mode)
 	return 0;
 }
 
+static int ap1302_get_exp_time(struct ap1302_device *ap1302, s32 *us)
+{
+	int ret;
+	s32 val;
+
+	ret = ap1302_read(ap1302, AP1302_AE_EXPOSURE_TIME, &val);
+	if (ret)
+		return ret;
+
+	*us = val/100;
+	return 0;
+}
+
 static int ap1302_set_exp_met(struct ap1302_device *ap1302, s32 val)
 {
 	return ap1302_write(ap1302, AP1302_AE_MET, val, NULL);
@@ -1998,6 +2012,9 @@ static int ap1302_g_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE_METERING:
 		return ap1302_get_exp_met(ap1302, &ctrl->val);
 
+	case V4L2_CID_EXPOSURE_ABSOLUTE:
+		return ap1302_get_exp_time(ap1302, &ctrl->val);
+
 	case V4L2_CID_GAIN:
 		return ap1302_get_gain(ap1302, &ctrl->val);
 
@@ -2042,7 +2059,23 @@ static int ap1302_g_ctrl(struct v4l2_ctrl *ctrl)
 	}
 }
 
+static int ap1302_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct ap1302_device *ap1302 =
+		container_of(ctrl->handler, struct ap1302_device, ctrls);
+
+	switch (ctrl->id) {
+	case V4L2_CID_EXPOSURE_ABSOLUTE:
+		return ap1302_get_exp_time(ap1302, &ctrl->val);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+
 static const struct v4l2_ctrl_ops ap1302_ctrl_ops = {
+	.g_volatile_ctrl = ap1302_g_volatile_ctrl,
 	.s_ctrl = ap1302_s_ctrl,
 };
 
@@ -2107,6 +2140,16 @@ static const struct v4l2_ctrl_config ap1302_ctrls[] = {
 		.max = 0x3,
 		.step = 1,
 		.def = 0x1,
+	}, {
+		.ops = &ap1302_ctrl_ops,
+		.id = V4L2_CID_EXPOSURE_ABSOLUTE,
+		.name = "Exposure absolute",
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.min = 0x0,
+		.max = 0x28F5C28,
+		.step = 1,
+		.def = 0x64,
+		.flags = V4L2_CTRL_FLAG_VOLATILE,
 	}, {
 		.ops = &ap1302_ctrl_ops,
 		.id = V4L2_CID_GAIN,
