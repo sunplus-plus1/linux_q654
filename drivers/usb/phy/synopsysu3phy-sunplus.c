@@ -50,8 +50,10 @@ static irqreturn_t u3phy_int(int irq, void *dev)
 static void typec_gpio(struct work_struct *work)
 {
 	struct usb3_phy *u3phy = container_of(work, struct usb3_phy, typecdir.work);
+	int dir;
 
-	if (u3phy->dir != gpiod_get_value(u3phy->gpiodir)) {
+	dir = u3phy->gpiodir ? gpiod_get_value(u3phy->gpiodir) : 0;
+	if (u3phy->dir != dir) {
 		struct u3phy_regs *dwc3phy_reg;
 		struct u3c_regs *dwc3portsc_reg;
 		unsigned int result;
@@ -63,7 +65,7 @@ static void typec_gpio(struct work_struct *work)
 		writel(result | 0x2, &dwc3portsc_reg->cfg[0]);
 
 		result = readl(&dwc3phy_reg->cfg[5]) & 0xffe0;
-		if (gpiod_get_value(u3phy->gpiodir)) {
+		if (dir) {
 			writel(result | 0x15, &dwc3phy_reg->cfg[5]);
 			u3phy->busy = 1;
 			result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(100));
@@ -134,7 +136,7 @@ static int sp_u3phy_power_on(struct phy *phy)
 	struct usb3_phy *u3phy = phy_get_drvdata(phy);
 	struct u3phy_regs *dwc3phy_reg;
 	struct u3c_regs *dwc3portsc_reg;
-	unsigned int result, i;
+	unsigned int result, i, dir;
 
 	clk_prepare_enable(u3phy->u3_clk);
 	clk_prepare_enable(u3phy->u3phy_clk);
@@ -160,8 +162,9 @@ static int sp_u3phy_power_on(struct phy *phy)
 	result = readl(&dwc3portsc_reg->cfg[0]);
 	writel(result | 0x2, &dwc3portsc_reg->cfg[0]);
 
+	dir = u3phy->gpiodir ? gpiod_get_value(u3phy->gpiodir) : 0;
 	result = readl(&dwc3phy_reg->cfg[5]) & 0xffe0;
-	if (gpiod_get_value(u3phy->gpiodir)) {
+	if (dir) {
 		writel(result | 0x15, &dwc3phy_reg->cfg[5]);
 		u3phy->busy = 1;
 		result = wait_event_timeout(u3phy->wq, !u3phy->busy, msecs_to_jiffies(100));
@@ -218,7 +221,7 @@ static int sunplus_usb_synopsys_u3phy_probe(struct platform_device *pdev)
 	struct phy_provider *phy_provider;
 	struct phy *phy;
 
-	dev_info(dev, "%s\n", __func__);
+	pr_info("[USB3PHY] %s\n", __func__);
 	u3phy = devm_kzalloc(dev, sizeof(*u3phy), GFP_KERNEL);
 	if (!u3phy)
 		return -ENOMEM;
@@ -276,11 +279,9 @@ static int sunplus_usb_synopsys_u3phy_probe(struct platform_device *pdev)
 		free_irq(u3phy->irq, u3phy);
 	}
 
-	u3phy->gpiodir = devm_gpiod_get(&pdev->dev, "typec", GPIOD_IN);
-	if (IS_ERR(u3phy->gpiodir)) {
-		dev_err(dev, "could not get type C gpio: %ld", PTR_ERR(u3phy->gpiodir));
-		return PTR_ERR(u3phy->gpiodir);
-	}
+	u3phy->gpiodir = devm_gpiod_get_optional(&pdev->dev, "typec", GPIOD_IN);
+	if (!u3phy->gpiodir)
+		pr_info("[USB3PHHY] No type C gpio\n");
 
 	//INIT_DELAYED_WORK(&u3phy->typecdir, typec_gpio);
 	//synopsys_u3phy_init(pdev);
