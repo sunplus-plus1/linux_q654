@@ -389,11 +389,23 @@
 	bcmdhd_wlan {
 		compatible = "android,bcmdhd_wlan";
 		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_int0_pins &ap6256_ctrl_pins>;
+		pinctrl-0 = <&gpio_int0_pins &ap6256_wifi_ctrl_pins>;
 		gpio_wl_reg_on = <&pctl 56 GPIO_ACTIVE_LOW>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
 	};
+	#ifdef AP6256_BT
+	rfkill_bluetooth {
+		compatible = "rfkill-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ap6256_bt_ctrl_pins>;
+		shutdown-gpios = <&pctl 57 GPIO_ACTIVE_HIGH>;
+		rfkill-name = "bluetooth";
+		rfkill-type = "bluetooth";
+		label = "bluetooth";
+		radio-type = "bluetooth";
+	};
+	#endif
 #endif
 };
 
@@ -2542,8 +2554,13 @@
 		sunplus,ao-pins = < SPPCTL_AOIOPAD(31, 0) >;
 	};
 
-	ap6256_ctrl_pins: ap6256_ctrl-pins {
+	ap6256_wifi_ctrl_pins: ap6256_wifi_ctrl-pins {
 		function = "GPIO";
-		pins = "GPIO56", "GPIO57";
+		pins = "GPIO56";
+	};
+
+	ap6256_bt_ctrl_pins: ap6256_bt_ctrl-pins {
+		function = "GPIO";
+		pins = "GPIO57";
 	};
 };
