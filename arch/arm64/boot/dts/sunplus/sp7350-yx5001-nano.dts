@@ -391,6 +391,22 @@
 		regulator-always-on;
 	};
 
+	lsm6dso_vdd: lsm6dso_vdd_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "lsm6dso_vdd";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
+	lsm6dso_vddio: lsm6dso_vddio_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "lsm6dso_vddio";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+	};
+
 #if defined(LT8912B_HDMI_ENABLE) /* Add lt8912b subnode */
 	lt8912b_1p8v: lt8912b_1p8v {
 		compatible = "regulator-fixed";
@@ -654,17 +670,15 @@
 
 &spi_controller4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi_master4_pins>;
-	//dmas = <&ahbdma1 6 0 0>,
-	//       <&ahbdma1 7 0 0>;
-	//dma-names = "rx", "tx";
-	status = "disabled";
+	pinctrl-0 = <&spi_master4_pins &spi4_cs_pins>;
+	cs-gpios = <&pctl 73 GPIO_ACTIVE_LOW>;
 
-	spi@0 {
-		compatible = "rohm,dh2228fv";
-		spi-max-frequency = <5000000>;
-		reg = <0x0>;
-		status = "disabled";
+	lsm6dso@0 {
+		compatible = "st,lsm6dso";
+		spi-max-frequency = <1000000>; //1MHz
+		reg = <0>;  // SPI CS
+		vdd-supply = <&lsm6dso_vdd>;
+		vddio-supply = <&lsm6dso_vddio>;		
 	};
 };
 
@@ -2579,6 +2593,11 @@
 	ap6256_bt_ctrl_pins: ap6256_bt_ctrl-pins {
 		function = "GPIO";
 		pins = "GPIO57";
+	};
+
+	spi4_cs_pins: spi4_cs-pins {
+		function = "GPIO";
+		pins = "GPIO73";
 	};
 };
 

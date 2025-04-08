@@ -1602,6 +1602,11 @@
 		pins = "GPIO0";
 	};
 
+	spi4_cs_pins: spi4_cs-pins {
+		function = "GPIO";
+		pins = "GPIO73";
+	};
+
 #ifdef AP1302_IN2 /* Add ap1302 subnode in i2c6 */
 	camera_2_pins: pinmux_camera_2-pins {
 		function = "GPIO";
