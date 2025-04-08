@@ -1932,5 +1932,10 @@
 		function = "GPIO";
 		pins = "GPIO57";
 	};
+
+	spi4_cs_pins: spi4_cs-pins {
+		function = "GPIO";
+		pins = "GPIO73";
+	};
 };
 
