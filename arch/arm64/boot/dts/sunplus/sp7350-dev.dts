@@ -1162,10 +1162,5 @@
 		groups = "GPIO_AO_INT3_X1";
 		sunplus,ao-pins = < SPPCTL_AOIOPAD(31, 0) >;
 	};
-
-	spi4_cs_pins: spi4_cs-pins {
-		function = "GPIO";
-		pins = "GPIO73";
-	};
 };
 
