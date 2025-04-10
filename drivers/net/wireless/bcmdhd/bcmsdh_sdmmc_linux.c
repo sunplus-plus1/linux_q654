@@ -250,6 +250,7 @@ static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM4381_CHIP_ID) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, BCM4382_CHIP_ID) },
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_SYNAPTICS, BCM43711_CHIP_ID) },
+	{ SDIO_DEVICE(SDIO_VENDOR_ID_SYNAPTICS, BCM4612_CHIP_ID) },
 	{ SDIO_DEVICE_CLASS(SDIO_CLASS_NONE)		},
 	{ 0, 0, 0, 0 /* end: all zeroes */
 	},
@@ -345,13 +346,13 @@ static void bcmsdh_sdmmc_complete(struct device *pdev)
 
 	printf("%s Enter func->num=%d\n", __FUNCTION__, func->num);
 	if (func->num != 2)
-		return ;
+		return;
 
 	sdioh = sdio_get_drvdata(func);
 	bcmsdh_complete(sdioh->bcmsdh);
 
 	printf("%s Exit\n", __FUNCTION__);
-	return ;
+	return;
 }
 #endif /* DEVICE_PM_CALLBACK */
 

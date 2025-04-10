@@ -81,7 +81,11 @@
 #endif /* ENABLE_ADAPTIVE_SCHED */
 #include <linux/rtc.h>
 #include <asm/uaccess.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
 #include <dhd_linux_priv.h>
 
 #include <epivers.h>
@@ -327,6 +331,11 @@ module_param(dhd_sta_threshold, int, 0);
 int dhd_if_threshold = DHD_IF_THRESHOLD_DEFAULT;
 module_param(dhd_if_threshold, int, 0);
 #endif /* BCM_ROUTER_DHD */
+
+#if defined(DHD_DEBUG) || defined(DHD_FW_LOG_SUPPORT)
+uint32 dngl_console_addr = 0;
+module_param(dngl_console_addr, uint, 0644);
+#endif /* defined(DHD_DEBUG) || defined(DHD_FW_LOG_SUPPORT) */
 
 /* XXX: where does this belong? */
 /* XXX: this needs to reviewed for host OS. */
@@ -789,19 +798,11 @@ module_param(tpoweron_scale, uint, 0644);
 #endif /* FORCE_TPOWERON */
 
 #ifdef SHOW_LOGTRACE
-#ifdef DHD_LINUX_STD_FW_API
 static char *logstrs_path = "logstrs.bin";
 char *st_str_file_path = "rtecdc.bin";
 static char *map_file_path = "rtecdc.map";
 static char *rom_st_str_file_path = "roml.bin";
 static char *rom_map_file_path = "roml.map";
-#else
-static char *logstrs_path = PLATFORM_PATH"logstrs.bin";
-char *st_str_file_path = PLATFORM_PATH"rtecdc.bin";
-static char *map_file_path = PLATFORM_PATH"rtecdc.map";
-static char *rom_st_str_file_path = PLATFORM_PATH"roml.bin";
-static char *rom_map_file_path = PLATFORM_PATH"roml.map";
-#endif /* DHD_LINUX_STD_FW_API */
 
 static char *ram_file_str = "rtecdc";
 static char *rom_file_str = "roml";
@@ -812,10 +813,10 @@ module_param(map_file_path, charp, S_IRUGO);
 module_param(rom_st_str_file_path, charp, S_IRUGO);
 module_param(rom_map_file_path, charp, S_IRUGO);
 
-static int dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp);
-static int dhd_read_map(osl_t *osh, char *fname, uint32 *ramstart, uint32 *rodata_start,
+static int dhd_init_logstrs_array(dhd_pub_t *dhd, dhd_event_log_t *temp);
+static int dhd_read_map(dhd_pub_t *dhd, char *fname, uint32 *ramstart, uint32 *rodata_start,
 	uint32 *rodata_end);
-static int dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file,
+static int dhd_init_static_strs_array(dhd_pub_t *dhd, dhd_event_log_t *temp, char *str_file,
 	char *map_file);
 #endif /* SHOW_LOGTRACE */
 
@@ -3111,9 +3112,23 @@ _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 int
 _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, uint8 *addr, bool skip_stop)
 {
+#if defined(DHD_NOTIFY_MAC_CHANGED) && defined(WL_STATIC_IF)
+	struct net_device *net = NULL;
+	struct bcm_cfg80211 *cfg = NULL;
+#endif /* DHD_NOTIFY_MAC_CHANGED && WL_STATIC_IF */
 	int ret;
 
 #ifdef DHD_NOTIFY_MAC_CHANGED
+#ifdef WL_STATIC_IF
+	net = dhd_idx2net(&dhd->pub, ifidx);
+	if (net)
+		cfg = wl_get_cfg(net);
+	if (cfg && wl_cfg80211_static_if(cfg, net)) {
+		skip_stop = FALSE;
+		WL_MSG(dhd_ifname(&dhd->pub, ifidx), "set skip_stop %d\n", skip_stop);
+	}
+#endif /* WL_STATIC_IF */
+
 	if (skip_stop) {
 		WL_MSG(dhd_ifname(&dhd->pub, ifidx), "close dev for mac changing\n");
 		dhd->pub.skip_dhd_stop = TRUE;
@@ -3138,9 +3153,9 @@ exit:
 #ifdef DHD_NOTIFY_MAC_CHANGED
 	if (skip_stop) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
-		dev_open(dhd->iflist[ifidx]->net, NULL);
+		ret = dev_open(dhd->iflist[ifidx]->net, NULL);
 #else
-		dev_open(dhd->iflist[ifidx]->net);
+		ret = dev_open(dhd->iflist[ifidx]->net);
 #endif
 		dhd->pub.skip_dhd_stop = FALSE;
 		WL_MSG(dhd_ifname(&dhd->pub, ifidx), "notify mac changed done\n");
@@ -6449,13 +6464,19 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		* takes care of trimming the length to DHD_IOCTL_MAXLEN(16K). So that DHD
 		* will not overflow the buffer size while updating the buffer.
 		*/
+#ifdef DHD_USE_KMEM_CACHE_USERCOPY
+		buflen = MIN(ioc.len, KMEM_CACHE_USERCOPY_MAXLEN_32K-1);
+		if (!(local_buf = KMEM_CACHE_ALLOC_USERCOPY(dhd->pub.osh)))
+#else
 		buflen = MIN(ioc.len, DHD_IOCTL_MAXLEN_32K);
-		if (!(local_buf = KMEM_CACHE_ALLOC_USERCOPY(dhd->pub.osh, buflen+1))) {
+		if (!(local_buf = MALLOC(dhd->pub.osh, buflen+1)))
+#endif /* DHD_USE_KMEM_CACHE_USERCOPY */
+		{
 			bcmerror = BCME_NOMEM;
 			goto done;
 		}
 
-		if (COPY_FROM_USER(dhd->pub.osh, local_buf, ioc.buf, buflen)) {
+		if (copy_from_user(local_buf, ioc.buf, buflen)) {
 			bcmerror = BCME_BADADDR;
 			goto done;
 		}
@@ -6484,13 +6505,18 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	/* Restore back userspace pointer to ioc.buf */
 	ioc.buf = ioc_buf_user;
 	if (!bcmerror && buflen && local_buf && ioc.buf) {
-		if (COPY_TO_USER(dhd->pub.osh, ioc.buf, local_buf, buflen))
+		if (copy_to_user(ioc.buf, local_buf, buflen))
 			bcmerror = -EFAULT;
 	}
 
 done:
-	if (local_buf)
-		KMEM_CACHE_FREE_USERCOPY(dhd->pub.osh, local_buf, buflen+1);
+	if (local_buf) {
+#ifdef DHD_USE_KMEM_CACHE_USERCOPY
+		KMEM_CACHE_FREE_USERCOPY(dhd->pub.osh, local_buf);
+#else
+		MFREE(dhd->pub.osh, local_buf, buflen+1);
+#endif /* DHD_USE_KMEM_CACHE_USERCOPY */
+	}
 
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 
@@ -7110,6 +7136,7 @@ dhd_open(struct net_device *net)
 		printf("ANDROID_VERSION = %d\n", ANDROID_VERSION);
 	/* Init wakelock */
 	if (!dhd_download_fw_on_driverload) {
+		dhd_update_fw_nv_path(dhd);
 		if (!(dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT)) {
 			DHD_OS_WAKE_LOCK_INIT(dhd);
 			dhd->dhd_state |= DHD_ATTACH_STATE_WAKELOCKS_INIT;
@@ -7117,19 +7144,6 @@ dhd_open(struct net_device *net)
 
 #ifdef SHOW_LOGTRACE
 		skb_queue_head_init(&dhd->evt_trace_queue);
-
-		if (!(dhd->dhd_state & DHD_ATTACH_LOGTRACE_INIT)) {
-			ret = dhd_init_logstrs_array(dhd->pub.osh, &dhd->event_data);
-			if (ret == BCME_OK) {
-				dhd_init_static_strs_array(dhd->pub.osh, &dhd->event_data,
-					st_str_file_path, map_file_path);
-#ifdef DHD_LOAD_ROML_FILES
-				dhd_init_static_strs_array(dhd->pub.osh, &dhd->event_data,
-					rom_st_str_file_path, rom_map_file_path);
-#endif /* DHD_LOAD_ROML_FILES */
-				dhd->dhd_state |= DHD_ATTACH_LOGTRACE_INIT;
-			}
-		}
 #endif /* SHOW_LOGTRACE */
 	}
 
@@ -7540,13 +7554,6 @@ dhd_pri_open(struct net_device *net)
 	dhd_tx_start_queues(net);
 	WL_MSG(net->name, "tx queue started\n");
 
-#if defined(SET_RPS_CPUS)
-	dhd_rps_cpus_enable(net, TRUE);
-#endif
-
-#if defined(SET_XPS_CPUS)
-	dhd_xps_cpus_enable(net, TRUE);
-#endif
 	DHD_MUTEX_UNLOCK();
 
 	return ret;
@@ -8278,7 +8285,7 @@ dhd_remove_if(dhd_pub_t *dhdpub, int ifidx, bool need_rtnl_lock)
 				netif_tx_disable(ifp->net);
 
 #if defined(SET_RPS_CPUS)
-				custom_rps_map_clear(ifp->net->_rx);
+				custom_rps_map_clear(ifp->net);
 #endif /* SET_RPS_CPUS */
 #if (defined(BCM_ROUTER_DHD) && defined(HNDCTF))
 				if (dhdinfo->cih)
@@ -8450,18 +8457,14 @@ dhd_os_seek_file(void *file, int64 offset)
 #ifdef SHOW_LOGTRACE
 #ifdef DHD_COREDUMP
 static int
-dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
+dhd_lookup_map(dhd_pub_t *dhd, char *fname, uint32 pc, char *pc_fn,
 		uint32 lr, char *lr_fn)
 {
-#ifdef DHD_LINUX_STD_FW_API
-	const struct firmware *fw = NULL;
+	dhd_info_t *dhdinfo = dhd->info;
+	fwpkg_info_t logpkg, *fwpkg = &dhdinfo->fwpkg;
+	osl_t *osh = dhd->osh;
+	FWPKG_FILE *fw = NULL;
 	uint32 size = 0, mem_offset = 0;
-#else
-	struct file *filep = NULL;
-#ifdef get_fs
-	mm_segment_t fs;
-#endif /* get_fs */
-#endif /* DHD_LINUX_STD_FW_API */
 	char *raw_fmts = NULL, *raw_fmts_loc = NULL, *cptr = NULL;
 	uint32 read_size = READ_NUM_BYTES;
 	int err = BCME_ERROR;
@@ -8489,25 +8492,21 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 		return BCME_ERROR;
 	}
 
-#ifdef DHD_LINUX_STD_FW_API
-	err = dhd_os_get_img_fwreq(&fw, fname);
-	if (err < 0) {
-		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
-			err));
+	if (fwpkg_unit_inside(fwpkg, FWPKG_TAG_RAM_MAP)) {
+		strlcpy(dhdinfo->tmp_path, dhdinfo->fw_path, sizeof(dhdinfo->tmp_path));
+	} else {
+		memset(&logpkg, 0, sizeof(fwpkg_info_t));
+		fwpkg = &logpkg;
+		dhd_conf_set_path(dhd, dhdinfo->tmp_path, dhdinfo->fw_path,
+			"fw_", ".map", PATH_BY_CHIP_BUS);
+	}
+
+	size = fwpkg_open_firmware_img(&fw, fwpkg, FWPKG_TAG_RAM_MAP,
+		dhdinfo->tmp_path, __FUNCTION__);
+	if (size <= 0) {
+		DHD_ERROR(("%s: Ignore map file %s\n", __FUNCTION__, dhdinfo->tmp_path));
 		goto fail;
 	}
-	size = fw->size;
-#else
-#ifdef get_fs
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-#endif /* get_fs */
-	filep = dhd_filp_open(fname, O_RDONLY, 0);
-	if (IS_ERR(filep) || (filep == NULL)) {
-		DHD_ERROR(("%s: Failed to open %s \n",  __FUNCTION__, fname));
-		goto fail;
-	}
-#endif /* DHD_LINUX_STD_FW_API */
 
 	if (pc_fn == NULL) {
 		count |= PC_FOUND_BIT;
@@ -8517,28 +8516,17 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 	}
 	while (count != ALL_ADDR_VAL)
 	{
-#ifdef DHD_LINUX_STD_FW_API
 		/* Bound check for size before doing memcpy() */
 		if ((mem_offset + read_size) > size) {
 			read_size = size - mem_offset;
 		}
-
-		err = memcpy_s(raw_fmts, read_size,
-			((char *)(fw->data) + mem_offset), read_size);
-		if (err) {
-			DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
-				__FUNCTION__, err));
+		read_size = fwpkg_get_firmware_img_block(fw, fwpkg, FWPKG_TAG_RAM_MAP,
+			raw_fmts, read_size, mem_offset);
+		if (read_size <= 0) {
+			DHD_ERROR(("%s: failed to copy raw_fmts (%d)\n",
+				__FUNCTION__, read_size));
 			goto fail;
 		}
-#else
-		err = dhd_os_read_file(filep, raw_fmts, read_size);
-		if (err < 0) {
-			DHD_ERROR(("%s: map file read failed err:%d \n",
-				__FUNCTION__, err));
-			goto fail;
-		}
-
-#endif /* DHD_LINUX_STD_FW_API */
 		/* End raw_fmts with NULL as strstr expects NULL terminated
 		* strings
 		*/
@@ -8629,48 +8617,18 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 			}
 			offset += (len + 1);
 		}
-#ifdef DHD_LINUX_STD_FW_API
 		if ((mem_offset + read_size) >= size) {
 			break;
 		}
 
 		memset(raw_fmts, 0, read_size);
 		mem_offset += (read_size -(len + 1));
-#else
-		if (err < (int)read_size) {
-			/*
-			* since we reset file pos back to earlier pos by
-			* bytes of one line we won't reach EOF.
-			* The reason for this is if string is spreaded across
-			* bytes, the read function should not miss it.
-			* So if ret value is less than read_size, reached EOF
-			* don't read further
-			*/
-			break;
-		}
-		memset(raw_fmts, 0, read_size);
-		/*
-		* go back to bytes of one line so that we won't miss
-		* the string and addr even if it comes as splited in next read.
-		*/
-		dhd_os_seek_file(filep, -(len + 1));
-#endif /* DHD_LINUX_STD_FW_API */
-		DHD_TRACE(("%s: seek %d \n", __FUNCTION__, -(len + 1)));
 	}
 
 fail:
-#ifdef DHD_LINUX_STD_FW_API
 	if (fw) {
-		dhd_os_close_img_fwreq(fw);
+		fwpkg_close_firmware_img(fw);
 	}
-#else
-	if (!IS_ERR(filep))
-		dhd_filp_close(filep, NULL);
-
-#ifdef get_fs
-	set_fs(fs);
-#endif /* get_fs */
-#endif /* DHD_LINUX_STD_FW_API */
 	if (!(count & PC_FOUND_BIT)) {
 		sprintf(pc_fn, "0x%08x", pc);
 	}
@@ -8684,30 +8642,34 @@ fail:
 }
 #endif /* DHD_COREDUMP */
 
-#ifdef DHD_LINUX_STD_FW_API
 static int
-dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
+dhd_init_logstrs_array(dhd_pub_t *dhd, dhd_event_log_t *temp)
 {
+	dhd_info_t *dhdinfo = dhd->info;
+	fwpkg_info_t logpkg, *fwpkg = &dhdinfo->fwpkg;
+	osl_t *osh = dhd->osh;
+	FWPKG_FILE *fw = NULL;
 	char *raw_fmts =  NULL;
-	int logstrs_size = 0;
-	int error = 0;
-	const struct firmware *fw = NULL;
+	int logstrs_size = 0, rdlen;
 
 	if (control_logtrace != LOGTRACE_PARSED_FMT) {
 		DHD_ERROR_NO_HW4(("%s : turned off logstr parsing\n", __FUNCTION__));
 		return BCME_ERROR;
 	}
 
-	error = dhd_os_get_img_fwreq(&fw, logstrs_path);
-	if (error < 0) {
-		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
-			error));
-		goto fail;
+	if (fwpkg_unit_inside(fwpkg, FWPKG_TAG_LOGSTRS)) {
+		strlcpy(dhdinfo->tmp_path, dhdinfo->fw_path, sizeof(dhdinfo->tmp_path));
+	} else {
+		memset(&logpkg, 0, sizeof(fwpkg_info_t));
+		fwpkg = &logpkg;
+		dhd_conf_set_path(dhd, dhdinfo->tmp_path, dhdinfo->fw_path,
+			"logstrs_", ".bin", PATH_BY_CHIP_BUS);
 	}
 
-	logstrs_size = (int)fw->size;
-	if (logstrs_size == 0) {
-		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
+	logstrs_size = fwpkg_open_firmware_img(&fw, fwpkg, FWPKG_TAG_LOGSTRS,
+		dhdinfo->tmp_path, __FUNCTION__);
+	if (logstrs_size <= 0) {
+		DHD_ERROR(("%s: Ignore logstrs file %s\n", __FUNCTION__, dhdinfo->tmp_path));
 		goto fail;
 	}
 
@@ -8722,21 +8684,21 @@ dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
 		temp->raw_fmts = raw_fmts;
 		temp->raw_fmts_size = logstrs_size;
 	}
-	error = memcpy_s(raw_fmts, logstrs_size, (const char *)(fw->data), logstrs_size);
-	if (error) {
-		DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
-			__FUNCTION__, error));
+	rdlen = fwpkg_get_firmware_img_block(fw, fwpkg, FWPKG_TAG_LOGSTRS,
+		raw_fmts, logstrs_size, 0);
+	if (rdlen != logstrs_size) {
+		DHD_ERROR(("%s: failed to get raw_fmts %d\n", __FUNCTION__, rdlen));
 		goto fail;
 	}
-	if (dhd_parse_logstrs_file(osh, raw_fmts, logstrs_size, temp) == BCME_OK) {
-		dhd_os_close_img_fwreq(fw);
+	if (dhd_parse_logstrs_file(dhd, raw_fmts, logstrs_size, temp) == BCME_OK) {
+		fwpkg_close_firmware_img(fw);
 		DHD_ERROR(("%s: return ok\n", __FUNCTION__));
 		return BCME_OK;
 	}
 
 fail:
 	if (fw) {
-		dhd_os_close_img_fwreq(fw);
+		fwpkg_close_firmware_img(fw);
 	}
 	if (raw_fmts) {
 		MFREE(osh, raw_fmts, logstrs_size);
@@ -8752,40 +8714,68 @@ fail:
 }
 
 static int
-dhd_read_map(osl_t *osh, char *fname, uint32 *ramstart, uint32 *rodata_start,
+dhd_read_map(dhd_pub_t *dhd, char *fname, uint32 *ramstart, uint32 *rodata_start,
 		uint32 *rodata_end)
 {
+	dhd_info_t *dhdinfo = dhd->info;
+	fwpkg_info_t logpkg, *fwpkg = &dhdinfo->fwpkg;
+	FWPKG_FILE *fw = NULL;
+	int map_size = 0, unit_type;
 	int err = BCME_ERROR;
-	const struct firmware *fw = NULL;
 
 	if (fname == NULL) {
 		DHD_ERROR(("%s: ERROR fname is NULL \n", __FUNCTION__));
 		return BCME_ERROR;
 	}
 
-	err = dhd_os_get_img_fwreq(&fw, fname);
-	if (err < 0) {
-		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
-			err));
+	if (strstr(fname, ram_file_str) != NULL) {
+		unit_type = FWPKG_TAG_RAM_MAP;
+		dhd_conf_set_path(dhd, dhdinfo->tmp_path, dhdinfo->fw_path,
+			"fw_", ".map", PATH_BY_CHIP_BUS);
+	} else if (strstr(fname, rom_file_str) != NULL) {
+		unit_type = FWPKG_TAG_ROM_MAP;
+		dhd_conf_set_path(dhd, dhdinfo->tmp_path, dhdinfo->fw_path,
+			"roml_", ".map", PATH_BY_CHIP_BUS);
+	} else {
+		DHD_ERROR(("%s: unknown file %s\n", __FUNCTION__, fname));
+		return BCME_ERROR;
+	}
+
+	if (fwpkg_unit_inside(fwpkg, unit_type)) {
+		strlcpy(dhdinfo->tmp_path, dhdinfo->fw_path, sizeof(dhdinfo->tmp_path));
+	} else {
+		memset(&logpkg, 0, sizeof(fwpkg_info_t));
+		fwpkg = &logpkg;
+	}
+
+	map_size = fwpkg_open_firmware_img(&fw, fwpkg, unit_type,
+		dhdinfo->tmp_path, __FUNCTION__);
+	if (map_size <= 0) {
+		DHD_ERROR(("%s: Ignore map file %s\n", __FUNCTION__, dhdinfo->tmp_path));
 		goto fail;
 	}
 
-	if ((err = dhd_parse_map_file(osh, fw, ramstart,
+	if ((err = dhd_parse_map_file(dhd, fw, unit_type, map_size, ramstart,
 			rodata_start, rodata_end)) < 0) {
 		goto fail;
 	}
 
 fail:
 	if (fw) {
-		dhd_os_close_img_fwreq(fw);
+		fwpkg_close_firmware_img(fw);
 	}
 
 	return err;
 }
 
 static int
-dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, char *map_file)
+dhd_init_static_strs_array(dhd_pub_t *dhd, dhd_event_log_t *temp, char *str_file, char *map_file)
 {
+	dhd_info_t *dhdinfo = dhd->info;
+	fwpkg_info_t logpkg, *fwpkg = &dhdinfo->fwpkg;
+	osl_t *osh = dhd->osh;
+	FWPKG_FILE *fw = NULL;
+	int map_size = 0, rdlen, unit_type;
 	char *raw_fmts =  NULL;
 	uint32 logstrs_size = 0;
 	int error = 0;
@@ -8793,11 +8783,10 @@ dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, ch
 	uint32 rodata_start = 0;
 	uint32 rodata_end = 0;
 	uint32 logfilebase = 0;
-	const struct firmware *fw = NULL;
 
-	error = dhd_read_map(osh, map_file, &ramstart, &rodata_start, &rodata_end);
+	error = dhd_read_map(dhd, map_file, &ramstart, &rodata_start, &rodata_end);
 	if (error != BCME_OK) {
-		DHD_ERROR(("readmap Error!! \n"));
+		DHD_INFO(("readmap Error!! \n"));
 		/* don't do event log parsing in actual case */
 		if (strstr(str_file, ram_file_str) != NULL) {
 			temp->raw_sstr = NULL;
@@ -8818,9 +8807,22 @@ dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, ch
 		goto fail1;
 	}
 
-	if (strstr(str_file, ram_file_str) != NULL && temp->raw_sstr != NULL) {
+	if (strstr(str_file, ram_file_str) != NULL) {
+		unit_type = FWPKG_TAG_FW;
+		dhd_conf_set_path(dhd, dhdinfo->tmp_path, dhdinfo->fw_path,
+			"fw_", ".bin", PATH_BY_CHIP_BUS);
+	} else if (strstr(str_file, rom_file_str) != NULL) {
+		unit_type = FWPKG_TAG_ROM;
+		dhd_conf_set_path(dhd, dhdinfo->tmp_path, dhdinfo->fw_path,
+			"roml_", ".bin", PATH_BY_CHIP_BUS);
+	} else {
+		DHD_ERROR(("%s: unknown file %s\n", __FUNCTION__, str_file));
+		goto fail1;
+	}
+
+	if (unit_type == FWPKG_TAG_FW && temp->raw_sstr != NULL) {
 		raw_fmts = temp->raw_sstr;	/* reuse already malloced raw_fmts */
-	} else if (strstr(str_file, rom_file_str) != NULL && temp->rom_raw_sstr != NULL) {
+	} else if (unit_type == FWPKG_TAG_ROM && temp->rom_raw_sstr != NULL) {
 		raw_fmts = temp->rom_raw_sstr;	/* reuse already malloced raw_fmts */
 	} else {
 		raw_fmts = MALLOC(osh, logstrs_size);
@@ -8831,27 +8833,34 @@ dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, ch
 		}
 	}
 
-	error = dhd_os_get_img_fwreq(&fw, str_file);
-	if (error < 0 || (fw == NULL) || (fw->size < logfilebase)) {
-		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
-			error));
+	if (fwpkg_unit_inside(fwpkg, unit_type)) {
+		strlcpy(dhdinfo->tmp_path, dhdinfo->fw_path, sizeof(dhdinfo->tmp_path));
+	} else {
+		memset(&logpkg, 0, sizeof(fwpkg_info_t));
+		fwpkg = &logpkg;
+	}
+
+	map_size = fwpkg_open_firmware_img(&fw, fwpkg, unit_type,
+		dhdinfo->tmp_path, __FUNCTION__);
+	if (map_size < logfilebase) {
+		DHD_ERROR(("%s: Ignore fw file %s\n", __FUNCTION__, dhdinfo->tmp_path));
 		goto fail;
 	}
 
-	error = memcpy_s(raw_fmts, logstrs_size, (const char *)((fw->data) + logfilebase),
-		logstrs_size);
-	if (error) {
-		DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
-			__FUNCTION__, error));
+	rdlen = fwpkg_get_firmware_img_block(fw, fwpkg, unit_type,
+		raw_fmts, logstrs_size, logfilebase);
+	if (rdlen <= 0) {
+		DHD_ERROR(("%s: failed to copy raw_fmts (%d)\n",
+			__FUNCTION__, rdlen));
 		goto fail;
 	}
 
-	if (strstr(str_file, ram_file_str) != NULL) {
+	if (unit_type == FWPKG_TAG_FW) {
 		temp->raw_sstr = raw_fmts;
 		temp->raw_sstr_size = logstrs_size;
 		temp->rodata_start = rodata_start;
 		temp->rodata_end = rodata_end;
-	} else if (strstr(str_file, rom_file_str) != NULL) {
+	} else if (unit_type == FWPKG_TAG_ROM) {
 		temp->rom_raw_sstr = raw_fmts;
 		temp->rom_raw_sstr_size = logstrs_size;
 		temp->rom_rodata_start = rodata_start;
@@ -8859,7 +8868,7 @@ dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, ch
 	}
 
 	if (fw) {
-		dhd_os_close_img_fwreq(fw);
+		fwpkg_close_firmware_img(fw);
 	}
 
 	return BCME_OK;
@@ -8871,264 +8880,17 @@ fail:
 
 fail1:
 	if (fw) {
-		dhd_os_close_img_fwreq(fw);
+		fwpkg_close_firmware_img(fw);
 	}
 
-	if (strstr(str_file, ram_file_str) != NULL) {
+	if (unit_type == FWPKG_TAG_FW) {
 		temp->raw_sstr = NULL;
-	} else if (strstr(str_file, rom_file_str) != NULL) {
+	} else if (unit_type == FWPKG_TAG_ROM) {
 		temp->rom_raw_sstr = NULL;
 	}
 
 	return error;
-} /* dhd_init_static_strs_array */
-#else
-static int
-dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
-{
-	struct file *filep = NULL;
-#ifdef get_fs
-	mm_segment_t fs;
-#endif /* get_fs */
-	char *raw_fmts =  NULL;
-	int logstrs_size = 0;
-
-	if (control_logtrace != LOGTRACE_PARSED_FMT) {
-		DHD_ERROR_NO_HW4(("%s : turned off logstr parsing\n", __FUNCTION__));
-		return BCME_ERROR;
-	}
-
-#ifdef get_fs
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-#endif /* get_fs */
-
-	filep = dhd_filp_open(logstrs_path, O_RDONLY, 0);
-
-	if (IS_ERR(filep) || (filep == NULL)) {
-		DHD_ERROR_NO_HW4(("%s: Failed to open the file %s \n",
-			__FUNCTION__, logstrs_path));
-		goto fail;
-	}
-
-	logstrs_size = dhd_vfs_size_read(filep);
-
-	if (logstrs_size == 0) {
-		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
-		goto fail1;
-	}
-
-	if (temp->raw_fmts != NULL) {
-		raw_fmts = temp->raw_fmts;	   /* reuse already malloced raw_fmts */
-	} else {
-		raw_fmts = MALLOC(osh, logstrs_size);
-		if (raw_fmts == NULL) {
-			DHD_ERROR(("%s: Failed to allocate memory \n", __FUNCTION__));
-			goto fail;
-		}
-		temp->raw_fmts = raw_fmts;
-		temp->raw_fmts_size = logstrs_size;
-	}
-
-	if (dhd_vfs_read(filep, raw_fmts, logstrs_size, &filep->f_pos) != logstrs_size) {
-		DHD_ERROR_NO_HW4(("%s: Failed to read file %s\n", __FUNCTION__, logstrs_path));
-		goto fail;
-	}
-
-	if (dhd_parse_logstrs_file(osh, raw_fmts, logstrs_size, temp)
-			== BCME_OK) {
-		dhd_filp_close(filep, NULL);
-#ifdef get_fs
-		set_fs(fs);
-#endif /* get_fs */
-		return BCME_OK;
-	}
-
-	fail:
-	if (raw_fmts) {
-		MFREE(osh, raw_fmts, logstrs_size);
-	}
-	if (temp->fmts != NULL) {
-		MFREE(osh, temp->fmts, temp->num_fmts * sizeof(char *));
-	}
-
-	fail1:
-	if (!IS_ERR(filep))
-		dhd_filp_close(filep, NULL);
-
-#ifdef get_fs
-	set_fs(fs);
-#endif /* get_fs */
-	temp->fmts = NULL;
-	temp->raw_fmts = NULL;
-
-	return BCME_ERROR;
 }
-
-static int
-dhd_read_map(osl_t *osh, char *fname, uint32 *ramstart, uint32 *rodata_start,
-		uint32 *rodata_end)
-{
-	struct file *filep = NULL;
-#ifdef get_fs
-	mm_segment_t fs;
-#endif /* get_fs */
-	int err = BCME_ERROR;
-
-	if (fname == NULL) {
-		DHD_ERROR(("%s: ERROR fname is NULL \n", __FUNCTION__));
-		return BCME_ERROR;
-	}
-
-#ifdef get_fs
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-#endif /* get_fs */
-
-	filep = dhd_filp_open(fname, O_RDONLY, 0);
-	if (IS_ERR(filep) || (filep == NULL)) {
-		DHD_ERROR_NO_HW4(("%s: Failed to open %s \n",  __FUNCTION__, fname));
-		goto fail;
-	}
-
-	if ((err = dhd_parse_map_file(osh, filep, ramstart,
-			rodata_start, rodata_end)) < 0)
-		goto fail;
-
-fail:
-	if (!IS_ERR(filep))
-		dhd_filp_close(filep, NULL);
-
-#ifdef get_fs
-	set_fs(fs);
-#endif /* get_fs */
-
-	return err;
-}
-
-static int
-dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, char *map_file)
-{
-	struct file *filep = NULL;
-#ifdef get_fs
-	mm_segment_t fs;
-#endif /* get_fs */
-	char *raw_fmts =  NULL;
-	uint32 logstrs_size = 0;
-	int error = 0;
-	uint32 ramstart = 0;
-	uint32 rodata_start = 0;
-	uint32 rodata_end = 0;
-	uint32 logfilebase = 0;
-
-	error = dhd_read_map(osh, map_file, &ramstart, &rodata_start, &rodata_end);
-	if (error != BCME_OK) {
-		DHD_ERROR(("readmap Error!! \n"));
-		/* don't do event log parsing in actual case */
-		if (strstr(str_file, ram_file_str) != NULL) {
-			temp->raw_sstr = NULL;
-		} else if (strstr(str_file, rom_file_str) != NULL) {
-			temp->rom_raw_sstr = NULL;
-		}
-		return error;
-	}
-	DHD_ERROR(("ramstart: 0x%x, rodata_start: 0x%x, rodata_end:0x%x\n",
-		ramstart, rodata_start, rodata_end));
-
-#ifdef get_fs
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-#endif /* get_fs */
-
-	filep = dhd_filp_open(str_file, O_RDONLY, 0);
-	if (IS_ERR(filep) || (filep == NULL)) {
-		DHD_ERROR(("%s: Failed to open the file %s \n",  __FUNCTION__, str_file));
-		goto fail;
-	}
-
-	if (TRUE) {
-		/* Full file size is huge. Just read required part */
-		logstrs_size = rodata_end - rodata_start;
-		logfilebase = rodata_start - ramstart;
-	}
-
-	if (logstrs_size == 0) {
-		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
-		goto fail1;
-	}
-
-	if (strstr(str_file, ram_file_str) != NULL && temp->raw_sstr != NULL) {
-		raw_fmts = temp->raw_sstr;	/* reuse already malloced raw_fmts */
-	} else if (strstr(str_file, rom_file_str) != NULL && temp->rom_raw_sstr != NULL) {
-		raw_fmts = temp->rom_raw_sstr;	/* reuse already malloced raw_fmts */
-	} else {
-		raw_fmts = MALLOC(osh, logstrs_size);
-
-		if (raw_fmts == NULL) {
-			DHD_ERROR(("%s: Failed to allocate raw_fmts memory \n", __FUNCTION__));
-			goto fail;
-		}
-	}
-
-	if (TRUE) {
-		error = generic_file_llseek(filep, logfilebase, SEEK_SET);
-		if (error < 0) {
-			DHD_ERROR(("%s: %s llseek failed %d \n", __FUNCTION__, str_file, error));
-			goto fail;
-		}
-	}
-
-	error = dhd_vfs_read(filep, raw_fmts, logstrs_size, (&filep->f_pos));
-	if (error != logstrs_size) {
-		DHD_ERROR(("%s: %s read failed %d \n", __FUNCTION__, str_file, error));
-		goto fail;
-	}
-
-	if (strstr(str_file, ram_file_str) != NULL) {
-		temp->raw_sstr = raw_fmts;
-		temp->raw_sstr_size = logstrs_size;
-		temp->rodata_start = rodata_start;
-		temp->rodata_end = rodata_end;
-	} else if (strstr(str_file, rom_file_str) != NULL) {
-		temp->rom_raw_sstr = raw_fmts;
-		temp->rom_raw_sstr_size = logstrs_size;
-		temp->rom_rodata_start = rodata_start;
-		temp->rom_rodata_end = rodata_end;
-	} else {
-		if (raw_fmts) {
-			MFREE(osh, raw_fmts, logstrs_size);
-		}
-	}
-
-	dhd_filp_close(filep, NULL);
-#ifdef get_fs
-	set_fs(fs);
-#endif /* get_fs */
-
-	return BCME_OK;
-
-fail:
-	if (raw_fmts) {
-		MFREE(osh, raw_fmts, logstrs_size);
-	}
-
-fail1:
-	if (!IS_ERR(filep))
-		dhd_filp_close(filep, NULL);
-
-#ifdef get_fs
-	set_fs(fs);
-#endif /* get_fs */
-
-	if (strstr(str_file, ram_file_str) != NULL) {
-		temp->raw_sstr = NULL;
-	} else if (strstr(str_file, rom_file_str) != NULL) {
-		temp->rom_raw_sstr = NULL;
-	}
-
-	return error;
-} /* dhd_init_static_strs_array */
-#endif /* DHD_LINUX_STD_FW_API */
 #endif /* SHOW_LOGTRACE */
 
 #ifdef BCMDBUS
@@ -9160,10 +8922,31 @@ dhd_set_path(dhd_pub_t *pub)
 		DHD_INFO(("%s: fw %s, nv %s, conf %s\n",
 			__FUNCTION__, dhd->fw_path, dhd->nv_path, dhd->conf_path));
 		dhd_bus_update_fw_nv_path(dhd->pub.bus,
-				dhd->fw_path, dhd->nv_path, dhd->clm_path, dhd->conf_path);
+				dhd->fw_path, dhd->nv_path);
 	}
 }
 #endif
+
+#ifdef SHOW_LOGTRACE
+void
+dhd_init_logstrs(dhd_pub_t *dhd)
+{
+	int ret;
+
+	if (!(dhd->info->dhd_state & DHD_ATTACH_LOGTRACE_INIT)) {
+		ret = dhd_init_logstrs_array(dhd, &dhd->info->event_data);
+		if (ret == BCME_OK) {
+			dhd_init_static_strs_array(dhd, &dhd->info->event_data, st_str_file_path,
+				map_file_path);
+#ifdef DHD_LOAD_ROML_FILES
+			dhd_init_static_strs_array(dhd, &dhd->info->event_data, rom_st_str_file_path,
+				rom_map_file_path);
+#endif /* DHD_LOAD_ROML_FILES */
+			dhd->info->dhd_state |= DHD_ATTACH_LOGTRACE_INIT;
+		}
+	}
+}
+#endif /* SHOW_LOGTRACE */
 
 /** Called once for each hardware (dongle) instance that this DHD manages */
 dhd_pub_t *
@@ -9184,9 +8967,6 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
 #elif defined(BCMDBUS)
 	wifi_adapter_info_t *adapter = data;
 #endif
-#ifdef SHOW_LOGTRACE
-	int ret;
-#endif /* SHOW_LOGTRACE && !OEM_ANDROID */
 
 	dhd_attach_states_t dhd_state = DHD_ATTACH_STATE_INIT;
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
@@ -9435,21 +9215,6 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
 	dhd_monitor_init(&dhd->pub);
 	dhd_state |= DHD_ATTACH_STATE_CFG80211;
 #endif
-
-#ifdef SHOW_LOGTRACE
-	if (dhd_download_fw_on_driverload) {
-		ret = dhd_init_logstrs_array(osh, &dhd->event_data);
-		if (ret == BCME_OK) {
-			dhd_init_static_strs_array(osh, &dhd->event_data, st_str_file_path,
-				map_file_path);
-#ifdef DHD_LOAD_ROML_FILES
-			dhd_init_static_strs_array(osh, &dhd->event_data, rom_st_str_file_path,
-				rom_map_file_path);
-#endif /* DHD_LOAD_ROML_FILES */
-			dhd_state |= DHD_ATTACH_LOGTRACE_INIT;
-		}
-	}
-#endif /* SHOW_LOGTRACE */
 
 #ifdef WL_EVENT
 	if (wl_ext_event_attach(net) != 0) {
@@ -9915,6 +9680,14 @@ int dhd_bus_get_fw_mode(dhd_pub_t *dhdp)
 	return dhd_get_fw_mode(dhdp->info);
 }
 
+void dhd_update_file_path(dhd_info_t *dhdinfo)
+{
+	dhdinfo->pub.sig_path = dhdinfo->sig_path;
+	dhdinfo->pub.clm_path = dhdinfo->clm_path;
+	dhdinfo->pub.conf_path = dhdinfo->conf_path;
+	memset(&dhdinfo->fwpkg, 0, sizeof(fwpkg_info_t));
+}
+
 extern char * nvram_get(const char *name);
 bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 {
@@ -9947,19 +9720,12 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 	 * is changed again (first character is not '\0')
 	 */
 
+	dhd_update_file_path(dhdinfo);
+
 	/* set default firmware and nvram path for built-in type driver */
 //	if (!dhd_download_fw_on_driverload) {
-#ifdef DHD_LINUX_STD_FW_API
 		fw = DHD_FW_NAME;
 		nv = DHD_NVRAM_NAME;
-#else
-#ifdef CONFIG_BCMDHD_FW_PATH
-		fw = VENDOR_PATH CONFIG_BCMDHD_FW_PATH;
-#endif /* CONFIG_BCMDHD_FW_PATH */
-#ifdef CONFIG_BCMDHD_NVRAM_PATH
-		nv = VENDOR_PATH CONFIG_BCMDHD_NVRAM_PATH;
-#endif /* CONFIG_BCMDHD_NVRAM_PATH */
-#endif /* DHD_LINUX_STD_FW_API */
 //	}
 
 	/* check if we need to initialize the path */
@@ -9972,14 +9738,6 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 	if (dhdinfo->nv_path[0] == '\0') {
 		if (adapter && adapter->nv_path && adapter->nv_path[0] != '\0')
 			nv = adapter->nv_path;
-	}
-	if (dhdinfo->clm_path[0] == '\0') {
-		if (adapter && adapter->clm_path && adapter->clm_path[0] != '\0')
-			clm = adapter->clm_path;
-	}
-	if (dhdinfo->conf_path[0] == '\0') {
-		if (adapter && adapter->conf_path && adapter->conf_path[0] != '\0')
-			conf = adapter->conf_path;
 	}
 
 	/* Use module parameter if it is valid, EVEN IF the path has not been initialized
@@ -10135,6 +9893,7 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 		firmware_path[0] = '\0';
 		nvram_path[0] = '\0';
 		signature_path[0] = '\0';
+		clm_path[0] = '\0';
 	}
 #endif
 #ifdef DHD_UCODE_DOWNLOAD
@@ -10154,6 +9913,7 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 	}
 #endif /* BCMEMBEDIMAGE */
 
+	dhd_conf_update_path(&dhdinfo->pub);
 	return TRUE;
 }
 
@@ -10314,7 +10074,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 #endif /* DHD_DEBUG && BCMSDIO */
 		dhd_bus_set_signature_path(dhd->pub.bus, dhd->sig_path);
 		ret = dhd_bus_download_firmware(dhd->pub.bus, dhd->pub.osh,
-			dhd->fw_path, dhd->nv_path, dhd->clm_path, dhd->conf_path);
+			dhd->fw_path, dhd->nv_path);
 #if defined(DHD_DEBUG) && defined(BCMSDIO)
 		fw_download_end = OSL_SYSUPTIME();
 #endif /* DHD_DEBUG && BCMSDIO */
@@ -11186,6 +10946,21 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 		(void)memcpy_s(dhd_linux_get_primary_netdev(dhd)->perm_addr, ETHER_ADDR_LEN,
 			dhd->mac.octet, ETHER_ADDR_LEN);
 	}
+#if defined(WL_STA_ASSOC_RAND) && defined(WL_STA_INIT_RAND)
+	/* Set cur_etheraddr of primary interface to randomized address to ensure
+	 * that any action frame transmission will happen using randomized macaddr
+	 * primary netdev->perm_addr will hold the original factory MAC.
+	 */
+#ifdef WL_STA_INIT_RAND_CTRL
+	if (dhd_sta_init_rand)
+#endif /* WL_STA_INIT_RAND_CTRL */
+	{
+		if ((ret = dhd_update_rand_mac_addr(dhd)) < 0) {
+			DHD_ERROR(("%s: failed to set random macaddress\n", __FUNCTION__));
+			goto done;
+		}
+	}
+#endif /* WL_STA_ASSOC_RAND && WL_STA_INIT_RAND */
 
 #ifdef SUPPORT_MULTIPLE_CLMBLOB
 	if (dhd_get_platform_naming_for_nvram_clmblob_file(CLM_BLOB,
@@ -11782,7 +11557,6 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 #endif /* WL_UWB_COEX */
 
 done:
-	dhd_conf_postinit_ioctls(dhd);
 	if (eventmask_msg) {
 		MFREE(dhd->osh, eventmask_msg, msglen);
 	}
@@ -11955,7 +11729,9 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef USE_WFA_CERT_CONF
 	uint32 proptx = 0;
 #endif /* USE_WFA_CERT_CONF */
+#if defined(BCMSDIO)
 	uint32 simutx_limit = WL_TXSTATUS_FREERUNCTR_MASK;
+#endif /* BCMSDIO */
 #endif /* PROP_TXSTATUS */
 #ifdef DHD_SET_FW_HIGHSPEED
 	uint32 ack_ratio = 250;
@@ -12168,6 +11944,11 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* BCMDBUS */
 
+#ifdef DHD_METADATA_DOWNLOAD
+	if (dhd_bus_clm_load_from_fw(dhd->bus))
+		ret = BCME_OK;
+	else
+#endif /* DHD_METADATA_DOWNLOAD */
 	if ((ret = dhd_apply_default_clm(dhd, dhd->info->clm_path)) < 0) {
 		DHD_ERROR(("%s: CLM set failed. Ignore and continue initialization.\n",
 			__FUNCTION__));
@@ -13587,7 +13368,6 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	dhd_bus_check_srmemsize(dhd);
 #endif /* BCMSDIO */
 
-	dhd_conf_postinit_ioctls(dhd);
 done:
 
 	if (eventmask_msg) {
@@ -13642,6 +13422,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		DHD_ERROR(("%s: retrun error due to query errors\n", __FUNCTION__));
 		ret = BCME_ERROR;
 	}
+	if (!ret)
+		dhd_conf_postinit_ioctls(dhd);
 
 	return ret;
 }
@@ -14565,7 +14347,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 				free_netdev(ifp->net);
 			} else {
 #ifdef SET_RPS_CPUS
-				custom_rps_map_clear(ifp->net->_rx);
+				custom_rps_map_clear(ifp->net);
 #endif /* SET_RPS_CPUS */
 				netif_tx_disable(ifp->net);
 				dhd_unregister_net(ifp->net, true);
@@ -15622,11 +15404,10 @@ dhd_os_get_img_fwreq(const struct firmware **fw, char *file_path)
 
 	ret = request_firmware(fw, file_path, dhd_bus_to_dev(g_dhd_pub->bus));
 	if (ret < 0) {
-		DHD_ERROR(("%s: request_firmware %s err: %d\n", __FUNCTION__, file_path, ret));
 		/* convert to BCME_NOTFOUND error for error handling */
 		ret = BCME_NOTFOUND;
 	} else
-		DHD_ERROR(("%s: %s (%zu bytes) open success\n", __FUNCTION__, file_path, (*fw)->size));
+		DHD_INFO(("%s: %s (%zu bytes) open success\n", __FUNCTION__, file_path, (*fw)->size));
 
 	return ret;
 }
@@ -15670,7 +15451,7 @@ dhd_os_open_image1(dhd_pub_t *pub, char *filename)
 		 goto err;
 	 }
 
-	 DHD_ERROR(("%s: %s (%d bytes) open success\n", __FUNCTION__, filename, size));
+	 DHD_INFO(("%s: %s (%d bytes) open success\n", __FUNCTION__, filename, size));
 
 err:
 	 return fp;
@@ -16021,7 +15802,7 @@ dhd_net_bus_devreset(struct net_device *dev, uint8 flag)
 		dhd_update_fw_nv_path(dhd);
 		/* update firmware and nvram path to sdio bus */
 		dhd_bus_update_fw_nv_path(dhd->pub.bus,
-			dhd->fw_path, dhd->nv_path, dhd->clm_path, dhd->conf_path);
+			dhd->fw_path, dhd->nv_path);
 	}
 #endif /* BCMSDIO */
 #if defined(BCMPCIE)
@@ -16329,6 +16110,13 @@ dhd_dev_get_feature_set(struct net_device *dev)
 #ifdef WL_STATIC_IF
 	feature_set |= WIFI_FEATURE_AP_STA;
 #endif /* WL_STATIC_IF */
+#ifdef DHD_NOTIFY_MAC_CHANGED
+	/* This bit is defined in wifi_hal.h from Android 13.
+	 * For Android 12 or lower version, need to add below in BoardConfig.mk
+	 * WIFI_AVOID_IFACE_RESET_MAC_CHANGE := true
+	 */
+	feature_set |= WIFI_FEATURE_DYNAMIC_SET_MAC;
+#endif /* DHD_NOTIFY_MAC_CHANGED */
 #ifdef WL_LATENCY_MODE
 	feature_set |= WIFI_FEATURE_SET_LATENCY_MODE;
 #endif /* WL_LATENCY_MODE */
@@ -17196,6 +16984,30 @@ static void _dhd_apf_unlock_local(dhd_info_t *dhd)
 	}
 }
 
+#define APF_PKT_DLOAD "apf_pkt_dload"
+#define APF_PKT_LOAD_ENAB(ndev)		is_apf_pkt_load_supported(ndev)
+bool is_apf_pkt_load_supported(struct net_device *ndev)
+{
+	dhd_info_t *dhd = DHD_DEV_INFO(ndev);
+	dhd_pub_t *dhdp = &dhd->pub;
+	bool ret = FALSE;
+	int result, ifidx;
+	char cmd[] = APF_PKT_DLOAD;
+
+	ifidx = dhd_net2idx(dhd, ndev);
+	if (ifidx == DHD_BAD_IF) {
+		DHD_ERROR(("%s: bad ifidx\n", __FUNCTION__));
+		goto exit;
+	}
+
+	result = dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, cmd, (u32)sizeof(cmd), TRUE, ifidx);
+	if (result != BCME_UNSUPPORTED)
+		ret = TRUE;
+
+exit:
+	return ret;
+}
+
 static int
 _dhd_apf_add_filter(struct net_device *ndev, uint32 filter_id, u8* program, uint32 program_len)
 {
@@ -17207,6 +17019,8 @@ _dhd_apf_add_filter(struct net_device *ndev, uint32 filter_id, u8* program, uint
 	u32 cmd_len, buf_len, max_len;
 	int ifidx, ret = BCME_OK;
 	char cmd[] = "pkt_filter_add";
+	char cmd_new[] = APF_PKT_DLOAD;
+	bool apf_pkt_load_enab = APF_PKT_LOAD_ENAB(ndev);
 
 	ifidx = dhd_net2idx(dhd, ndev);
 	if (ifidx == DHD_BAD_IF) {
@@ -17217,7 +17031,10 @@ _dhd_apf_add_filter(struct net_device *ndev, uint32 filter_id, u8* program, uint
 	if (dhd_conf_del_pkt_filter(dhdp, filter_id))
 		goto exit;
 
-	cmd_len = sizeof(cmd);
+	if (apf_pkt_load_enab)
+		cmd_len = sizeof(cmd_new);
+	else
+		cmd_len = sizeof(cmd);
 
 	/* Check if the program_len is more than the expected len or if the program is NULL,
 	 * then return from here.
@@ -17243,7 +17060,10 @@ _dhd_apf_add_filter(struct net_device *ndev, uint32 filter_id, u8* program, uint
 		goto exit;
 	}
 
-	ret = memcpy_s(buf, buf_len, cmd, cmd_len);
+	if (apf_pkt_load_enab)
+		ret = memcpy_s(buf, buf_len, cmd_new, cmd_len);
+	else
+		ret = memcpy_s(buf, buf_len, cmd, cmd_len);
 	if (unlikely(ret)) {
 		goto exit;
 	}
@@ -17261,7 +17081,12 @@ _dhd_apf_add_filter(struct net_device *ndev, uint32 filter_id, u8* program, uint
 		goto exit;
 	}
 
-	ret = dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, buf, buf_len, TRUE, ifidx);
+	if (apf_pkt_load_enab) {
+		ret = dhd_download_apf(dhdp, (uint8 *)buf + strlen(cmd_new) + 1,
+			buf_len - (strlen(cmd_new) + 1), cmd_new);
+	} else {
+		ret = dhd_wl_ioctl_cmd(dhdp, WLC_SET_VAR, buf, buf_len, TRUE, ifidx);
+	}
 	if (unlikely(ret)) {
 		DHD_ERROR(("%s: failed to add APF filter, id=%d, ret=%d\n", __FUNCTION__,
 			filter_id, ret));
@@ -17495,14 +17320,16 @@ dhd_dev_apf_add_filter(struct net_device *ndev, u8* program,
 
 	DHD_APF_LOCK(ndev);
 
-	/* delete, if filter already exists */
-	if (dhdp->apf_set) {
-		ret = _dhd_apf_delete_filter(ndev, PKT_FILTER_APF_ID);
-		if (unlikely(ret)) {
-			goto exit;
-		}
-		dhdp->apf_set = FALSE;
-	}
+	if (!APF_PKT_LOAD_ENAB(ndev)) {
+		/* delete, if filter already exists */
+		if (dhdp->apf_set) {
+			ret = _dhd_apf_delete_filter(ndev, PKT_FILTER_APF_ID);
+			if (unlikely(ret)) {
+				goto exit;
+			}
+			dhdp->apf_set = FALSE;
+ 		}
+ 	}
 
 	ret = _dhd_apf_add_filter(ndev, PKT_FILTER_APF_ID, program, program_len);
 	if (ret) {
@@ -19550,15 +19377,7 @@ void dhd_schedule_memdump(dhd_pub_t *dhdp, uint8 *buf, uint32 size)
 #define DUMP_SSSR_DUMP_MAX_COUNT	8
 #endif
 #ifdef DHD_COREDUMP
-#ifdef DHD_LINUX_STD_FW_API
 char map_path[PATH_MAX] = DHD_MAP_NAME;
-#else
-#ifndef CONFIG_BCMDHD_MAP_PATH
-char map_path[PATH_MAX] = PLATFORM_PATH"rtecdc.map";
-#else
-char map_path[PATH_MAX] = VENDOR_PATH CONFIG_BCMDHD_MAP_PATH;
-#endif /* CONFIG_BCMDHD_MAP_PATH */
-#endif /* DHD_LINUX_STD_FW_API */
 extern int dhd_collect_coredump(dhd_pub_t *dhdp, dhd_dump_t *dump);
 #endif /* DHD_COREDUMP */
 
@@ -19703,7 +19522,7 @@ dhd_mem_dump(void *handle, void *event_info, u8 event)
 		if (!dhdp->dsack_hc_due_to_isr_delay &&
 				!dhdp->dsack_hc_due_to_dpc_delay) {
 			tr = &dhdp->last_trap_info;
-			dhd_lookup_map(dhdp->osh, map_path,
+			dhd_lookup_map(dhdp, map_path,
 					ltoh32(tr->epc), pc_fn, ltoh32(tr->r14), lr_fn);
 			sprintf(&dhdp->memdump_str[strlen(dhdp->memdump_str)],
 				"_%.79s_%.79s", pc_fn, lr_fn);
@@ -21165,7 +20984,7 @@ int custom_xps_map_set(struct net_device *net, char *buf, size_t len)
 	free_cpumask_var(mask);
 
 	if (0 == err)
-		WL_MSG(net->name, "Done. mapping cpu\n");
+		WL_MSG(net->name, "buf=%s, len=%zu\n", buf, len);
 
 	return err;
 }
@@ -21195,7 +21014,7 @@ void custom_xps_map_clear(struct net_device *net)
 		RCU_INIT_POINTER(net->xps_maps, NULL);
 #endif
 		kfree_rcu(dev_maps, rcu);
-		DHD_INFO(("%s : xps_cpus map clear.\n", __FUNCTION__));
+		WL_MSG(net->name, "xps_cpus map clear.\n");
 	}
 }
 #endif // endif
@@ -21237,9 +21056,9 @@ int dhd_rps_cpus_enable(struct net_device *net, int enable)
 	if (ifp) {
 		if (enable) {
 			DHD_INFO(("%s : set rps_cpus as [%s]\n", __FUNCTION__, RPS_CPU_SETBUF));
-			custom_rps_map_set(ifp->net->_rx, RPS_CPU_SETBUF, strlen(RPS_CPU_SETBUF));
+			custom_rps_map_set(ifp->net, RPS_CPU_SETBUF, strlen(RPS_CPU_SETBUF));
 		} else {
-			custom_rps_map_clear(ifp->net->_rx);
+			custom_rps_map_clear(ifp->net);
 		}
 	} else {
 		DHD_ERROR(("%s : ifp is NULL!!\n", __FUNCTION__));
@@ -21248,8 +21067,9 @@ int dhd_rps_cpus_enable(struct net_device *net, int enable)
 	return BCME_OK;
 }
 
-int custom_rps_map_set(struct netdev_rx_queue *queue, char *buf, size_t len)
+int custom_rps_map_set(struct net_device *net, char *buf, size_t len)
 {
+	struct netdev_rx_queue *queue = net->_rx;
 	struct rps_map *old_map, *map;
 	cpumask_var_t mask;
 	int err, cpu, i;
@@ -21316,12 +21136,13 @@ int custom_rps_map_set(struct netdev_rx_queue *queue, char *buf, size_t len)
 	}
 	free_cpumask_var(mask);
 
-	DHD_INFO(("%s : Done. mapping cpu nummber : %d\n", __FUNCTION__, map->len));
+	WL_MSG(net->name, "Done. mapping cpu nummber : %d\n", map->len);
 	return map->len;
 }
 
-void custom_rps_map_clear(struct netdev_rx_queue *queue)
+void custom_rps_map_clear(struct net_device *net)
 {
+	struct netdev_rx_queue *queue = net->_rx;
 	struct rps_map *map;
 
 	DHD_INFO(("%s : Entered.\n", __FUNCTION__));
@@ -21330,7 +21151,7 @@ void custom_rps_map_clear(struct netdev_rx_queue *queue)
 	if (map) {
 		RCU_INIT_POINTER(queue->rps_map, NULL);
 		kfree_rcu(map, rcu);
-		DHD_INFO(("%s : rps_cpus map clear.\n", __FUNCTION__));
+		WL_MSG(net->name, "rps_cpus map clear.\n");
 	}
 }
 #endif // endif
@@ -21697,16 +21518,19 @@ dhd_debug_uart_exec(dhd_pub_t *dhdp, char *cmd)
 #endif	/* DHD_DEBUG_UART */
 
 #if defined(DHD_BLOB_EXISTENCE_CHECK)
-#ifdef DHD_LINUX_STD_FW_API
 void
 dhd_set_blob_support(dhd_pub_t *dhdp, char *fw_path)
 {
-	char *filepath = DHD_CLM_NAME;
-	const struct firmware *fw = NULL;
-	int ret = 0;
+	dhd_info_t *info = dhdp->info;
+	char *filepath = info->clm_path;
+	FWPKG_FILE *clm = NULL;
+	fwpkg_info_t clmpkg;
+	int file_size = 0;
 
-	ret = dhd_os_get_img_fwreq(&fw, filepath);
-	if (ret < 0) {
+	memset(&clmpkg, 0, sizeof(fwpkg_info_t));
+	file_size = fwpkg_open_firmware_img(&clm, &clmpkg, FWPKG_TAG_ZERO, filepath,
+		__FUNCTION__);
+	if (file_size <= 0) {
 		DHD_ERROR(("%s: ----- blob file doesn't exist (%s) -----\n", __FUNCTION__,
 			filepath));
 		dhdp->is_blob = FALSE;
@@ -21718,33 +21542,9 @@ dhd_set_blob_support(dhd_pub_t *dhdp, char *fw_path)
 #else
 		BCM_REFERENCE(fw_path);
 #endif /* SKIP_CONCATE_BLOB */
-		dhd_os_close_img_fwreq(fw);
+		fwpkg_close_firmware_img(clm);
 	}
 }
-#else
-void
-dhd_set_blob_support(dhd_pub_t *dhdp, char *fw_path)
-{
-	struct file *fp;
-	char *filepath = dhdp->info->clm_path;
-
-	fp = dhd_filp_open(filepath, O_RDONLY, 0);
-	if (IS_ERR(fp) || (fp == NULL)) {
-		DHD_ERROR(("%s: ----- blob file doesn't exist (%s) -----\n", __FUNCTION__,
-			filepath));
-		dhdp->is_blob = FALSE;
-	} else {
-		DHD_ERROR(("%s: ----- blob file exists (%s) -----\n", __FUNCTION__, filepath));
-		dhdp->is_blob = TRUE;
-#if defined(CONCATE_BLOB)
-		strncat(fw_path, "_blob", strlen("_blob"));
-#else
-		BCM_REFERENCE(fw_path);
-#endif /* SKIP_CONCATE_BLOB */
-		dhd_filp_close(fp, NULL);
-	}
-}
-#endif /* DHD_LINUX_STD_FW_API */
 #endif /* DHD_BLOB_EXISTENCE_CHECK */
 
 #if defined(PCIE_FULL_DONGLE)
@@ -21889,15 +21689,12 @@ dhd_write_file_and_check(const char *filepath, char *buf, int buf_len)
 #ifdef FILTER_IE
 int dhd_read_from_file(dhd_pub_t *dhd)
 {
+	struct dhd_info *info = dhd->info;
+	FWPKG_FILE *filter = NULL;
+	fwpkg_info_t filterpkg;
 	int ret = 0;
-#ifdef DHD_LINUX_STD_FW_API
-	const struct firmware *fw = NULL;
 	char *filepath = FILTER_IE_PATH;
 	int filelen = 0;
-#else
-	int nread = 0;
-	void *fd;
-#endif /* DHD_LINUX_STD_FW_API */
 	uint8 *buf;
 	NULL_CHECK(dhd, "dhd is NULL", ret);
 
@@ -21907,25 +21704,22 @@ int dhd_read_from_file(dhd_pub_t *dhd)
 		return BCME_NOMEM;
 	}
 
+	dhd_conf_set_path(dhd, info->tmp_path, info->fw_path, "filter_ie_", ".txt",
+		PATH_BY_CHIP);
+
 	/* open file to read */
-#ifdef DHD_LINUX_STD_FW_API
-	ret = dhd_os_get_img_fwreq(&fw, filepath);
-	if (ret < 0) {
-		DHD_ERROR(("dhd_os_get_img_fwreq(%s) error : %d\n",
-			filepath, ret));
+	memset(&filterpkg, 0, sizeof(fwpkg_info_t));
+	filelen = fwpkg_open_firmware_img(&filter, &filterpkg, FWPKG_TAG_ZERO,
+		filepath, __FUNCTION__);
+	if (filelen <= 0) {
+		DHD_ERROR(("%s: Ignore filter_ie file %s\n", __FUNCTION__, filepath));
 		goto exit;
 	}
 
-	filelen = fw->size;
-	if (filelen == 0) {
-		DHD_ERROR(("error: zero length file.failed to read\n"));
-		ret = BCME_ERROR;
-		goto exit;
-	}
-
-	ret = memcpy_s(buf, FILE_BLOCK_READ_SIZE, fw->data, fw->size);
-	if (ret < 0) {
-		DHD_ERROR((" memcpy_s() error : %d\n", ret));
+	filelen = fwpkg_get_firmware_img_block(filter, &filterpkg, FWPKG_TAG_ZERO,
+		buf, filelen, 0);
+	if (filelen <= 0) {
+		DHD_ERROR(("%s: get image block failed (%d)\n", __FUNCTION__, filelen));
 		goto exit;
 	}
 
@@ -21933,32 +21727,11 @@ int dhd_read_from_file(dhd_pub_t *dhd)
 	if (ret < 0) {
 		DHD_ERROR(("error: failed to parse filter ie\n"));
 	}
-#else
-	fd = dhd_os_open_image1(dhd, FILTER_IE_PATH);
-	if (!fd) {
-		DHD_ERROR(("No filter file(not an error), filter path%s\n", FILTER_IE_PATH));
-		ret = BCME_EPERM;
-		goto exit;
-	}
-	nread = dhd_os_get_image_block(buf, (FILE_BLOCK_READ_SIZE - 1), fd);
-	if (nread > 0) {
-		buf[nread] = '\0';
-		if ((ret = dhd_parse_filter_ie(dhd, buf)) < 0) {
-			DHD_ERROR(("error: failed to parse filter ie\n"));
-		}
-	} else {
-		DHD_ERROR(("error: zero length file.failed to read\n"));
-		ret = BCME_ERROR;
-	}
-#endif /* DHD_LINUX_STD_FW_API */
+
 exit:
-#ifdef DHD_LINUX_STD_FW_API
-	if (fw) {
-		dhd_os_close_img_fwreq(fw);
+	if (filter) {
+		fwpkg_close_firmware_img(filter);
 	}
-#else
-	dhd_os_close_image1(dhd, fd);
-#endif /* DHD_LINUX_STD_FW_API */
 	if (buf) {
 		MFREE(dhd->osh, buf, FILE_BLOCK_READ_SIZE);
 	}

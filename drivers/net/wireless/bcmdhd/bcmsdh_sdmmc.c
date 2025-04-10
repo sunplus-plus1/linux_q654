@@ -155,7 +155,11 @@ uint sd_f3_blocksize = 64;
 uint sd_divisor = 2;			/* Default 48MHz/2 = 24MHz */
 
 uint sd_power = 1;		/* Default to SD Slot powered ON */
+#ifdef FORCE_SD_CLOCK
+uint sd_clock = FORCE_SD_CLOCK;
+#else
 uint sd_clock = 1;		/* Default to SD Clock turned ON */
+#endif /* FORCE_SD_CLOCK*/
 uint sd_hiok = FALSE;	/* Don't use hi-speed mode by default */
 uint sd_msglevel = SDH_ERROR_VAL;
 uint sd_use_dma = TRUE;
@@ -299,6 +303,10 @@ sdioh_attach(osl_t *osh, struct sdio_func *func)
 	sd->fake_func0.num = 0;
 	sd->fake_func0.card = func->card;
 	sd->func[0] = &sd->fake_func0;
+	if (sd_clock > 1) {
+		sd->func[0]->card->cis.max_dtr = sd_clock;
+		sdmmc_set_clock_rate(sd, sd_clock);
+	}
 #ifdef GLOBAL_SDMMC_INSTANCE
 	if (func->num == 2)
 		sd->func[1] = gInstance->func[1];
@@ -1002,7 +1010,6 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 			 */
 			if (regaddr == SDIOD_CCCR_IOEN) {
 #if defined(BT_OVER_SDIO)
-				do {
 				if (sd->func[3]) {
 					sd_info(("bcmsdh_sdmmc F3: *byte 0x%x\n", *byte));
 
@@ -1066,10 +1073,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 					}
 					sdio_release_host(sd->func[2]);
 				}
-#if defined(BT_OVER_SDIO)
-			} while (0);
-#endif /* defined (BT_OVER_SDIO) */
-		}
+			}
 #if defined(MMC_SDIO_ABORT)
 			/* to allow abort command through F1 */
 			else if (regaddr == SDIOD_CCCR_IOABORT) {
@@ -1836,6 +1840,10 @@ LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32) && LINUX_VERSION_CODE < KERNEL_VE
 	printf("%s: call sdio_reset_comm\n", __FUNCTION__);
 	err = sdio_reset_comm(card);
 #endif
+	if (sd_clock > 1) {
+		card->cis.max_dtr = sd_clock;
+		sdmmc_set_clock_rate(sd, sd_clock);
+	}
 
 	if (err)
 		sd_err(("%s Failed, error = %d\n", __FUNCTION__, err));
@@ -2052,7 +2060,6 @@ sdmmc_get_clock_rate(sdioh_info_t *sd)
 void
 sdmmc_set_clock_rate(sdioh_info_t *sd, uint hz)
 {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 3, 0)) || (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 	struct sdio_func *sdio_func = sd->func[0];
 	struct mmc_host *host = sdio_func->card->host;
 	struct mmc_ios *ios = &host->ios;
@@ -2072,9 +2079,6 @@ sdmmc_set_clock_rate(sdioh_info_t *sd, uint hz)
 	host->ops->set_ios(host, ios);
 	DHD_ERROR(("%s: After change: sd clock rate is %u\n", __FUNCTION__, ios->clock));
 	mmc_host_clk_release(host);
-#else
-	return;
-#endif
 }
 
 void

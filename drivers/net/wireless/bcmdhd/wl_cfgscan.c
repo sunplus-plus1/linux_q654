@@ -462,13 +462,10 @@ s32 wl_inform_single_bss(struct bcm_cfg80211 *cfg, wl_bss_info_v109_t *bi, bool 
 	channel = ieee80211_get_channel(wiphy, freq);
 	memcpy(tmp_buf, bi->SSID, bi->SSID_len);
 	tmp_buf[bi->SSID_len] = '\0';
-	WL_SCAN(("BSSID %pM, channel %s-%-3d(%3d %3sMHz), rssi %3d, capa 0x%-4x, mgmt_type %d, "
-		"frame_len %3d, SSID \"%s\"\n",
-		&bi->BSSID, CHSPEC2BANDSTR(chanspec), notif_bss_info->channel, CHSPEC_CHANNEL(chanspec),
-		CHSPEC_IS20(chanspec)?"20":
-		CHSPEC_IS40(chanspec)?"40":
-		CHSPEC_IS80(chanspec)?"80":
-		CHSPEC_IS160(chanspec)?"160":"??",
+	WL_SCAN(("BSSID %pM, channel %s-%-3d(%3d %3sMHz), rssi %3d, capa 0x%-4x, "
+		"mgmt_type %d, frame_len %3d, SSID \"%s\"\n",
+		&bi->BSSID, CHSPEC2BANDSTR(chanspec), notif_bss_info->channel,
+		CHSPEC_CHANNEL(chanspec), wf_chspec_to_bw_str(chanspec),
 		notif_bss_info->rssi, mgmt->u.beacon.capab_info, mgmt_type,
 		notif_bss_info->frame_len, tmp_buf));
 	if (unlikely(!channel)) {
@@ -2979,7 +2976,7 @@ scan_out:
 }
 
 s32
-#if defined(WL_CFG80211_P2P_DEV_IF)
+#if defined(WL_CFG80211_P2P_DEV_IF) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 wl_cfg80211_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 #else
 wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
@@ -3223,8 +3220,13 @@ wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 	if (cfg->scan_request) {
 		dev = bcmcfg_to_prmry_ndev(cfg);
 #if defined(WL_ENABLE_P2P_IF)
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
+		if (cfg->scan_request->wdev->iftype != NL80211_IFTYPE_P2P_DEVICE)
+			dev = cfg->scan_request->wdev->netdev;
+#else
 		if (cfg->scan_request->dev != cfg->p2p_net)
 			dev = cfg->scan_request->dev;
+#endif /* LINUX_VERSION_CODE > KERNEL_VERSION(3, 6, 0) */
 #elif defined(WL_CFG80211_P2P_DEV_IF)
 		if (cfg->scan_request->wdev->iftype != NL80211_IFTYPE_P2P_DEVICE)
 			dev = cfg->scan_request->wdev->netdev;
