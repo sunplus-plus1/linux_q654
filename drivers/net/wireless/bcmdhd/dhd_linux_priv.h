@@ -66,6 +66,7 @@
 #include <dhd_debug.h>
 #include <dhd_linux.h>
 #include <dhd_bus.h>
+#include <fwpkg_utils.h>
 
 #ifdef PCIE_FULL_DONGLE
 #include <bcmmsgbuf.h>
@@ -99,11 +100,13 @@ typedef struct dhd_info {
 	*/
 	dhd_if_t *iflist[DHD_MAX_IFS + DHD_MAX_STATIC_IFS];
 	wifi_adapter_info_t *adapter;			/* adapter information, interrupt, fw path etc. */
+	fwpkg_info_t fwpkg;	/* combined fw package info structure */
 	char fw_path[PATH_MAX];		/* path to firmware image */
 	char nv_path[PATH_MAX];		/* path to nvram vars file */
 	char clm_path[PATH_MAX];	/* path to CLM data */
 	char conf_path[PATH_MAX];	/* path to config vars file */
 	char sig_path[PATH_MAX];	/* path to rtecdc.sig file */
+	char tmp_path[PATH_MAX];	/* path to logstrs vars file */
 #ifdef DHD_UCODE_DOWNLOAD
 	char uc_path[PATH_MAX];	/* path to ucode image */
 #endif /* DHD_UCODE_DOWNLOAD */

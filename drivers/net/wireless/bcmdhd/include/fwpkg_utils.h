@@ -42,11 +42,19 @@
 
 #ifndef _fwpkg_utils_h_
 #define _fwpkg_utils_h_
+#include <linux/firmware.h>
 
 enum {
+	FWPKG_TAG_ZERO	= 0,
 	FWPKG_TAG_FW	= 1,
 	FWPKG_TAG_SIG	= 2,
 	FWPKG_TAG_INFO	= 3,
+#ifdef SHOW_LOGTRACE
+	FWPKG_TAG_LOGSTRS	= 4,
+	FWPKG_TAG_RAM_MAP	= 5,
+	FWPKG_TAG_ROM	= 6,
+	FWPKG_TAG_ROM_MAP	= 7,
+#endif /* SHOW_LOGTRACE */
 	FWPKG_TAG_LAST
 };
 #define NBR_OF_FWPKG_UNITS	(FWPKG_TAG_LAST-1)
@@ -84,16 +92,21 @@ typedef struct fwpkg_info
 #define IS_FWPKG_COMBND(fwpkg)	\
 	((fwpkg->status == FWPKG_COMBND_FLG) ? TRUE : FALSE)
 
+#ifdef DHD_LINUX_STD_FW_API
+#define FWPKG_FILE	const struct firmware
+#else
 #ifdef BCMDRIVER
-#define FWPKG_FILE	void
+#define FWPKG_FILE	struct file
 #else
 #define FWPKG_FILE	FILE
 #endif /* BCMDRIVER */
+#endif
 
-int fwpkg_init(fwpkg_info_t *fwpkg, char *fname);
-int fwpkg_open_firmware_img(fwpkg_info_t *fwpkg, char *fname, FWPKG_FILE **fp);
-int fwpkg_open_signature_img(fwpkg_info_t *fwpkg, char *fname, FWPKG_FILE **fp);
-uint32 fwpkg_get_firmware_img_size(fwpkg_info_t *fwpkg);
-uint32 fwpkg_get_signature_img_size(fwpkg_info_t *fwpkg);
+int fwpkg_open_firmware_img(FWPKG_FILE **fp, fwpkg_info_t *fwpkg,
+	uint32 unit_type, char *fname, const char *caller);
+void fwpkg_close_firmware_img(FWPKG_FILE *fp);
+int fwpkg_get_firmware_img_block(FWPKG_FILE *fp, fwpkg_info_t *fwpkg,
+	uint32 unit_type, char *buf, int size, int offset);
+bool fwpkg_unit_inside(fwpkg_info_t *fwpkg, uint32 unit_type);
 
 #endif /* _fwpkg_utils_h_ */
