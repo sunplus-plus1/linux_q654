@@ -100,7 +100,7 @@ const chip_name_map_t chip_name_map[] = {
 	/* ChipID			Chiprev	ChipName		ModuleName */
 #ifdef BCMSDIO
 	{BCM43430_CHIP_ID,	0,	"bcm43438a0",		""},
-	{BCM43430_CHIP_ID,	1,	"bcm43438a1",		""},
+	{BCM43430_CHIP_ID,	1,	"bcm43438a1",		"ap6212a"},
 	{BCM43430_CHIP_ID,	2,	"bcm43436b0",		""},
 	{BCM43012_CHIP_ID,	2,	"bcm43013c1_ag",	""},
 	{BCM4345_CHIP_ID,	6,	"bcm43455c0_ag",	""},
