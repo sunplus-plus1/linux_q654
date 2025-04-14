@@ -2347,6 +2347,9 @@ static int imx219_identify_module(struct imx219 *imx219)
 	u32 val, msb, lsb;
 
 #if 1
+	/* Reset the page register to default */
+	imx219_write_reg(imx219, 0x40, IMX219_REG_VALUE_08BIT, 0x00);
+
 	ret = imx219_read_reg(imx219, IMX219_REG_CHIP_ID_H,
 				  IMX219_REG_VALUE_08BIT, &msb);
 
