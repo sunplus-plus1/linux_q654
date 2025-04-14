@@ -1488,27 +1488,17 @@ int32_t hal_udc_endpoint_transfer(struct sp_udc	*udc, struct sp_request *req, ui
 	ep->is_in = EP_DIR(ep_addr);
 	ep->transfer_len = length;
 
+	if (length != 0) {
+		ep->transfer_buff = data;
 #if (TRANS_MODE == DMA_MODE)
-	if (length != 0) {
-		if (ep->is_in)
-			dma_sync_single_for_device(udc->dev, virt_to_phys(data), length,
-						   DMA_TO_DEVICE);
-
-		ep->transfer_buff = data;
-		ep->transfer_buff_pa = virt_to_phys(data);
-	} else {
-		ep->transfer_buff = NULL;
-		ep->transfer_buff_pa = 0;
-	}
+		ep->transfer_buff_pa = (dma_addr_t)virt_to_phys(data);
 #elif (TRANS_MODE == DMA_MAP)
-	if (length != 0) {
-		ep->transfer_buff = data;
 		ep->transfer_buff_pa = data_pa;
+#endif
 	} else {
 		ep->transfer_buff = NULL;
 		ep->transfer_buff_pa = 0;
 	}
-#endif
 
 	/* Controller automatically responds to set config and set interface,
 	   So there is no need to fill in trb.*/
