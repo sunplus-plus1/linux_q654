@@ -755,13 +755,13 @@ static void hal_udc_transfer_event_handle(struct transfer_event_trb *transfer_ev
 	UDC_LOGD("ep %x[%c],trb:%px,%x len %d - %d\n", ep_num, ep_trb->dir ? 'I' : 'O',
 			ep_trb, transfer_evnet->trbp, trans_len, transfer_evnet->len);
 
-	UDC_LOGL("========================= ep%d Transfer Event TRB =========================\n", ep_num);
-	UDC_LOGL("transfer trb virtual addr = 0x%px\n", ep_trb);
-	UDC_LOGL("entry0 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry0);
-	UDC_LOGL("entry1 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry1);
-	UDC_LOGL("entry2 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry2);
-	UDC_LOGL("entry3 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry3);
-	UDC_LOGL("==========================================================================\n");
+	UDC_LOGD("========================= ep%d Transfer Event TRB =========================\n", ep_num);
+	UDC_LOGD("transfer trb virtual addr = 0x%px\n", ep_trb);
+	UDC_LOGD("entry0 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry0);
+	UDC_LOGD("entry1 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry1);
+	UDC_LOGD("entry2 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry2);
+	UDC_LOGD("entry3 = 0x%x\n", ((struct trb_data *)transfer_evnet)->entry3);
+	UDC_LOGD("==========================================================================\n");
 
 	if (!ep->num && !trans_len && list_empty (&ep->queue)) {
 		spin_unlock_irqrestore(&ep->lock, flags);
@@ -914,10 +914,7 @@ static void hal_udc_analysis_event_trb(struct trb_data *event_trb, struct sp_udc
 		case UDC_SUSPEND:
 			UDC_LOGL("udc suspend\n");
 
-#ifdef CONFIG_USB_SUNPLUS_OTG
-			if (USBx->DEVC_STS & VBUS)
-				pwr_uphy_pll(0);
-#else
+#ifndef CONFIG_USB_SUNPLUS_OTG
 			pwr_uphy_pll(0);
 #endif
 
@@ -934,7 +931,7 @@ static void hal_udc_analysis_event_trb(struct trb_data *event_trb, struct sp_udc
 			if (udc->usb_test_mode)
 				writel(bitfield_replace(readl(&USBx->GL_CS), 12, 4, 0), &USBx->GL_CS);
 
-			hal_udc_sw_stop_handle(udc);
+			//hal_udc_sw_stop_handle(udc);
 
 			break;
 		default:
@@ -1304,16 +1301,16 @@ static void hal_udc_fill_transfer_trb(struct trb_data *t_trb, struct udc_endpoin
 		tmp_trb->cycbit = 1;
 
 	if (ioc == 1) {
-		UDC_LOGL("============================ ep%d Transfer TRB ============================\n", ep->num);
-		UDC_LOGL("transfer trb virtual addr = 0x%px\n", tmp_trb);
-		UDC_LOGL("transfer trb physical addr = 0x%llx\n",
+		UDC_LOGD("============================ ep%d Transfer TRB ============================\n", ep->num);
+		UDC_LOGD("transfer trb virtual addr = 0x%px\n", tmp_trb);
+		UDC_LOGD("transfer trb physical addr = 0x%llx\n",
 		         (dma_addr_t)((tmp_trb - (struct normal_trb *)ep->ep_transfer_ring.trb_va) *
 				    sizeof(struct trb_data) + ep->ep_transfer_ring.trb_pa));
-		UDC_LOGL("entry0 = 0x%x\n", t_trb->entry0);
-		UDC_LOGL("entry1 = 0x%x\n", t_trb->entry1);
-		UDC_LOGL("entry2 = 0x%x\n", t_trb->entry2);
-		UDC_LOGL("entry3 = 0x%x\n", t_trb->entry3);
-		UDC_LOGL("==========================================================================\n");
+		UDC_LOGD("entry0 = 0x%x\n", t_trb->entry0);
+		UDC_LOGD("entry1 = 0x%x\n", t_trb->entry1);
+		UDC_LOGD("entry2 = 0x%x\n", t_trb->entry2);
+		UDC_LOGD("entry3 = 0x%x\n", t_trb->entry3);
+		UDC_LOGD("==========================================================================\n");
 	}
 }
 
@@ -2678,10 +2675,10 @@ static int sp_udc_stop(struct usb_gadget *gadget)
 	return 0;
 }
 
-void device_run_stop_ctrl(int enable, int connect)
+void device_run_stop_ctrl(int enable)
 {
 	struct sp_udc *udc = NULL;
-	volatile struct udc_reg *USBx = NULL;
+	volatile struct udc_reg *USBx = udc->reg;
 
 	/* driver unprobed */
 	if (!sp_udc_arry[0])
@@ -2690,28 +2687,11 @@ void device_run_stop_ctrl(int enable, int connect)
 	udc = sp_udc_arry[0];
 	USBx = udc->reg;
 
-#if 0
-	/* in suspend */
-	if (USBx->DEVC_ERSTSZ == 0x0)
-		return;
-#endif
-
-	if (udc->event_ring_dq == NULL)
-		return;
-
 	if (enable) {
-		if (!(USBx->DEVC_CS & UDC_RUN)) {
-			if (connect) {
-				hal_udc_device_connect(udc);
-			} else {
-				USBx->DEVC_ERSTSZ = udc->event_ring_seg_total;
-				USBx->DEVC_CS |= UDC_RUN;
-			}
-
-			USBx->EP0_CS |= EP_EN;
-		}
+		USBx->DEVC_ERSTSZ = udc->event_ring_seg_total;
+		USBx->DEVC_CS |= UDC_RUN;
+		USBx->EP0_CS |= EP_EN;
 	} else {
-		hal_udc_sw_stop_handle(udc);
 		USBx->DEVC_CS &= ~UDC_RUN;
 	}
 }
@@ -2733,7 +2713,6 @@ void usb_switch(int device)
 									moon4_reg + M4_SCFG_10);
 
 		device_mode = true;
-		device_run_stop_ctrl(1, 1);
 	} else {
 		val = readl(moon4_reg + M4_SCFG_10);
 		writel((val & (~MO1_USBC0_USB0_TYPE)) | USB_HOST_MODE | MASK_USB_HOST_DEVICE_MODE,
@@ -2741,7 +2720,6 @@ void usb_switch(int device)
 
 		device_mode = false;
 		pwr_uphy_pll(1);
-		device_run_stop_ctrl(0, 0);
 	}
 #endif
 }
@@ -3036,7 +3014,7 @@ static int sp_udc_remove(struct platform_device *pdev)
 #endif
 
 	if (udc->driver)
-		device_run_stop_ctrl(0, 0);
+		device_run_stop_ctrl(0);
 
 	clk_disable_unprepare(udc->clock);
 	reset_control_assert(udc->rstc);
@@ -3082,7 +3060,7 @@ static int sp_udc_remove(struct platform_device *pdev)
 #ifdef CONFIG_USB_SUNPLUS_OTG
 void detech_start(void)
 {
-	device_run_stop_ctrl(1, 0);
+	device_run_stop_ctrl(1);
 
 	UDC_LOGD("%s...", __func__);
 }
@@ -3108,7 +3086,7 @@ static int udc_sunplus_drv_suspend(struct device *dev)
 
 	if (udc->driver) {
 		hal_udc_sw_stop_handle(udc);
-		device_run_stop_ctrl(0, 0);
+		device_run_stop_ctrl(0);
 	}
 
 	clk_disable_unprepare(udc->clock);
@@ -3151,6 +3129,7 @@ static int udc_sunplus_drv_resume(struct device *dev)
 		if (device_mode == true)
 	#endif
 		{
+			hal_udc_device_connect(udc);
 			usb_switch(1);
 		} else {
 			usb_switch(0);
