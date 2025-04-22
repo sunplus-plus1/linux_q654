@@ -9,7 +9,7 @@
 
 #define DRAM_PCM_BUF_LENGTH	(128 * 1024)
 
-#define PERIOD_BYTES_MIN_CONS	128
+#define PERIOD_BYTES_MIN_CONS	1024
 #define PERIOD_BYTES_MAX_CONS	(64 * 1024)
 
 #define NUM_FIFO_TX		8 // A0~A4, A20, A26~A27
@@ -71,7 +71,7 @@ struct spsoc_runtime_data {
 	unsigned char	usemmap_flag;
 	unsigned int	irq_num;
 	int		irq_done;
-	//unsigned int	last_remainder;
+	unsigned long	int_count;
 	unsigned int	fifosize_from_user;
 	atomic_t	running;
 };
