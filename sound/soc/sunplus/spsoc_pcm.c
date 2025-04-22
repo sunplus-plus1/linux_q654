@@ -106,8 +106,8 @@ static irqreturn_t aud_fifo_int(int irq, void *dev)
 				snd_pcm_period_elapsed(substream);
 			}
 		}
-		iprtd->int_count++;
-		pr_debug("int 0x%x msk 0x%x counter 0x%lx\n",value, prtd->irq_num, iprtd->int_count);
+		prtd->int_count++;
+		pr_debug("int 0x%x msk 0x%x counter 0x%lx\n",value, prtd->irq_num, prtd->int_count);
 	}
 
 	return IRQ_HANDLED;
