@@ -672,7 +672,7 @@ static int spsoc_pcm_open(struct snd_soc_component *component, struct snd_pcm_su
 	pr_debug("%s IN, %s-devnum: %d\n", __func__, substream->stream ? "cap" : "play",
 		 substream->pcm->device);
 
-	if (!IS_ENABLED(CONFIG_SND_SOC_ES8316_SUNPLUS) &&
+	if (!IS_ENABLED(CONFIG_SND_SOC_ES8316) &&
 	    substream->pcm->device == 4 && substream->stream == 1)
 		hw_test();
 
