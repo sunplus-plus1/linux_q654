@@ -802,6 +802,9 @@ static int vin_set_stream(struct vin_dev *vin, int on)
 {
 	struct v4l2_subdev *sd;
 	struct media_pad *pad;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 47)
+	int csi_id;
+#endif
 	int ret;
 
 	dev_dbg(vin->dev, "%s, %d, on: %d\n", __func__, __LINE__, on);
@@ -812,16 +815,37 @@ static int vin_set_stream(struct vin_dev *vin, int on)
 
 	sd = media_entity_to_v4l2_subdev(pad->entity);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 47)
+	/* Get the current CSI2 RX port used by this VIN */
+	for (csi_id = 0; csi_id < VIN_CSI_MAX; csi_id++){
+		if (vin->group->csi[csi_id].subdev == sd)
+			break;
+	}
+#endif
+
 	if (!on) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 47)
+		video_device_pipeline_stop(&vin->vdev);
+
+		ret = 0;
+		if (vin->group->csi[csi_id].stream_count == 1)
+			ret = v4l2_subdev_call(sd, video, s_stream, 0);
+
+		vin->group->csi[csi_id].stream_count--;
+
+		return ret;
+#else
 		video_device_pipeline_stop(&vin->vdev);
 		return v4l2_subdev_call(sd, video, s_stream, 0);
+#endif
 	}
 
 	ret = vin_mc_validate_format(vin, sd, pad);
 	if (ret)
 		return ret;
 
-	dev_dbg(vin->dev, "%s, sd->entity.pipe: 0x%p\n", __func__, video_device_pipeline(&vin->vdev));
+	dev_dbg(vin->dev, "%s, sd->entity.pipe: 0x%px\n", __func__, video_device_pipeline(&vin->vdev));
+
 	/*
 	 * The graph lock needs to be taken to protect concurrent
 	 * starts of multiple VIN instances as they might share
@@ -834,11 +858,25 @@ static int vin_set_stream(struct vin_dev *vin, int on)
 
 	dev_dbg(vin->dev, "%s, %d, ret: %d\n", __func__, __LINE__, ret);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 47)
+	ret = 0;
+	if (vin->group->csi[csi_id].stream_count == 0) {
+		ret = v4l2_subdev_call(sd, video, s_stream, 1);
+		if (ret == -ENOIOCTLCMD)
+			ret = 0;
+		if (ret)
+			video_device_pipeline_stop(&vin->vdev);
+	}
+
+	if (!ret)
+		vin->group->csi[csi_id].stream_count++;
+#else
 	ret = v4l2_subdev_call(sd, video, s_stream, 1);
 	if (ret == -ENOIOCTLCMD)
 		ret = 0;
 	if (ret)
 		video_device_pipeline_stop(&vin->vdev);
+#endif
 
 	dev_dbg(vin->dev, "%s, %d, ret: %d\n", __func__, __LINE__, ret);
 

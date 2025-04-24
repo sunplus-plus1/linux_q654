@@ -7,6 +7,8 @@
 #ifndef __SP_VIN__
 #define __SP_VIN__
 
+#include <linux/version.h>
+
 #include <linux/kref.h>
 
 #include <media/v4l2-async.h>
@@ -274,6 +276,9 @@ struct vin_group {
 	struct {
 		struct fwnode_handle *fwnode;
 		struct v4l2_subdev *subdev;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 47)
+		int stream_count;
+#endif
 	} csi[VIN_CSI_MAX];
 };
 
