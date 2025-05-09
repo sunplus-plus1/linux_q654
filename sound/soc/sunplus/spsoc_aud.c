@@ -131,9 +131,12 @@
 
 static int es8316_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_component *component = codec_dai->component;
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	u8 mask;
+
+	snd_soc_dai_set_sysclk(codec_dai, 0, 12288000, 0);
 
 	snd_soc_dapm_force_enable_pin(dapm, "Bias");
 	snd_soc_dapm_force_enable_pin(dapm, "Analog power");
@@ -220,10 +223,12 @@ static int es8316_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 #endif
+
 static int spsoc_hw_params(struct snd_pcm_substream *substream,	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd	= asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	//struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	unsigned int pll_out, fmt;
 	int ret	= 0;
 
@@ -234,7 +239,7 @@ static int spsoc_hw_params(struct snd_pcm_substream *substream,	struct snd_pcm_h
 	pr_debug("buffer_size 0x%x buffer_bytes 0x%x\n", params_buffer_size(params),
 		 params_buffer_bytes(params));
 
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	//ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
 	switch (pll_out) {
 	case 8000:
 	case 16000:
@@ -275,27 +280,31 @@ static const struct snd_soc_ops spsoc_aud_ops	= {
 
 SND_SOC_DAILINK_DEFS(sp_i2s_0,
 		     DAILINK_COMP_ARRAY(COMP_CPU("spsoc-i2s-dai-0")),
-		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-codec-i2s-dai-0")),
+#if IS_ENABLED(CONFIG_SND_SOC_ES8316)
+		     DAILINK_COMP_ARRAY(COMP_CODEC("es8316.0-0011", "ES8316 HiFi")),
+#else
+		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
+#endif
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
 SND_SOC_DAILINK_DEFS(sp_i2s_1,
 		     DAILINK_COMP_ARRAY(COMP_CPU("spsoc-i2s-dai-1")),
-		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-codec-i2s-dai-1")),
+		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
 SND_SOC_DAILINK_DEFS(sp_i2s_2,
 		     DAILINK_COMP_ARRAY(COMP_CPU("spsoc-i2s-dai-2")),
-		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-codec-i2s-dai-2")),
+		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
 SND_SOC_DAILINK_DEFS(sp_tdm,
 		     DAILINK_COMP_ARRAY(COMP_CPU("spsoc-tdm-driver-dai")),
-		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-codec-tdm-dai")),
+		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
 SND_SOC_DAILINK_DEFS(sp_spdif,
 		     DAILINK_COMP_ARRAY(COMP_CPU("spsoc-spdif-dai")),
-		     DAILINK_COMP_ARRAY(COMP_CODEC("aud-codec", "aud-spdif-dai")),
+		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 
 #if IS_ENABLED(CONFIG_SND_SOC_ES8326_SUNPLUS)
@@ -305,17 +314,14 @@ SND_SOC_DAILINK_DEFS(es8326,
 		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
 #endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_ES8316)
-SND_SOC_DAILINK_DEFS(es8316,
-		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
-		     DAILINK_COMP_ARRAY(COMP_CODEC("es8316.0-0011", "ES8316 HiFi")),
-		     DAILINK_COMP_ARRAY(COMP_PLATFORM("spsoc-pcm-driver")));
-#endif
-
 static struct snd_soc_dai_link spsoc_aud_dai[] = {
 	{
 		.name		= "aud_i2s_0",
 		.stream_name	= "aud_dac0",
+#if IS_ENABLED(CONFIG_SND_SOC_ES8316)
+		.dai_fmt 	= SND_SOC_DAIFMT_I2S,// | SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBP_CFP,
+		.init 		= es8316_init,
+#endif
 		.ops		= &spsoc_aud_ops,
 		SND_SOC_DAILINK_REG(sp_i2s_0),
 	},
@@ -352,18 +358,6 @@ static struct snd_soc_dai_link spsoc_aud_dai[] = {
 		.dpcm_playback	= 1,
 		.dpcm_capture	= 1,
 		SND_SOC_DAILINK_REG(es8326),
-	},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_ES8316)
-	{
-		.name		= "analog_es8316",
-		.stream_name	= "afe",
-		.init 		= es8316_init,
-		.ops		= &spsoc_aud_ops,
-		.no_pcm		= 1,
-		.dpcm_playback	= 1,
-		.dpcm_capture	= 1,
-		SND_SOC_DAILINK_REG(es8316),
 	},
 #endif
 };
