@@ -638,6 +638,20 @@
 #define SP7350_OSD_EN_MASK				GENMASK(0, 0)
 #define SP7350_OSD_EN(en)				FIELD_PREP(GENMASK(0, 0), en)
 
+/*TGEN_DTG_ADJUST*/
+#define SP7350_TGEN_DTG_ADJ_MASKA           GENMASK(13, 8)
+#define SP7350_TGEN_DTG_ADJ_MASKB           GENMASK(5, 0)
+#define SP7350_TGEN_DTG_ADJ_MASKA_SET(adj)  FIELD_PREP(GENMASK(13, 8), adj)
+#define SP7350_TGEN_DTG_ADJ_MASKB_SET(adj)  FIELD_PREP(GENMASK(5, 0), adj)
+/*TGEN_DTG_ADJUST CONFIG by DMIX*/
+#define SP7350_TGEN_DTG_ADJ_DMIX_L1 0x10 /* Default DTG adjust value for DMIX L1 */
+#define SP7350_TGEN_DTG_ADJ_DMIX_L2 0x0D /* Default DTG adjust value for DMIX L2 */
+#define SP7350_TGEN_DTG_ADJ_DMIX_L3 0x0C /* Default DTG adjust value for DMIX L3 */
+#define SP7350_TGEN_DTG_ADJ_DMIX_L4 0x0A /* Default DTG adjust value for DMIX L4 */
+#define SP7350_TGEN_DTG_ADJ_DMIX_L5 0x08 /* Default DTG adjust value for DMIX L5 */
+#define SP7350_TGEN_DTG_ADJ_DMIX_L6 0x06 /* Default DTG adjust value for DMIX L6 */
+#define SP7350_TGEN_DTG_ADJ_DMIX_BG 0x10 /* Default DTG adjust value for DMIX BG */
+
 /*DMIX_LAYER_CONFIG_0*/
 #define SP7350_DMIX_L6_FG_SEL(sel)	FIELD_PREP(GENMASK(31, 28), sel)
 #define SP7350_DMIX_L5_FG_SEL(sel)	FIELD_PREP(GENMASK(27, 24), sel)
