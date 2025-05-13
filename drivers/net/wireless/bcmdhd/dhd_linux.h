@@ -257,7 +257,6 @@ typedef struct wifi_adapter_info {
 	const char	*fw_path;
 	const char	*nv_path;
 	const char	*clm_path;
-	const char	*conf_path;
 	void		*wifi_plat_data;	/* wifi ctrl func, for backward compatibility */
 	uint		bus_type;
 	uint		bus_num;
@@ -563,11 +562,7 @@ struct dhd_rx_tx_work {
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 
 #ifdef FILTER_IE
-#ifdef DHD_LINUX_STD_FW_API
 #define FILTER_IE_PATH "filter_ie"
-#else
-#define FILTER_IE_PATH "/vendor/etc/wifi/filter_ie"
-#endif /* DHD_LINUX_STD_FW_API */
 #define FILTER_IE_BUFSZ 1024 /* ioc buffsize for FILTER_IE */
 #define FILE_BLOCK_READ_SIZE 256
 #define WL_FILTER_IE_IOV_HDR_SIZE OFFSETOF(wl_filter_ie_iov_v1_t, tlvs)

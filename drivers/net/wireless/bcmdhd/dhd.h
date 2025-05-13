@@ -65,7 +65,11 @@
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
 #include <asm/uaccess.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
 #include <linux/fs.h>
 #include <linux/namei.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
@@ -123,6 +127,7 @@ int get_scheduler_policy(struct task_struct *p);
 #endif /* WL_CFGVENDOR_SEND_HANG_EVENT */
 #include <dngl_stats.h>
 #include <hnd_pktq.h>
+#include <fwpkg_utils.h>
 
 #ifdef DEBUG_DPC_THREAD_WATCHDOG
 #define MAX_RESCHED_CNT 600
@@ -570,30 +575,12 @@ enum dhd_op_flags {
 #endif /* OEM_ANDROID */
 #endif /* CONFIG_BCMDHD_CLM_PATH */
 
-#ifdef DHD_LINUX_STD_FW_API
 #ifndef CONFIG_BCMDHD_CONFIG_SAR_PATH
 #define CONFIG_BCMDHD_CONFIG_SAR_PATH  "sar_config.ini"
 #endif /* CONFIG_BCMDHD_CONFIG_SAR_PATH */
 #ifndef CONFIG_BCMDHD_CONFIG_PATH
 #define CONFIG_BCMDHD_CONFIG_PATH	"wlan_config.ini"
 #endif /* CONFIG_BCMDHD_CONFIG_PATH */
-#else
-#ifndef CONFIG_BCMDHD_CONFIG_SAR_PATH
-#ifdef OEM_ANDROID
-#define CONFIG_BCMDHD_CONFIG_SAR_PATH  "/system/vendor/etc/wifi/sar_config.ini"
-#else /* OEM_ANDROID */
-#define CONFIG_BCMDHD_CONFIG_SAR_PATH  "/var/run/sar_config.ini"
-#endif /* OEM_ANDROID */
-#endif /* CONFIG_BCMDHD_CONFIG_SAR_PATH */
-
-#ifndef CONFIG_BCMDHD_CONFIG_PATH
-#ifdef OEM_ANDROID
-#define CONFIG_BCMDHD_CONFIG_PATH  "/system/vendor/etc/wifi/wlan_config.ini"
-#else /* OEM_ANDROID */
-#define CONFIG_BCMDHD_CONFIG_PATH  "/var/run/wlan_config.ini"
-#endif /* OEM_ANDROID */
-#endif /* CONFIG_BCMDHD_CONFIG_PATH */
-#endif /* DHD_LINUX_STD_FW_API */
 
 #ifndef CONFIG_BCMDHD_MAP_PATH
 	#ifdef OEM_ANDROID
@@ -603,8 +590,6 @@ enum dhd_op_flags {
 	#endif // OEM_ANDROID
 #endif /* CONFIG_BCMDHD_MAP_PATH */
 
-/* for file operation compatibility */
-#ifdef DHD_LINUX_STD_FW_API
 	// kernel has enable the corresponding API
 	#if defined(CONFIG_FW_LOADER) || (defined(CONFIG_FW_LOADER_MODULE) && defined(MODULE))
 		#ifndef DHD_FW_NAME
@@ -626,12 +611,6 @@ enum dhd_op_flags {
 		#error "*Error, KERNEL does not enable the CONFIG_FW_LOADER(_MODULE) "\
 			"for DHD_LINUX_STD_FW_API!"
 	#endif // defined(CONFIG_FW_LOADER) || (defined(CONFIG_FW_LOADER_MODULE) && defined(MODULE))
-#else /* DHD_LINUX_STD_FW_API */
-	#ifndef DHD_SUPPORT_VFS_CALL
-		#error "*Error, Makefile should pick up either "\
-			"'DHD_LINUX_STD_FW_API' or 'DHD_SUPPORT_VFS_CALL'!"
-	#endif // DHD_SUPPORT_VFS_CALL
-#endif /* DHD_LINUX_STD_FW_API */
 
 #define WL_CCODE_NULL_COUNTRY  "#n"
 
@@ -1965,6 +1944,7 @@ typedef struct dhd_pub {
 #endif /* PKT_FILTER_SUPPORT */
 
 	char *clm_path;		/* module_param: path to clm vars file */
+	char *sig_path;		/* module_param: path to sig vars file */
 	char *conf_path;		/* module_param: path to config vars file */
 	struct dhd_conf *conf;	/* Bus module handle */
 	void *adapter;			/* adapter information, interrupt, fw path etc. */
@@ -2647,6 +2627,7 @@ extern void dhd_bus_wakeup_work(dhd_pub_t *dhdp);
 #define WIFI_FEATURE_SCAN_RAND          0x2000000   /* MAC & Prb SN randomization       */
 #define WIFI_FEATURE_SET_TX_POWER_LIMIT 0x4000000   /* Support Tx Power Limit setting   */
 #define WIFI_FEATURE_USE_BODY_HEAD_SAR  0x8000000   /* Support Body/Head Proximity SAR  */
+#define WIFI_FEATURE_DYNAMIC_SET_MAC	0x10000000  /* Support changing MAC address without iface reset(down and up) */
 #define WIFI_FEATURE_SET_LATENCY_MODE   0x40000000  /* Support Latency mode setting     */
 #define WIFI_FEATURE_P2P_RAND_MAC       0x80000000  /* Support P2P MAC randomization    */
 #define WIFI_FEATURE_INVALID            0xFFFFFFFF  /* Invalid Feature                  */
@@ -3726,8 +3707,8 @@ int dhd_ioctl_process(dhd_pub_t *pub, int ifidx, struct dhd_ioctl *ioc, void *da
 extern int
 concate_revision(struct dhd_bus *bus, char *fwpath, char *nvpath);
 #endif /* SUPPORT_MULTIPLE_REVISION */
-void dhd_bus_update_fw_nv_path(struct dhd_bus *bus, char *pfw_path, char *pnv_path,
-											char *pclm_path, char *pconf_path);
+void dhd_bus_update_fw_nv_path(struct dhd_bus *bus, char *pfw_path, char *pnv_path);
+int dhd_bus_clm_load_from_fw(struct dhd_bus *bus);
 void dhd_set_bus_state(void *bus, uint32 state);
 
 /* Remove proper pkts(either one no-frag pkt or whole fragmented pkts) */
@@ -3986,6 +3967,157 @@ typedef struct wl_evt_pport {
 	void *raw_event;
 } wl_evt_pport_t;
 
+/* Meta Data Structure */
+#define METADATA_V1	0x1
+#define METADATA_STRUCT_VERSION	METADATA_V1
+
+/* meta data header: magic number 4bytes + version 1byte + length 3bytes */
+#define METADATA_LEN		4 /* magic number */
+#define METADATA_VER_LEN	1 /* version */
+#define METADATA_JUMP_VALUE_LEN	3 /* length */
+#define METADATA_TLV_TYPE_LEN	2
+#define METADATA_TLV_LEN_LEN	2
+#define METADATA_TLV_SUBVER_LEN	1
+#define METADATA_TLV_VER_LEN	2
+#define METADATA_END		0x0
+#define METADATA_HDR_LEN	(METADATA_LEN + METADATA_VER_LEN + METADATA_JUMP_VALUE_LEN)
+
+#define MAX_CHIPID_LEN		10
+
+#define MAX_CHIP_CONTENT	1
+#define MAX_EXCL_MEM_CONTENT	3
+#define MAX_STARTUPLOC_CONTENT	1
+#define MAX_NVRAM_CONTENT	3
+#define MAX_FW_DL_CONTENT	3
+#define MAX_FW_DL_SECTION	2
+#define MAX_TAG_INFO_LEN	300
+#define METADATA_TLV_FW_SECTION_NUM_LEN	2
+
+#define SIG_HEADER_LEN		4
+#define SIG_SIZE_LEN		2
+
+typedef struct m_chip_tlv_v1_h
+{
+	bool	present;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	char	chip_id[MAX_CHIPID_LEN];
+} m_chip_tlv_v1_t;
+
+typedef struct m_excl_mem_tlv_v1_h
+{
+	bool	present;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	mem_start;
+	uint64	mem_end;
+	uint64	mem_size;
+} m_excl_mem_tlv_v1_t;
+
+typedef struct m_startuploc_tlv_v1_h
+{
+	bool	present;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	addr;
+} m_startuploc_tlv_v1_t;
+
+typedef struct m_nvram_tlv_v1_h
+{
+	bool	present;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	nvram_start;
+	uint64	nvram_end;
+	uint64	nvram_max_size;
+} m_nvram_tlv_v1_t;
+
+typedef struct m_cons_addr_tlv_v1_h
+{
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	cons_start;
+} m_cons_addr_tlv_v1_t;
+
+typedef struct m_fw_dl_tlv_v1_h
+{
+	bool	enabled;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	fw_sec_num;
+	uint64	dl_start[MAX_FW_DL_SECTION];
+	uint64	dl_end[MAX_FW_DL_SECTION];
+	uint64	dl_size[MAX_FW_DL_SECTION];
+} m_fw_dl_tlv_v1_t;
+
+typedef struct m_tag_info_v1_h
+{
+	bool present;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	addr;
+} m_tag_info_tlv_v1_t;
+
+typedef struct m_sign_file_tlv_v1_h
+{
+	bool present;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	sign_addr;
+} m_sign_file_tlv_v1_t;
+
+typedef struct m_clm_blob_tlv_v1_h
+{
+	bool present;
+	uint16	type;
+	uint16	len;
+	uint16	ver;
+	uint64	addr;
+} m_clm_blob_tlv_v1_t;
+
+typedef struct metadata_h
+{
+	bool	enabled;
+	uint32	jump_value;
+	uint8	version;
+	m_chip_tlv_v1_t		chip_detail;
+	m_excl_mem_tlv_v1_t	excl_mem;
+	m_startuploc_tlv_v1_t	startup_loc;
+	m_nvram_tlv_v1_t	nvram_loc;
+	m_cons_addr_tlv_v1_t    cons_addr;
+	m_fw_dl_tlv_v1_t        fw_dl_loc;
+	m_tag_info_tlv_v1_t	tag_info;
+	m_clm_blob_tlv_v1_t	clm_blob_loc;
+	m_sign_file_tlv_v1_t	sign_file;
+} metadata_t;
+
+enum metadata_version
+{
+	METADATA_VERSION_1 = 1,
+	METADATA_VERSION_2
+};
+
+enum metadata_type
+{
+	CHIP_DETAILS = 1,
+	EXCL_MEM_LOCATION,
+	STARTUP_LOCATION,
+	NVRAM_LOCATION,
+	CONS_ADDR,
+	FW_DL_LOCATION,
+	TAG_INFO_LOCATION,
+	CLM_BLOB_LOCATION,
+	SIGNATURE_FILE
+};
+
 extern void *dhd_pub_shim(dhd_pub_t *dhd_pub);
 #ifdef DHD_FW_COREDUMP
 void* dhd_get_fwdump_buf(dhd_pub_t *dhd_pub, uint32 length);
@@ -3999,8 +4131,8 @@ void custom_xps_map_clear(struct net_device *net);
 
 #if defined(SET_RPS_CPUS)
 int dhd_rps_cpus_enable(struct net_device *net, int enable);
-int custom_rps_map_set(struct netdev_rx_queue *queue, char *buf, size_t len);
-void custom_rps_map_clear(struct netdev_rx_queue *queue);
+int custom_rps_map_set(struct net_device *net, char *buf, size_t len);
+void custom_rps_map_clear(struct net_device *net);
 #define PRIMARY_INF 0
 #define VIRTUAL_INF 1
 #if defined(CONFIG_MACH_UNIVERSAL7420) || defined(CONFIG_SOC_EXYNOS8890)
@@ -4028,6 +4160,9 @@ void dhd_free_download_buffer(dhd_pub_t	*dhd, void *buffer, int length);
 
 int dhd_download_blob(dhd_pub_t *dhd, unsigned char *buf,
 		uint32 len, char *iovar);
+ 
+int dhd_download_apf(dhd_pub_t *dhd, unsigned char *buf,
+		uint32 len, char *iovar);
 
 int dhd_download_blob_cached(dhd_pub_t *dhd, char *file_path,
 	uint32 len, char *iovar);
@@ -4036,15 +4171,11 @@ int dhd_apply_default_txcap(dhd_pub_t *dhd, char *txcap_path);
 int dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path);
 
 #ifdef SHOW_LOGTRACE
-int dhd_parse_logstrs_file(osl_t *osh, char *raw_fmts, int logstrs_size,
+void dhd_init_logstrs(dhd_pub_t *dhd);
+int dhd_parse_logstrs_file(dhd_pub_t *dhd, char *raw_fmts, int logstrs_size,
 		dhd_event_log_t *event_log);
-#ifdef DHD_LINUX_STD_FW_API
-int dhd_parse_map_file(osl_t *osh, const void *ptr, uint32 *ramstart,
-		uint32 *rodata_start, uint32 *rodata_end);
-#else
-int dhd_parse_map_file(osl_t *osh, void *file, uint32 *ramstart,
-		uint32 *rodata_start, uint32 *rodata_end);
-#endif /* DHD_LINUX_STD_FW_API */
+int dhd_parse_map_file(dhd_pub_t *dhd, FWPKG_FILE *fw, int unit_type, int map_size,
+		uint32 *ramstart, uint32 *rodata_start, uint32 *rodata_end);
 #ifdef PCIE_FULL_DONGLE
 int dhd_event_logtrace_infobuf_pkt_process(dhd_pub_t *dhdp, void *pktbuf,
 		dhd_event_log_t *event_data);

@@ -9086,6 +9086,8 @@ wl_cfg80211_wbtext_set_default(struct net_device *ndev)
 	uint8 bandidx = 0;
 	int wnmmask = 0;
 	struct bcm_cfg80211 *cfg = wl_get_cfg(ndev);
+	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
+	int ifidx = dhd_net2idx(dhdp->info, ndev);
 
 	WL_DBG(("set wbtext to default\n"));
 
@@ -9285,6 +9287,8 @@ wl_cfg80211_wbtext_set_default(struct net_device *ndev)
 			__FUNCTION__, data, ret));
 		goto exit;
 	}
+
+	dhd_conf_roam_prof(dhdp, ifidx);
 
 exit:
 	if (commandp) {

@@ -18,11 +18,11 @@ bcmdhd_wlan {
 };
 */
 #define DHD_DT_COMPAT_ENTRY		"android,bcmdhd_wlan"
-#define GPIO_WL_REG_ON_PROPNAME		"gpio_wl_reg_on" BUS_TYPE
-#define GPIO_WL_HOST_WAKE_PROPNAME	"gpio_wl_host_wake" BUS_TYPE
+#define GPIO_WL_REG_ON_PROPNAME		"gpio_wl_reg_on" ADAPTER_IDX_STR
+#define GPIO_WL_HOST_WAKE_PROPNAME	"gpio_wl_host_wake" ADAPTER_IDX_STR
 #endif
-#define GPIO_WL_REG_ON_NAME 	"WL_REG_ON" BUS_TYPE
-#define GPIO_WL_HOST_WAKE_NAME	"WL_HOST_WAKE" BUS_TYPE
+#define GPIO_WL_REG_ON_NAME 	"WL_REG_ON" ADAPTER_IDX_STR
+#define GPIO_WL_HOST_WAKE_NAME	"WL_HOST_WAKE" ADAPTER_IDX_STR
 
 #ifdef CONFIG_DHD_USE_STATIC_BUF
 #if defined(BCMDHD_MDRIVER) && !defined(DHD_STATIC_IN_DRIVER)

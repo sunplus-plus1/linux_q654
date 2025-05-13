@@ -88,7 +88,11 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0)
+#include <linux/unaligned.h>
+#else
 #include <asm/unaligned.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
 #include <dbus.h>
 #include <bcmutils.h>
 #include <bcmdevs_legacy.h>
@@ -527,7 +531,7 @@ MODULE_DEVICE_TABLE(usb, devid_table);
 
 /** functions called by the Linux kernel USB subsystem */
 static struct usb_driver dbus_usbdev = {
-	name:           "dbus_usbdev"BUS_TYPE,
+	name:           "dbus_usbdev"ADAPTER_IDX_STR,
 	probe:          dbus_usbos_probe,
 	disconnect:     dbus_usbos_disconnect,
 	id_table:       devid_table,

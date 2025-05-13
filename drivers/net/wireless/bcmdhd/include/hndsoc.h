@@ -65,6 +65,10 @@
 #ifndef SI_WRAP_BASE_DEFAULT
 #define SI_WRAP_BASE_DEFAULT		0x18100000	/* Wrapper space base */
 #endif
+ 
+#ifndef SI_CC_GCI_CHIPCTRL_BASE_DEFAULT
+#define SI_CC_GCI_CHIPCTRL_BASE_DEFAULT		0x18010000	/* CC GCI CHIPCTRL base */
+#endif
 
 #define WL_BRIDGE1_S	(0x18132000)
 #define WL_BRIDGE2_S	(0x18133000)

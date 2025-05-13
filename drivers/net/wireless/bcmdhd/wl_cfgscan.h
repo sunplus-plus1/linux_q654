@@ -87,7 +87,7 @@ extern s32 wl_do_escan(struct bcm_cfg80211 *cfg, struct wiphy *wiphy,
 	struct net_device *ndev, struct cfg80211_scan_request *request);
 extern s32 __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 	struct cfg80211_scan_request *request, struct cfg80211_ssid *this_ssid);
-#if defined(WL_CFG80211_P2P_DEV_IF)
+#if defined(WL_CFG80211_P2P_DEV_IF) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 6, 0))
 extern s32 wl_cfg80211_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request);
 #else
 extern s32 wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,

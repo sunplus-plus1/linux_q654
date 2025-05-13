@@ -788,6 +788,10 @@ extern uint32 si_raw_reg(const si_t *sih, uint32 reg, uint32 val, uint32 wrire_r
 		si_corereg(si, si_findcoreidx(si, GCI_CORE_ID, 0), \
 			OFFSETOF(gciregs_t, member), mask, val)
 
+#define LHL_W_REG(si, member, mask, val) \
+		si_corereg_writeonly(si, si_findcoreidx(si, GCI_CORE_ID, 0), \
+			OFFSETOF(gciregs_t, member), mask, val)
+
 #define CHIPC_REG(si, member, mask, val) \
 		si_corereg(si, SI_CC_IDX, OFFSETOF(chipcregs_t, member), mask, val)
 
