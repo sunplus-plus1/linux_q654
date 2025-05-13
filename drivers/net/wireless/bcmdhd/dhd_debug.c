@@ -63,6 +63,9 @@
 #endif /* DBG_PKT_MON */
 #if defined(DHD_PKT_LOGGING) && defined(DHD_PKT_LOGGING_DBGRING)
 #include <dhd_pktlog.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#include <linux/sched/clock.h>
+#endif /* KENEL >=4.11 */
 #endif /* DHD_PKT_LOGGING && DHD_PKT_LOGGING_DBGRING */
 
 #if defined(DHD_EVENT_LOG_FILTER)
@@ -611,7 +614,7 @@ done:
 #define LOG_PRINT_THRESH      (1u * USEC_PER_SEC)
 #endif /* LOG_PRINT_THRESH */
 #endif /* DHD_DEBUG */
-#endif
+#endif /* DHD_LOG_PRINT_RATE_LIMIT */
 #define EL_PARSE_VER	"V02"
 static uint64 verboselog_ts_saved = 0;
 
@@ -785,7 +788,7 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
 {
 	dhd_event_log_t *raw_event = (dhd_event_log_t *)raw_event_ptr;
 	uint16 count;
-	int log_level, id;
+	int log_level, id, len;
 	char fmtstr_loc_buf[ROMSTR_SIZE] = { 0 };
 	char (*str_buf)[SIZE_LOC_STR] = NULL;
 	char *str_tmpptr = NULL;
@@ -900,7 +903,9 @@ dhd_dbg_verboselog_printf(dhd_pub_t *dhdp, prcd_event_log_hdr_t *plog_hdr,
 				raw_event->fmts[plog_hdr->fmt_num]);
 			plog_hdr->count++;
 		} else {
-			snprintf(fmtstr_loc_buf, FMTSTR_SIZE, "CONSOLE_E:%u:%u %06d.%03d %s",
+			len = snprintf(fmtstr_loc_buf, FMTSTR_SIZE, PERCENT_S DHD_LOG_PREFIXS,
+				PRINTF_SYSTEM_TIME);
+			snprintf(fmtstr_loc_buf+len, FMTSTR_SIZE, "CONSOLE_E:%u:%u %06d.%03d %s",
 				logset, block,
 				(uint32)(log_ptr[plog_hdr->count - 1] / EL_MSEC_PER_SEC),
 				(uint32)(log_ptr[plog_hdr->count - 1] % EL_MSEC_PER_SEC),
@@ -2097,7 +2102,8 @@ dhd_dbg_monitor_tx_pkts(dhd_pub_t *dhdp, void *pkt, uint32 pktid, frame_type typ
 				clone_pkt = PKTDUP(dhdp->osh, pkt);
 				skb_pull((struct sk_buff*)clone_pkt, SDIO_HLEN);
 				tx_pkts[pkt_pos].info.pkt = clone_pkt;
-				tx_pkts[pkt_pos].info.pkt_len = PKTLEN(dhdp->osh, clone_pkt) - SDIO_HLEN;
+				tx_pkts[pkt_pos].info.pkt_len =
+					PKTLEN(dhdp->osh, clone_pkt) - SDIO_HLEN;
 #else
 				tx_pkts[pkt_pos].info.pkt = PKTDUP(dhdp->osh, pkt);
 				tx_pkts[pkt_pos].info.pkt_len = PKTLEN(dhdp->osh, pkt);

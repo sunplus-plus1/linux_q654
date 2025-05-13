@@ -63,7 +63,7 @@ extern void dhd_bus_unregister(void);
 
 /* Download firmware image and nvram image */
 extern int dhd_bus_download_firmware(struct dhd_bus *bus, osl_t *osh,
-	char *fw_path, char *nv_path, char *clm_path, char *conf_path);
+	char *fw_path, char *nv_path);
 #if defined(BT_OVER_SDIO)
 extern int dhd_bus_download_btfw(struct dhd_bus *bus, osl_t *osh, char *btfw_path);
 #endif /* defined (BT_OVER_SDIO) */

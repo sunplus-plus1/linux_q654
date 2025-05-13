@@ -540,6 +540,7 @@ typedef struct dhd_bus {
 	uint32 fw_memmap_download_len;	/* Length in bytes of FWS memory-info download */
 
 	char fwsig_filename[DHD_MAX_PATH];		/* Name of FW signature file */
+	bool sig_loaded;
 	char bootloader_filename[DHD_FILENAME_MAX];	/* Name of bootloader image file */
 	uint32 bootloader_addr;		/* Dongle address of bootloader download */
 	bool force_bt_quiesce; /* send bt_quiesce command to BT driver. */
@@ -570,7 +571,6 @@ typedef struct dhd_bus {
 	dhd_pcie_link_state_type_t link_state;
 	bool dar_err_set;
 	uint32 ptm_ctrl_reg;
-	fwpkg_info_t fwpkg;	/* combined fw package info structure */
 	bool lpm_mode;	/* lpm enabled */
 	bool lpm_keep_in_reset; /* during LPM keep in FLR, if FLR force is enabled */
 	bool lpm_mem_kill; /* kill WLAN memories in LPM */
