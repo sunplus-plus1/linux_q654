@@ -541,7 +541,7 @@ static int lt8912_video_on(struct lt8912 *lt)
 		lt->mode_sel = 0x00;
 	}
 
-	if (lt->hdmi_dvi_sel) {
+	if (lt->hdmi_dvi_sel && lt->connector.display_info.has_audio) {
 		ret = lt8912_audio_setup(lt);
 		if (ret < 0)
 			goto end;
