@@ -393,8 +393,10 @@ static int __init snd_spsoc_audio_init(void)
 		client = of_find_i2c_device_by_node(np);
 		if (client)
 			component = snd_soc_lookup_component_nolocked(&client->dev, NULL);
-		else
+		else {
 			pr_err("### No i2c device found\n");
+			return -ENODEV;
+		}
 		//if (!of_property_read_string(np, "codec-name", &name))
 			//printk("%s\n", name);
 	} else
