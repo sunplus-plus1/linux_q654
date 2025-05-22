@@ -863,6 +863,19 @@
 		sunplus,id = <13>;
 	};
 
+	isp: isp@f8c10000 {
+		compatible = "sunplus,sp7350-isp";
+		reg = <0x0 0xf8c10000 0x0 0x4000>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc VCL5>, <&clkc VCL0>;
+		clock-names = "cpu_clk", "isp_clk";
+		resets = <&rstc RST_VCL5>, <&rstc RST_VCL0>;
+		reset-names = "cpu_reset", "isp_reset";
+		//memory-region = <&isp_sram_reserve>;
+		status = "okay";
+	};
+
 	fb_disp_device: fb_disp_device {
 		compatible = "sunplus,sp7350-fb";
 	};
