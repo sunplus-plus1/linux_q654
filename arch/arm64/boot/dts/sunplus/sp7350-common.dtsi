@@ -1126,8 +1126,8 @@
 		};
 	};
 
-	icore_stereo: vicore_stereo@f8c01000 {
-		compatible = "vicore,stereo";
+	stereo: stereo@f8c01000 {
+		compatible = "sunplus,sp7350-stereo";
 		reg = <0x0 0xf8c01000 0x0 0x4000>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;

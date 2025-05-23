@@ -1,12 +1,12 @@
 /*!
- * vicore_stereo_utility.c - stereo utility tool box
- * @file vicore_stereo_utility.c
+ * sunplus_stereo_utility.c - stereo utility tool box
+ * @file sunplus_stereo_utility.c
  * @brief stereo utility tool box
- * @author Saxen Ko <saxen.ko@vicorelogic.com>
+ * @author Saxen Ko <saxen.ko@sunplus.com>
  * @version 1.0
- * @copyright  Copyright (C) 2022 Vicorelogic
+ * @copyright  Copyright (C) 2025 Sunplus
  * @note
- * Copyright (C) 2022 Vicorelogic
+ * Copyright (C) 2025 Sunplus
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,13 +14,13 @@
  * the Free Software Foundation.
  */
 
-#include "vicore_stereo_reg.h"
-#include "vicore_stereo_util.h"
-#include "vicore_stereo_init_tab.h"
+#include "sunplus_stereo_reg.h"
+#include "sunplus_stereo_util.h"
+#include "sunplus_stereo_init_tab.h"
 
-#include "vicore_stereo.h"
+#include "sunplus_stereo.h"
 
-enum STEREO_CTRL_STATE g_stereo_status = VCL_STEREO_INIT;
+enum STEREO_CTRL_STATE g_stereo_status = SP_STEREO_INIT;
 
 /*! stereo spin lock for register R/W */
 spinlock_t stereo_lock;
@@ -58,7 +58,7 @@ struct completion stereo_comp;
 /*! save last running param */
 struct stereo_video_fh *sfh_last = NULL;
 
-inline void vicore_stereo_clk_gating(struct clk *stereo_clk, bool isGating)
+inline void sunplus_stereo_clk_gating(struct clk *stereo_clk, bool isGating)
 {
 	if (stereo_clk) {
 		if (isGating) {
@@ -69,18 +69,18 @@ inline void vicore_stereo_clk_gating(struct clk *stereo_clk, bool isGating)
 	}
 }
 
-inline void vicore_stereo_intr_enable(u32 on)
+inline void sunplus_stereo_intr_enable(u32 on)
 {
 	stereo_write(!on, STEREO_SDP_IRQ_MASK_OFFSET);
 }
 
-inline void vcore_stereo_top_reset(void)
+inline void sunplus_stereo_top_reset(void)
 {
 	if (!stereo_read(STEREO_SDP_ADDR_STATUS_OFFSET))
 		stereo_write(1, STEREO_SOFT_RESET_OFFSET);
 }
 
-inline void vicore_stereo_clr_done(void)
+inline void sunplus_stereo_clr_done(void)
 {
 	u32 i;
 
@@ -95,7 +95,7 @@ inline void vicore_stereo_clr_done(void)
 	stereo_read(STEREO_SDP_FRM_STATUS_OFFSET);
 }
 
-void vicore_stereo_init_sgm8dir(void)
+void sunplus_stereo_init_sgm8dir(void)
 {
 	if (sgm_8dir_available) {
 		// FWRR Read
@@ -113,7 +113,7 @@ void vicore_stereo_init_sgm8dir(void)
 	}
 }
 
-s32 vicore_stereo_driver_init(void)
+s32 sunplus_stereo_driver_init(void)
 {
 	unsigned int i;
 	unsigned int data_len;
@@ -123,12 +123,12 @@ s32 vicore_stereo_driver_init(void)
 	for (i = 0; i < data_len; i++ )
 		stereo_write(stereo_register_setting[i].value, stereo_register_setting[i].offset);
 
-	vicore_stereo_init_sgm8dir();
+	sunplus_stereo_init_sgm8dir();
 
 	/* disable all stereo interrupt */
-	vicore_stereo_intr_enable(0);
+	sunplus_stereo_intr_enable(0);
 	/* clear IRQ status */
-	vicore_stereo_clr_done();
+	sunplus_stereo_clr_done();
 	/* initial wait queue */
 	// init_waitqueue_head(&stereo_process_wait);
 	init_completion(&stereo_comp);
@@ -136,7 +136,7 @@ s32 vicore_stereo_driver_init(void)
 	return 0;
 }
 
-inline void vicore_stereo_update_window(int width, int height, struct stereo_video_fh *sfh)
+inline void sunplus_stereo_update_window(int width, int height, struct stereo_video_fh *sfh)
 {
 	struct stereo_config *pCfg = &sfh->config;
 	struct v4l2_rect *crop = NULL;
@@ -169,7 +169,7 @@ inline void vicore_stereo_update_window(int width, int height, struct stereo_vid
 	spin_unlock_irqrestore(&stereo_lock, flags);
 }
 
-inline void vicore_stereo_update_roi(struct stereo_video_fh *sfh)
+inline void sunplus_stereo_update_roi(struct stereo_video_fh *sfh)
 {
 	struct stereo_config *pCfg = &sfh->config;
 	struct v4l2_rect *crop = NULL;
@@ -222,7 +222,7 @@ inline void vicore_stereo_update_roi(struct stereo_video_fh *sfh)
 	stereo_write(vsgr.RegValue, STEREO_TOF_VSGR_OFFSET);
 }
 
-void vicore_stereo_apply_setting(struct v4l2_fh *fh)
+void sunplus_stereo_apply_setting(struct v4l2_fh *fh)
 {
 	STEREO_FUNC_EN_0_RBUS fun_reg;
 	STEREO_OUT_FMT_0_RBUS fmt_reg;
@@ -233,10 +233,10 @@ void vicore_stereo_apply_setting(struct v4l2_fh *fh)
 
 	pr_debug("apply stereo config\n");
 
-	vcore_stereo_top_reset();
+	sunplus_stereo_top_reset();
 
 	/* 1. apply tuning params */
-	if (sfh_last != sfh || g_stereo_status == VCL_STEREO_INIT) {
+	if (sfh_last != sfh || g_stereo_status == SP_STEREO_INIT) {
 		u32 i;
 
 		/* apply tunning data */
@@ -250,9 +250,9 @@ void vicore_stereo_apply_setting(struct v4l2_fh *fh)
 	}
 
 	/* 2. apply the resolution setting */
-	vicore_stereo_update_window(sfh->out_format.fmt.pix.width, sfh->out_format.fmt.pix.height, sfh);
+	sunplus_stereo_update_window(sfh->out_format.fmt.pix.width, sfh->out_format.fmt.pix.height, sfh);
 	/* 3. apply the tuning param */
-	vicore_stereo_update_roi(sfh);
+	sunplus_stereo_update_roi(sfh);
 
 	/* 4. apply function control setting */
 	fun_reg.RegValue = stereo_read(STEREO_FUNC_EN_0_OFFSET);
@@ -291,7 +291,7 @@ void vicore_stereo_apply_setting(struct v4l2_fh *fh)
 	// pr_info("fun_reg.RegValue=0x%x", fun_reg.RegValue);
 }
 
-inline s32 vicore_stereo_DMA_address_update(enum ENUM_STEREO_BUF_TYPE type, dma_addr_t pa)
+inline s32 sunplus_stereo_DMA_address_update(enum ENUM_STEREO_BUF_TYPE type, dma_addr_t pa)
 {
 	//unsigned long flags;
 
@@ -333,7 +333,7 @@ inline s32 vicore_stereo_DMA_address_update(enum ENUM_STEREO_BUF_TYPE type, dma_
 	return 0;
 }
 
-s32 vicore_stereo_dma_update(struct v4l2_fh *vfh)
+s32 sunplus_stereo_dma_update(struct v4l2_fh *vfh)
 {
 	struct stereo_video_fh *sfh = to_stereo_video_fh(vfh);
 	struct v4l2_m2m_ctx *m2m_ctx = sfh->vfh.m2m_ctx;
@@ -353,17 +353,17 @@ s32 vicore_stereo_dma_update(struct v4l2_fh *vfh)
 
 	for (type = 0; type < input_num; type++) {
 		pa = vb2_dma_contig_plane_dma_addr(&src_buf->vb2_buf, type);
-		vicore_stereo_DMA_address_update(type, pa);
+		sunplus_stereo_DMA_address_update(type, pa);
 	}
 	pa = vb2_dma_contig_plane_dma_addr(&dst_buf->vb2_buf, 0);
-	vicore_stereo_DMA_address_update(STEREO_OUT, pa);
+	sunplus_stereo_DMA_address_update(STEREO_OUT, pa);
 
 	spin_unlock_irqrestore(&stereo_lock, flags);
 
 	return 0;
 }
 
-void vicore_stereo_start_stereo(void)
+void sunplus_stereo_start_stereo(void)
 {
 	unsigned long flags;
 
@@ -372,11 +372,11 @@ void vicore_stereo_start_stereo(void)
 	/* let stereo out data frame start */
 	spin_lock_irqsave(&stereo_lock, flags);
 	stereo_write(1, STEREO_FRAME_START_OFFSET);
-	g_stereo_status = VCL_STEREO_RUN;
+	g_stereo_status = SP_STEREO_RUN;
 	spin_unlock_irqrestore(&stereo_lock, flags);
 }
 
-s32 vicore_stereo_ISR_handler(void *data)
+s32 sunplus_stereo_ISR_handler(void *data)
 {
 	unsigned long flags;
 	u32 rest_num;
@@ -393,7 +393,7 @@ s32 vicore_stereo_ISR_handler(void *data)
 		}
 
 		spin_lock_irqsave(&stereo_lock, flags);
-		g_stereo_status = VCL_STEREO_IDLE;
+		g_stereo_status = SP_STEREO_IDLE;
 
 		// wake_up(&stereo_process_wait);
 		complete(&stereo_comp);

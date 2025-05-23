@@ -1,12 +1,12 @@
 /*!
- * vicore_stereo.c - stereo out data
- * @file vicore_stereo.c
+ * sunplus_stereo.c - stereo out data
+ * @file sunplus_stereo.c
  * @brief stereo video device
- * @author Saxen Ko <saxen.ko@vicorelogic.com>
+ * @author Saxen Ko <saxen.ko@sunplus.com>
  * @version 1.0
- * @copyright  Copyright (C) 2022 Vicorelogic
+ * @copyright  Copyright (C) 2025 Sunplus
  * @note
- * Copyright (C) 2022 Vicorelogic
+ * Copyright (C) 2025 Sunplus
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,17 +24,17 @@
 
 #ifdef CONFIG_PM
 #include <linux/pm_runtime.h>
-#include "vicore_stereo_pm.h"
+#include "sunplus_stereo_pm.h"
 #endif
 
-#include "vicore_stereo_reg.h"
-#include "vicore_stereo.h"
-#include "vicore_stereo_tuningfs.h"
+#include "sunplus_stereo_reg.h"
+#include "sunplus_stereo.h"
+#include "sunplus_stereo_tuningfs.h"
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/reset.h>
 
-#define MODE_NAME "vicore-stereo"
+#define MODE_NAME "sunplus-stereo"
 
 #define STEREO_MIN_WIDTH 160
 #define STEREO_MIN_HEIGHT 20
@@ -49,7 +49,7 @@
 #define STEREO_FWRR_MEM_SIZE	0x21C0000
 #define STEREO_RWFR_MEM_SIZE	0x10E0000
 
-struct kobject *vcl_stereo_kobj = NULL;
+struct kobject *sp_stereo_kobj = NULL;
 static int stereo_init_controls(struct stereo_video_fh *sfh);
 
 // workqueue relative
@@ -57,16 +57,16 @@ static struct workqueue_struct *stereo_wq = NULL;
 bool sgm_8dir_available = false;
 static int clk_gating = 1;
 
-static irqreturn_t vicore_stereo_interrupt(int irq, void *dev_id)
+static irqreturn_t sunplus_stereo_interrupt(int irq, void *dev_id)
 {
-	vicore_stereo_ISR_handler(dev_id);
+	sunplus_stereo_ISR_handler(dev_id);
 	return IRQ_HANDLED;
 }
 
 static int job_ready(void *priv)
 {
 	struct stereo_video_fh *sfh = priv;
-	// struct vicore_stereo *video = sfh->video;
+	// struct sunplus_stereo *video = sfh->video;
 
 	if (v4l2_m2m_num_src_bufs_ready(sfh->vfh.m2m_ctx) < 1 ||
 		v4l2_m2m_num_dst_bufs_ready(sfh->vfh.m2m_ctx) < 1)
@@ -81,7 +81,7 @@ static int job_ready(void *priv)
 static void job_abort(void *priv)
 {
 	/* make sure hw is idle */
-	if (g_stereo_status == VCL_STEREO_RUN) {
+	if (g_stereo_status == SP_STEREO_RUN) {
 		long timeout_jiff = msecs_to_jiffies(VCL_STEREO_TIMEOUT);
 
 		// if (wait_event_interruptible_timeout(stereo_process_wait,
@@ -116,21 +116,21 @@ static void stereo_run(struct work_struct *work)
 
 	mutex_lock(&sfh->video->device_lock);
 
-	vicore_stereo_clk_gating(sfh->video->clk_gate, false);
-	g_stereo_status = VCL_STEREO_RUN;
+	sunplus_stereo_clk_gating(sfh->video->clk_gate, false);
+	g_stereo_status = SP_STEREO_RUN;
 
 	// Get buffers
-	ret = vicore_stereo_dma_update(&sfh->vfh);
+	ret = sunplus_stereo_dma_update(&sfh->vfh);
 	if (ret < 0) {
 		pr_err("apply Stereo setting error!\n");
 		goto job_unlock;
 	}
 	// Load setting
-	vicore_stereo_apply_setting(&sfh->vfh);
+	sunplus_stereo_apply_setting(&sfh->vfh);
 
 	// HW trigger start
 	reinit_completion(&stereo_comp); //stereo_comp.done = 0;
-	vicore_stereo_start_stereo();
+	sunplus_stereo_start_stereo();
 
 	ret = wait_for_completion_timeout(&stereo_comp, timeout_jiff);
 	// ret = wait_event_interruptible_timeout(stereo_process_wait,
@@ -139,18 +139,18 @@ static void stereo_run(struct work_struct *work)
 		v4l2_m2m_buf_done_and_job_finish(m2m_dev, m2m_ctx, VB2_BUF_STATE_DONE);
 	} else { // wait timeout
 		pr_err("stereo timeout\n");
-		if (g_stereo_status == VCL_STEREO_RUN) {
+		if (g_stereo_status == SP_STEREO_RUN) {
 			// FIXME: trigger again?
 			pr_err("trigger again\n");
-			vicore_stereo_start_stereo();
+			sunplus_stereo_start_stereo();
 		}
 		// no finish job with error, just let it timeout
 		// v4l2_m2m_buf_done_and_job_finish(m2m_dev, m2m_ctx, VB2_BUF_STATE_ERROR);
 	}
 
 job_unlock:
-	g_stereo_status = VCL_STEREO_IDLE;
-	vicore_stereo_clk_gating(sfh->video->clk_gate, true);
+	g_stereo_status = SP_STEREO_IDLE;
+	sunplus_stereo_clk_gating(sfh->video->clk_gate, true);
 	mutex_unlock(&sfh->video->device_lock);
 
 	pr_debug("stereo %p %s exit\n", sfh, __func__);
@@ -231,7 +231,7 @@ static const struct vb2_ops stereo_queue_output_ops = {
 static int stereo_queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 {
 	struct stereo_video_fh *sfh = priv;
-	struct vicore_stereo *video = sfh->video;
+	struct sunplus_stereo *video = sfh->video;
 	int ret = 0;
 
 	mutex_init(&sfh->queue_lock);
@@ -274,7 +274,7 @@ exit:
 
 static int stereo_video_open(struct file *file)
 {
-	struct vicore_stereo *video = video_drvdata(file);
+	struct sunplus_stereo *video = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
 	struct stereo_video_fh *sfh;
 	struct stereo_config *pCfg;
@@ -328,9 +328,9 @@ static int stereo_video_open(struct file *file)
 	pCfg->crop_en = 0;
 
 	/* enable stereo interrupt */
-	vicore_stereo_clk_gating(video->clk_gate, false);
-	vicore_stereo_intr_enable(1);
-	vicore_stereo_clk_gating(video->clk_gate, true);
+	sunplus_stereo_clk_gating(video->clk_gate, false);
+	sunplus_stereo_intr_enable(1);
+	sunplus_stereo_clk_gating(video->clk_gate, true);
 
 	mutex_unlock(&video->device_lock);
 
@@ -487,14 +487,14 @@ int stereo_video_try_format(struct file *file, void *fh,
 
 static int stereo_video_release(struct file *file)
 {
-	struct vicore_stereo *video = video_drvdata(file);
+	struct sunplus_stereo *video = video_drvdata(file);
 	struct v4l2_fh *vfh = file->private_data;
 	struct stereo_video_fh *handle = to_stereo_video_fh(vfh);
 	// struct video_device *vdev = video_devdata(file);
 	struct stereo_ioctl_param *param = &handle->config.param_tb;
 
 	mutex_lock(&video->device_lock);
-	vicore_stereo_clk_gating(video->clk_gate , false);
+	sunplus_stereo_clk_gating(video->clk_gate , false);
 
 	pr_info("%s %px\n", __func__, handle);
 
@@ -546,7 +546,7 @@ static int stereo_video_release(struct file *file)
 	kfree(handle);
 	file->private_data = NULL;
 
-	vicore_stereo_clk_gating(video->clk_gate,true);
+	sunplus_stereo_clk_gating(video->clk_gate,true);
 	mutex_unlock(&video->device_lock);
 
 #ifdef CONFIG_PM
@@ -788,7 +788,7 @@ static long stereo_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int ret = 0;
 
 	switch (cmd) {
-	case VCL_STEREO_IOCTL_S_TUNE_DATA:
+	case SP_STEREO_IOCTL_S_TUNE_DATA:
 	{
 		struct v4l2_fh *vfh = file->private_data;
 		struct stereo_video_fh *sfh = to_stereo_video_fh(vfh);
@@ -903,7 +903,7 @@ static const struct v4l2_file_operations stereo_video_fops = {
 	.mmap = v4l2_m2m_fop_mmap,
 };
 
-static inline int stereo_register_video_dev(struct vicore_stereo *video)
+static inline int stereo_register_video_dev(struct sunplus_stereo *video)
 {
 	int ret;
 	struct video_device *vdev = &video->vdev;
@@ -939,23 +939,23 @@ static int stereo_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct stereo_video_fh *sfh = ctrl->priv;
 
 	switch (ctrl->id) {
-	case VICORE_CID_CALIBRATION_DATA:
+	case SUNPLUS_CID_CALIBRATION_DATA:
 		pr_info("set focal baseline=%u\n", ctrl->val);
 		sfh->config.calibration_data = ctrl->val;
 		break;
-	case VICORE_CID_TOF_MODE:
+	case SUNPLUS_CID_TOF_MODE:
 		pr_info("set tof mode=%u\n", ctrl->val);
 		sfh->config.tof_mode = ctrl->val;
 		break;
-	case VICORE_CID_SGM_MODE:
+	case SUNPLUS_CID_SGM_MODE:
 		pr_info("set sgm mode=%u\n", ctrl->val);
 		sfh->config.sgm_mode = ctrl->val & sgm_8dir_available;
 		break;
-	case VICORE_CID_OUTPUT_FMT:
+	case SUNPLUS_CID_OUTPUT_FMT:
 		pr_info("set output format=%u\n", ctrl->val);
 		sfh->config.output_fmt = ctrl->val;
 		break;
-	case VICORE_CID_OUTPUT_THRESHOLD:
+	case SUNPLUS_CID_OUTPUT_THRESHOLD:
 		pr_info("set output threshold=%u\n", ctrl->val);
 		sfh->config.thresh_val = ctrl->val;
 		break;
@@ -973,8 +973,8 @@ static const struct v4l2_ctrl_ops stereo_ctrl_ops = {
 
 static const struct v4l2_ctrl_config stereo_calibration_control = {
 	.ops = &stereo_ctrl_ops,
-	.id = VICORE_CID_CALIBRATION_DATA,
-	.name = "VICORE_CID_CALIBRATION_DATA",
+	.id = SUNPLUS_CID_CALIBRATION_DATA,
+	.name = "SUNPLUS_CID_CALIBRATION_DATA",
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.flags = V4L2_CTRL_FLAG_EXECUTE_ON_WRITE,
 	.min = 0,
@@ -985,8 +985,8 @@ static const struct v4l2_ctrl_config stereo_calibration_control = {
 
 static const struct v4l2_ctrl_config stereo_tof_control = {
 	.ops = &stereo_ctrl_ops,
-	.id = VICORE_CID_TOF_MODE,
-	.name = "VICORE_CID_TOF_MODE",
+	.id = SUNPLUS_CID_TOF_MODE,
+	.name = "SUNPLUS_CID_TOF_MODE",
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.flags = V4L2_CTRL_FLAG_EXECUTE_ON_WRITE,
 	.min = 0,
@@ -997,8 +997,8 @@ static const struct v4l2_ctrl_config stereo_tof_control = {
 
 static const struct v4l2_ctrl_config stereo_sgm_control = {
 	.ops = &stereo_ctrl_ops,
-	.id = VICORE_CID_SGM_MODE,
-	.name = "VICORE_CID_SGM_MODE",
+	.id = SUNPLUS_CID_SGM_MODE,
+	.name = "SUNPLUS_CID_SGM_MODE",
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.flags = V4L2_CTRL_FLAG_EXECUTE_ON_WRITE,
 	.min = 0,
@@ -1009,8 +1009,8 @@ static const struct v4l2_ctrl_config stereo_sgm_control = {
 
 static const struct v4l2_ctrl_config stereo_output_threshold_control = {
 	.ops = &stereo_ctrl_ops,
-	.id = VICORE_CID_OUTPUT_THRESHOLD,
-	.name = "VICORE_CID_OUTPUT_THRESHOLD",
+	.id = SUNPLUS_CID_OUTPUT_THRESHOLD,
+	.name = "SUNPLUS_CID_OUTPUT_THRESHOLD",
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.flags = V4L2_CTRL_FLAG_EXECUTE_ON_WRITE,
 	.min = 0,
@@ -1021,8 +1021,8 @@ static const struct v4l2_ctrl_config stereo_output_threshold_control = {
 
 static const struct v4l2_ctrl_config stereo_output_fmt_control = {
 	.ops = &stereo_ctrl_ops,
-	.id = VICORE_CID_OUTPUT_FMT,
-	.name = "VICORE_CID_OUTPUT_FMT",
+	.id = SUNPLUS_CID_OUTPUT_FMT,
+	.name = "SUNPLUS_CID_OUTPUT_FMT",
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.flags = V4L2_CTRL_FLAG_EXECUTE_ON_WRITE,
 	.min = 0,
@@ -1050,9 +1050,9 @@ static int stereo_init_controls(struct stereo_video_fh *sfh)
 	return 0;
 }
 
-int vicore_stereo_probe(struct platform_device *pdev)
+int sunplus_stereo_probe(struct platform_device *pdev)
 {
-	struct vicore_stereo *video;
+	struct sunplus_stereo *video;
 	struct device *stereo_dev = &pdev->dev;
 
 	struct resource *res;
@@ -1068,16 +1068,16 @@ int vicore_stereo_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	vcl_stereo_kobj = kobject_create_and_add("vicore_stereo", NULL);
-	if (!vcl_stereo_kobj) {
+	sp_stereo_kobj = kobject_create_and_add("sunplus_stereo", NULL);
+	if (!sp_stereo_kobj) {
 		return -ENOMEM;
 	}
 
-	video = devm_kzalloc(&pdev->dev, sizeof(struct vicore_stereo), GFP_KERNEL);
+	video = devm_kzalloc(&pdev->dev, sizeof(struct sunplus_stereo), GFP_KERNEL);
 	if (!video) {
 		pr_err("alloce stereo device fail\n");
-		kobject_put(vcl_stereo_kobj);
-		vcl_stereo_kobj = NULL;
+		kobject_put(sp_stereo_kobj);
+		sp_stereo_kobj = NULL;
 		return -ENOMEM;
 	}
 
@@ -1099,7 +1099,7 @@ int vicore_stereo_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	ret = devm_request_irq(stereo_dev, video->irq, vicore_stereo_interrupt, 0, dev_name(stereo_dev), video);
+	ret = devm_request_irq(stereo_dev, video->irq, sunplus_stereo_interrupt, 0, dev_name(stereo_dev), video);
 	if (ret < 0)
 		dev_err(stereo_dev, "failed to request irq\n");
 
@@ -1179,8 +1179,8 @@ int vicore_stereo_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, video);
 
-	/* vicore tuning FS*/
-	ret = vicore_stereo_tuningfs_init(vcl_stereo_kobj, video->clk_gate);
+	/* sunplus tuning FS*/
+	ret = sunplus_stereo_tuningfs_init(sp_stereo_kobj, video->clk_gate);
 	if (ret)
 		dev_err(stereo_dev, "cannot create tuningfs (%d)\n", ret);
 
@@ -1263,11 +1263,11 @@ _SKIP_SGM_MEM:
 		goto error_exit;
 
 	/* vicore stereo initialize setting */
-	vicore_stereo_clk_gating(video->clk_gate, false);
-	ret = vicore_stereo_driver_init();
+	sunplus_stereo_clk_gating(video->clk_gate, false);
+	ret = sunplus_stereo_driver_init();
 	if (ret)
-		dev_err(stereo_dev, "vicore stereo initialize (%d)\n", ret);
-	vicore_stereo_clk_gating(video->clk_gate, true);
+		dev_err(stereo_dev, "sunplus stereo initialize (%d)\n", ret);
+	sunplus_stereo_clk_gating(video->clk_gate, true);
 
 	// work queue
 	// stereo_wq = alloc_workqueue("stereo_run_wq", WQ_UNBOUND, 1);
@@ -1304,14 +1304,14 @@ error_modules:
 	return -ENOMEM;
 }
 
-int vicore_stereo_remove(struct platform_device *pdev)
+int sunplus_stereo_remove(struct platform_device *pdev)
 {
-	struct vicore_stereo *video = platform_get_drvdata(pdev);
+	struct sunplus_stereo *video = platform_get_drvdata(pdev);
 
 	pr_info("%s enter\n", __func__);
-	vicore_stereo_clk_gating(video->clk_gate, false);
+	sunplus_stereo_clk_gating(video->clk_gate, false);
 	/* disable stereo interrupt */
-	vicore_stereo_intr_enable(0);
+	sunplus_stereo_intr_enable(0);
 
 	/* release m2m device */
 	if (video->m2m_dev)
@@ -1361,11 +1361,11 @@ int vicore_stereo_remove(struct platform_device *pdev)
 	if (stereo_rwfr_w_mem_visu)
 		memunmap(stereo_rwfr_w_mem_visu);
 
-	if (vcl_stereo_kobj) {
-		kobject_put(vcl_stereo_kobj);
-		vcl_stereo_kobj = NULL;
+	if (sp_stereo_kobj) {
+		kobject_put(sp_stereo_kobj);
+		sp_stereo_kobj = NULL;
 	}
-	vicore_stereo_clk_gating(video->clk_gate, true);
+	sunplus_stereo_clk_gating(video->clk_gate, true);
 	if (video->clk_gate) {
 		clk_unprepare(video->clk_gate);
 	}
@@ -1376,23 +1376,23 @@ int vicore_stereo_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static const struct dev_pm_ops vicore_stereo_pm = {
 	#ifdef CONFIG_PM_SYSTEM_VPU_DEFAULT
-	SET_SYSTEM_SLEEP_PM_OPS(vicore_stereo_suspend_ops, vicore_stereo_resume_ops)
+	SET_SYSTEM_SLEEP_PM_OPS(sunplus_stereo_suspend_ops, sunplus_stereo_resume_ops)
 	#endif
 	#ifdef CONFIG_PM_RUNTIME_VPU_DEFAULT
-	//SET_RUNTIME_PM_OPS(vicore_stereo_suspend_ops, vicore_stereo_resume_ops, NULL)
+	//SET_RUNTIME_PM_OPS(sunplus_stereo_suspend_ops, sunplus_stereo_resume_ops, NULL)
 	#endif
 };
 #endif
 
 static const struct of_device_id vicore_stereo_dt_match[] = {
-	{ .compatible = "vicore,stereo",},
+	{ .compatible = "sunplus,sp7350-stereo",},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, vicore_stereo_dt_match);
 
 static struct platform_driver vicore_stereo_driver = {
-	.probe	= vicore_stereo_probe,
-	.remove	= vicore_stereo_remove,
+	.probe	= sunplus_stereo_probe,
+	.remove	= sunplus_stereo_remove,
 	.driver	= {
 		.name = MODE_NAME,
 #ifdef CONFIG_PM
@@ -1419,7 +1419,7 @@ module_param(clk_gating, int, 0644);
 module_init(vicore_stereo_mod_init);
 module_exit(vicroe_stereo_mod_exit);
 
-MODULE_DESCRIPTION("Vicorelogic Stereo Engine M2M Driver");
+MODULE_DESCRIPTION("Sunplus Stereo Engine M2M Driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Saxen Ko");
 MODULE_ALIAS("platform:" MODE_NAME);

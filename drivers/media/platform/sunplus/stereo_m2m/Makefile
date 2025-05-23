@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the Vicore stereo engine drivers.
-# Author:Saxen Ko <saxen.ko@vicorelogic.com>
+# Makefile for the Sunplus stereo engine drivers.
+# Author:Saxen Ko <saxen.ko@sunplus.com>
 
-obj-$(CONFIG_STEREO_SUNPLUS_DRV) += vcl_stereo.o
-vcl_stereo-objs := vicore_stereo.o vicore_stereo_util.o vicore_stereo_tuningfs.o
+obj-$(CONFIG_STEREO_SUNPLUS_DRV) += sp_stereo.o
+sp_stereo-objs := sunplus_stereo.o sunplus_stereo_util.o sunplus_stereo_tuningfs.o
 
 ifeq ($(CONFIG_PM), y)
-vcl_stereo-objs += vicore_stereo_pm.o
+sp_stereo-objs += sunplus_stereo_pm.o
 endif

@@ -1,12 +1,12 @@
 /*!
- * vicore_stereo_utility.h - stereo utility tool box
- * @file vicore_stereo_utility.h
+ * sunplus_stereo_utility.h - stereo utility tool box
+ * @file sunplus_stereo_utility.h
  * @brief stereo utility tool box
- * @author Saxen Ko <saxen.ko@vicorelogic.com>
+ * @author Saxen Ko <saxen.ko@sunplus.com>
  * @version 1.0
- * @copyright  Copyright (C) 2022 Vicorelogic
+ * @copyright  Copyright (C) 2025 Sunplus
  * @note
- * Copyright (C) 2022 Vicorelogic
+ * Copyright (C) 2025 Sunplus
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,8 +14,8 @@
  * the Free Software Foundation.
  */
 
-#ifndef VICORE_STEREO_UTILITY_H
-#define VICORE_STEREO_UTILITY_H
+#ifndef SUNPLUS_STEREO_UTILITY_H
+#define SUNPLUS_STEREO_UTILITY_H
 
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -56,14 +56,14 @@
  * @def IOCTL command ID
  * @brief stereo command ID for ioctl
  */
-#define VCL_STEREO_IOCTL_S_TUNE_DATA (BASE_VIDIOC_PRIVATE)
-// #define VCL_STEREO_IOCTL_G_TUNE_DATA (BASE_VIDIOC_PRIVATE + 1)
-#define VICORE_CID_CUSTOM_BASE		(V4L2_CID_USER_BASE | 0xf000)
-#define VICORE_CID_CALIBRATION_DATA	(VICORE_CID_CUSTOM_BASE + 1)
-#define VICORE_CID_TOF_MODE			(VICORE_CID_CUSTOM_BASE + 2)
-#define VICORE_CID_SGM_MODE			(VICORE_CID_CUSTOM_BASE + 3)
-#define VICORE_CID_OUTPUT_FMT		(VICORE_CID_CUSTOM_BASE + 4)
-#define VICORE_CID_OUTPUT_THRESHOLD	(VICORE_CID_CUSTOM_BASE + 5)
+#define SP_STEREO_IOCTL_S_TUNE_DATA (BASE_VIDIOC_PRIVATE)
+// #define SP_STEREO_IOCTL_G_TUNE_DATA (BASE_VIDIOC_PRIVATE + 1)
+#define SUNPLUS_CID_CUSTOM_BASE		(V4L2_CID_USER_BASE | 0xf000)
+#define SUNPLUS_CID_CALIBRATION_DATA	(SUNPLUS_CID_CUSTOM_BASE + 1)
+#define SUNPLUS_CID_TOF_MODE		(SUNPLUS_CID_CUSTOM_BASE + 2)
+#define SUNPLUS_CID_SGM_MODE		(SUNPLUS_CID_CUSTOM_BASE + 3)
+#define SUNPLUS_CID_OUTPUT_FMT		(SUNPLUS_CID_CUSTOM_BASE + 4)
+#define SUNPLUS_CID_OUTPUT_THRESHOLD	(SUNPLUS_CID_CUSTOM_BASE + 5)
 
 /* STEREO_HAL_INIT structure and definitions */
 /*!
@@ -136,14 +136,14 @@ enum ENUM_STEREO_BUF_TYPE {
 /*!
  * @enum STEREO_CTRL_STATE
  * @brief The enum of Stereo device status
- * @param VCL_STEREO_INIT: Stereo default
- * @param VCL_STEREO_OUT_TRIG: trig output start
- * @param VCL_STEREO_OUT_DONE: output processing done
+ * @param SP_STEREO_INIT: Stereo default
+ * @param SP_STEREO_OUT_TRIG: trig output start
+ * @param SP_STEREO_OUT_DONE: output processing done
  */
 enum STEREO_CTRL_STATE{
-	VCL_STEREO_INIT,
-	VCL_STEREO_RUN,
-	VCL_STEREO_IDLE
+	SP_STEREO_INIT,
+	SP_STEREO_RUN,
+	SP_STEREO_IDLE
 };
 
 /*!
@@ -291,23 +291,23 @@ extern struct list_head vcl_stereo_buf[][STEREO_BUF_TYPE_NUM];
 extern struct stereo_video_fh *sfh_last;
 
 /* Functions */
-extern s32 vicore_stereo_driver_init(void);
-extern void vicore_stereo_apply_setting(struct v4l2_fh *fh);
-extern void vicore_stereo_start_stereo(void);
-extern s32 vicore_stereo_ISR_handler(void *data);
-extern s32 vicore_stereo_power_on(void *data);
-extern s32 vicore_stereo_power_off(void *data);
-extern void vicore_stereo_clk_gating(struct clk *stereo_clk, bool isGating);
+extern s32 sunplus_stereo_driver_init(void);
+extern void sunplus_stereo_apply_setting(struct v4l2_fh *fh);
+extern void sunplus_stereo_start_stereo(void);
+extern s32 sunplus_stereo_ISR_handler(void *data);
+extern s32 sunplus_stereo_power_on(void *data);
+extern s32 sunplus_stereo_power_off(void *data);
+extern void sunplus_stereo_clk_gating(struct clk *stereo_clk, bool isGating);
 
-/* vcore stereo utility APIs */
-extern void vicore_stereo_swreset_top(void);
-extern void vcore_stereo_top_reset(void);
-extern void vicore_stereo_intr_enable(u32 on);
-extern void vicore_stereo_reset_rdma(enum ENUM_STEREO_BUF_TYPE type);
-extern s32 vicore_stereo_dma_update(struct v4l2_fh *vfh);
-extern void vicore_stereo_clr_done(void);
-extern int vicore_stereo_out_hdlr(void);
-extern int vicore_stereo_in_hdlr(void);
-extern void vicore_stereo_init_sgm8dir(void);
+/* sunplus stereo utility APIs */
+extern void sunplus_stereo_swreset_top(void);
+extern void sunplus_stereo_top_reset(void);
+extern void sunplus_stereo_intr_enable(u32 on);
+extern void sunplus_stereo_reset_rdma(enum ENUM_STEREO_BUF_TYPE type);
+extern s32 sunplus_stereo_dma_update(struct v4l2_fh *vfh);
+extern void sunplus_stereo_clr_done(void);
+extern int sunplus_stereo_out_hdlr(void);
+extern int sunplus_stereo_in_hdlr(void);
+extern void sunplus_stereo_init_sgm8dir(void);
 
-#endif /* VICORE_STEREO_UTILITY_H */
+#endif /* SUNPLUS_STEREO_UTILITY_H */

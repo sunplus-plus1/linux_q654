@@ -1,12 +1,12 @@
 /*!
- * vicore_stereo_init_tab.h - stereo initial table setting
- * @file vicore_stereo_init_tab.h
+ * sunplus_stereo_init_tab.h - stereo initial table setting
+ * @file sunplus_stereo_init_tab.h
  * @brief stereo initial table setting
- * @author Saxen Ko <saxen.ko@vicorelogic.com>
+ * @author Saxen Ko <saxen.ko@sunplus.com>
  * @version 1.0
- * @copyright  Copyright (C) 2022 Vicorelogic
+ * @copyright  Copyright (C) 2025 Sunplus
  * @note
- * Copyright (C) 2022 Vicorelogic
+ * Copyright (C) 2025 Sunplus
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,10 +14,10 @@
  * the Free Software Foundation.
  */
 
-#ifndef VICORE_STEREO_INIT_TAB_H
-#define VICORE_STEREO_INIT_TAB_H
+#ifndef SUNPLUS_STEREO_INIT_TAB_H
+#define SUNPLUS_STEREO_INIT_TAB_H
 
-#include "vicore_stereo_reg.h"
+#include "sunplus_stereo_reg.h"
 
 typedef struct _reg_rw_test_unit
 {
@@ -269,5 +269,5 @@ reg_rw_test_unit stereo_register_setting[] =
 	{0x4fc, 0xdde6dd5a}
 };
 
-#endif /* VICORE_STEREO_INIT_TAB_H */
+#endif /* SUNPLUS_STEREO_INIT_TAB_H */
 

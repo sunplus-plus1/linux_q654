@@ -1,12 +1,12 @@
 /*!
- * vicore_stereo_tuningfs.c - stereo tuning system for stereo hardware
- * @file vicore_stereo_tuningfs.c
+ * sunplus_stereo_tuningfs.c - stereo tuning system for stereo hardware
+ * @file sunplus_stereo_tuningfs.c
  * @brief  stereo tuning file system for stereo hardware
- * @author Saxen Ko <saxen.ko@vicorelogic.com>
+ * @author Saxen Ko <saxen.ko@sunplus.com>
  * @version 1.0
- * @copyright  Copyright (C) 2022 Vicorelogic
+ * @copyright  Copyright (C) 2025 Sunplus
  * @note
- * Copyright (C) 2022 Vicorelogic
+ * Copyright (C) 2025 Sunplus
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,8 +20,8 @@
 #include <linux/clk-provider.h>
 
 /* include Vicore Header files */
-#include "vicore_stereo_reg.h"
-#include "vicore_stereo_util.h"
+#include "sunplus_stereo_reg.h"
+#include "sunplus_stereo_util.h"
 
 struct vcl_reg_range {
 	u32 start;
@@ -85,13 +85,13 @@ static const struct attribute *stereo_attrs[] = {
 // 	.attrs	= stereo_attrs,
 // };
 
-int vicore_stereo_tuningfs_init(struct kobject *stereo_kobj, struct clk *clk_gate)
+int sunplus_stereo_tuningfs_init(struct kobject *stereo_kobj, struct clk *clk_gate)
 {
 	stereo_clk = clk_gate;
 	return sysfs_create_files(stereo_kobj, stereo_attrs);
 }
 
-// void vicore_stereo_tuningfs_remove(struct kobject *stereo_kobj)
+// void sunplus_stereo_tuningfs_remove(struct kobject *stereo_kobj)
 // {
 // 	sysfs_remove_groups(stereo_kobj, &stereo_attr_group);
 // }

@@ -1,12 +1,12 @@
 /*!
- * vicore_stereo.h - stereo out data
- * @file vicore_stereo.h
+ * sunplus_stereo.h - stereo out data
+ * @file sunplus_stereo.h
  * @brief stereo video device
- * @author Saxen Ko <saxen.ko@vicorelogic.com>
+ * @author Saxen Ko <saxen.ko@sunplus.com>
  * @version 1.0
- * @copyright  Copyright (C) 2022 Vicorelogic
+ * @copyright  Copyright (C) 2025 Sunplus
  * @note
- * Copyright (C) 2022 Vicorelogic
+ * Copyright (C) 2025 Sunplus
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,8 +14,8 @@
  * the Free Software Foundation.
  */
 
-#ifndef VICORE_STEREO_H
-#define VICORE_STEREO_H
+#ifndef SUNPLUS_STEREO_H
+#define SUNPLUS_STEREO_H
 
 #include <media/v4l2-device.h>
 #include <media/media-device.h>
@@ -25,11 +25,11 @@
 #include <media/videobuf2-dma-contig.h>
 #include <linux/regulator/consumer.h>
 
-#include "vicore_stereo_util.h"
+#include "sunplus_stereo_util.h"
 
 #define STEREO_VIDEO_NUMBER 102
 
-struct vicore_stereo {
+struct sunplus_stereo {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_m2m_dev *m2m_dev;
@@ -45,11 +45,11 @@ struct vicore_stereo {
 	/* ref counter */
 	struct mutex device_lock; /* protects the device open/close */
 };
-#define to_vicore_stereo(dev) container_of(dev, struct vicore_stereo, stereo_dev)
+#define to_vicore_stereo(dev) container_of(dev, struct sunplus_stereo, stereo_dev)
 
 struct stereo_video_fh {
 	struct v4l2_fh vfh;
-	struct vicore_stereo *video;
+	struct sunplus_stereo *video;
 	// v4l2_ctrl_handler
 	struct v4l2_ctrl_handler ctrl_handler;
 
