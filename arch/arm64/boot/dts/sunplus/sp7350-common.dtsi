@@ -1080,6 +1080,19 @@
 		};
 	};
 
+	stereo: stereo@f8c01000 {
+		compatible = "sunplus,sp7350-stereo";
+		reg = <0x0 0xf8c01000 0x0 0x4000>;
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+		//memory-region = <&stereo_mem>;
+		clocks = <&clkc VCL>, <&clkc VCL1>, <&clkc VCL5>;
+		clock-names = "vcl_clk", "sdp_clk", "vcl5_clk";
+		resets = <&rstc RST_VCL>, <&rstc RST_VCL1>, <&rstc RST_VCL5>;
+		reset-names = "vcl_reset", "sdp_reset", "vcl5_reset";
+	};
+
 	mmc0: mmc@f8003b00 {
 		compatible = "sunplus,sp7350-emmc";
 		reg = <0x0 0xf8003b00 0x0 0x180>, <0x0 0xf8803280 0x0 0x80>, <0x0 0xf8803354 0x0 0x0C>;
