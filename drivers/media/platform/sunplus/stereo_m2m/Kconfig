@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Sunplus Pin control driver configuration
+#
+
+config STEREO_SUNPLUS_DRV
+	tristate "Sunplus SP7350 stereo (m2m) driver"
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2
+	select VIDEO_V4L2_SUBDEV_API
+	select VIDEOBUF2_CORE
+	select V4L2_MEM2MEM_DEV
+	select V4L2_FWNODE
+	select VIDEOBUF2_DMA_CONTIG
+	depends on SOC_SP7350
+

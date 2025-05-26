@@ -84,6 +84,7 @@ obj-y					+= sunxi/
 obj-$(CONFIG_VIDEO_SP7350_DISP)		+= sunplus/display/sp7350/
 obj-y					+= sunplus/mipicsi/
 obj-y					+= sunplus/isp/
+obj-$(CONFIG_STEREO_SUNPLUS_DRV)	+= sunplus/stereo_m2m/
 obj-$(CONFIG_VIP9000_NPU_DRIVERS)	+= sunplus/vip9000/
 obj-$(CONFIG_VIDEO_HWCODEC_DRIVERS)	+= sunplus/videocodec/
 
