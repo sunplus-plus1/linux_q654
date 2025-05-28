@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Sunplus Pin control driver configuration
+# Sunplus Stereo driver configuration
 #
 
 config STEREO_SUNPLUS_DRV
@@ -13,4 +13,5 @@ config STEREO_SUNPLUS_DRV
 	select V4L2_FWNODE
 	select VIDEOBUF2_DMA_CONTIG
 	depends on SOC_SP7350
-
+	help
+	  This is a v4l2 driver for Sunplus stereo.

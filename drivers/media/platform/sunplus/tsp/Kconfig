@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Sunplus TSP driver configuration
+#
+
+config TSP_SUNPLUS_DRV
+	tristate "Sunplus SP7350 TSP driver"
+	depends on SOC_SP7350
+	help
+	  This is a v4l2 driver for Sunplus TSP.
+	  
