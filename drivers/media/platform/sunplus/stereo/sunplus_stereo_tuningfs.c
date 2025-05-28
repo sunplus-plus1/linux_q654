@@ -19,7 +19,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 
-/* include Vicore Header files */
+/* include Sunplus Header files */
 #include "sunplus_stereo_reg.h"
 #include "sunplus_stereo_util.h"
 

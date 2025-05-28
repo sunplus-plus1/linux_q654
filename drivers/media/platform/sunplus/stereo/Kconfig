@@ -4,7 +4,7 @@
 #
 
 config STEREO_SUNPLUS_DRV
-	tristate "Sunplus SP7350 stereo (m2m) driver"
+	tristate "Sunplus SP7350 stereo depth driver"
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2
 	select VIDEO_V4L2_SUBDEV_API

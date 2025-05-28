@@ -1248,8 +1248,8 @@ int sunplus_stereo_probe(struct platform_device *pdev)
 	}
 
 _SKIP_SGM_MEM:
-	if (!sgm_8dir_available)
-		dev_info(stereo_dev, "SGM-8 is not support\n");
+	if (sgm_8dir_available)
+		dev_info(stereo_dev, "Stereo Support SGM-8 mode\n");
 
 	video->v4l2_dev.ctrl_handler = NULL;
 	ret = v4l2_device_register(stereo_dev, &video->v4l2_dev);
@@ -1262,7 +1262,7 @@ _SKIP_SGM_MEM:
 	if (ret < 0)
 		goto error_exit;
 
-	/* vicore stereo initialize setting */
+	/* sunplus stereo initialize setting */
 	sunplus_stereo_clk_gating(video->clk_gate, false);
 	ret = sunplus_stereo_driver_init();
 	if (ret)
@@ -1374,7 +1374,7 @@ int sunplus_stereo_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static const struct dev_pm_ops vicore_stereo_pm = {
+static const struct dev_pm_ops sunplus_stereo_pm = {
 	#ifdef CONFIG_PM_SYSTEM_VPU_DEFAULT
 	SET_SYSTEM_SLEEP_PM_OPS(sunplus_stereo_suspend_ops, sunplus_stereo_resume_ops)
 	#endif
@@ -1384,39 +1384,39 @@ static const struct dev_pm_ops vicore_stereo_pm = {
 };
 #endif
 
-static const struct of_device_id vicore_stereo_dt_match[] = {
+static const struct of_device_id sunplus_stereo_dt_match[] = {
 	{ .compatible = "sunplus,sp7350-stereo",},
 	{ },
 };
-MODULE_DEVICE_TABLE(of, vicore_stereo_dt_match);
+MODULE_DEVICE_TABLE(of, sunplus_stereo_dt_match);
 
-static struct platform_driver vicore_stereo_driver = {
+static struct platform_driver sunplus_stereo_driver = {
 	.probe	= sunplus_stereo_probe,
 	.remove	= sunplus_stereo_remove,
 	.driver	= {
 		.name = MODE_NAME,
 #ifdef CONFIG_PM
-		.pm = &vicore_stereo_pm,
+		.pm = &sunplus_stereo_pm,
 #endif
-		.of_match_table = of_match_ptr(vicore_stereo_dt_match),
+		.of_match_table = of_match_ptr(sunplus_stereo_dt_match),
 	},
 };
 
-int __init vicore_stereo_mod_init(void)
+int __init sunplus_stereo_mod_init(void)
 {
 	pr_debug("%s init\n", MODE_NAME);
-	return platform_driver_register(&vicore_stereo_driver);
+	return platform_driver_register(&sunplus_stereo_driver);
 }
 
 void __exit vicroe_stereo_mod_exit(void)
 {
 	pr_debug("%s exit\n", MODE_NAME);
-	platform_driver_unregister(&vicore_stereo_driver);
+	platform_driver_unregister(&sunplus_stereo_driver);
 }
 
 module_param(clk_gating, int, 0644);
 
-module_init(vicore_stereo_mod_init);
+module_init(sunplus_stereo_mod_init);
 module_exit(vicroe_stereo_mod_exit);
 
 MODULE_DESCRIPTION("Sunplus Stereo Engine M2M Driver");

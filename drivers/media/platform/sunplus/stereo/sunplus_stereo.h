@@ -45,7 +45,7 @@ struct sunplus_stereo {
 	/* ref counter */
 	struct mutex device_lock; /* protects the device open/close */
 };
-#define to_vicore_stereo(dev) container_of(dev, struct sunplus_stereo, stereo_dev)
+#define to_sunplus_stereo(dev) container_of(dev, struct sunplus_stereo, stereo_dev)
 
 struct stereo_video_fh {
 	struct v4l2_fh vfh;
