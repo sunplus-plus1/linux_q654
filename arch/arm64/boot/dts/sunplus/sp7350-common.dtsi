@@ -1093,6 +1093,98 @@
 		reset-names = "vcl_reset", "sdp_reset", "vcl5_reset";
 	};
 
+	timer_mem: tsp@f8c05000 {
+		reg = <0x0 0xf8c05000 0x0 0x1c0>;
+		status = "okay";
+	};
+
+	tsp {
+		compatible = "sunplus,sp7350-tsp";
+		memory-region = <&timer_mem>;
+		clocks = <&clkc VCL>, <&clkc VCL4>, <&clkc VCL5>;
+		clock-names = "vcl_clk", "tsp_clk", "vcl5_clk";
+		num_tsp_device = <10>;
+		tsp_device = <&mipi_tsp0>, <&mipi_tsp1>,
+		<&mipi_tsp2>, <&mipi_tsp3>,
+		<&mipi_tsp4>, <&mipi_tsp5>,
+		<&gpi_tsp0>, <&gpi_tsp1>,
+		<&gpi_tsp2>, <&gpi_tsp3>;
+		tsp_freq = <10000000>;
+		tsp_timer = <300000>;
+		tsp_mult = <20000>;
+		tsp_shift = <0>;
+	};
+
+	mipi_tsp0: mipi_tsp0 {
+		id = <0>;
+		tsp_ctrl_0 = <0>;
+		num_buffers = <6>;
+		sram_phy = <0xf8c20000>;
+	};
+
+	mipi_tsp1: mipi_tsp1 {
+		id = <1>;
+		tsp_ctrl_0 = <1>;
+		num_buffers = <6>;
+		sram_phy = <0xf8c21000>;
+	};
+
+	mipi_tsp2: mipi_tsp2 {
+		id = <2>;
+		tsp_ctrl_0 = <2>;
+		num_buffers = <6>;
+		sram_phy = <0xf8c22000>;
+	};
+
+	mipi_tsp3: mipi_tsp3 {
+		id = <3>;
+		tsp_ctrl_0 = <3>;
+		num_buffers = <6>;
+		sram_phy = <0xf8c23000>;
+	};
+
+	mipi_tsp4: mipi_tsp4 {
+		id = <4>;
+		tsp_ctrl_0 = <4>;
+		num_buffers = <6>;
+		sram_phy = <0xf8c24000>;
+	};
+
+	mipi_tsp5: mipi_tsp5 {
+		id = <5>;
+		tsp_ctrl_0 = <5>;
+		num_buffers = <6>;
+		sram_phy = <0xf8c25000>;
+	};
+
+	gpi_tsp0: gpi_tsp0 {
+		id = <6>;
+		tsp_ctrl_0 = <6>;
+		num_buffers = <10>;
+		sram_phy = <0xf8c26000>;
+	};
+
+	gpi_tsp1: gpi_tsp1 {
+		id = <7>;
+		tsp_ctrl_0 = <7>;
+		num_buffers = <10>;
+		sram_phy = <0xf8c27000>;
+	};
+
+	gpi_tsp2: gpi_tsp2 {
+		id = <8>;
+		tsp_ctrl_0 = <8>;
+		num_buffers = <10>;
+		sram_phy = <0xf8c28000>;
+	};
+
+	gpi_tsp3: gpi_tsp3 {
+		id = <9>;
+		tsp_ctrl_0 = <9>;
+		num_buffers = <10>;
+		sram_phy = <0xf8c29000>;
+	};
+
 	mmc0: mmc@f8003b00 {
 		compatible = "sunplus,sp7350-emmc";
 		reg = <0x0 0xf8003b00 0x0 0x180>, <0x0 0xf8803280 0x0 0x80>, <0x0 0xf8803354 0x0 0x0C>;
