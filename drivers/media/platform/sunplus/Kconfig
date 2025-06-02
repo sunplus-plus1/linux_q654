@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0
 
+comment "Sunplus media platform drivers"
 
 source "drivers/media/platform/sunplus/display/sp7350/Kconfig"
-source "drivers/media/platform/sunplus/mipicsi/Kconfig"
 source "drivers/media/platform/sunplus/gdc/Kconfig"
 source "drivers/media/platform/sunplus/stereo/Kconfig"
 source "drivers/media/platform/sunplus/tsp/Kconfig"
+source "drivers/media/platform/sunplus/isp/Kconfig"
+source "drivers/media/platform/sunplus/mipicsi/Kconfig"
