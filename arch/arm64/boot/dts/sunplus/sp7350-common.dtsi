@@ -1517,7 +1517,7 @@
 		resets = <&rstc RST_VCL>, <&rstc RST_VCL5>, <&rstc RST_VCL3>;
 		reset-names = "sys", "axi", "apb";
 		sunplus,max-config-size = <0x100000>;
-		sunplus,devnode-number = <96>;
+		sunplus,devnode-number = <103>;
 	};
 
 	dummymaster: dm@f8000700 {
