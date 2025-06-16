@@ -24,6 +24,11 @@
 #include <linux/iio/trigger.h>
 
 #include "bmi160.h"
+#if defined(CONFIG_SOC_SP7350)
+#include <linux/uaccess.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+#endif
 
 #define BMI160_REG_CHIP_ID	0x00
 #define BMI160_CHIP_ID_VAL	0xD1
@@ -39,6 +44,10 @@
 #define BMI160_ACCEL_CONFIG_ODR_MASK	GENMASK(3, 0)
 #define BMI160_ACCEL_CONFIG_BWP_MASK	GENMASK(6, 4)
 
+#if defined(CONFIG_SOC_SP7350)
+#define BMI160_REG_ACCEL_FIFO_LENGTH	0x22
+#define BMI160_REG_ACCEL_FIFO_DATA      0x24
+#endif
 #define BMI160_REG_ACCEL_RANGE		0x41
 #define BMI160_ACCEL_RANGE_2G		0x03
 #define BMI160_ACCEL_RANGE_4G		0x05
@@ -64,9 +73,22 @@
 #define BMI160_CMD_GYRO_PM_NORMAL	0x15
 #define BMI160_CMD_GYRO_PM_FAST_STARTUP	0x17
 #define BMI160_CMD_SOFTRESET		0xB6
+#if defined(CONFIG_SOC_SP7350)
+#define BMI160_CMD_CLR_FIFO		0xB0
+#endif
 
 #define BMI160_REG_INT_EN		0x51
 #define BMI160_DRDY_INT_EN		BIT(4)
+#if defined(CONFIG_SOC_SP7350)
+#define BMI160_FIFO_FULL_INT_EN		BIT(5)
+#define BMI160_FIFO_FWM_INT_EN		BIT(6)
+
+#define BMI160_REG_FIFO_CONFIG0		0x46
+#define BMI160_REG_FIFO_CONFIG1		0x47
+#define BMI160_FIFO_GYR_EN		BIT(7)
+#define BMI160_FIFO_ACC_EN		BIT(6)
+#define BMI160_FIFO_HEADER_EN		BIT(4)
+#endif
 
 #define BMI160_REG_INT_OUT_CTRL		0x53
 #define BMI160_INT_OUT_CTRL_MASK	0x0f
@@ -85,6 +107,10 @@
 #define BMI160_REG_INT_MAP		0x56
 #define BMI160_INT1_MAP_DRDY_EN		0x80
 #define BMI160_INT2_MAP_DRDY_EN		0x08
+#if defined(CONFIG_SOC_SP7350)
+#define BMI160_INT1_MAP_FIFO_FULL_EN	0x20
+#define BMI160_INT1_MAP_FIFO_FWM_EN	0x40
+#endif
 
 #define BMI160_REG_DUMMY		0x7F
 
@@ -111,6 +137,16 @@
 	},							\
 	.ext_info = bmi160_ext_info,				\
 }
+
+#if defined(CONFIG_SOC_SP7350)
+static struct bmi160_data *g_bmi_data;
+static struct iio_dev *g_indio_dev;
+static struct work_struct bmi_work;
+
+static int bmi160_write_conf_reg(struct regmap *regmap, unsigned int reg,
+				 unsigned int mask, unsigned int bits,
+				 unsigned int write_usleep);
+#endif
 
 /* scan indexes follow DATA register order */
 enum bmi160_scan_axis {
@@ -421,11 +457,331 @@ static int bmi160_get_odr(struct bmi160_data *data, enum bmi160_sensor_type t,
 	return 0;
 }
 
+#if defined(CONFIG_SOC_SP7350)
+struct bmi160_accel_t acc_frame_arr[FIFO_FRAME_CNT];
+struct bmi160_gyro_t gyro_frame_arr[FIFO_FRAME_CNT];
+
+int bmi160_fifo_data_parse_handle(struct bmi160_data *data, struct iio_dev *indio_dev, int wq_flag)
+{
+	u8 frame_head = 0;
+	u64 ts_gap;
+	u64 ts_gap_real = 0;
+	u64 ts_cur;
+	u64 frm_odr;
+	u16 fifo_index = 0;/* fifo data index*/
+	u16 j = 0;
+	u16 i = 0;
+	u16 frm_cnt = 0;
+	u16 scan_channel = 0;
+	s8 ret = 0;
+	u16 fifo_length = data->fifo_length;
+	struct bmi160_gyro_t gyro;
+	struct bmi160_accel_t acc;
+
+	if (wq_flag)
+		ts_cur = sunplus_tsp_read(TSP_IMU1);
+	else
+		ts_cur = indio_dev->pollfunc->timestamp;
+
+	if (!data->ts_last) {
+		dev_dbg(&indio_dev->dev, "skip first group data(%llu)\n", data->ts_last);
+		data->ts_last = ts_cur;
+		return ret;
+	}
+	memset(&acc, 0, sizeof(acc));
+	memset(&gyro, 0, sizeof(gyro));
+	for (i = 0; i < FIFO_FRAME_CNT; i++) {
+		memset(&acc_frame_arr[i], 0, sizeof(struct bmi160_accel_t));
+		memset(&gyro_frame_arr[i], 0, sizeof(struct bmi160_gyro_t));
+	}
+
+	dev_dbg(&indio_dev->dev, "frame head 0x%x, fifo_length: %d \n", data->fifo_data[fifo_index], fifo_length);
+	for (fifo_index = 0; fifo_index < fifo_length;) {
+
+		frame_head = data->fifo_data[fifo_index];
+
+		switch (frame_head) {
+		case FIFO_HEAD_SKIP_FRAME:
+			/*fifo data frame index + 1*/
+			fifo_index = fifo_index + 1;
+			if (fifo_index + 1 > fifo_length) {
+				ret = -1;
+				dev_err(&indio_dev->dev, "skip frame fifo_index err, index = %d, fifo_length %d\n", fifo_index, fifo_length);
+				break;
+			}
+			fifo_index = fifo_index + 1;
+			dev_dbg(&indio_dev->dev, "skip frame detected, fifo_index=%d\n", fifo_index);
+		break;
+
+		case FIFO_HEAD_G_A:
+		{	/*fifo data frame index + 1*/
+			fifo_index = fifo_index + 1;
+			if (fifo_index + GA_BYTES_FRM > fifo_length) {
+				ret = -1;
+				dev_err(&indio_dev->dev, "G A fifo_index err, index = %d, fifo_length %d\n", fifo_index, fifo_length);
+				break;
+			}
+			gyro.x = data->fifo_data[fifo_index + 1] << 8 |
+					data->fifo_data[fifo_index + 0];
+			gyro.y = data->fifo_data[fifo_index + 3] << 8 |
+					data->fifo_data[fifo_index + 2];
+			gyro.z = data->fifo_data[fifo_index + 5] << 8 |
+					data->fifo_data[fifo_index + 4];
+
+			acc.x = data->fifo_data[fifo_index + 7] << 8 |
+					data->fifo_data[fifo_index + 6];
+			acc.y = data->fifo_data[fifo_index + 9] << 8 |
+					data->fifo_data[fifo_index + 8];
+			acc.z = data->fifo_data[fifo_index + 11] << 8 |
+					data->fifo_data[fifo_index + 10];
+			fifo_index = fifo_index + GA_BYTES_FRM;
+
+			dev_dbg(&indio_dev->dev, "gyro and accel frame detected, fifo_index=%d\n", fifo_index);
+			break;
+		}
+		case FIFO_HEAD_A:
+		{	/*fifo data frame index + 1*/
+			fifo_index = fifo_index + 1;
+			if (fifo_index + A_BYTES_FRM > fifo_length) {
+				ret = -1;
+				dev_err(&indio_dev->dev, "acc fifo_index err, index = %d, fifo_length %d\n", fifo_index, fifo_length);
+				break;
+			}
+
+			acc.x = data->fifo_data[fifo_index + 1] << 8 |
+					data->fifo_data[fifo_index + 0];
+			acc.y = data->fifo_data[fifo_index + 3] << 8 |
+					data->fifo_data[fifo_index + 2];
+			acc.z = data->fifo_data[fifo_index + 5] << 8 |
+					data->fifo_data[fifo_index + 4];
+			fifo_index = fifo_index + A_BYTES_FRM;
+			dev_dbg(&indio_dev->dev, "accel frame detected, fifo_index=%d\n", fifo_index);
+			break;
+		}
+		case FIFO_HEAD_G:
+		{	/*fifo data frame index + 1*/
+			fifo_index = fifo_index + 1;
+			if (fifo_index + G_BYTES_FRM > fifo_length) {
+				ret = -1;
+				dev_err(&indio_dev->dev, "gyro fifo_index err, index = %d, fifo_length %d\n", fifo_index, fifo_length);
+				break;
+			}
+
+			gyro.x = data->fifo_data[fifo_index + 1] << 8 |
+					data->fifo_data[fifo_index + 0];
+			gyro.y = data->fifo_data[fifo_index + 3] << 8 |
+					data->fifo_data[fifo_index + 2];
+			gyro.z = data->fifo_data[fifo_index + 5] << 8 |
+					data->fifo_data[fifo_index + 4];
+
+			fifo_index = fifo_index + G_BYTES_FRM;
+			dev_dbg(&indio_dev->dev, "gyro frame detected, fifo_index=%d\n", fifo_index);
+			break;
+		}
+
+		default:
+			ret = -1;
+			printk("frame head: 0x%x, fifo index 0x%x, fifo_length 0x%x\n", frame_head, fifo_index, fifo_length);
+		break;
+
+		}
+		if (ret) {
+			break;
+		}
+		acc_frame_arr[frm_cnt] = acc;
+		gyro_frame_arr[frm_cnt] = gyro;
+		frm_cnt++;
+
+	}
+	frm_odr = max(data->odr_acc, data->odr_gyro);
+	ts_gap = (u64)(1000000000) * 1000000/frm_odr;
+	ts_gap_real = ts_gap;
+	if (frm_cnt && data->ts_last)
+		ts_gap_real = (ts_cur - data->ts_last) * fifo_length / (frm_cnt * data->watermark_hwfifo * 4);
+	for (i = 0; i < frm_cnt; i++) {
+		j = 0;
+		for_each_set_bit(scan_channel, indio_dev->active_scan_mask, indio_dev->masklength) {
+			switch(scan_channel) {
+				case   BMI160_SCAN_GYRO_X:
+					data->buf[j++] = gyro_frame_arr[i].x;
+					break;
+				case   BMI160_SCAN_GYRO_Y:
+					data->buf[j++] = gyro_frame_arr[i].y;
+					break;
+				case   BMI160_SCAN_GYRO_Z:
+					data->buf[j++] = gyro_frame_arr[i].z;
+					break;
+				case   BMI160_SCAN_ACCEL_X:
+					data->buf[j++] = acc_frame_arr[i].x;
+					break;
+				case   BMI160_SCAN_ACCEL_Y:
+					data->buf[j++] = acc_frame_arr[i].y;
+					break;
+				case   BMI160_SCAN_ACCEL_Z:
+					data->buf[j++] = acc_frame_arr[i].z;
+					break;
+			}
+		}
+		dev_dbg(&indio_dev->dev, "frm_cnt:%d, ts_last:%llu, ts_gap:%llu, ts_gap_real:%llu, odr:%lld, ts:%llu\n",
+			frm_cnt, data->ts_last, ts_gap, ts_gap_real, frm_odr, ts_cur - (frm_cnt - 1 - i) * ts_gap_real);
+		iio_push_to_buffers_with_timestamp(indio_dev, data->buf, ts_cur - (frm_cnt - 1 - i ) * ts_gap_real);
+	}
+	data->ts_last = ts_cur;
+	dev_dbg(&indio_dev->dev, "ktime ts end:%llu\n", ktime_get_ns());
+
+	return ret;
+}
+
+static u64 t1_old = 0, t2_old = 0, t1_new = 0, t2_new = 0, int_count = 0;
+static int flag_old = 0;
+
+#define FIFO_DATA_BUFSIZE    1024
+#define BYTES_PER_SAMPLE 13
+static void bmi_fifo_interrupt_handle(struct bmi160_data *data, struct iio_dev *indio_dev, int wq_flag)
+{
+	int err = 0;
+	__le16 fifo_length = 0;
+	int val, val2;
+	int ret, i = 0;
+
+	for (i = 0; i < 3; i++) {
+		err = regmap_bulk_read(data->regmap, BMI160_REG_ACCEL_FIFO_LENGTH, &fifo_length, sizeof(fifo_length));
+		if (fifo_length == 0 || err) {
+			ret = regmap_read(data->regmap, BMI160_REG_INT_EN, &val);
+			dev_err(&indio_dev->dev, "fifo zero or ret %d, wq_flag %d, val 0x%x, i %d, t2 %llu, %llu, %llu, flag_old %d, t1_new %llu, t2_new %llu, int_count %llu\n", err, wq_flag, val, i, t2_old, t1_old, t2_old - t1_old, flag_old, t1_new, t2_new, int_count);
+		} else {
+			if (i >= 1)
+				dev_err(&indio_dev->dev, "fifo len zero or ret %d, wq_flag %d, val 0x%x, i %d\n", err, wq_flag, val, i);
+			break;
+		}
+	}
+	if (i == 3)
+		return;
+
+	dev_dbg(&indio_dev->dev, "read fifo leght: 0x%x, ktime start ts:%llu", fifo_length, ktime_get_ns());
+	if (fifo_length > FIFO_DATA_BUFSIZE)
+		fifo_length = FIFO_DATA_BUFSIZE;
+	memset(data->fifo_data, 0, 1024);
+
+	/*i2c DMA not support len is odd*/
+	if(fifo_length%2 !=0){
+		fifo_length -= BYTES_PER_SAMPLE;
+	}
+	err = regmap_raw_read(data->regmap, BMI160_REG_ACCEL_FIFO_DATA, data->fifo_data, fifo_length);
+	if (err) {
+		//clr fifo
+		regmap_write(data->regmap, BMI160_REG_CMD, BMI160_CMD_CLR_FIFO);
+		dev_err(&indio_dev->dev, "read fifo err");
+		return;
+	}
+	err = bmi160_get_odr(data, BMI160_ACCEL, &val, &val2);
+	if (err) {
+		dev_err(&indio_dev->dev, "get acc odr err");
+		return;
+	}
+	data->odr_acc = (val * 1000000) + (val2 * 1000000);
+
+	err = bmi160_get_odr(data, BMI160_GYRO, &val, &val2);
+	if (err) {
+		dev_err(&indio_dev->dev, "get gyro odr err");
+		return;
+	}
+	data->odr_gyro = (val * 1000000) + (val2 * 1000000);
+
+	data->fifo_length = fifo_length;
+	err = bmi160_fifo_data_parse_handle(data, indio_dev, wq_flag);
+	if (err)
+		dev_err(&indio_dev->dev, "parse fifo data err:%d", err);
+
+	if (wq_flag == 1) {
+		ret = regmap_write(data->regmap, BMI160_REG_CMD, BMI160_CMD_CLR_FIFO);
+		if (ret) {
+			printk(KERN_EMERG "%s:%d regmap write error ret %d\n", __func__, __LINE__, ret);
+		}
+	}
+}
+#define TRIGER_STARTED	0x10
+#define FIRST_TRIGER	0x1
+static int lanuch_flag = FIRST_TRIGER;
+static void work_handler(struct work_struct *data)
+{
+	int wq_flag = 1;
+	mutex_lock(&g_bmi_data->bmi_lock);
+
+	t1_new = ktime_get_ns();
+	bmi_fifo_interrupt_handle(g_bmi_data, g_indio_dev, wq_flag);
+	if (lanuch_flag & TRIGER_STARTED) {
+		mod_timer(&g_bmi_data->bmi_tmr, jiffies + msecs_to_jiffies(32));
+	}
+		
+
+	t2_new = ktime_get_ns();
+	flag_old = 2;
+	t1_old = t1_new;
+	t2_old = t2_new;
+	mutex_unlock(&g_bmi_data->bmi_lock);
+}
+
+static void bmi_on_timeout(struct timer_list *t)
+{
+	queue_work(system_unbound_wq, &bmi_work);
+}
+#endif
+
 static irqreturn_t bmi160_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmi160_data *data = iio_priv(indio_dev);
+#if defined(CONFIG_SOC_SP7350)
+	unsigned int val;
+	int ret;
+	mutex_lock(&g_bmi_data->bmi_lock);
+
+	t1_new = ktime_get_ns();
+
+	ret = regmap_read(data->regmap, BMI160_REG_FIFO_CONFIG0, &val);
+	if (ret) {
+		printk("%s:%d Failed to write reg 0x46:%d\n", __func__, __LINE__, ret);
+		return ret;
+	}
+
+	ret = regmap_write(data->regmap, BMI160_REG_FIFO_CONFIG0, 0xff);
+	if (ret) {
+		printk("%s:%d Failed to write reg 0x46:%d\n", __func__, __LINE__, ret);
+		return ret;
+	}
+	int_count++;
+	if ((lanuch_flag & FIRST_TRIGER)) {
+		if (timer_pending(&data->bmi_tmr))
+			mod_timer(&data->bmi_tmr, jiffies + msecs_to_jiffies(30));
+		else {
+			data->bmi_tmr.expires = jiffies + msecs_to_jiffies(30);
+			add_timer(&data->bmi_tmr);
+		}
+		lanuch_flag &= (~FIRST_TRIGER);
+	} else if (lanuch_flag & TRIGER_STARTED) {
+		mod_timer(&data->bmi_tmr, jiffies + msecs_to_jiffies(30));
+	}
+
+	if (data->hwfifo_mode) {
+		bmi_fifo_interrupt_handle(data, indio_dev, 0);
+	} else {
+		int i, ret, j = 0, base = BMI160_REG_DATA_MAGN_XOUT_L;
+		__le16 sample;
+
+		for_each_set_bit(i, indio_dev->active_scan_mask,
+				 indio_dev->masklength) {
+			ret = regmap_bulk_read(data->regmap, base + i * sizeof(sample),
+					       &sample, sizeof(sample));
+			if (ret)
+				goto done;
+			data->buf[j++] = sample;
+		}
+
+		iio_push_to_buffers_with_timestamp(indio_dev, data->buf, pf->timestamp);
+	}
+#else
 	int i, ret, j = 0, base = BMI160_REG_DATA_MAGN_XOUT_L;
 	__le16 sample;
 
@@ -439,7 +795,36 @@ static irqreturn_t bmi160_trigger_handler(int irq, void *p)
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buf, pf->timestamp);
+#endif
 done:
+#if defined(CONFIG_SOC_SP7350)
+	if ((lanuch_flag & FIRST_TRIGER)) {
+		if (timer_pending(&data->bmi_tmr))
+			mod_timer(&data->bmi_tmr, jiffies + msecs_to_jiffies(32));
+		else {
+			data->bmi_tmr.expires = jiffies + msecs_to_jiffies(32);
+			add_timer(&data->bmi_tmr);
+		}
+		lanuch_flag &= (~FIRST_TRIGER);
+	} else if (lanuch_flag & TRIGER_STARTED) {
+		mod_timer(&data->bmi_tmr, jiffies + msecs_to_jiffies(32));
+	}
+
+	t2_new = ktime_get_ns();
+
+	flag_old = 1;
+	t1_old = t1_new;
+	t2_old = t2_new;
+
+	ret = regmap_write(data->regmap, BMI160_REG_FIFO_CONFIG0, val);
+	if (ret) {
+		printk("%s:%d Failed to write reg 0x46:%d\n", __func__, __LINE__, ret);
+		return ret;
+	}
+
+	mutex_unlock(&g_bmi_data->bmi_lock);
+#endif
+
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
@@ -493,6 +878,88 @@ static int bmi160_write_raw(struct iio_dev *indio_dev,
 	return 0;
 }
 
+#if defined(CONFIG_SOC_SP7350)
+ssize_t bmi160_get_hwfifo_mode(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct bmi160_data *data = iio_priv(indio_dev);
+
+	return sprintf(buf, "%d\n", data->hwfifo_mode);
+}
+
+ssize_t bmi160_set_hwfifo_mode(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct bmi160_data *data = iio_priv(indio_dev);
+	int err, val;
+
+	//mutex_lock(&indio_dev->mlock);
+	if (iio_buffer_enabled(indio_dev)) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	err = kstrtoint(buf, 10, &val);
+	if (err < 0)
+		goto out;
+
+	data->hwfifo_mode = val;
+
+out:
+	//mutex_unlock(&indio_dev->mlock);
+
+	return err < 0 ? err : size;
+}
+
+ssize_t bmi160_get_hwfifo_watermark(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct bmi160_data *data = iio_priv(indio_dev);
+	unsigned int val;
+	int err;
+
+	err = regmap_read(data->regmap, BMI160_REG_FIFO_CONFIG0, &val);
+	if (!err)
+		data->watermark_hwfifo = val;
+	return sprintf(buf, "%d\n", data->watermark_hwfifo);
+}
+
+ssize_t bmi160_set_hwfifo_watermark(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t size)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct bmi160_data *data = iio_priv(indio_dev);
+	int err, val;
+
+	//mutex_lock(&indio_dev->mlock);
+
+	err = kstrtoint(buf, 10, &val);
+	if (err < 0)
+		goto out;
+
+	if (val < 1 || val > 255) {
+		dev_err(dev, "Failed to set fifo wm val:%d", val);
+		err = -EINVAL;
+		goto out;
+	}
+
+	err = regmap_write(data->regmap, BMI160_REG_FIFO_CONFIG0, val);
+	if (!err)
+		data->watermark_hwfifo = val;
+out:
+	//mutex_unlock(&indio_dev->mlock);
+	dev_info(dev, "set fifo wm %d(%d)\n", val, err);
+	return err < 0 ? err : size;
+}
+#endif
+
 static
 IIO_CONST_ATTR(in_accel_sampling_frequency_available,
 	       "0.78125 1.5625 3.125 6.25 12.5 25 50 100 200 400 800 1600");
@@ -506,11 +973,24 @@ static
 IIO_CONST_ATTR(in_anglvel_scale_available,
 	       "0.001065 0.000532 0.000266 0.000133 0.000066");
 
+#if defined(CONFIG_SOC_SP7350)
+static
+IIO_DEVICE_ATTR(hwfifo_mode, 0644, bmi160_get_hwfifo_mode,
+	        bmi160_set_hwfifo_mode, 0);
+static
+IIO_DEVICE_ATTR(watermark_hwfifo, 0644, bmi160_get_hwfifo_watermark,
+	        bmi160_set_hwfifo_watermark, 0);
+#endif
+
 static struct attribute *bmi160_attrs[] = {
 	&iio_const_attr_in_accel_sampling_frequency_available.dev_attr.attr,
 	&iio_const_attr_in_anglvel_sampling_frequency_available.dev_attr.attr,
 	&iio_const_attr_in_accel_scale_available.dev_attr.attr,
 	&iio_const_attr_in_anglvel_scale_available.dev_attr.attr,
+#if defined(CONFIG_SOC_SP7350)
+	&iio_dev_attr_hwfifo_mode.dev_attr.attr,
+	&iio_dev_attr_watermark_hwfifo.dev_attr.attr,
+#endif
 	NULL,
 };
 
@@ -562,12 +1042,20 @@ static int bmi160_config_pin(struct regmap *regmap, enum bmi160_int_pin pin,
 	u8 int_out_ctrl_mask;
 	u8 int_out_ctrl_bits;
 	const char *pin_name;
+#if defined(CONFIG_SOC_SP7350)
+	//struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	//struct bmi160_data *data = iio_priv(indio_dev);
+#endif
 
 	switch (pin) {
 	case BMI160_PIN_INT1:
 		int_out_ctrl_shift = BMI160_INT1_OUT_CTRL_SHIFT;
 		int_latch_mask = BMI160_INT1_LATCH_MASK;
+#if defined(CONFIG_SOC_SP7350)
+		int_map_mask = BMI160_INT1_MAP_DRDY_EN | BMI160_INT1_MAP_FIFO_FULL_EN | BMI160_INT1_MAP_FIFO_FWM_EN;
+#else
 		int_map_mask = BMI160_INT1_MAP_DRDY_EN;
+#endif
 		break;
 	case BMI160_PIN_INT2:
 		int_out_ctrl_shift = BMI160_INT2_OUT_CTRL_SHIFT;
@@ -625,13 +1113,52 @@ static int bmi160_config_pin(struct regmap *regmap, enum bmi160_int_pin pin,
 int bmi160_enable_irq(struct regmap *regmap, bool enable)
 {
 	unsigned int enable_bit = 0;
+#if defined(CONFIG_SOC_SP7350)
+	unsigned int fifo_mask = 0;
+	int ret;
+	struct device *dev = regmap_get_device(regmap);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct bmi160_data *data = iio_priv(indio_dev);
 
+	if (data->hwfifo_mode) {
+		//fifo mode
+		fifo_mask = BMI160_FIFO_GYR_EN | BMI160_FIFO_ACC_EN | BMI160_FIFO_HEADER_EN;
+		if (enable) {
+			data->ts_last = 0;
+			enable_bit = BMI160_FIFO_FULL_INT_EN | BMI160_FIFO_FWM_INT_EN;
+			ret = bmi160_write_conf_reg(regmap, BMI160_REG_FIFO_CONFIG1, fifo_mask, fifo_mask, BMI160_NORMAL_WRITE_USLEEP);
+			if (ret)
+				return ret;
+		} else {
+			ret = bmi160_write_conf_reg(regmap, BMI160_REG_FIFO_CONFIG1, fifo_mask, 0, BMI160_NORMAL_WRITE_USLEEP);
+			if (ret)
+				return ret;
+		}
+		ret = regmap_write(data->regmap, BMI160_REG_CMD, BMI160_CMD_CLR_FIFO);
+		if (ret)
+			return ret;
+
+		dev_dbg(dev, "enable irq ts_last:%llu ",data->ts_last);
+
+		return bmi160_write_conf_reg(regmap, BMI160_REG_INT_EN,
+					     BMI160_FIFO_FULL_INT_EN | BMI160_FIFO_FWM_INT_EN, enable_bit,
+					     BMI160_NORMAL_WRITE_USLEEP);
+	} else {
+		if (enable)
+			enable_bit = BMI160_DRDY_INT_EN;
+
+		return bmi160_write_conf_reg(regmap, BMI160_REG_INT_EN,
+					     BMI160_DRDY_INT_EN, enable_bit,
+					     BMI160_NORMAL_WRITE_USLEEP);
+	}
+#else
 	if (enable)
 		enable_bit = BMI160_DRDY_INT_EN;
 
 	return bmi160_write_conf_reg(regmap, BMI160_REG_INT_EN,
 				     BMI160_DRDY_INT_EN, enable_bit,
 				     BMI160_NORMAL_WRITE_USLEEP);
+#endif
 }
 EXPORT_SYMBOL_NS(bmi160_enable_irq, IIO_BMI160);
 
@@ -709,6 +1236,9 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 	int ret;
 	unsigned int val;
 	struct device *dev = regmap_get_device(data->regmap);
+#if defined(CONFIG_SOC_SP7350)
+	int err;
+#endif
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(data->supplies), data->supplies);
 	if (ret) {
@@ -716,9 +1246,30 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 		return ret;
 	}
 
+#if defined(CONFIG_SOC_SP7350)
+	if (data->gpio_pwr_on > 0) {
+		err = gpio_request(data->gpio_pwr_on, "IMU_PWR_EN");
+		if (err < 0) {
+			printk("%s: gpio_request(%d) for IMU_PWR_EN failed %d\n",
+				__FUNCTION__, data->gpio_pwr_on, err);
+			return err;
+		}
+
+		err = gpio_direction_output(data->gpio_pwr_on, 1);
+		if (err) {
+			printk("%s: IMU_PWR_EN didn't output high\n", __FUNCTION__);
+			return err;
+		}
+	}
+#endif
+
 	ret = regmap_write(data->regmap, BMI160_REG_CMD, BMI160_CMD_SOFTRESET);
 	if (ret)
+#if defined(CONFIG_SOC_SP7350)
+		return ret;
+#else
 		goto disable_regulator;
+#endif
 
 	usleep_range(BMI160_SOFTRESET_USLEEP, BMI160_SOFTRESET_USLEEP + 1);
 
@@ -729,37 +1280,64 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 	if (use_spi) {
 		ret = regmap_read(data->regmap, BMI160_REG_DUMMY, &val);
 		if (ret)
+#if defined(CONFIG_SOC_SP7350)
+			return ret;
+#else
 			goto disable_regulator;
+#endif
 	}
 
 	ret = regmap_read(data->regmap, BMI160_REG_CHIP_ID, &val);
 	if (ret) {
 		dev_err(dev, "Error reading chip id\n");
+#if defined(CONFIG_SOC_SP7350)
+		return ret;
+#else
 		goto disable_regulator;
+#endif
 	}
 	if (val != BMI160_CHIP_ID_VAL) {
 		dev_err(dev, "Wrong chip id, got %x expected %x\n",
 			val, BMI160_CHIP_ID_VAL);
+#if defined(CONFIG_SOC_SP7350)
+		return -ENODEV;
+#else
 		ret = -ENODEV;
 		goto disable_regulator;
+#endif
 	}
+
+#if defined(CONFIG_SOC_SP7350)
+	data->hwfifo_mode = false;
+#endif
 
 	ret = bmi160_set_mode(data, BMI160_ACCEL, true);
 	if (ret)
+
+#if defined(CONFIG_SOC_SP7350)
+		return ret;
+#else
 		goto disable_regulator;
+#endif
 
 	ret = bmi160_set_mode(data, BMI160_GYRO, true);
 	if (ret)
+#if defined(CONFIG_SOC_SP7350)
+		return ret;
+#else
 		goto disable_accel;
+#endif
 
 	return 0;
 
+#if !defined(CONFIG_SOC_SP7350)
 disable_accel:
 	bmi160_set_mode(data, BMI160_ACCEL, false);
 
 disable_regulator:
 	regulator_bulk_disable(ARRAY_SIZE(data->supplies), data->supplies);
 	return ret;
+#endif
 }
 
 static int bmi160_data_rdy_trigger_set_state(struct iio_trigger *trig,
@@ -767,6 +1345,16 @@ static int bmi160_data_rdy_trigger_set_state(struct iio_trigger *trig,
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct bmi160_data *data = iio_priv(indio_dev);
+
+#if defined(CONFIG_SOC_SP7350)
+	if (enable == false) {
+		del_timer_sync(&g_bmi_data->bmi_tmr);
+		lanuch_flag = 0;
+	}
+	else {
+		lanuch_flag = TRIGER_STARTED | FIRST_TRIGER;
+	}
+#endif
 
 	return bmi160_enable_irq(data->regmap, enable);
 }
@@ -811,6 +1399,9 @@ static void bmi160_chip_uninit(void *data)
 	struct bmi160_data *bmi_data = data;
 	struct device *dev = regmap_get_device(bmi_data->regmap);
 	int ret;
+#if defined(CONFIG_SOC_SP7350)
+	int err;
+#endif
 
 	bmi160_set_mode(bmi_data, BMI160_GYRO, false);
 	bmi160_set_mode(bmi_data, BMI160_ACCEL, false);
@@ -819,6 +1410,16 @@ static void bmi160_chip_uninit(void *data)
 				     bmi_data->supplies);
 	if (ret)
 		dev_err(dev, "Failed to disable regulators: %d\n", ret);
+
+#if defined(CONFIG_SOC_SP7350)
+	if (bmi_data->gpio_pwr_on > 0) {
+		err = gpio_direction_output(bmi_data->gpio_pwr_on, 0);
+		if (err) {
+			printk("%s: IMU_PWR_EN didn't output high\n", __FUNCTION__);
+		}
+		gpio_free(bmi_data->gpio_pwr_on);
+	}
+#endif
 }
 
 int bmi160_core_probe(struct device *dev, struct regmap *regmap,
@@ -837,6 +1438,11 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
 	data->regmap = regmap;
+#if defined(CONFIG_SOC_SP7350)
+	data->watermark_hwfifo = 128;
+
+	data->gpio_pwr_on = of_get_named_gpio(dev->of_node, "gpio_pwr_on", 0);
+#endif
 
 	data->supplies[0].supply = "vdd";
 	data->supplies[1].supply = "vddio";
@@ -878,9 +1484,24 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 		if (ret)
 			dev_err(&indio_dev->dev, "Failed to setup IRQ %d\n",
 				irq);
+#if defined(CONFIG_SOC_SP7350)
+		else
+			irq_set_affinity(irq, cpumask_of(3));
+#endif
 	} else {
 		dev_info(&indio_dev->dev, "Not setting up IRQ trigger\n");
 	}
+
+#if defined(CONFIG_SOC_SP7350)
+	INIT_WORK(&bmi_work, work_handler);
+	mutex_init(&data->bmi_lock);
+
+	timer_setup(&data->bmi_tmr, bmi_on_timeout, 0);
+	data->bmi_tmr.expires = jiffies + msecs_to_jiffies(30);
+
+	g_bmi_data = data;
+	g_indio_dev = indio_dev;
+#endif
 
 	return devm_iio_device_register(dev, indio_dev);
 }
