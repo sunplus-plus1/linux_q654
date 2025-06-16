@@ -1155,7 +1155,8 @@
 		<&mipi_tsp4>, <&mipi_tsp5>,
 		<&gpi_tsp0>, <&gpi_tsp1>,
 		<&gpi_tsp2>, <&gpi_tsp3>;
-		tsp_freq = <10000000>;
+		//tsp_freq = <10000000>;
+		tsp_freq = <50000>;
 		tsp_timer = <300000>;
 		tsp_mult = <20000>;
 		tsp_shift = <0>;
