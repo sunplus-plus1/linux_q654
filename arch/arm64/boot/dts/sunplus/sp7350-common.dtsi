@@ -1186,7 +1186,7 @@
 		id = <1>;
 		tsp_ctrl_0 = <1>;
 		num_buffers = <6>;
-		sarm_phy = <0xf8c21000>;
+		sram_phy = <0xf8c21000>;
 	};
 
 	mipi_tsp2: mipi_tsp2 {
