@@ -2280,7 +2280,7 @@
 
 &vin11 {
 	memory-region = <&mipicsirx_reserve>;
-#if (defined(AP1302_IN5) && defined(AP1302_IN5_2VC)) || (defined(TP2815_IN5) && defined(TP2815_IN5_2VC))
+#if (defined(AP1302_IN5) && defined(AP1302_IN5_2VC)) || (defined(TP2815_IN5) && (defined(TP2815_IN5_2VC) || defined(TP2815_IN5_4VC)))
 	status = "okay";
 #else
 	status = "disabled";
@@ -2307,7 +2307,11 @@
 
 &vin12 {
 	memory-region = <&mipicsirx_reserve>;
+#if defined(TP2815_IN5) && defined(TP2815_IN5_4VC)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
 
 	ports {
 		#address-cells = <1>;
@@ -2330,7 +2334,11 @@
 
 &vin13 {
 	memory-region = <&mipicsirx_reserve>;
+#if defined(TP2815_IN5) && defined(TP2815_IN5_4VC)
+	status = "okay";
+#else
 	status = "disabled";
+#endif
 
 	ports {
 		#address-cells = <1>;
