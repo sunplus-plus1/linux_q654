@@ -135,9 +135,11 @@
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
 			proc-supply = <&cpu_vdd_reg>;
-			operating-points-v2 = <&cpu_opp_table>;
+			operating-points-v2 = <&cpu_opp_table_fast>, <&cpu_opp_table_slow>;
 			next-level-cache = <&L2_0>;
 			cpu-idle-states = <&CPU_SLEEP>;
+			nvmem-cells = <&opp_select>;
+			nvmem-cell-names = "opp_select";
 		};
 
 		cpu1: cpu@1 {
@@ -148,7 +150,7 @@
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
 			proc-supply = <&cpu_vdd_reg>;
-			operating-points-v2 = <&cpu_opp_table>;
+			operating-points-v2 = <&cpu_opp_table_fast>, <&cpu_opp_table_slow>;
 			next-level-cache = <&L2_1>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -161,7 +163,7 @@
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
 			proc-supply = <&cpu_vdd_reg>;
-			operating-points-v2 = <&cpu_opp_table>;
+			operating-points-v2 = <&cpu_opp_table_fast>, <&cpu_opp_table_slow>;
 			next-level-cache = <&L2_2>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -174,7 +176,7 @@
 			clocks = <&clkc PLLC>, <&clkc PLLL3>;
 			clock-names = "PLLC", "PLLL3";
 			proc-supply = <&cpu_vdd_reg>;
-			operating-points-v2 = <&cpu_opp_table>;
+			operating-points-v2 = <&cpu_opp_table_fast>, <&cpu_opp_table_slow>;
 			next-level-cache = <&L2_3>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -1122,6 +1124,10 @@
 			};
 			disc_vol: disc_vol@2d {
 				reg = <0x2d 0x1>;
+			};
+			// bit 479:478, opp-table select
+			opp_select: opp_select@3b {
+				reg = <0x3b 0x1>;
 			};
 		};
 	};
