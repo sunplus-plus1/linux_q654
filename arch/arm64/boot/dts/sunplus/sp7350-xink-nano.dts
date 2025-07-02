@@ -214,7 +214,57 @@
 		};
 	};
 
-	cpu_opp_table: opp-table {
+	cpu_opp_table_fast: opp-table-0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-5 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <712500>;
+		};
+
+		opp-10 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <712500>;
+		};
+
+		opp-15 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <750000>;
+		};
+
+		opp-16 {
+			opp-hz = /bits/ 64 <1600000000>;
+			opp-microvolt = <770000>;
+		};
+
+		opp-17 {
+			opp-hz = /bits/ 64 <1700000000>;
+			opp-microvolt = <800000>;
+		};
+
+		opp-18 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <840000>;
+		};
+
+		/*opp-19 {
+			opp-hz = /bits/ 64 <1900000000>;
+			opp-microvolt = <1000000>;
+		};
+
+		opp-20 {
+			opp-hz = /bits/ 64 <2000000000>;
+			opp-microvolt = <1000000>;
+		};
+
+		opp-21 {
+			opp-hz = /bits/ 64 <2100000000>;
+			opp-microvolt = <1000000>;
+		};*/
+	};
+
+	cpu_opp_table_slow: opp-table-1 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
