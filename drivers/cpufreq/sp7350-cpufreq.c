@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/thermal.h>
 #include <linux/hwspinlock.h>
+#include <linux/nvmem-consumer.h>
 
 #define MIN_VOLT_SHIFT		(100000)
 #define MAX_VOLT_SHIFT		(200000)
@@ -180,6 +181,45 @@ dvfs_exit:
 
 #define DYNAMIC_POWER "dynamic-power-coefficient"
 
+int dev_pm_opp_of_cpumask_add_table_indexed(const struct cpumask *cpumask, int index)
+{
+	struct device *cpu_dev;
+	int cpu, ret;
+
+	if (WARN_ON(cpumask_empty(cpumask)))
+		return -ENODEV;
+
+	for_each_cpu(cpu, cpumask) {
+		cpu_dev = get_cpu_device(cpu);
+		if (!cpu_dev) {
+			pr_err("%s: failed to get cpu%d device\n", __func__,
+			       cpu);
+			ret = -ENODEV;
+			goto remove_table;
+		}
+
+		ret = dev_pm_opp_of_add_table_indexed(cpu_dev, index);
+		if (ret) {
+			/*
+			 * OPP may get registered dynamically, don't print error
+			 * message here.
+			 */
+			pr_debug("%s: couldn't find opp table for cpu:%d, %d\n",
+				 __func__, cpu, ret);
+
+			goto remove_table;
+		}
+	}
+
+	return 0;
+
+remove_table:
+	/* Free all other OPPs */
+	dev_pm_opp_of_cpumask_remove_table(cpumask);
+
+	return ret;
+}
+
 static int sp7350_cpu_dvfs_info_init(struct sp7350_cpu_dvfs_info *info, int cpu)
 {
 	struct device *cpu_dev;
@@ -187,12 +227,29 @@ static int sp7350_cpu_dvfs_info_init(struct sp7350_cpu_dvfs_info *info, int cpu)
 	struct clk *cpu_clk = ERR_PTR(-ENODEV);
 	struct clk *l3_clk = ERR_PTR(-ENODEV);
 	int ret;
+	struct nvmem_cell *cell;
+	u8 *ptr, opp_select;
 
 	cpu_dev = get_cpu_device(cpu);
 	if (!cpu_dev) {
 		pr_err("failed to get cpu%d device\n", cpu);
 		return -ENODEV;
 	}
+
+	cell = nvmem_cell_get(cpu_dev, "opp_select");
+	if (IS_ERR(cell)) {
+		pr_err("failed get cpu%d nvmem cell\n", cpu);
+		return PTR_ERR(cell);
+	}
+
+	ptr = nvmem_cell_read(cell, NULL);
+	nvmem_cell_put(cell);
+	if (IS_ERR(ptr))
+		return PTR_ERR(ptr);
+
+	opp_select = (*ptr) >> 6;
+	kfree(ptr);
+	pr_debug("opp_select = %u\n", opp_select);
 
 	cpu_clk = clk_get(cpu_dev, NULL);
 	if (IS_ERR(cpu_clk)) {
@@ -226,7 +283,7 @@ static int sp7350_cpu_dvfs_info_init(struct sp7350_cpu_dvfs_info *info, int cpu)
 		goto out_free_resources;
 	}
 
-	ret = dev_pm_opp_of_cpumask_add_table(&info->cpus);
+	ret = dev_pm_opp_of_cpumask_add_table_indexed(&info->cpus, opp_select);
 	if (ret) {
 		pr_warn("no OPP table for cpu%d\n", cpu);
 		goto out_free_resources;
@@ -414,7 +471,7 @@ static int __init sp7350_cpufreq_driver_init(void)
 
 	return 0;
 }
-device_initcall(sp7350_cpufreq_driver_init);
+late_initcall(sp7350_cpufreq_driver_init);
 
 MODULE_DESCRIPTION("Sunplus SP7350 CPUFreq driver");
 MODULE_AUTHOR("QinJian <qinjian@sunmedia.com.cn>");
