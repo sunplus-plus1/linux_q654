@@ -19,7 +19,7 @@
 #include "include/timer.h"
 
 #define TSP_USE_CLK
-//#define TSP_USE_RESET
+#define TSP_USE_RESET
 //#define TSP_USE_REGULATOR
 
 #define tsp_dbg(d, fmt, arg...)         dev_dbg(d.pdev_dev, fmt, ##arg)
@@ -70,7 +70,9 @@ struct sunplus_timer {
 	struct clk *vcl5_clk_gate;	// VCL5
 #endif
 #ifdef TSP_USE_RESET
-	struct reset_control *rst;
+	struct reset_control *vcl_rst;
+	struct reset_control *timer_rst;
+	struct reset_control *vcl5_rst;
 #endif
 #ifdef TSP_USE_REGULATOR
 	struct regulator *regulator;
@@ -1034,12 +1036,26 @@ static int timer_init(struct device_node *np_dev)
 #endif
 
 #ifdef TSP_USE_RESET
-	timer.rst = of_reset_control_get(np_dev, "timer_reset");
-	if (IS_ERR(timer.rst)){
-		tsp_err(timer.pdev_dev, "%s, get devm_reset_control_get() fail\n", __func__);
-		timer.rst = NULL;
+	timer.vcl_rst = of_reset_control_get_shared(np_dev, "vcl_reset");
+	if (IS_ERR(timer.vcl_rst)){
+		tsp_err(timer, "%s, vcl_reset get of_reset_control_get_shared() fail\n", __func__);
+		timer.vcl_rst = NULL;
 	} else
-		reset_control_deassert(timer.rst);
+		reset_control_deassert(timer.vcl_rst);
+
+	timer.vcl5_rst = of_reset_control_get_shared(np_dev, "vcl5_reset");
+	if (IS_ERR(timer.vcl5_rst)){
+		tsp_err(timer, "%s, vcl5_reset get of_reset_control_get_shared() fail\n", __func__);
+		timer.vcl5_rst = NULL;
+	} else
+		reset_control_deassert(timer.vcl5_rst);
+
+	timer.timer_rst = of_reset_control_get_shared(np_dev, "timer_reset");
+	if (IS_ERR(timer.timer_rst)){
+		tsp_err(timer, "%s, timer_reset get of_reset_control_get_shared() fail\n", __func__);
+		timer.timer_rst = NULL;
+	} else
+		reset_control_deassert(timer.timer_rst);
 #endif
 
 	return 0;
@@ -1225,8 +1241,14 @@ static int sunplus_suspend_common(void)
 {
 	writel(timer.tsp_ctrl0_val & 0xFFFFFC00, timer_base + SUNPLUS_TSP_CTRL_0);
 #ifdef TSP_USE_RESET
-	if (timer.rst)
-		reset_control_assert(timer.rst);
+	if (timer.timer_rst)
+		reset_control_assert(timer.timer_rst);
+
+	if (timer.vcl5_rst)
+		reset_control_assert(timer.vcl5_rst);
+
+	if (timer.vcl_rst)
+		reset_control_assert(timer.vcl_rst);
 #endif
 #ifdef TSP_USE_CLK
 	sunplus_timer_clk_gating(timer.clk_gate, true);
@@ -1266,8 +1288,14 @@ static int sunplus_timer_resume_ops(struct device *dev)
 	sunplus_timer_clk_gating(timer.clk_gate, false);
 #endif
 #ifdef TSP_USE_RESET
-	if (timer.rst)
-		reset_control_deassert(timer.rst);
+	if (timer.vcl_rst)
+		reset_control_deassert(timer.vcl_rst);
+
+	if (timer.vcl5_rst)
+		reset_control_deassert(timer.vcl5_rst);
+
+	if (timer.timer_rst)
+		reset_control_deassert(timer.timer_rst);
 #endif
 
 	writel(1, timer_base + SUNPLUS_TSP_CTRL_1); /* tsp_sw_rst */

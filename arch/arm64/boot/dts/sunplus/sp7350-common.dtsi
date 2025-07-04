@@ -1103,6 +1103,8 @@
 		memory-region = <&timer_mem>;
 		clocks = <&clkc VCL>, <&clkc VCL4>, <&clkc VCL5>;
 		clock-names = "vcl_clk", "tsp_clk", "vcl5_clk";
+		resets = <&rstc RST_VCL>, <&rstc RST_VCL4>, <&rstc RST_VCL5>;
+		reset-names = "vcl_reset", "timer_reset", "vcl5_reset";
 		num_tsp_device = <10>;
 		tsp_device = <&mipi_tsp0>, <&mipi_tsp1>,
 		<&mipi_tsp2>, <&mipi_tsp3>,
