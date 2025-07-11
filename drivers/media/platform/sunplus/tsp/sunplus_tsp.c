@@ -110,7 +110,7 @@ inline void sunplus_timer_clk_gating(struct clk *timer_clk, bool isGating)
 		if (!timer.clk_funcEn) return;
 
 		if (isGating) {
-			//clk_disable(timer_clk);
+			clk_disable(timer_clk);
 		} else {
 			clk_enable(timer_clk);
 		}
@@ -239,15 +239,7 @@ static void sunplus_tsp_timer_callback(struct timer_list *data)
 
 	spin_lock_irqsave(&tsp_pdev->timer_lock, flags);
 
-#ifdef TSP_USE_CLK
-	sunplus_timer_clk_gating(timer.clk_gate, false);
-#endif
-
 	sunplus_timecounter_update(&sunplus_tc, timer.disable_gpi_timer);
-
-#ifdef TSP_USE_CLK
-	sunplus_timer_clk_gating(timer.clk_gate, true);
-#endif
 
 	spin_unlock_irqrestore(&tsp_pdev->timer_lock, flags);
 	mod_timer(&tsp_pdev->tsp_timer, jiffies + msecs_to_jiffies(tsp_pdev->callback_timer));
@@ -1252,6 +1244,8 @@ static int sunplus_suspend_common(void)
 #endif
 #ifdef TSP_USE_CLK
 	sunplus_timer_clk_gating(timer.clk_gate, true);
+	sunplus_timer_clk_gating(timer.vcl5_clk_gate, true);
+	sunplus_timer_clk_gating(timer.vcl_clk_gate, true);
 #endif
 #ifdef TSP_USE_REGULATOR
 	if (timer.regulator)
@@ -1285,6 +1279,8 @@ static int sunplus_timer_resume_ops(struct device *dev)
 		regulator_enable(timer.regulator);
 #endif
 #ifdef TSP_USE_CLK
+	sunplus_timer_clk_gating(timer.vcl_clk_gate, false);
+	sunplus_timer_clk_gating(timer.vcl5_clk_gate, false);
 	sunplus_timer_clk_gating(timer.clk_gate, false);
 #endif
 #ifdef TSP_USE_RESET
