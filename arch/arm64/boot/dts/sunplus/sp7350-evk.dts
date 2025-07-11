@@ -30,6 +30,7 @@
 //#define TP2815_IN2_1LANE
 //#define TP2815_IN2_2LANES
 //#define TP2815_IN2_2VC
+//#define TP2815_IN2_4VC
 //#define TP2815_IN3
 //#define TP2815_IN3_1LANE
 //#define TP2815_IN3_2VC
@@ -1191,7 +1192,9 @@
 		compatible = "Techpoint,tp2815";
 		reg = <0x44>;
 		clocks = <&tp2815_clk>;
-	#ifdef TP2815_IN2_2VC
+	#if defined(TP2815_IN2_4VC) && defined(MIPI_CSI_4VC)
+		input-channel = <4>;
+	#elif defined(TP2815_IN2_2VC)
 		input-channel = <2>;
 	#else
 		input-channel = <1>;
@@ -1207,8 +1210,10 @@
 				remote-endpoint = <&csi2_2>;
 	#ifdef TP2815_IN2_1LANE
 				data-lanes = <1>;
-	#else
+	#elif defined(TP2815_IN2_2LANES)
 				data-lanes = <1 2>;
+	#else
+				data-lanes = <1 2 3 4>;
 	#endif
 				clock-continuous;
 				link-frequencies = /bits/ 64 <456000000>;
@@ -1600,24 +1605,18 @@
 
 	/* Virtual channel related properties */
 	max_channels = <4>;
-#ifdef MIPI_CSI_4VC
-	#ifdef TP2815_IN2
+#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2)
 	num_channels = <1>;
-	#else
+#elif defined(TP2815_IN2)
+	#if defined(TP2815_IN2_4VC) && defined(MIPI_CSI_4VC)
 	num_channels = <4>;
+	#elif defined(TP2815_IN2_2VC)
+	num_channels = <2>;
+	#else
+	num_channels = <1>;
 	#endif
 #else
-	#if defined(IMX219_IN2) || defined(IMX708_IN2) || defined(OV5640_IN2) || defined(OV5647_IN2)
-	num_channels = <1>;
-	#elif defined(TP2815_IN2)
-		#ifdef TP2815_IN2_2VC
 	num_channels = <2>;
-		#else
-	num_channels = <1>;
-		#endif
-	#else
-	num_channels = <2>;
-	#endif
 #endif
 
 	ports {
@@ -1758,7 +1757,7 @@
 
 &vin5 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN2) && defined(TP2815_IN2_2VC)
+#if defined(TP2815_IN2) && (defined(TP2815_IN2_2VC) || (defined(TP2815_IN2_4VC) && defined(MIPI_CSI_4VC)))
 	status = "okay";
 #else
 	status = "disabled";
@@ -1903,7 +1902,8 @@
 
 &vin6 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3)
+#if defined(IMX219_IN3) || defined(IMX708_IN3) || defined(OV5640_IN3) || defined(OV5647_IN3) || defined(TP2815_IN3) || \
+	(defined(TP2815_IN2) && defined(TP2815_IN2_4VC) && defined(MIPI_CSI_4VC))
 	status = "okay";
 #else
 	status = "disabled";
@@ -1937,7 +1937,7 @@
 
 &vin7 {
 	memory-region = <&mipicsirx_reserve>;
-#if defined(TP2815_IN3) && defined(TP2815_IN3_2VC)
+#if (defined(TP2815_IN3) && defined(TP2815_IN3_2VC)) || (defined(TP2815_IN2) && defined(TP2815_IN2_4VC) && defined(MIPI_CSI_4VC))
 	status = "okay";
 #else
 	status = "disabled";
