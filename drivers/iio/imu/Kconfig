@@ -54,6 +54,8 @@ config ADIS16480
 
 source "drivers/iio/imu/bmi160/Kconfig"
 source "drivers/iio/imu/bno055/Kconfig"
+source "drivers/iio/imu/bmi088/Kconfig"
+source "drivers/iio/imu/bmi088c/Kconfig"
 
 config FXOS8700
 	tristate
