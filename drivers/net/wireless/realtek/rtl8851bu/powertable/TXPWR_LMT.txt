@@ -1,0 +1,731 @@
+// Format:								
+//								
+// 		Note: The order of the tables MUST match the definition in WLAN driver.						
+//								
+//		Power Limit Table Parameter Definition						
+//								
+//		@@Ver=3.0						
+//								
+//	(1)	Version 3.0 support to add regulations in the Power Limit Table from column 4.
+//		Customers can add new regulations by using DomainCode or CountryConde(ISO 3166-2).						
+//								
+//	(2)	Syntax:
+//			1. @@DomainCode=xx,  Regulation=xx
+//			2. @@CountryCode=xx,  Regulation=xx
+//								
+//		ex.						
+//			   @@DomainCode=0x2B, Regulation=IC	//RTK define domain code 0x2B for IC in colume 4
+//			   @@DomainCode=0x28, Regulation=KCC	//RTK define domain code 0x28 for KCC in colume 5
+//			   @@DomainCode=0x62, Regulation=C6	//Customer define domain code 0x62 for C6 in colume 6
+//			   @@CountryCode=US, Regulation=C6	//Customer define country code US for C6 in colume 6
+//			   @@CountryCode=GB, Regulation=C7	//Customer define country code GB for C7 in colume 7
+//								
+//		One DomainCode MUST has only one Regulation in Table.						
+//		One CountyCode MUST has only one Regulation in Table.						
+//								
+//	(3)	Error Syntax:
+//								
+//			   @@DomainCode=0x2D, Regulation=C6
+//			   @@DomainCode=0x2D, Regulation=C7
+//			   @@CountryCode=US, Regulation=C8
+//			   @@CountryCode=US, Regulation=C9
+//								
+//								
+//	(4)	If want to disable Tx power limit for one DomainCode or CountryConde, you can write "NONE" in Regulation.
+//								
+//		Syntax:						
+//			1. @@DomainCode=xx,  Regulation=NONE
+//			2. @@CountryCode=xx,  Regulation=NONE
+//								
+//		ex.						
+//			   @@DomainCode=0x2D, Regulation=NONE	//The domain code 0x2D will be disable in the Power Limit Table.
+//			   @@CountryCode=US, Regulation=NONE	//The country code US will be disable in the Power Limit Table.
+//								
+//								
+//								
+//								
+//		Band:				2.4G/5G		
+//		Bandwidth:		20/40/80/160 MHZ				
+//		RF Path:		1/2 Transmit RF				
+//		Rate Section:	CCK/OFDM/HT/VHT/HE					
+//		Regulation: FCC/ETSI/MKK/IC/KCC/ACMA/CHILE/UKRAINE/MEXICO/CN/QATAR/UK						
+//								
+//		Description:						
+//		1. IF in 1T test						
+//		2. power is real dBm.						
+//		3. // is for comment.						
+//								
+// 		NA is non-release channle.						
+//								
+//		Power limit table version : v06						
+@@Ver=3.0								
+@@DomainCode=0x43, Regulation=FCC
+@@DomainCode=0x3C, Regulation=ETSI
+@@DomainCode=0x06, Regulation=ACMA
+//								
+//Table 1: ===========================================								
+//								
+##	2.4G, 20M, 1T, CCK, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+CH01	20	16	17	21	17	16	16	14.5
+CH02	20	16	17	21	17	16	16	14.5
+CH03	20	16	17	21	17	16	16	14.5
+CH04	20	16	17	21	17	16	16	14.5
+CH05	20	16	17	21	17	16	16	14.5
+CH06	20	16	17	21	17	16	16	14.5
+CH07	20	16	17	21	17	16	16	14.5
+CH08	20	16	17	21	17	16	16	14.5
+CH09	20	16	17	21	17	16	16	14.5
+CH10	20	16	17	21	17	16	16	14.5
+CH11	20	16	17	20.5	17	16	16	14.5
+CH12	NA	16	17	15.5	17	16	16	14.5
+CH13 	NA	16	17	13	17	16	16	14.5
+CH14	NA	NA	19	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 2: ===========================================								
+//								
+##	2.4G, 20M, 2T, CCK, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	NA	NA	NA	NA	NA	NA
+CH04	NA	NA	NA	NA	NA	NA	NA	NA
+CH05	NA	NA	NA	NA	NA	NA	NA	NA
+CH06	NA	NA	NA	NA	NA	NA	NA	NA
+CH07	NA	NA	NA	NA	NA	NA	NA	NA
+CH08	NA	NA	NA	NA	NA	NA	NA	NA
+CH09	NA	NA	NA	NA	NA	NA	NA	NA
+CH10	NA	NA	NA	NA	NA	NA	NA	NA
+CH11	NA	NA	NA	NA	NA	NA	NA	NA
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13   	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 3: ===========================================								
+//								
+##	2.4G, 40M, 1T, CCK, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	17.5	NA	17	NA	15	14.5
+CH04	NA	NA	19	NA	17	NA	15	14.5
+CH05	NA	NA	19	NA	17	NA	15	14.5
+CH06	NA	NA	19	NA	17	NA	15	14.5
+CH07	NA	NA	19	NA	17	NA	15	14.5
+CH08	NA	NA	19	NA	17	NA	15	14.5
+CH09	NA	NA	19	NA	17	NA	15	14.5
+CH10	NA	NA	19	NA	17	NA	15	14.5
+CH11	NA	NA	16.5	NA	17	NA	15	14.5
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13 	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 4: ===========================================								
+//								
+##	2.4G, 40M, 2T, CCK, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	NA	NA	NA	NA	NA	NA
+CH04	NA	NA	NA	NA	NA	NA	NA	NA
+CH05	NA	NA	NA	NA	NA	NA	NA	NA
+CH06	NA	NA	NA	NA	NA	NA	NA	NA
+CH07	NA	NA	NA	NA	NA	NA	NA	NA
+CH08	NA	NA	NA	NA	NA	NA	NA	NA
+CH09	NA	NA	NA	NA	NA	NA	NA	NA
+CH10	NA	NA	NA	NA	NA	NA	NA	NA
+CH11	NA	NA	NA	NA	NA	NA	NA	NA
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13   	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 5: ===========================================								
+//								
+##	2.4G, 20M, 1T, OFDM, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	20	16	18	20	19.5	16	15	14.5
+CH02	20	16	18.5	20	19.5	16	15	15
+CH03	20	16	18.5	21	19.5	16	15	15
+CH04	20	16	18.5	21	19.5	16	15	15
+CH05	20	16	18.5	21	19	16	15	15
+CH06	20	16	18.5	21	19	16	15	15
+CH07	20	16	18.5	21	19	16	15	15
+CH08	20	16	18.5	21	19	16	15	15
+CH09	20	16	18.5	20	19	16	15	15
+CH10	20	16	18.5	19	18.5	16	15	15
+CH11	20	16	18.5	19	18.5	16	15	15
+CH12	NA	16	18.5	17	18.5	16	15	15
+CH13	NA	16	17.5	16	18.5	16	15	14.5
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 6: ===========================================								
+//								
+##	2.4G, 20M, 2T, OFDM, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	NA	NA	NA	NA	NA	NA
+CH04	NA	NA	NA	NA	NA	NA	NA	NA
+CH05	NA	NA	NA	NA	NA	NA	NA	NA
+CH06	NA	NA	NA	NA	NA	NA	NA	NA
+CH07	NA	NA	NA	NA	NA	NA	NA	NA
+CH08	NA	NA	NA	NA	NA	NA	NA	NA
+CH09	NA	NA	NA	NA	NA	NA	NA	NA
+CH10	NA	NA	NA	NA	NA	NA	NA	NA
+CH11	NA	NA	NA	NA	NA	NA	NA	NA
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 7: ===========================================								
+//								
+##	2.4G, 20M, 1T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	20	16	18	19.5	19.5	16	15	15
+CH02	20	16	19.5	19.5	19.5	16	15	15
+CH03	20	16	19.5	20.5	19.5	16	15	15
+CH04	20	16	19.5	20.5	19.5	16	15	15
+CH05	20	16	19.5	20.5	19.5	16	15	15
+CH06	20	16	19.5	20.5	19.5	16	15	15
+CH07	20	16	19.5	20.5	19.5	16	15	15
+CH08	20	16	19.5	20.5	19.5	16	15	15
+CH09	20	16	19.5	20	19.5	16	15	15
+CH10	20	16	19.5	19	19.5	16	15	15
+CH11	19	16	19.5	19	19.5	16	15	15
+CH12	NA	16	19.5	17.5	19.5	16	15	15
+CH13	NA	16	17.5	17.5	19.5	16	15	15
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 8: ===========================================								
+//								
+##	2.4G, 20M, 2T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	NA	NA	NA	NA	NA	NA
+CH04	NA	NA	NA	NA	NA	NA	NA	NA
+CH05	NA	NA	NA	NA	NA	NA	NA	NA
+CH06	NA	NA	NA	NA	NA	NA	NA	NA
+CH07	NA	NA	NA	NA	NA	NA	NA	NA
+CH08	NA	NA	NA	NA	NA	NA	NA	NA
+CH09	NA	NA	NA	NA	NA	NA	NA	NA
+CH10	NA	NA	NA	NA	NA	NA	NA	NA
+CH11	NA	NA	NA	NA	NA	NA	NA	NA
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 9: ===========================================								
+//								
+##	2.4G, 20M, 2T, HE, BF//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	NA	NA	NA	NA	NA	NA
+CH04	NA	NA	NA	NA	NA	NA	NA	NA
+CH05	NA	NA	NA	NA	NA	NA	NA	NA
+CH06	NA	NA	NA	NA	NA	NA	NA	NA
+CH07	NA	NA	NA	NA	NA	NA	NA	NA
+CH08	NA	NA	NA	NA	NA	NA	NA	NA
+CH09	NA	NA	NA	NA	NA	NA	NA	NA
+CH10	NA	NA	NA	NA	NA	NA	NA	NA
+CH11	NA	NA	NA	NA	NA	NA	NA	NA
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 10: ===========================================								
+//								
+##	2.4G, 40M, 1T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	NA	16	NA	NA	NA	16	NA	NA
+CH02	NA	16	NA	NA	NA	16	NA	NA
+CH03	17	16	20	18	20	16	15	14.5
+CH04	18.5	16	20	18	20	16	15	14.5
+CH05	18.5	16	20	19	20	16	15	14.5
+CH06	20	16	20	19.5	20	16	15	14.5
+CH07	20	16	19.5	19.5	20	16	15	14.5
+CH08	20	16	20	19.5	20	16	15	14.5
+CH09	18	16	20	19.5	19.5	16	15	14.5
+CH10	NA	16	20	19	19.5	16	15	14.5
+CH11	NA	16	19.5	17.5	19.5	16	15	14.5
+CH12	NA	16	NA	NA	NA	16	NA	NA
+CH13	NA	16	NA	NA	NA	16	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 11: ===========================================								
+//								
+##	2.4G, 40M, 2T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	NA	NA	NA	NA	NA	NA
+CH04	NA	NA	NA	NA	NA	NA	NA	NA
+CH05	NA	NA	NA	NA	NA	NA	NA	NA
+CH06	NA	NA	NA	NA	NA	NA	NA	NA
+CH07	NA	NA	NA	NA	NA	NA	NA	NA
+CH08	NA	NA	NA	NA	NA	NA	NA	NA
+CH09	NA	NA	NA	NA	NA	NA	NA	NA
+CH10	NA	NA	NA	NA	NA	NA	NA	NA
+CH11	NA	NA	NA	NA	NA	NA	NA	NA
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 12: ===========================================								
+//								
+##	2.4G, 40M, 2T, HE, BF//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	3	0	0	3	0	0	0	0
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	NA	NA	NA	NA	NA	NA	NA	NA
+CH04	NA	NA	NA	NA	NA	NA	NA	NA
+CH05	NA	NA	NA	NA	NA	NA	NA	NA
+CH06	NA	NA	NA	NA	NA	NA	NA	NA
+CH07	NA	NA	NA	NA	NA	NA	NA	NA
+CH08	NA	NA	NA	NA	NA	NA	NA	NA
+CH09	NA	NA	NA	NA	NA	NA	NA	NA
+CH10	NA	NA	NA	NA	NA	NA	NA	NA
+CH11	NA	NA	NA	NA	NA	NA	NA	NA
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 13: ===========================================								
+//								
+##	5G, 20M, 1T, OFDM, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH36	17.5	17	15	15.5	18.5	17	15	14.5
+CH40	18	17	15	15.5	18.5	17	15	14.5
+CH44	18	17	15	15.5	18.5	17	15	14.5
+CH48	17.5	17	15	15.5	12.5	17	15	14.5
+//5G Band 2								
+CH52	17.5	17	15	16	18.5	17	15	14.5
+CH56	17.5	17	15	16	18.5	17	15	14.5
+CH60	17.5	17	15	16	19	17	15	14.5
+CH64	17.5	17	15	16	19	17	15	14.5
+//5G Band 3								
+CH100	15	17	19.5	19.5	19.5	17	NA	14.5
+CH104	15	17	19.5	20.5	19.5	17	NA	15
+CH108	15	17	19.5	20.5	19.5	17	NA	15
+CH112	15	17	19.5	20.5	19.5	17	NA	15
+CH116	15	17	19.5	20.5	19.5	17	NA	15
+CH120	15	17	19.5	NA	19.5	NA	NA	15
+CH124	15	17	19.5	NA	19.5	NA	NA	15
+CH128	15	17	19.5	NA	19.5	NA	NA	15
+CH132	15	17	19.5	20.5	18.5	17	NA	15
+CH136	15	17	19.5	20.5	18.5	17	NA	15
+CH140	15	17	19.5	18	18.5	17	NA	15
+CH144	15	NA	19.5	20.5	18.5	17	NA	19.5
+//5G Band 4								
+CH149	15	17	NA	20.5	17.5	17	19.5	14.5
+CH153	15	17	NA	20.5	19	17	19.5	14.5
+CH157	15	17	NA	20.5	19	17	19.5	14.5
+CH161	15	17	NA	20.5	19	17	19.5	14.5
+CH165	15	17	NA	20.5	19	17	19.5	14.5
+CH169	15	NA	NA	NA	NA	NA	NA	NA
+CH173	15	NA	NA	NA	NA	NA	NA	NA
+CH177	15	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 14: ===========================================								
+//								
+##	5G, 20M, 2T, OFDM, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH36	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH40	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH44	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH48	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+//5G Band 2		NA 						
+CH52	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH56	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH60	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH64	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+//5G Band 3		NA 						
+CH100	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH104	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH108	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH112	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH116	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH120	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH124	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH128	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH132	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH136	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH140	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH144 	NA 	NA 	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH149	NA 	NA	NA	NA	NA	NA	NA	NA
+CH153	NA 	NA	NA	NA	NA	NA	NA	NA
+CH157	NA 	NA	NA	NA	NA	NA	NA	NA
+CH161	NA 	NA	NA	NA	NA	NA	NA	NA
+CH165	NA 	NA	NA	NA	NA	NA	NA	NA
+CH169	NA	NA	NA	NA	NA	NA	NA	NA
+CH173	NA	NA	NA	NA	NA	NA	NA	NA
+CH177	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 15: ===========================================								
+//								
+##	5G, 20M, 1T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH36	17	17	15.5	16	19	17	15.5	15.5
+CH40	16.5	17	15.5	16	19	17	15.5	15.5
+CH44	16.5	17	15.5	16	19	17	15.5	15.5
+CH48	17	17	15.5	16	13.5	17	15.5	15.5
+//5G Band 2								
+CH52	17	17	15.5	16	19	17	15.5	15.5
+CH56	17	17	15.5	16	19	17	15.5	15.5
+CH60	17	17	15.5	16	19.5	17	15.5	15.5
+CH64	17	17	15.5	16	19.5	17	15.5	15.5
+//5G Band 3								
+CH100	15	17	19.5	19	19.5	17	NA	15
+CH104	15	17	19.5	20.5	19.5	17	NA	15.5
+CH108	15	17	19.5	20.5	19.5	17	NA	15.5
+CH112	15	17	19.5	20.5	19.5	17	NA	15.5
+CH116	15	17	19.5	20.5	19.5	17	NA	15.5
+CH120	15	17	19.5	NA	19.5	NA	NA	15.5
+CH124	15	17	19.5	NA	19.5	NA	NA	15.5
+CH128	15	17	19.5	NA	19.5	NA	NA	15.5
+CH132	15	17	19.5	20.5	18.5	17	NA	15.5
+CH136	15	17	19.5	20.5	18.5	17	NA	15.5
+CH140	15	17	19.5	18	18.5	17	NA	15.5
+CH144 	15	NA 	19.5	20.5	19	17	NA	19.5
+//5G Band 4								
+CH149	15	17	NA	20.5	16.5	17	19.5	15
+CH153	15	17	NA	20.5	18.5	17	19.5	15
+CH157	15	17	NA	20.5	18.5	17	19.5	15
+CH161	15	17	NA	20.5	18.5	17	19.5	15
+CH165	15	17	NA	20.5	18.5	17	19.5	15
+CH169	15	NA	NA	NA	NA	NA	NA	NA
+CH173	15	NA	NA	NA	NA	NA	NA	NA
+CH177	15	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 16: ===========================================								
+//								
+##	5G, 20M, 2T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH36	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH40	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH44	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH48	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+//5G Band 2		NA 						
+CH52	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH56	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH60	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH64	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+//5G Band 3		NA 						
+CH100	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH104	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH108	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH112	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH116	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH120	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH124	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH128	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH132	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH136	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH140	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH144 	NA 	NA 	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH149	NA 	NA	NA	NA	NA	NA	NA	NA
+CH153	NA 	NA	NA	NA	NA	NA	NA	NA
+CH157	NA 	NA	NA	NA	NA	NA	NA	NA
+CH161	NA 	NA	NA	NA	NA	NA	NA	NA
+CH165	NA 	NA	NA	NA	NA	NA	NA	NA
+CH169	NA	NA	NA	NA	NA	NA	NA	NA
+CH173	NA	NA	NA	NA	NA	NA	NA	NA
+CH177	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 17: ===========================================								
+//								
+##	5G, 20M, 2T, HE, BF//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH36	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH40	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH44	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH48	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+//5G Band 2		NA 						
+CH52	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH56	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH60	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+CH64	NA 	NA 	NA	NA	NA	NA 	NA 	NA 
+//5G Band 3		NA 						
+CH100	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH104	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH108	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH112	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH116	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH120	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH124	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH128	NA 	NA 	NA	NA	NA	NA	NA	NA 
+CH132	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH136	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH140	NA 	NA 	NA	NA	NA	NA 	NA	NA 
+CH144 	NA 	NA 	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH149	NA 	NA	NA	NA	NA	NA	NA	NA
+CH153	NA 	NA	NA	NA	NA	NA	NA	NA
+CH157	NA 	NA	NA	NA	NA	NA	NA	NA
+CH161	NA 	NA	NA	NA	NA	NA	NA	NA
+CH165	NA 	NA	NA	NA	NA	NA	NA	NA
+CH169	NA	NA	NA	NA	NA	NA	NA	NA
+CH173	NA	NA	NA	NA	NA	NA	NA	NA
+CH177	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 18: ===========================================								
+//								
+##	5G, 40M, 1T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH38	17	18.5	16	16	18.5	18.5	16	16
+CH46	18.5	18.5	15.5	16	16.5	18.5	16	16
+//5G Band 2								
+CH54	18.5	18.5	16	16	19.5	18.5	16	16
+CH62	18.5	18.5	16	16	18	18.5	16	16
+//5G Band 3								
+CH102	15	18.5	20	16.5	18.5	18.5	NA	16.5
+CH110	15	18.5	20	20	18.5	18.5	NA	16.5
+CH118	15	18.5	20	NA	18.5	NA 	NA	16.5
+CH126	15	18.5	20	NA	18.5	NA 	NA	16.5
+CH134	15	18.5	20	19	19.5	18.5	NA	16.5
+CH142 	15	NA	20	20	19	18.5	NA	20
+//5G Band 4								
+CH151	15	18.5	NA	21	17	18.5	17.5	16
+CH159	15	18.5	NA	21	19.5	18.5	20	16
+CH167	15	NA 	NA	NA	NA 	NA 	NA 	NA 
+CH175	15	NA 	NA	NA	NA 	NA 	NA 	NA 
+##	END							
+//								
+//Table 19: ===========================================								
+//								
+##	5G, 40M, 2T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH38	NA 	NA	NA	NA	NA 	NA	NA 	NA
+CH46	NA 	NA	NA	NA	NA 	NA	NA 	NA
+//5G Band 2								
+CH54	NA 	NA	NA	NA	NA 	NA	NA 	NA
+CH62	NA 	NA	NA	NA	NA 	NA	NA 	NA
+//5G Band 3								
+CH102 	NA	NA	NA	NA	NA 	NA	NA	NA
+CH110	NA	NA	NA	NA	NA 	NA	NA	NA
+CH118	NA	NA	NA	NA	NA 	NA 	NA	NA
+CH126	NA	NA	NA	NA	NA 	NA 	NA	NA
+CH134	NA	NA	NA	NA	NA 	NA	NA	NA
+CH142 	NA	NA	NA	NA	NA 	NA 	NA	NA 
+//5G Band 4								
+CH151	NA 	NA	NA	NA	NA 	NA 	NA 	NA 
+CH159	NA 	NA	NA	NA	NA 	NA 	NA 	NA 
+CH167	NA 	NA 	NA	NA	NA 	NA 	NA 	NA 
+CH175	NA 	NA 	NA	NA	NA 	NA 	NA 	NA 
+##	END							
+//								
+//Table 20: ===========================================								
+//								
+##	5G, 40M, 2T, HE, BF//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH38	NA 	NA	NA	NA	NA 	NA	NA 	NA
+CH46	NA 	NA	NA	NA	NA 	NA	NA 	NA
+//5G Band 2								
+CH54	NA 	NA	NA	NA	NA 	NA	NA 	NA
+CH62	NA 	NA	NA	NA	NA 	NA	NA 	NA
+//5G Band 3								
+CH102 	NA	NA	NA	NA	NA 	NA	NA	NA
+CH110	NA	NA	NA	NA	NA 	NA	NA	NA
+CH118	NA	NA	NA	NA	NA 	NA 	NA	NA
+CH126	NA	NA	NA	NA	NA 	NA 	NA	NA
+CH134	NA	NA	NA	NA	NA 	NA	NA	NA
+CH142 	NA	NA	NA	NA	NA 	NA 	NA	NA 
+//5G Band 4								
+CH151	NA 	NA	NA	NA	NA 	NA 	NA 	NA 
+CH159	NA 	NA	NA	NA	NA 	NA 	NA 	NA 
+CH167	NA	NA	NA	NA	NA 	NA 	NA 	NA 
+CH175	NA	NA	NA	NA	NA 	NA 	NA 	NA 
+##	END							
+//								
+//Table 21: ===========================================								
+//								
+##	5G, 80M, 1T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH42	16	19	15.5	16	18	19	16	16
+//5G Band 2								
+CH58	16	19	16	15.5	18	19	16	16
+//5G Band 3								
+CH106	15	19	18	16.5	18	19	NA	16
+CH122	15	19	18	NA	18	NA	NA	16
+CH138 	15	NA	18	19	18	19	NA	18
+//5G Band 4								
+CH155	15	19	NA	19	16	19	18	16
+CH171	15	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 22: ===========================================								
+//								
+##	5G, 80M, 2T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH42	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 2								
+CH58	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 3								
+CH106	NA	NA	NA	NA	NA	NA	NA	NA
+CH122	NA	NA	NA	NA	NA	NA	NA	NA
+CH138	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH155	NA	NA	NA	NA	NA	NA	NA	NA
+CH171	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 23: ===========================================								
+//								
+##	5G, 80M, 2T, HE, BF//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1								
+CH42	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 2								
+CH58	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 3								
+CH106	NA	NA	NA	NA	NA	NA	NA	NA
+CH122	NA	NA	NA	NA	NA	NA	NA	NA
+CH138	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH155	NA	NA	NA	NA	NA	NA	NA	NA
+CH171	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 24: ===========================================								
+//								
+##	5G, 160M, 1T, HE, NA//
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1 & 2								
+CH50	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 3								
+CH114	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH163	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 25: ===========================================								
+//								
+##	5G, 160M, 2T, HE, NA//											
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1 & 2								
+CH50	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 3								
+CH114	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH163	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
+//								
+//Table 26: ===========================================								
+//								
+##	5G, 160M, 2T, HE, BF//											
+##	START							
+##	#8#							
+##	FCC	ETSI	MKK	IC	KCC	ACMA	CN	UK
+PShape	1	0	0	1	0	0	0	0
+//5G Band 1 & 2								
+CH50	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 3								
+CH114	NA	NA	NA	NA	NA	NA	NA	NA
+//5G Band 4								
+CH163	NA	NA	NA	NA	NA	NA	NA	NA
+##	END							
