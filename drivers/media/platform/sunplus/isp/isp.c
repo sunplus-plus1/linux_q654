@@ -44,7 +44,7 @@ static unsigned long isp_clk_rate = 614 * 1000 * 1000; // 614MHz
 #define INPUT_REG_BUFF_DBUG (false)
 #define DEBUG_SUSPEND_RESUME (true)
 
-#define INTR_TIMEOUT_MODE (false)
+#define INTR_TIMEOUT_MODE (true)
 
 //#define REG_MEM_RESERVED
 
@@ -114,9 +114,9 @@ static struct list_head reg_queue_list;
 static struct mutex reg_queue_mtx;
 
 // clock gating relative
-static struct clk *cpu_clk = NULL;
-static struct clk *isp_drv_clk = NULL;
-static int clk_count = 0;
+static struct clk *vcl_clk = NULL;
+static struct clk *vcl5_clk = NULL;
+static struct clk *isp_clk = NULL;
 
 struct isp_framesizes {
 	u32 fourcc;
@@ -195,8 +195,8 @@ static const struct v4l2_ctrl_config isp_set_mlsc_fd = {
 	.step = 1,
 };
 
-static int isp_video_gate_enable(void);
-static int isp_video_gate_disable(void);
+static int isp_video_clk_enable(void);
+static int isp_video_clk_disable(void);
 
 static int isp_init_controls(struct isp_video_fh *handle);
 
@@ -3338,11 +3338,11 @@ static int isp_video_open(struct file *file)
 #endif
 #endif
 
-	isp_video_gate_enable();
+	isp_video_clk_enable();
 
 	isp_video_init_reg_setting();
 
-	isp_video_gate_disable();
+	isp_video_clk_disable();
 
 	if (DEBUG_BUFF_MESG)
 		printk("(isp)  open over handle=0x%px  %s(%d)	\n", handle, __func__, __LINE__);
@@ -4234,14 +4234,14 @@ static void isp_video_hw_setting(struct work_struct *work)
 	if (DEBUG_BUFF_MESG)
 		printk(" (isp) write reg start, hdl=0x%px  %s(%d)\n", vfh, __func__, __LINE__);
 
-	isp_video_gate_enable();
+	isp_video_clk_enable();
 
 	m2m_dev = vfh->m2m_dev;
 
 	if (get_buf_info(vfh) == -1) {
 		printk("(isp) get buf info failed %s(%d)\n", __func__, __LINE__);
 
-		isp_video_gate_disable();
+		isp_video_clk_disable();
 
 		mutex_unlock(&vfh->process_mtx);
 		mutex_unlock(&write_reg_mtx);
@@ -4363,7 +4363,7 @@ static void isp_video_hw_setting(struct work_struct *work)
 		isp_dbg_dump_frame_reg(isp_cur_base, vfh, vfh->frame_cnt);
 #endif
 
-	isp_video_gate_disable();
+	isp_video_clk_disable();
 
 	mutex_unlock(&write_reg_mtx);
 	mutex_unlock(&vfh->process_mtx);
@@ -4841,6 +4841,13 @@ static int isp_remove(struct platform_device *pdev)
 		video->isp_dev = NULL;
 	}
 
+	if (vcl_clk)
+		clk_unprepare(vcl_clk);
+	if (vcl5_clk)
+		clk_unprepare(vcl5_clk);
+	if (isp_clk)
+		clk_unprepare(isp_clk);
+
 	return 0;
 }
 
@@ -4856,7 +4863,7 @@ void isp_video_set_dump_log_status(u8 log_status)
 
 enum ISP_CLK_GATE_STATUS isp_video_get_clk_func_status(void)
 {
-	if ((CLK_GATING_FUNC_EN) && (isp_drv_clk != NULL) && (isp_dbg_clk_status != ISP_CLK_FUNC_DIS))
+	if ((CLK_GATING_FUNC_EN) && (isp_clk != NULL) && (isp_dbg_clk_status != ISP_CLK_FUNC_DIS))
 		return ISP_CLK_FUNC_EN;
 
 	return ISP_CLK_FUNC_DIS;
@@ -4866,41 +4873,31 @@ void isp_video_set_clk_func_status(enum ISP_CLK_GATE_STATUS clk_status)
 {
 	mutex_lock(&write_reg_mtx);
 	if (ISP_CLK_FUNC_DIS == clk_status) {
-		isp_video_gate_enable();
+		isp_video_clk_enable();
 		isp_dbg_clk_status = clk_status;
 	} else if (ISP_CLK_FUNC_EN == clk_status) {
 		isp_dbg_clk_status = clk_status;
-		isp_video_gate_disable();
+		isp_video_clk_disable();
 	}
 	mutex_unlock(&write_reg_mtx);
 }
 
-static int isp_video_gate_enable(void)
+static int isp_video_clk_enable(void)
 {
 	int ret = 0;
 	if (ISP_CLK_FUNC_EN == isp_video_get_clk_func_status()) {
-		ret = clk_enable(cpu_clk);
-		if (ret)
-			printk("cpu clk enable failed %s(%d) \n", __func__, __LINE__);
-
-		ret = clk_enable(isp_drv_clk);
+		ret = clk_enable(isp_clk);
 		if (ret)
 			printk("isp clk enable failed %s(%d) \n", __func__, __LINE__);
-		else
-			clk_count++;
 	}
 
 	return ret;
 }
 
-static int isp_video_gate_disable(void)
+static int isp_video_clk_disable(void)
 {
 	if (ISP_CLK_FUNC_EN == isp_video_get_clk_func_status()) {
-		if (clk_count > 0) {
-			clk_disable(cpu_clk);
-			clk_disable(isp_drv_clk);
-			clk_count--;
-		}
+		clk_disable(isp_clk);
 	}
 
 	return 0;
@@ -4926,30 +4923,42 @@ static int isp_probe(struct platform_device *pdev)
 
 	// get clk gating info
 	if (CLK_GATING_FUNC_EN) {
-		cpu_clk = devm_clk_get(&pdev->dev, "cpu_clk");
+		vcl_clk = devm_clk_get(&pdev->dev, "vcl_clk");
 
-		if (IS_ERR(cpu_clk)) {
-			dev_err(&pdev->dev, "Failed to get cpu_clk clock\n");
-			cpu_clk = NULL;
+		if (IS_ERR(vcl_clk)) {
+			dev_err(&pdev->dev, "Failed to get vcl_clk clock\n");
+			vcl_clk = NULL;
 		} else {
-			ret = clk_prepare(cpu_clk);
+			ret = clk_prepare_enable(vcl_clk);
 			if (ret) {
-				dev_err(&pdev->dev, "Failed to prepare enable cpu_clk clock\n");
+				dev_err(&pdev->dev, "Failed to prepare enable vcl_clk clock\n");
 			}
 		}
 
-		isp_drv_clk = devm_clk_get(&pdev->dev, "isp_clk");
+		vcl5_clk = devm_clk_get(&pdev->dev, "vcl5_clk");
 
-		if (IS_ERR(isp_drv_clk)) {
+		if (IS_ERR(vcl5_clk)) {
+			dev_err(&pdev->dev, "Failed to get vcl5_clk clock\n");
+			vcl5_clk = NULL;
+		} else {
+			ret = clk_prepare_enable(vcl5_clk);
+			if (ret) {
+				dev_err(&pdev->dev, "Failed to prepare enable vcl5_clk clock\n");
+			}
+		}
+
+		isp_clk = devm_clk_get(&pdev->dev, "isp_clk");
+
+		if (IS_ERR(isp_clk)) {
 			dev_err(&pdev->dev, "Failed to get isp_clk clock\n");
-			isp_drv_clk = NULL;
+			isp_clk = NULL;
 		} else {
 			// change isp clock rate
-			ret = clk_set_rate(isp_drv_clk, isp_clk_rate);
+			ret = clk_set_rate(isp_clk, isp_clk_rate);
 			if (ret) {
 				dev_err(&pdev->dev, "Failed to set isp clock=%ld\n", isp_clk_rate);
 			}
-			ret = clk_prepare(isp_drv_clk);
+			ret = clk_prepare(isp_clk);
 			if (ret) {
 				dev_err(&pdev->dev, "Failed to prepare enable isp_clk clock\n");
 			}
@@ -5044,12 +5053,12 @@ int isp_rtpm_suspend_ops(struct device *dev)
 #endif
 
 	/* disable stereo interrupt */
-	isp_video_gate_enable();
+	isp_video_clk_enable();
 
 	disable_irq(irq);
 	isp_video_intr_en(0);
 
-	isp_video_gate_disable();
+	isp_video_clk_disable();
 
 #ifdef ISP_REGULATOR
 	if (regulator)
@@ -5084,12 +5093,12 @@ int isp_rtpm_resume_ops(struct device *dev)
 #endif
 
 	/* disable stereo interrupt */
-	isp_video_gate_enable();
+	isp_video_clk_enable();
 
 	isp_video_intr_en(1);
 	enable_irq(irq);
 
-	isp_video_gate_disable();
+	isp_video_clk_disable();
 
 #ifdef ISP_PM_RST
 	if (rst)
@@ -5146,12 +5155,12 @@ int isp_suspend_ops(struct device *dev)
 #endif
 
 	/* disable stereo interrupt */
-	isp_video_gate_enable();
+	isp_video_clk_enable();
 
 	disable_irq(irq);
 	isp_video_intr_en(0);
 
-	isp_video_gate_disable();
+	isp_video_clk_disable();
 
 #ifdef ISP_REGULATOR
 	if (regulator) {
@@ -5183,12 +5192,12 @@ int isp_resume_ops(struct device *dev)
 #endif
 
 	/* disable stereo interrupt */
-	isp_video_gate_enable();
+	isp_video_clk_enable();
 
 	isp_video_intr_en(1);
 	enable_irq(irq);
 
-	isp_video_gate_disable();
+	isp_video_clk_disable();
 
 #ifdef ISP_PM_RST
 	if (rst)
