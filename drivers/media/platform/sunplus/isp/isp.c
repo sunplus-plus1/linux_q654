@@ -783,10 +783,13 @@ isp_video_set_3dnr_addr(struct isp_video_fh *vfh, struct cap_buff *cap_bufq,
 		last_v_addr = 0;
 	}
 
-	if (isp_video_alloc_3dnr(vfh, sc_en) == -1) {
-		// alloc failed, disable 3dnr
-		WRITE_REG(isp_cur_base, ISP_FUNC_EN_1, 0x0, FUNC_EN_1_3DNR_ENABLE_MASK);
-		goto err_alloc;
+	if ((vfh->hw_buff.d3nr_y_buff.max_size == 0) &&
+		(vfh->hw_buff.d3nr_mot_buff.max_size == 0)) {
+		if (isp_video_alloc_3dnr(vfh, sc_en) < 0) {
+			// alloc failed, disable 3dnr
+			WRITE_REG(isp_cur_base, ISP_FUNC_EN_1, 0x0, FUNC_EN_1_3DNR_ENABLE_MASK);
+			goto err_alloc;
+		}
 	}
 	if (D3NR_REDUCE_BANDWITH && (sc_en == 0)) {
 		// 3dnr y/uv out(t) = default alloc addr(0)
@@ -1174,62 +1177,90 @@ static int isp_video_alloc_3dnr(struct isp_video_fh *handle, int sc_en)
 	width = handle->out_format.fmt.pix.width;
 	height = handle->out_format.fmt.pix.height;
 
-	if ((handle->hw_buff.d3nr_y_buff.max_size == 0) &&
-		(handle->hw_buff.d3nr_uv_buff.max_size == 0) &&
-		(handle->hw_buff.d3nr_v_buff.max_size == 0) &&
-		(handle->hw_buff.d3nr_mot_buff.max_size == 0)) {
-		if (!D3NR_REDUCE_BANDWITH || (sc_en != 0)) {
-			// 3dnr y
-			handle->hw_buff.d3nr_y_buff.buff_idx = 1;
+	if (!D3NR_REDUCE_BANDWITH || (sc_en != 0)) {
+		// 3dnr y
+		handle->hw_buff.d3nr_y_buff.buff_idx = 1;
+
+		if (width > 0 && height > 0)
+			handle->hw_buff.d3nr_y_buff.max_size = D3NR_Y_SIZE_FORMULA(width, height);
+		else
+			handle->hw_buff.d3nr_y_buff.max_size = D3NR_Y_MAX_SIZE;
+
+		buff_size = ISP_PAGE_ALIGN(handle->hw_buff.d3nr_y_buff.max_size * 2);
+		virt_addr = dma_alloc_coherent(
+			handle->video->isp_dev->dev, buff_size,
+			&phy_addr, GFP_KERNEL);
+
+		if (virt_addr == NULL) {
+			printk("3dnr y dma alloc failed, buff_size=0x%lx  %s(%d)\n",
+				buff_size, __func__, __LINE__);
+			return -1;
+		}
+
+		memset((u8 *)virt_addr, 0, buff_size);
+
+		handle->hw_buff.d3nr_y_buff.sram_en = 0;
+		handle->hw_buff.d3nr_y_buff.phy_addr = phy_addr;
+		handle->hw_buff.d3nr_y_buff.virt_addr = virt_addr;
+
+		handle->hw_buff.d3nr_y_buff.phy_addr_out =
+			phy_addr + handle->hw_buff.d3nr_y_buff.max_size;
+		handle->hw_buff.d3nr_y_buff.virt_addr_out =
+			virt_addr + handle->hw_buff.d3nr_y_buff.max_size;
+
+		// 3dnr uv or 3dnr u
+		handle->hw_buff.d3nr_uv_buff.buff_idx = 1;
+
+		if (width > 0 && height > 0) {
+			if (out_sep_mode == 0)
+				handle->hw_buff.d3nr_uv_buff.max_size = D3NR_UV_SIZE_FORMULA(width, height);
+			else
+				handle->hw_buff.d3nr_uv_buff.max_size = D3NR_U_SIZE_FORMULA(width, height);
+		} else {
+			if (out_sep_mode == 0)
+				handle->hw_buff.d3nr_uv_buff.max_size = D3NR_UV_MAX_SIZE;
+			else
+				handle->hw_buff.d3nr_uv_buff.max_size = D3NR_U_MAX_SIZE;
+		}
+
+		buff_size = ISP_PAGE_ALIGN(handle->hw_buff.d3nr_uv_buff.max_size * 2);
+		virt_addr = dma_alloc_coherent(
+			handle->video->isp_dev->dev, buff_size,
+			&phy_addr, GFP_KERNEL);
+		if (virt_addr == NULL) {
+			printk("3dnr u dma alloc failed, buff_size=0x%lx  %s(%d)\n",
+				buff_size, __func__, __LINE__);
+			isp_video_free_3dnr(handle);
+			return -1;
+		}
+
+		memset((u8 *)virt_addr, 0, buff_size);
+
+		handle->hw_buff.d3nr_uv_buff.sram_en = 0;
+		handle->hw_buff.d3nr_uv_buff.phy_addr = phy_addr;
+		handle->hw_buff.d3nr_uv_buff.virt_addr = virt_addr;
+
+		handle->hw_buff.d3nr_uv_buff.phy_addr_out =
+			phy_addr + handle->hw_buff.d3nr_uv_buff.max_size;
+		handle->hw_buff.d3nr_uv_buff.virt_addr_out =
+			virt_addr + handle->hw_buff.d3nr_uv_buff.max_size;
+
+		// 3dnr v
+		if (out_sep_mode != 0) {
+			handle->hw_buff.d3nr_v_buff.buff_idx = 1;
 
 			if (width > 0 && height > 0)
-				handle->hw_buff.d3nr_y_buff.max_size = D3NR_Y_SIZE_FORMULA(width, height);
+				handle->hw_buff.d3nr_v_buff.max_size = D3NR_V_SIZE_FORMULA(width, height);
 			else
-				handle->hw_buff.d3nr_y_buff.max_size = D3NR_Y_MAX_SIZE;
+				handle->hw_buff.d3nr_v_buff.max_size = D3NR_V_MAX_SIZE;
 
-			buff_size = ISP_PAGE_ALIGN(handle->hw_buff.d3nr_y_buff.max_size * 2);
+			buff_size = ISP_PAGE_ALIGN(handle->hw_buff.d3nr_v_buff.max_size * 2);
 			virt_addr = dma_alloc_coherent(
 				handle->video->isp_dev->dev, buff_size,
 				&phy_addr, GFP_KERNEL);
 
 			if (virt_addr == NULL) {
-				printk("3dnr y dma alloc failed, buff_size=0x%lx  %s(%d)\n",
-					buff_size, __func__, __LINE__);
-				return -1;
-			}
-
-			memset((u8 *)virt_addr, 0, buff_size);
-
-			handle->hw_buff.d3nr_y_buff.sram_en = 0;
-			handle->hw_buff.d3nr_y_buff.phy_addr = phy_addr;
-			handle->hw_buff.d3nr_y_buff.virt_addr = virt_addr;
-
-			handle->hw_buff.d3nr_y_buff.phy_addr_out =
-				phy_addr + handle->hw_buff.d3nr_y_buff.max_size;
-			handle->hw_buff.d3nr_y_buff.virt_addr_out =
-				virt_addr + handle->hw_buff.d3nr_y_buff.max_size;
-
-			// 3dnr uv or 3dnr u
-			handle->hw_buff.d3nr_uv_buff.buff_idx = 1;
-
-			if (width > 0 && height > 0) {
-				if (out_sep_mode == 0)
-					handle->hw_buff.d3nr_uv_buff.max_size = D3NR_UV_SIZE_FORMULA(width, height);
-				else
-					handle->hw_buff.d3nr_uv_buff.max_size = D3NR_U_SIZE_FORMULA(width, height);
-			} else {
-				if (out_sep_mode == 0)
-					handle->hw_buff.d3nr_uv_buff.max_size = D3NR_UV_MAX_SIZE;
-				else
-					handle->hw_buff.d3nr_uv_buff.max_size = D3NR_U_MAX_SIZE;
-			}
-
-			buff_size = ISP_PAGE_ALIGN(handle->hw_buff.d3nr_uv_buff.max_size * 2);
-			virt_addr = dma_alloc_coherent(
-				handle->video->isp_dev->dev, buff_size,
-				&phy_addr, GFP_KERNEL);
-			if (virt_addr == NULL) {
-				printk("3dnr u dma alloc failed, buff_size=0x%lx  %s(%d)\n",
+				printk("3dnr v dma alloc failed, buff_size=0x%lx  %s(%d)\n",
 					buff_size, __func__, __LINE__);
 				isp_video_free_3dnr(handle);
 				return -1;
@@ -1237,47 +1268,14 @@ static int isp_video_alloc_3dnr(struct isp_video_fh *handle, int sc_en)
 
 			memset((u8 *)virt_addr, 0, buff_size);
 
-			handle->hw_buff.d3nr_uv_buff.sram_en = 0;
-			handle->hw_buff.d3nr_uv_buff.phy_addr = phy_addr;
-			handle->hw_buff.d3nr_uv_buff.virt_addr = virt_addr;
+			handle->hw_buff.d3nr_v_buff.sram_en = 0;
+			handle->hw_buff.d3nr_v_buff.phy_addr = phy_addr;
+			handle->hw_buff.d3nr_v_buff.virt_addr = virt_addr;
 
-			handle->hw_buff.d3nr_uv_buff.phy_addr_out =
-				phy_addr + handle->hw_buff.d3nr_uv_buff.max_size;
-			handle->hw_buff.d3nr_uv_buff.virt_addr_out =
-				virt_addr + handle->hw_buff.d3nr_uv_buff.max_size;
-
-			// 3dnr v
-			if (out_sep_mode != 0) {
-				handle->hw_buff.d3nr_v_buff.buff_idx = 1;
-
-				if (width > 0 && height > 0)
-					handle->hw_buff.d3nr_v_buff.max_size = D3NR_V_SIZE_FORMULA(width, height);
-				else
-					handle->hw_buff.d3nr_v_buff.max_size = D3NR_V_MAX_SIZE;
-
-				buff_size = ISP_PAGE_ALIGN(handle->hw_buff.d3nr_v_buff.max_size * 2);
-				virt_addr = dma_alloc_coherent(
-					handle->video->isp_dev->dev, buff_size,
-					&phy_addr, GFP_KERNEL);
-
-				if (virt_addr == NULL) {
-					printk("3dnr v dma alloc failed, buff_size=0x%lx  %s(%d)\n",
-						buff_size, __func__, __LINE__);
-					isp_video_free_3dnr(handle);
-					return -1;
-				}
-
-				memset((u8 *)virt_addr, 0, buff_size);
-
-				handle->hw_buff.d3nr_v_buff.sram_en = 0;
-				handle->hw_buff.d3nr_v_buff.phy_addr = phy_addr;
-				handle->hw_buff.d3nr_v_buff.virt_addr = virt_addr;
-
-				handle->hw_buff.d3nr_v_buff.phy_addr_out =
-					phy_addr + handle->hw_buff.d3nr_v_buff.max_size;
-				handle->hw_buff.d3nr_v_buff.virt_addr_out =
-					virt_addr + handle->hw_buff.d3nr_v_buff.max_size;
-			}
+			handle->hw_buff.d3nr_v_buff.phy_addr_out =
+				phy_addr + handle->hw_buff.d3nr_v_buff.max_size;
+			handle->hw_buff.d3nr_v_buff.virt_addr_out =
+				virt_addr + handle->hw_buff.d3nr_v_buff.max_size;
 		}
 
 		// 3dnr mot
