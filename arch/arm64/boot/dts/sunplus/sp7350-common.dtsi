@@ -1472,8 +1472,8 @@
 		compatible = "sunplus,sp7350-hantro-codec";
 		clocks = <&clkc VIDEO_CODEC>;
 		clock-names = "clk_vcodec";
-		resets = <&rstc RST_VIDEO_CODEC>, <&rstc RST_VCL>, <&rstc RST_VCL0>, <&rstc RST_VCL1>, <&rstc RST_VCL2>, <&rstc RST_VCL3>, <&rstc RST_VCL4>, <&rstc RST_VCL5>;
-		reset-names = "rstc_vcodec", "rstc_vcl", "rstc_vcl0", "rstc_vcl1", "rstc_vcl2", "rstc_vcl3", "rstc_vcl4", "rstc_vcl5";
+		resets = <&rstc RST_VIDEO_CODEC>;
+		reset-names = "rstc_vcodec";
 	};
 
 	video_codec_dec: hantro_vc8000d@f8168000 {
