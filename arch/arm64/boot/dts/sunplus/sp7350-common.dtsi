@@ -1158,14 +1158,9 @@
 		reset-names = "vcl_reset", "sdp_reset", "vcl5_reset";
 	};
 
-	timer_mem: tsp@f8c05000 {
-		reg = <0x0 0xf8c05000 0x0 0x1c0>;
-		status = "okay";
-	};
-
-	tsp {
+	tsp: tsp@f8c05000 {
 		compatible = "sunplus,sp7350-tsp";
-		memory-region = <&timer_mem>;
+		reg = <0x0 0xf8c05000 0x0 0x1c0>;
 		clocks = <&clkc VCL>, <&clkc VCL4>, <&clkc VCL5>;
 		clock-names = "vcl_clk", "tsp_clk", "vcl5_clk";
 		resets = <&rstc RST_VCL>, <&rstc RST_VCL4>, <&rstc RST_VCL5>;
