@@ -3280,6 +3280,11 @@
 	power-supply = <&gdc_video_isp_0v8>;
 };
 
+&tsp {
+	tsp_power-supply = <&gdc_video_isp_0v8>;
+	tsp_iso-supply = <&gdc_video_isp_iso>;
+};
+
 &watchdog {
 	timeout-sec = <10>;
 };

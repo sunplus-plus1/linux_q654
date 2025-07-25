@@ -20,7 +20,7 @@
 
 #define TSP_USE_CLK
 #define TSP_USE_RESET
-//#define TSP_USE_REGULATOR
+#define TSP_USE_REGULATOR
 
 #define tsp_dbg(d, fmt, arg...)         dev_dbg(d.pdev_dev, fmt, ##arg)
 #define tsp_info(d, fmt, arg...)        dev_info(d.pdev_dev, fmt, ##arg)
@@ -63,11 +63,11 @@ struct sunplus_timer {
 	struct class *class;
 	struct cdev cdev;
 	struct timer_list tsp_timer;
-	struct resource r;
+	struct resource *r;
 #ifdef TSP_USE_CLK
-	struct clk *clk_gate;		// VCL4
-	struct clk *vcl_clk_gate;	// VCL
-	struct clk *vcl5_clk_gate;	// VCL5
+	struct clk *clk_gate;		// VCL4 tsp
+	struct clk *vcl_clk_gate;	// VCL top
+	struct clk *vcl5_clk_gate;	// VCL5 axi bus
 #endif
 #ifdef TSP_USE_RESET
 	struct reset_control *vcl_rst;
@@ -75,7 +75,8 @@ struct sunplus_timer {
 	struct reset_control *vcl5_rst;
 #endif
 #ifdef TSP_USE_REGULATOR
-	struct regulator *regulator;
+	struct regulator *tsp_power;
+	struct regulator *tsp_iso;
 #endif
 	dev_t devno;
 	spinlock_t timer_lock;
@@ -268,57 +269,57 @@ u64 sunplus_tsp_read(int id)
 	case TSP_MIPI0:
 		timestamp = timecounter_read(&sunplus_mipi0_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "MIPI%d realtime:%lld\n", id, timestamp);
+                tsp_dbg(timer, "MIPI%d ktime:%lld\n", id, timestamp);
 		break;
 	case TSP_MIPI1:
 		timestamp = timecounter_read(&sunplus_mipi1_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "MIPI%d realtime:%lld\n", id, timestamp);
+                tsp_dbg(timer, "MIPI%d ktime:%lld\n", id, timestamp);
 		break;
 	case TSP_MIPI2:
 		timestamp = timecounter_read(&sunplus_mipi2_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "MIPI%d realtime:%lld\n", id, timestamp);
+                tsp_dbg(timer, "MIPI%d ktime:%lld\n", id, timestamp);
 		break;
 	case TSP_MIPI3:
 		timestamp = timecounter_read(&sunplus_mipi3_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "MIPI%d realtime:%lld\n", id, timestamp);
+                tsp_dbg(timer, "MIPI%d ktime:%lld\n", id, timestamp);
 		break;
 	case TSP_MIPI4:
 		timestamp = timecounter_read(&sunplus_mipi4_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "MIPI%d realtime:%lld\n", id, timestamp);
+                tsp_dbg(timer, "MIPI%d ktime:%lld\n", id, timestamp);
 		break;
 	case TSP_MIPI5:
 		timestamp = timecounter_read(&sunplus_mipi5_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "MIPI%d realtime:%lld\n", id, timestamp);
+                tsp_dbg(timer, "MIPI%d ktime:%lld\n", id, timestamp);
 		break;
 	case TSP_IMU0:
 		timestamp = timecounter_read(&sunplus_imu0_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "IMU%d realtime:%lld\n", id - TSP_IMU0, timestamp);
+                tsp_dbg(timer, "IMU%d ktime:%lld\n", id - TSP_IMU0, timestamp);
 		break;
 	case TSP_IMU1:
 		timestamp = timecounter_read(&sunplus_imu1_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "IMU%d realtime:%lld\n", id - TSP_IMU0, timestamp);
+                tsp_dbg(timer, "IMU%d ktime:%lld\n", id - TSP_IMU0, timestamp);
 		break;
 	case TSP_IMU2:
 		timestamp = timecounter_read(&sunplus_imu2_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "IMU%d realtime:%lld\n", id - TSP_IMU0, timestamp);
+                tsp_dbg(timer, "IMU%d ktime:%lld\n", id - TSP_IMU0, timestamp);
 		break;
 	case TSP_IMU3:
 		timestamp = timecounter_read(&sunplus_imu3_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-                tsp_dbg(timer, "IMU%d realtime:%lld\n", id - TSP_IMU0, timestamp);
+                tsp_dbg(timer, "IMU%d ktime:%lld\n", id - TSP_IMU0, timestamp);
 		break;
 	case TSP_GLOBAL:
 		timestamp = timecounter_read(&sunplus_tc);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
-		tsp_dbg(timer, "GLOBAL realtime:%lld\n", timestamp);
+		tsp_dbg(timer, "GLOBAL ktime:%lld\n", timestamp);
 		break;
 	default:
 		break;
@@ -382,17 +383,17 @@ u64 tsp_to_realtime(int id, u64 cycle)
 		tsp_dbg(timer, "IMU%d cyc:%lld realtime:%lld\n", id - TSP_IMU0, cycle, timestamp);
 		break;
 	case TSP_IMU1:
-			timestamp = timecounter_read_ext(&sunplus_imu1_tc, cycle);
+		timestamp = timecounter_read_ext(&sunplus_imu1_tc, cycle);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
 		tsp_dbg(timer, "IMU%d cyc:%lld realtime:%lld\n", id - TSP_IMU0, cycle, timestamp);
 			break;
 	case TSP_IMU2:
-			timestamp = timecounter_read_ext(&sunplus_imu2_tc, cycle);
+		timestamp = timecounter_read_ext(&sunplus_imu2_tc, cycle);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
 		tsp_dbg(timer, "IMU%d cyc:%lld realtime:%lld\n", id - TSP_IMU0, cycle, timestamp);
 			break;
 	case TSP_IMU3:
-			timestamp = timecounter_read_ext(&sunplus_imu3_tc, cycle);
+		timestamp = timecounter_read_ext(&sunplus_imu3_tc, cycle);
 		timestamp = (timestamp - timer.tsp_time_s) + timer.raw_time_s;
 		tsp_dbg(timer, "IMU%d cyc:%lld realtime:%lld\n", id - TSP_IMU0, cycle, timestamp);
 			break;
@@ -416,18 +417,18 @@ static ssize_t sunplus_tsp_debugfs_show(struct device *dev, struct device_attrib
 
 	for (id = TSP_MIPI0; id <= TSP_MIPI5; ++id ) {
 		tsp_time = sunplus_tsp_read(id);
-		tsp_info(timer, "MIPI%d tsp_time:%lld (ns)\n", id, tsp_time);
+		tsp_info(timer, "MIPI%d ktime:%lld (ns)\n", id, tsp_time);
 		tsp_info(timer, "MIPI%d real_time:%lld (ns)\n", id, real_time - (monotonic_raw_time - tsp_time));
 	}
 
 	for (id = TSP_IMU0; id <= TSP_IMU3; ++id ) {
 		tsp_time = sunplus_tsp_read(id);
-                tsp_info(timer, "GPI%d tsp_time:%lld (ns)\n", (id - TSP_IMU0), sunplus_tsp_read(id));
+                tsp_info(timer, "GPI%d ktime:%lld (ns)\n", (id - TSP_IMU0), sunplus_tsp_read(id));
 		tsp_info(timer, "GPI%d real_time:%lld (ns)\n", (id - TSP_IMU0), real_time - (monotonic_raw_time - tsp_time));
         }
 
 	tsp_time = sunplus_tsp_read(TSP_GLOBAL);
-	tsp_info(timer, "GLOBAL tsp_time:%lld (ns)\n", tsp_time);
+	tsp_info(timer, "GLOBAL ktime:%lld (ns)\n", tsp_time);
 	tsp_info(timer, "GLOBAL real_time:%lld (ns)\n", real_time - (monotonic_raw_time - tsp_time));
 
 	return 0;
@@ -585,11 +586,10 @@ u64 tsp_cycle_counter(int id)
 	if (cycle_now <= cycle_last){
 		cycle_delta = cycle_global;
 	} else {
-		if (cycle_now <= cycle_global) {
+		if (cycle_now <= cycle_global)
 			cycle_delta = cycle_now;
-		} else {
+		else
 			cycle_delta = cycle_global;
-		}
 	}
 
 	return cycle_delta;
@@ -850,6 +850,7 @@ static struct cyclecounter sunplus_imu3_cc = {
 
 static int timer_init(struct device_node *np_dev)
 {
+	struct platform_device *pdev = container_of(timer.pdev_dev, struct platform_device, dev);
 	struct device_node *np;
 	const __be32 *prop;
 	u32 v, num_buffers;
@@ -859,6 +860,51 @@ static int timer_init(struct device_node *np_dev)
 	int j;
 
 	spin_lock_init(&timer.timer_lock);
+
+#ifdef TSP_USE_REGULATOR
+	timer.tsp_power= devm_regulator_get(timer.pdev_dev, "tsp_power");
+	if (IS_ERR(timer.tsp_power)) {
+		tsp_err(timer, "%s, tsp_power regulator_get() fail\n", __func__);
+		timer.tsp_power = NULL;
+	} else {
+		ret = regulator_enable(timer.tsp_power);
+		if (ret)
+			tsp_err(timer, "%s, tsp_power regulator_enable fail\n", __func__);
+	}
+
+	timer.tsp_iso= devm_regulator_get(timer.pdev_dev, "tsp_iso");
+	if (IS_ERR(timer.tsp_iso)) {
+		tsp_err(timer, "%s, tsp_iso regulator_get() fail\n", __func__);
+		timer.tsp_iso = NULL;
+	} else {
+		ret = regulator_enable(timer.tsp_iso);
+		if (ret)
+			tsp_err(timer, "%s, tsp_iso regulator_enable fail\n", __func__);
+	}
+#endif
+
+#ifdef TSP_USE_RESET
+	timer.vcl_rst = of_reset_control_get_shared(np_dev, "vcl_reset");
+	if (IS_ERR(timer.vcl_rst)){
+		tsp_err(timer, "%s, vcl_reset get of_reset_control_get_shared() fail\n", __func__);
+		timer.vcl_rst = NULL;
+	} else
+		reset_control_deassert(timer.vcl_rst);
+
+	timer.vcl5_rst = of_reset_control_get_shared(np_dev, "vcl5_reset");
+	if (IS_ERR(timer.vcl5_rst)){
+		tsp_err(timer, "%s, vcl5_reset get of_reset_control_get_shared() fail\n", __func__);
+		timer.vcl5_rst = NULL;
+	} else
+		reset_control_deassert(timer.vcl5_rst);
+
+	timer.timer_rst = of_reset_control_get_shared(np_dev, "timer_reset");
+	if (IS_ERR(timer.timer_rst)){
+		tsp_err(timer, "%s, timer_reset get of_reset_control_get_shared() fail\n", __func__);
+		timer.timer_rst = NULL;
+	} else
+		reset_control_deassert(timer.timer_rst);
+#endif
 
 #ifdef TSP_USE_CLK
 	timer.vcl_clk_gate = of_clk_get_by_name(np_dev, "vcl_clk");
@@ -898,25 +944,20 @@ static int timer_init(struct device_node *np_dev)
 	}
 #endif
 
-	np = of_parse_phandle(np_dev, "memory-region", 0);
-	if (!np) {
-		tsp_err(timer, "No %s specified\n", "memory-region");
+	timer.r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!timer.r) {
+		pr_err("tsp no memory recourse provieded\n");
+		ret = -ENXIO;
 		goto error;
 	}
 
-	ret = of_address_to_resource(np, 0, &timer.r);
-	if (ret) {
-		tsp_err(timer, "No memory address assigned to the region\n");
+	if (!request_mem_region(timer.r->start, resource_size(timer.r), "tsp")) {
+		pr_err("tsp controller already in use\n");
+		ret = -EBUSY;
 		goto error;
 	}
 
-	if (!request_mem_region(timer.r.start, resource_size(&timer.r), np->full_name)) {
-		ret = -ENOMEM;
-		of_node_put(np);
-		goto error;
-	}
-
-	timer_base = ioremap(timer.r.start, resource_size(&timer.r));
+	timer_base = ioremap(timer.r->start, resource_size(timer.r));
 	WARN_ON(!timer_base);
 
 	prop = of_get_property(np_dev, "num_tsp_device", &len);
@@ -986,69 +1027,6 @@ static int timer_init(struct device_node *np_dev)
 		goto error;
 	}
 	timer.shift = be32_to_cpup(prop);
-
-#if 0
-#ifdef TSP_USE_CLK
-	timer.vcl_clk_gate = of_clk_get_by_name(np_dev, "vcl_clk");
-	if (IS_ERR(timer.vcl_clk_gate)) {
-		tsp_err(timer , "%s Failed to get vcl clock gate\n", __func__);
-		timer.vcl_clk_gate = NULL;
-	} else {
-		ret = clk_prepare_enable(timer.vcl_clk_gate);
-		if (ret)
-			tsp_err(timer , "%s prepare vcl clock failed\n", __func__);
-		else
-			tsp_dbg(timer , "%s prepare vcl clock \n", __func__);
-	}
-
-	timer.vcl5_clk_gate = of_clk_get_by_name(np_dev, "vcl5_clk");
-	if (IS_ERR(timer.vcl5_clk_gate)) {
-		tsp_err(timer, "%s Failed to get vcl5 clock gate\n", __func__);
-		timer.vcl5_clk_gate = NULL;
-	} else {
-		ret = clk_prepare_enable(timer.vcl5_clk_gate);
-		if (ret)
-			tsp_err(timer , "%s prepare vcl5 clock failed\n", __func__);
-		else
-			tsp_dbg(timer , "%s prepare vcl5 clock \n", __func__);
-	}
-
-	timer.clk_gate = of_clk_get_by_name(np_dev, "tsp_clk");
-	if (IS_ERR(timer.clk_gate)) {
-		tsp_err(timer, "%s Failed to get clock gate\n", __func__);
-		timer.clk_gate = NULL;
-	} else {
-		ret = clk_prepare_enable(timer.clk_gate);
-		if (ret)
-			tsp_err(timer , "%s prepare clock failed\n", __func__);
-		else
-			tsp_dbg(timer , "%s prepare clock \n", __func__);
-	}
-#endif
-#endif
-
-#ifdef TSP_USE_RESET
-	timer.vcl_rst = of_reset_control_get_shared(np_dev, "vcl_reset");
-	if (IS_ERR(timer.vcl_rst)){
-		tsp_err(timer, "%s, vcl_reset get of_reset_control_get_shared() fail\n", __func__);
-		timer.vcl_rst = NULL;
-	} else
-		reset_control_deassert(timer.vcl_rst);
-
-	timer.vcl5_rst = of_reset_control_get_shared(np_dev, "vcl5_reset");
-	if (IS_ERR(timer.vcl5_rst)){
-		tsp_err(timer, "%s, vcl5_reset get of_reset_control_get_shared() fail\n", __func__);
-		timer.vcl5_rst = NULL;
-	} else
-		reset_control_deassert(timer.vcl5_rst);
-
-	timer.timer_rst = of_reset_control_get_shared(np_dev, "timer_reset");
-	if (IS_ERR(timer.timer_rst)){
-		tsp_err(timer, "%s, timer_reset get of_reset_control_get_shared() fail\n", __func__);
-		timer.timer_rst = NULL;
-	} else
-		reset_control_deassert(timer.timer_rst);
-#endif
 
 	return 0;
 error:
@@ -1149,15 +1127,6 @@ static int sunplus_timer_probe(struct platform_device *pdev)
 	if (ret)
 		goto error;
 
-#ifdef TSP_USE_REGULATOR
-	timer.regulator = devm_regulator_get_optional(&pdev->dev, "ext_buck1_0v8");
-	if (IS_ERR(timer.regulator)) {
-		tsp_err(timer.pdev_dev, "%s, regulator_get() fail\n", __func__);
-		timer.regulator = NULL;
-	} else
-		regulator_enable(timer.regulator);
-#endif
-
 	/* tsp_sw_rst */
 	writel(1, timer_base + SUNPLUS_TSP_CTRL_1);
 
@@ -1178,11 +1147,6 @@ static int sunplus_timer_remove(struct platform_device *pdev)
 {
 	del_timer(&timer.tsp_timer);
 
-#ifdef TSP_USE_REGULATOR
-	if (timer.regulator)
-		regulator_disable(timer.regulator);
-#endif
-
 	device_remove_file(dev, &dev_attr_sunplus_tsp_debugfs);
 	device_remove_file(dev, &dev_attr_clk_funcEn);
 	device_remove_file(dev, &dev_attr_clk_lock);
@@ -1193,17 +1157,36 @@ static int sunplus_timer_remove(struct platform_device *pdev)
 	iounmap(timer_base);
 
 	//free memory region
-	release_mem_region(timer.r.start, resource_size(&timer.r));
+	release_mem_region(timer.r->start, resource_size(timer.r));
 
 #ifdef TSP_USE_CLK
 	if (timer.clk_gate)
 		clk_disable_unprepare(timer.clk_gate);
 
-	if (timer.vcl_clk_gate)
-		clk_disable_unprepare(timer.vcl_clk_gate);
-
 	if (timer.vcl5_clk_gate)
 		clk_disable_unprepare(timer.vcl5_clk_gate);
+
+	if (timer.vcl_clk_gate)
+		clk_disable_unprepare(timer.vcl_clk_gate);
+#endif
+
+#ifdef TSP_USE_RESET
+	if (timer.timer_rst)
+		reset_control_assert(timer.timer_rst);
+
+	if (timer.vcl5_rst)
+		reset_control_assert(timer.vcl5_rst);
+
+	if (timer.vcl_rst)
+		reset_control_assert(timer.vcl_rst);
+#endif
+
+#ifdef TSP_USE_REGULATOR
+	if (timer.tsp_iso)
+		regulator_disable(timer.tsp_iso);
+
+	if (timer.tsp_power)
+		regulator_disable(timer.tsp_power);
 #endif
 
 	return 0;
@@ -1232,6 +1215,18 @@ static int sunplus_timer_recover_setting(void)
 static int sunplus_suspend_common(void)
 {
 	writel(timer.tsp_ctrl0_val & 0xFFFFFC00, timer_base + SUNPLUS_TSP_CTRL_0);
+
+#ifdef TSP_USE_CLK
+	if (timer.clk_gate)
+		sunplus_timer_clk_gating(timer.clk_gate, true);
+
+	if (timer.vcl5_clk_gate)
+		sunplus_timer_clk_gating(timer.vcl5_clk_gate, true);
+
+	if (timer.vcl_clk_gate)
+		sunplus_timer_clk_gating(timer.vcl_clk_gate, true);
+#endif
+
 #ifdef TSP_USE_RESET
 	if (timer.timer_rst)
 		reset_control_assert(timer.timer_rst);
@@ -1242,15 +1237,15 @@ static int sunplus_suspend_common(void)
 	if (timer.vcl_rst)
 		reset_control_assert(timer.vcl_rst);
 #endif
-#ifdef TSP_USE_CLK
-	sunplus_timer_clk_gating(timer.clk_gate, true);
-	sunplus_timer_clk_gating(timer.vcl5_clk_gate, true);
-	sunplus_timer_clk_gating(timer.vcl_clk_gate, true);
-#endif
+
 #ifdef TSP_USE_REGULATOR
-	if (timer.regulator)
-		regulator_disable(timer.regulator);
+	if (timer.tsp_iso)
+		regulator_disable(timer.tsp_iso);
+
+	if (timer.tsp_power)
+		regulator_disable(timer.tsp_power);
 #endif
+
 	timer.in_suspend = true;
 
 	return 0 ;
@@ -1271,18 +1266,25 @@ static int sunplus_timer_suspend_ops(struct device *dev)
 static int sunplus_timer_resume_ops(struct device *dev)
 {
 	unsigned long flags;
+	int ret;
 
 	tsp_info(timer, "%s \n", __func__);
 	spin_lock_irqsave(&timer.timer_lock, flags);
+
 #ifdef TSP_USE_REGULATOR
-	if (timer.regulator)
-		regulator_enable(timer.regulator);
+	if (timer.tsp_power) {
+		ret = regulator_enable(timer.tsp_power);
+		if (ret)
+			tsp_err(timer, "%s, tsp_power regulator_enable fail\n", __func__);
+	}
+
+	if (timer.tsp_iso) {
+		ret = regulator_enable(timer.tsp_iso);
+		if (ret)
+			tsp_err(timer, "%s, tsp_iso regulator_enable fail\n", __func__);
+	}
 #endif
-#ifdef TSP_USE_CLK
-	sunplus_timer_clk_gating(timer.vcl_clk_gate, false);
-	sunplus_timer_clk_gating(timer.vcl5_clk_gate, false);
-	sunplus_timer_clk_gating(timer.clk_gate, false);
-#endif
+
 #ifdef TSP_USE_RESET
 	if (timer.vcl_rst)
 		reset_control_deassert(timer.vcl_rst);
@@ -1292,6 +1294,12 @@ static int sunplus_timer_resume_ops(struct device *dev)
 
 	if (timer.timer_rst)
 		reset_control_deassert(timer.timer_rst);
+#endif
+
+#ifdef TSP_USE_CLK
+	sunplus_timer_clk_gating(timer.vcl_clk_gate, false);
+	sunplus_timer_clk_gating(timer.vcl5_clk_gate, false);
+	sunplus_timer_clk_gating(timer.clk_gate, false);
 #endif
 
 	writel(1, timer_base + SUNPLUS_TSP_CTRL_1); /* tsp_sw_rst */
