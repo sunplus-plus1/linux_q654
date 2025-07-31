@@ -265,14 +265,17 @@ static ssize_t mon_port_show(struct device *dev, struct device_attribute *attr, 
 static ssize_t mon_port_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	unsigned char ret = count;
-	long val;
+	long shift;
 	ssize_t status;
 
-	status = kstrtol(buf, 0, &val);
+	status = kstrtol(buf, 0, &shift);
 	if (status)
 		return status;
 
-	select_ports |= (0x01 << val);
+	if (shift < 0 || shift >= MASTER_MAX_CNT)
+    	return -EINVAL;	
+
+	select_ports |= (1ULL << shift);
 	DBG_INFO("ulSelectPorts x%x\n", select_ports);
 
 	return ret;
