@@ -2677,6 +2677,9 @@ void device_run_stop_ctrl(int enable)
 	udc = sp_udc_arry[0];
 	USBx = udc->reg;
 
+	if (USBx->DEVC_ERSTSZ == 0)
+		return;
+
 	if (enable) {
 		USBx->DEVC_ERSTSZ = udc->event_ring_seg_total;
 		USBx->DEVC_CS |= UDC_RUN;

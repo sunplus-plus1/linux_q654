@@ -667,7 +667,7 @@ static irqreturn_t otg_irq(int irq, void *dev_priv)
 		writel(val, &otg_host->regs_otg->otg_int_st);
 
 		val = readl(&otg_host->regs_otg->otg_device_ctrl);
-		val &= ~A_CLE_ERR_BIT;
+		val |= A_CLE_ERR_BIT;
 		val |= A_BUS_DROP_BIT;
 		writel(val, &otg_host->regs_otg->otg_device_ctrl);
 
