@@ -74,6 +74,9 @@ struct usb_hub {
 	struct timer_list	irq_urb_retry;
 	struct usb_port		**ports;
 	struct list_head        onboard_hub_devs;
+#ifdef	CONFIG_USB_LOGO_TEST
+	struct task_struct	*usb_logo_thread;
+#endif
 };
 
 /**

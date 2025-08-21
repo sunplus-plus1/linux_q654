@@ -228,8 +228,10 @@ struct usb_phy_io_ops sp_phy_ios = {
 int hnp_polling_watchdog(void *arg)
 {
 	struct sp_otg *otg_host = (struct sp_otg *)arg;
+	#if 0
 	#ifndef	CONFIG_USB_OTG
 	struct usb_otg_descriptor *desc = NULL;
+	#endif
 	#endif
 	struct usb_device *udev = NULL;
 	struct usb_hcd *hcd = NULL;

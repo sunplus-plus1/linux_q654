@@ -355,6 +355,11 @@ config USB_EHCI_SUNPLUS
 	help
 	  Enable support for the Sunplus SOC's on-chip EHCI controller.
 
+config USB_LOGO_TEST
+	bool "USB Logo Test support"
+	depends on USB_EHCI_SUNPLUS
+	select USB_BAD_DEVICE_INFO
+
 endif # USB_EHCI_HCD
 
 config USB_OXU210HP_HCD
