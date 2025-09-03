@@ -88,8 +88,8 @@
 //#define ETHERNET_WITH_RMII_PHY
 
 //#define DRAM_SIZE_2GB
-#define DRAM_SIZE_4GB
-//#define DRAM_SIZE_8GB
+//#define DRAM_SIZE_4GB
+#define DRAM_SIZE_8GB
 
 #include "sp7350-common.dtsi"
 

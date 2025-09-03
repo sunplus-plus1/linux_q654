@@ -35,6 +35,10 @@
 
 #define LT8912B_HDMI_ENABLE
 
+//#define DRAM_SIZE_2GB
+#define DRAM_SIZE_4GB
+//#define DRAM_SIZE_8GB
+
 #include "sp7350-common.dtsi"
 #include <dt-bindings/input/input.h>
 
@@ -48,15 +52,26 @@
 
 	memory@0 {
 		device_type = "memory";
+#ifdef DRAM_SIZE_2GB
+		reg = <0x0 0x0        0x0 0x80000000>;
+#else
 		reg = <0x0 0x0        0x0 0xf0000000>;
+#endif
 		numa-node-id = <0>;
 	};
 
+#if defined(DRAM_SIZE_4GB) || defined(DRAM_SIZE_8GB)
 	memory@100000000 {
 		device_type = "memory";
+#if defined(DRAM_SIZE_4GB)
 		reg = <0x1 0x0        0x0 0x10000000>;
+#else
+		reg = <0x1 0x0        0x1 0x00000000>,
+		      <0x3 0x0        0x0 0x10000000>;
+#endif
 		numa-node-id = <1>;
 	};
+#endif
 
 	distance-map {
 		compatible = "numa-distance-map-v1";
