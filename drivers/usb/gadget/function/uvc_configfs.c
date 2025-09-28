@@ -3349,14 +3349,13 @@ static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 			memcpy(*dest, &m->desc, sizeof(m->desc));
 			*dest += sizeof(m->desc);
 		} else if (fmt->type == UVCG_H264) {
-			struct uvc_format_frame_based *h264 = *dest;
 			struct uvcg_h264 *h =
 				container_of(fmt, struct uvcg_h264, fmt);
 
+			h->desc.bFormatIndex = n + 1;
+			h->desc.bNumFrameDescriptors = fmt->num_frames;
 			memcpy(*dest, &h->desc, sizeof(h->desc));
 			*dest += sizeof(h->desc);
-			h264->bNumFrameDescriptors = fmt->num_frames;
-			h264->bFormatIndex = n + 1;
 		} else {
 			return -EINVAL;
 		}
