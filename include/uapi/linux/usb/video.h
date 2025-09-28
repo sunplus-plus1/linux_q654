@@ -330,12 +330,12 @@ struct uvc_processing_unit_descriptor {
 	__u8   bSourceID;
 	__le16 wMaxMultiplier;
 	__u8   bControlSize;
-	__u8   bmControls[2];
+	__u8   bmControls[3];
 	__u8   iProcessing;
 	__u8   bmVideoStandards;
 } __attribute__((__packed__));
 
-#define UVC_DT_PROCESSING_UNIT_SIZE(n)			(10+(n))
+#define UVC_DT_PROCESSING_UNIT_SIZE(n)			(11+(n))
 
 /* 3.7.2.6. Extension Unit Descriptor */
 struct uvc_extension_unit_descriptor {
@@ -594,6 +594,64 @@ struct UVC_FRAME_MJPEG(n) {				\
 	__le32 dwMaxVideoFrameBufferSize;		\
 	__le32 dwDefaultFrameInterval;			\
 	__u8   bFrameIntervalType;			\
+	__le32 dwFrameInterval[n];			\
+} __attribute__ ((packed))
+
+/* Frame Based Payload - 3.1.1. Frame Based Video Format Descriptor */
+struct uvc_format_frame_based {
+    __u8  bLength;
+    __u8  bDescriptorType;
+    __u8  bDescriptorSubType;
+    __u8  bFormatIndex;
+    __u8  bNumFrameDescriptors;
+    __u8  guidFormat[16];
+    __u8  bBitsPerPixel;
+    __u8  bDefaultFrameIndex;
+    __u8  bAspectRatioX;
+    __u8  bAspectRatioY;
+    __u8  bmInterlaceFlags;
+    __u8  bCopyProtect;
+    __u8  bVariableSize;
+} __attribute__((__packed__));
+
+#define UVC_DT_FORMAT_FRAME_BASED_SIZE                 28
+
+/* Frame Based Payload - 3.1.2. Frame Based Video Frame Descriptor */
+struct uvc_frame_frame_based {
+    __u8  bLength;
+    __u8  bDescriptorType;
+    __u8  bDescriptorSubType;
+    __u8  bFrameIndex;
+    __u8  bmCapabilities;
+    __u16 wWidth;
+    __u16 wHeight;
+    __u32 dwMinBitRate;
+    __u32 dwMaxBitRate;
+    __u32 dwDefaultFrameInterval;
+    __u8  bFrameIntervalType;
+    __u32 dwBytesPerLine;
+    __u32 dwFrameInterval[];
+} __attribute__((__packed__));
+
+#define UVC_DT_FRAME_FRAME_BASED_SIZE(n)               (26 + 4 * (n))
+
+#define UVC_FRAME_FRAME_BASED(n) \
+	uvc_frame_frame_based_##n
+
+#define DECLARE_UVC_FRAME_FRAME_BASED(n)		\
+struct UVC_FRAME_FRAME_BASED(n) {				\
+	__u8   bLength;					\
+	__u8   bDescriptorType;				\
+	__u8   bDescriptorSubType;			\
+	__u8   bFrameIndex;				\
+	__u8   bmCapabilities;				\
+	__le16 wWidth;					\
+	__le16 wHeight;					\
+	__le32 dwMinBitRate;				\
+	__le32 dwMaxBitRate;				\
+	__le32 dwDefaultFrameInterval;			\
+	__u8   bFrameIntervalType;			\
+	__le32 dwBytesPerLine;				\
 	__le32 dwFrameInterval[n];			\
 } __attribute__ ((packed))
 

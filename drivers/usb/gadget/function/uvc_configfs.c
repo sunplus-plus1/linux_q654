@@ -276,7 +276,7 @@ static struct config_item *uvcg_control_header_make(struct config_group *group,
 	h->desc.bLength			= UVC_DT_HEADER_SIZE(1);
 	h->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
 	h->desc.bDescriptorSubType	= UVC_VC_HEADER;
-	h->desc.bcdUVC			= cpu_to_le16(0x0110);
+	h->desc.bcdUVC			= cpu_to_le16(0x0150);
 	h->desc.dwClockFrequency	= cpu_to_le32(48000000);
 
 	config_item_init_type_name(&h->item, name, &uvcg_control_header_type);
@@ -1571,6 +1571,7 @@ static const struct uvcg_config_group_type uvcg_control_grp_type = {
 static const char * const uvcg_format_names[] = {
 	"uncompressed",
 	"mjpeg",
+	"framebased",
 };
 
 static struct uvcg_color_matching *
@@ -1936,7 +1937,7 @@ static ssize_t uvcg_frame_##cname##_show(struct config_item *item, char *page)\
 	opts = to_f_uvc_opts(opts_item);				\
 									\
 	mutex_lock(&opts->lock);					\
-	result = sprintf(page, "%u\n", f->frame.cname);			\
+	result = sprintf(page, "%u\n", f->frame.cname);	\
 	mutex_unlock(&opts->lock);					\
 									\
 	mutex_unlock(su_mutex);						\
@@ -1970,7 +1971,7 @@ static ssize_t  uvcg_frame_##cname##_store(struct config_item *item,	\
 		goto end;						\
 	}								\
 									\
-	f->frame.cname = num;						\
+	f->frame.cname = num;				\
 	ret = len;							\
 end:									\
 	mutex_unlock(&opts->lock);					\
@@ -2029,10 +2030,11 @@ static ssize_t uvcg_frame_dw_frame_interval_show(struct config_item *item,
 						 char *page)
 {
 	struct uvcg_frame *frm = to_uvcg_frame(item);
+	struct uvc_frame_frame_based* hf;
 	struct f_uvc_opts *opts;
 	struct config_item *opts_item;
 	struct mutex *su_mutex = &frm->item.ci_group->cg_subsys->su_mutex;
-	int result, i;
+	int result, i, n=0;
 	char *pg = page;
 
 	mutex_lock(su_mutex); /* for navigating configfs hierarchy */
@@ -2041,7 +2043,19 @@ static ssize_t uvcg_frame_dw_frame_interval_show(struct config_item *item,
 	opts = to_f_uvc_opts(opts_item);
 
 	mutex_lock(&opts->lock);
-	for (result = 0, i = 0; i < frm->frame.b_frame_interval_type; ++i) {
+
+	if (frm->fmt_type == UVCG_UNCOMPRESSED){
+			n = frm->frame.b_frame_interval_type;
+	}
+	else if (frm->fmt_type == UVCG_MJPEG){
+		n = frm->frame.b_frame_interval_type;
+	}
+	else if (frm->fmt_type == UVCG_H264){
+		hf = to_uvc_frame_based(&frm->frame);
+		n = hf->bFrameIntervalType;
+	}
+
+	for (result = 0, i = 0; i < n; ++i) {
 		result += sprintf(pg, "%u\n", frm->dw_frame_interval[i]);
 		pg = page + result;
 	}
@@ -2055,6 +2069,7 @@ static ssize_t uvcg_frame_dw_frame_interval_store(struct config_item *item,
 						  const char *page, size_t len)
 {
 	struct uvcg_frame *ch = to_uvcg_frame(item);
+	struct uvc_frame_frame_based* hf;
 	struct f_uvc_opts *opts;
 	struct config_item *opts_item;
 	struct uvcg_format *fmt;
@@ -2092,7 +2107,12 @@ static ssize_t uvcg_frame_dw_frame_interval_store(struct config_item *item,
 
 	kfree(ch->dw_frame_interval);
 	ch->dw_frame_interval = frm_intrv;
-	ch->frame.b_frame_interval_type = n;
+	if(ch->fmt_type == UVCG_H264){
+		hf = to_uvc_frame_based(&ch->frame);
+		hf->bFrameIntervalType = n;
+	}else{
+		ch->frame.b_frame_interval_type = n;
+	}
 	sort(ch->dw_frame_interval, n, sizeof(*ch->dw_frame_interval),
 	     uvcg_config_compare_u32, NULL);
 	ret = len;
@@ -2132,6 +2152,7 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 	struct f_uvc_opts *opts;
 	struct config_item *opts_item;
 	struct uvcg_frame_ptr *frame_ptr;
+	struct uvc_frame_frame_based* hf;
 
 	h = kzalloc(sizeof(*h), GFP_KERNEL);
 	if (!h)
@@ -2157,6 +2178,12 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 	} else if (fmt->type == UVCG_MJPEG) {
 		h->frame.b_descriptor_subtype = UVC_VS_FRAME_MJPEG;
 		h->fmt_type = UVCG_MJPEG;
+	} else if (fmt->type == UVCG_H264) {
+		h->frame.b_descriptor_subtype = UVC_VS_FRAME_FRAME_BASED;//  UVC_VS_FORMAT_STREAM_BASED
+		h->fmt_type = UVCG_H264;
+
+		hf = to_uvc_frame_based(&h->frame);
+		hf->dwDefaultFrameInterval = 333333;
 	} else {
 		mutex_unlock(&opts->lock);
 		kfree(h);
@@ -2677,6 +2704,269 @@ static const struct uvcg_config_group_type uvcg_mjpeg_grp_type = {
 	.name = "mjpeg",
 };
 
+/* streaming/framebased/<NAME> */
+
+static struct configfs_group_operations uvcg_h264_group_ops = {
+	.make_item		= uvcg_frame_make,
+	.drop_item		= uvcg_frame_drop,
+};
+
+static ssize_t uvcg_h264_guid_format_show(struct config_item *item,
+							char *page)
+{
+	struct uvcg_h264 *ch = to_uvcg_h264(item);
+	struct f_uvc_opts *opts;
+	struct config_item *opts_item;
+	struct mutex *su_mutex = &ch->fmt.group.cg_subsys->su_mutex;
+
+	mutex_lock(su_mutex); /* for navigating configfs hierarchy */
+
+	opts_item = ch->fmt.group.cg_item.ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+	memcpy(page, ch->desc.guidFormat, sizeof(ch->desc.guidFormat));
+	mutex_unlock(&opts->lock);
+
+	mutex_unlock(su_mutex);
+
+	return sizeof(ch->desc.guidFormat);
+}
+
+static ssize_t uvcg_h264_guid_format_store(struct config_item *item,
+						   const char *page, size_t len)
+{
+	struct uvcg_h264 *ch = to_uvcg_h264(item);
+	struct f_uvc_opts *opts;
+	struct config_item *opts_item;
+	struct mutex *su_mutex = &ch->fmt.group.cg_subsys->su_mutex;
+	const struct uvc_format_desc *format;
+	u8 tmpguidFormat[sizeof(ch->desc.guidFormat)];
+	int ret;
+
+	mutex_lock(su_mutex); /* for navigating configfs hierarchy */
+
+	opts_item = ch->fmt.group.cg_item.ci_parent->ci_parent->ci_parent;
+	opts = to_f_uvc_opts(opts_item);
+
+	mutex_lock(&opts->lock);
+	if (ch->fmt.linked || opts->refcnt) {
+		ret = -EBUSY;
+		goto end;
+	}
+
+	memcpy(tmpguidFormat, page,
+	       min(sizeof(tmpguidFormat), len));
+
+	format = uvc_format_by_guid(tmpguidFormat);
+	if (!format) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	memcpy(ch->desc.guidFormat, tmpguidFormat,
+	       min(sizeof(ch->desc.guidFormat), len));
+	ret = sizeof(ch->desc.guidFormat);
+
+end:
+	mutex_unlock(&opts->lock);
+	mutex_unlock(su_mutex);
+	return ret;
+}
+
+UVC_ATTR(uvcg_h264_, guid_format, guidFormat);
+
+#define UVCG_H264_ATTR_RO(cname, aname, bits)				\
+static ssize_t uvcg_h264_##cname##_show(struct config_item *item, char *page)\
+{									\
+	struct uvcg_h264 *u = to_uvcg_h264(item);			\
+	struct f_uvc_opts *opts;					\
+	struct config_item *opts_item;					\
+	struct mutex *su_mutex = &u->fmt.group.cg_subsys->su_mutex;	\
+	int result;							\
+									\
+	mutex_lock(su_mutex); /* for navigating configfs hierarchy */	\
+									\
+	opts_item = u->fmt.group.cg_item.ci_parent->ci_parent->ci_parent;\
+	opts = to_f_uvc_opts(opts_item);				\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(u->desc.aname));\
+	mutex_unlock(&opts->lock);					\
+									\
+	mutex_unlock(su_mutex);						\
+	return result;							\
+}									\
+									\
+UVC_ATTR_RO(uvcg_h264_, cname, aname)
+
+#define UVCG_H264_ATTR(cname, aname, bits)				\
+static ssize_t uvcg_h264_##cname##_show(struct config_item *item, char *page)\
+{									\
+	struct uvcg_h264 *u = to_uvcg_h264(item);			\
+	struct f_uvc_opts *opts;					\
+	struct config_item *opts_item;					\
+	struct mutex *su_mutex = &u->fmt.group.cg_subsys->su_mutex;	\
+	int result;							\
+									\
+	mutex_lock(su_mutex); /* for navigating configfs hierarchy */	\
+									\
+	opts_item = u->fmt.group.cg_item.ci_parent->ci_parent->ci_parent;\
+	opts = to_f_uvc_opts(opts_item);				\
+									\
+	mutex_lock(&opts->lock);					\
+	result = sprintf(page, "%u\n", le##bits##_to_cpu(u->desc.aname));\
+	mutex_unlock(&opts->lock);					\
+									\
+	mutex_unlock(su_mutex);						\
+	return result;							\
+}									\
+									\
+static ssize_t								\
+uvcg_h264_##cname##_store(struct config_item *item,			\
+			   const char *page, size_t len)		\
+{									\
+	struct uvcg_h264 *u = to_uvcg_h264(item);			\
+	struct f_uvc_opts *opts;					\
+	struct config_item *opts_item;					\
+	struct mutex *su_mutex = &u->fmt.group.cg_subsys->su_mutex;	\
+	int ret;							\
+	u8 num;								\
+									\
+	mutex_lock(su_mutex); /* for navigating configfs hierarchy */	\
+									\
+	opts_item = u->fmt.group.cg_item.ci_parent->ci_parent->ci_parent;\
+	opts = to_f_uvc_opts(opts_item);				\
+									\
+	mutex_lock(&opts->lock);					\
+	if (u->fmt.linked || opts->refcnt) {				\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = kstrtou8(page, 0, &num);					\
+	if (ret)							\
+		goto end;						\
+									\
+	/* index values in uvc are never 0 */				\
+	if (!num) {							\
+		ret = -EINVAL;						\
+		goto end;						\
+	}								\
+									\
+	u->desc.aname = num;						\
+	ret = len;							\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	mutex_unlock(su_mutex);						\
+	return ret;							\
+}									\
+									\
+UVC_ATTR(uvcg_h264_, cname, aname)
+
+UVCG_H264_ATTR_RO(b_format_index, bFormatIndex, 8);
+UVCG_H264_ATTR(b_default_frame_index, bDefaultFrameIndex, 8);
+// UVCG_H264_ATTR_RO(bm_flags, bmFlags, 8);
+UVCG_H264_ATTR_RO(b_aspect_ratio_x, bAspectRatioX, 8);
+UVCG_H264_ATTR_RO(b_aspect_ratio_y, bAspectRatioY, 8);
+UVCG_H264_ATTR_RO(bm_interlace_flags, bmInterlaceFlags, 8);
+
+#undef UVCG_H264_ATTR
+#undef UVCG_H264_ATTR_RO
+
+static inline ssize_t
+uvcg_h264_bma_controls_show(struct config_item *item, char *page)
+{
+	struct uvcg_h264 *u = to_uvcg_h264(item);
+	return uvcg_format_bma_controls_show(&u->fmt, page);
+}
+
+static inline ssize_t
+uvcg_h264_bma_controls_store(struct config_item *item,
+				     const char *page, size_t len)
+{
+	struct uvcg_h264 *u = to_uvcg_h264(item);
+	return uvcg_format_bma_controls_store(&u->fmt, page, len);
+}
+
+UVC_ATTR(uvcg_h264_, bma_controls, bmaControls);
+
+static struct configfs_attribute *uvcg_h264_attrs[] = {
+	&uvcg_h264_attr_b_format_index,
+	&uvcg_h264_attr_guid_format,
+	&uvcg_h264_attr_b_default_frame_index,
+	// &uvcg_h264_attr_bm_flags,
+	&uvcg_h264_attr_b_aspect_ratio_x,
+	&uvcg_h264_attr_b_aspect_ratio_y,
+	&uvcg_h264_attr_bm_interlace_flags,
+	&uvcg_h264_attr_bma_controls,
+	NULL,
+};
+
+static const struct config_item_type uvcg_h264_type = {
+	.ct_item_ops	= &uvcg_format_item_operations,
+	.ct_group_ops	= &uvcg_h264_group_ops,
+	.ct_attrs	= uvcg_h264_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct config_group *uvcg_h264_make(struct config_group *group,
+						   const char *name)
+{
+	char guid[16] = {
+		'H','2','6','4', 0x00, 0x00, 0x10, 0x00,
+		0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71
+	};
+
+	struct uvcg_color_matching *color_match;
+	struct config_item *streaming;
+	struct uvcg_h264 *h;
+
+	streaming = group->cg_item.ci_parent;
+	color_match = uvcg_format_get_default_color_match(streaming);
+	if (!color_match)
+		return ERR_PTR(-EINVAL);
+
+	h = kzalloc(sizeof(*h), GFP_KERNEL);
+	if (!h)
+		return ERR_PTR(-ENOMEM);
+
+	h->desc.bLength			= UVC_DT_FORMAT_FRAME_BASED_SIZE;
+	h->desc.bDescriptorType		= USB_DT_CS_INTERFACE;
+	h->desc.bDescriptorSubType	= UVC_VS_FORMAT_FRAME_BASED;
+	memcpy(h->desc.guidFormat, guid, sizeof(guid));
+	h->desc.bDefaultFrameIndex	= 1;
+	h->desc.bAspectRatioX		= 0;
+	h->desc.bAspectRatioY		= 0;
+	h->desc.bmInterlaceFlags	= 0;
+	h->desc.bCopyProtect		= 0;
+
+	h->desc.bBitsPerPixel		= 0;
+	h->desc.bVariableSize		= 1;
+
+	INIT_LIST_HEAD(&h->fmt.frames);
+	h->fmt.type = UVCG_H264;
+	h->fmt.color_matching = color_match;
+	color_match->refcnt++;
+	config_group_init_type_name(&h->fmt.group, name,
+				    &uvcg_h264_type);
+
+	return &h->fmt.group;
+}
+
+static struct configfs_group_operations uvcg_h264_grp_ops = {
+	.make_group		= uvcg_h264_make,
+};
+
+static const struct uvcg_config_group_type uvcg_h264_grp_type = {
+	.type = {
+		.ct_item_ops	= &uvcg_config_item_ops,
+		.ct_group_ops	= &uvcg_h264_grp_ops,
+		.ct_owner	= THIS_MODULE,
+	},
+	.name = "framebased",
+};
+
 /* -----------------------------------------------------------------------------
  * streaming/color_matching/default
  */
@@ -2965,6 +3255,11 @@ static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
 				container_of(fmt, struct uvcg_mjpeg, fmt);
 
 			*size += sizeof(m->desc);
+		} else if (fmt->type == UVCG_H264) {
+			struct uvcg_h264 *h =
+				container_of(fmt, struct uvcg_h264, fmt);
+
+			*size += sizeof(h->desc);
 		} else {
 			return -EINVAL;
 		}
@@ -2975,7 +3270,15 @@ static int __uvcg_cnt_strm(void *priv1, void *priv2, void *priv3, int n,
 		int sz = sizeof(frm->dw_frame_interval);
 
 		*size += sizeof(frm->frame);
-		*size += frm->frame.b_frame_interval_type * sz;
+
+		if(frm->fmt_type == UVCG_H264){
+			struct uvc_frame_frame_based* hf
+				= to_uvc_frame_based(&frm->frame);
+			*size += hf->bFrameIntervalType * sz;
+		}
+		else{
+			*size += frm->frame.b_frame_interval_type * sz;
+		}
 	}
 	break;
 	case UVCG_COLOR_MATCHING: {
@@ -3045,6 +3348,15 @@ static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 			m->desc.bNumFrameDescriptors = fmt->num_frames;
 			memcpy(*dest, &m->desc, sizeof(m->desc));
 			*dest += sizeof(m->desc);
+		} else if (fmt->type == UVCG_H264) {
+			struct uvc_format_frame_based *h264 = *dest;
+			struct uvcg_h264 *h =
+				container_of(fmt, struct uvcg_h264, fmt);
+
+			memcpy(*dest, &h->desc, sizeof(h->desc));
+			*dest += sizeof(h->desc);
+			h264->bNumFrameDescriptors = fmt->num_frames;
+			h264->bFormatIndex = n + 1;
 		} else {
 			return -EINVAL;
 		}
@@ -3053,20 +3365,33 @@ static int __uvcg_fill_strm(void *priv1, void *priv2, void *priv3, int n,
 	case UVCG_FRAME: {
 		struct uvcg_frame *frm = priv1;
 		struct uvc_descriptor_header *h = *dest;
-
+		struct uvcg_frame *pTemp = (struct uvcg_frame *)(*dest);
 		sz = sizeof(frm->frame);
 		memcpy(*dest, &frm->frame, sz);
 		*dest += sz;
-		sz = frm->frame.b_frame_interval_type *
-			sizeof(*frm->dw_frame_interval);
-		memcpy(*dest, frm->dw_frame_interval, sz);
-		*dest += sz;
-		if (frm->fmt_type == UVCG_UNCOMPRESSED)
+
+		if (frm->fmt_type == UVCG_UNCOMPRESSED){
 			h->bLength = UVC_DT_FRAME_UNCOMPRESSED_SIZE(
 				frm->frame.b_frame_interval_type);
-		else if (frm->fmt_type == UVCG_MJPEG)
+			sz = frm->frame.b_frame_interval_type *
+				sizeof(*frm->dw_frame_interval);
+		}
+		else if (frm->fmt_type == UVCG_MJPEG){
 			h->bLength = UVC_DT_FRAME_MJPEG_SIZE(
 				frm->frame.b_frame_interval_type);
+			sz = frm->frame.b_frame_interval_type *
+				sizeof(*frm->dw_frame_interval);
+		}
+		else if (frm->fmt_type == UVCG_H264){
+			struct uvc_frame_frame_based* hf
+				= to_uvc_frame_based(&frm->frame);
+			h->bLength = UVC_DT_FRAME_FRAME_BASED_SIZE(
+				hf->bFrameIntervalType);
+			sz = hf->bFrameIntervalType *
+				sizeof(*frm->dw_frame_interval);
+		}
+		memcpy(*dest, frm->dw_frame_interval, sz);
+		*dest += sz;
 	}
 	break;
 	case UVCG_COLOR_MATCHING: {
@@ -3285,6 +3610,7 @@ static const struct uvcg_config_group_type uvcg_streaming_grp_type = {
 		&uvcg_streaming_header_grp_type,
 		&uvcg_uncompressed_grp_type,
 		&uvcg_mjpeg_grp_type,
+		&uvcg_h264_grp_type,
 		&uvcg_color_matching_grp_type,
 		&uvcg_streaming_class_grp_type,
 		NULL,
