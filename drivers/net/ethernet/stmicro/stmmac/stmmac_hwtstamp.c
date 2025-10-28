@@ -128,9 +128,9 @@ static int config_addend(void __iomem *ioaddr, u32 addend)
 	/* Bugfix: check 0.465ns accuracy */
 	value = readl(ioaddr + PTP_TCR);
 	if (!(value & PTP_TCR_TSCTRLSSR)) {
-		unsigned long data = addend;
+		u64 data = addend;
 
-		data = (data * 1000) / 465;
+		data = div_u64(data * 1000, 465);
 		addend = data;
 	}
 #endif
