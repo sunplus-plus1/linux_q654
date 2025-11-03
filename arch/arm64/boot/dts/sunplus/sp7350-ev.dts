@@ -3725,7 +3725,7 @@
 	aud_dac_xck_pins: pinmux_aud_dac_xck-pins {
 		function = "AUD_DAC_XCK";
 		groups = "AUD_DAC_XCK";
-		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 	};
 	aud_dac_xck1_pins: pinmux_aud_dac_xck1-pins {
 		function = "AUD_DAC_XCK1";
@@ -3745,7 +3745,7 @@
 	aud_au2_ck_pins: pinmux_aud_au2_ck-pins {
 		function = "AUD_AU2_CK";
 		groups = "AUD_AU2_CK";
-		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_3300_IOL_3300UA>;
 	};
 	aud_au1_ck_pins: pinmux_aud_au1_ck-pins {
 		function = "AUD_AU1_CK";
@@ -3756,7 +3756,7 @@
 		function = "AUD_AU_ADC_DATA0";
 #if 1 // X1
 		groups = "AUD_AU_ADC_DATA0_X1";
-		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_6600_IOL_6600UA>;
 #else // X2
 		groups = "AUD_AU_ADC_DATA0_X2";
 		drive-strength-microamp = <SPPCTRL_DVIO_DRV_IOH_10100_IOL_12500UA>;
@@ -3765,7 +3765,7 @@
 	aud_adc2_data0_pins: pinmux_aud_adc2_data0-pins {
 		function = "AUD_ADC2_DATA0";
 		groups = "AUD_ADC2_DATA0";
-		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_9900_IOL_9900UA>;
+		drive-strength-microamp = <SPPCTRL_GPIO_DRV_IOH_3300_IOL_3300UA>;
 	};
 	aud_adc1_data0_pins: pinmux_aud_adc1_data0-pins {
 		function = "AUD_ADC1_DATA0";
