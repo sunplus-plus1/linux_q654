@@ -1137,10 +1137,10 @@
 		reg = <0x0 0xf8c10000 0x0 0x4000>;
 		interrupt-parent = <&gic>;
 		interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc VCL5>, <&clkc VCL0>;
-		clock-names = "cpu_clk", "isp_clk";
-		resets = <&rstc RST_VCL5>, <&rstc RST_VCL0>;
-		reset-names = "cpu_reset", "isp_reset";
+		clocks =  <&clkc VCL>, <&clkc VCL5>, <&clkc VCL0>;
+		clock-names = "vcl_clk", "vcl5_clk", "isp_clk";
+		resets = <&rstc RST_VCL>, <&rstc RST_VCL5>, <&rstc RST_VCL0>;
+		reset-names = "vcl_reset", "vcl5_reset", "isp_reset";
 		//memory-region = <&isp_sram_reserve>;
 		status = "okay";
 	};
@@ -1158,16 +1158,13 @@
 		reset-names = "vcl_reset", "sdp_reset", "vcl5_reset";
 	};
 
-	timer_mem: tsp@f8c05000 {
-		reg = <0x0 0xf8c05000 0x0 0x1c0>;
-		status = "okay";
-	};
-
-	tsp {
+	tsp: tsp@f8c05000 {
 		compatible = "sunplus,sp7350-tsp";
-		memory-region = <&timer_mem>;
+		reg = <0x0 0xf8c05000 0x0 0x1c0>;
 		clocks = <&clkc VCL>, <&clkc VCL4>, <&clkc VCL5>;
 		clock-names = "vcl_clk", "tsp_clk", "vcl5_clk";
+		resets = <&rstc RST_VCL>, <&rstc RST_VCL4>, <&rstc RST_VCL5>;
+		reset-names = "vcl_reset", "timer_reset", "vcl5_reset";
 		num_tsp_device = <10>;
 		tsp_device = <&mipi_tsp0>, <&mipi_tsp1>,
 		<&mipi_tsp2>, <&mipi_tsp3>,
@@ -1475,8 +1472,8 @@
 		compatible = "sunplus,sp7350-hantro-codec";
 		clocks = <&clkc VIDEO_CODEC>;
 		clock-names = "clk_vcodec";
-		resets = <&rstc RST_VIDEO_CODEC>, <&rstc RST_VCL>, <&rstc RST_VCL0>, <&rstc RST_VCL1>, <&rstc RST_VCL2>, <&rstc RST_VCL3>, <&rstc RST_VCL4>, <&rstc RST_VCL5>;
-		reset-names = "rstc_vcodec", "rstc_vcl", "rstc_vcl0", "rstc_vcl1", "rstc_vcl2", "rstc_vcl3", "rstc_vcl4", "rstc_vcl5";
+		resets = <&rstc RST_VIDEO_CODEC>;
+		reset-names = "rstc_vcodec";
 	};
 
 	video_codec_dec: hantro_vc8000d@f8168000 {
@@ -1515,7 +1512,7 @@
 
 	galcore: galcore@f8140000 {
 		compatible = "galcore";
-		reg = <0x0 0xf8140000 0x0 0x20000>, <0x0 0xf880125c 0x0 0xff>;
+		reg = <0x0 0xf8140000 0x0 0x10000>, <0x0 0xf880125c 0x0 0xff>;
 		reg-name = "galcore","gal_ios";
 		dev_name = "galcore";
 		interrupt-parent = <&gic>;
