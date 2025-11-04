@@ -31,6 +31,8 @@ static DEFINE_IDA(timer_ida);
 
 #define TRACE(s) pr_info("### %s:%d %s\n", __func__, __line__, s)
 
+//#define IRQ_LANTENCY_TEST
+
 //#define CONFIG_SP_TIMER_DEBUG
 #ifdef CONFIG_SP_TIMER_DEBUG
 	#define TAG "Timer: "
@@ -105,6 +107,10 @@ struct sp_timer_priv {
 	u32 freq;
 	u32 rel_cnt;
 
+#ifdef IRQ_LANTENCY_TEST
+	u32 base_ts;
+#endif
+
 	u8 tmr_id; //TODO: Need modify
 	u8 stc_id;
 
@@ -113,6 +119,19 @@ struct sp_timer_priv {
 #define _SP_TIME_DEV_OPEN		0	/* Opened ? */
 #define _SP_TIME_ACTIVE			1	/* Active ? */
 };
+
+#ifdef IRQ_LANTENCY_TEST
+#define INTERVAL_TS 100000
+
+static u32 get_stc_counter(volatile u32 *base)
+{
+	base = (void *)(((u64)base >> 7 << 7) + 0x5c); // stcl_31_0
+	base[1] = 0;
+	wmb();
+
+	return base[0];
+}
+#endif
 
 static inline bool sp_timer_active(struct sp_timer_priv *priv)
 {
@@ -145,6 +164,9 @@ static int sp_timer_start(struct sp_timer_priv *priv)
 
 	val = readl_relaxed(base + TIMER_CTRL);
 	val |= TIMER_START;
+#ifdef IRQ_LANTENCY_TEST
+	priv->base_ts = get_stc_counter(priv->base);
+#endif
 	writel(val, base + TIMER_CTRL);
 
 	set_bit(_SP_TIME_ACTIVE, &priv->status);
@@ -213,7 +235,7 @@ static int sp_timer_set_cnt(struct sp_timer_priv *priv, u32 cnt)
 
 	writel(cnt, base + TIMER_CNT);
 	if (mode == SP_TM_RPT)
-		writel(cnt, base + TIMER_RELOAD);
+		writel(cnt - 1, base + TIMER_RELOAD);
 
 	if (sp_timer_active(priv)) {
 		val = readl_relaxed(base + TIMER_CTRL);
@@ -444,8 +466,31 @@ int devm_timer_cdev_register(struct device *dev,
 static irqreturn_t sp_timer_isr(int irq, void *arg)
 {
 	struct sp_timer_priv *priv = arg;
+#ifdef IRQ_LANTENCY_TEST
+	static int first_ts = 0;
+	u32 delta_ts, now_ts = get_stc_counter(priv->base);
 
-	//printk("k\n");
+	delta_ts = now_ts - priv->base_ts;
+	if (delta_ts < INTERVAL_TS) {
+		pr_info_ratelimited("cycstc: delta ts comes early -%u ts!", INTERVAL_TS - delta_ts);
+		delta_ts = INTERVAL_TS;
+	}
+
+	now_ts = delta_ts - INTERVAL_TS;
+
+	if (first_ts == 0) {
+		first_ts = now_ts;
+		goto out;
+	}
+
+	printk("%u\n", now_ts); // interrupt delay
+
+out:
+	while (delta_ts >= INTERVAL_TS) {
+		delta_ts -= INTERVAL_TS;
+		priv->base_ts += INTERVAL_TS;
+	}
+#endif
 
 	kill_fasync(&priv->async, SIGIO, POLL_IN);
 
