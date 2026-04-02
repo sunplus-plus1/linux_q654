@@ -470,9 +470,23 @@ void axi_mon_BW_Monitor(void __iomem *axi_mon_regs, void __iomem *axi_id_regs, u
 	DBG_INFO("axi_mon_regs=0x%px\n", axi);
 	DBG_INFO("axi_id=0x%px\n", axi_id);
 
-	//data = BW update period, BW Monitor Start=1, Latency Monitor Start =1
-	writel(0x00000111 | (data << 12), &axi->axi_control);
+	//bit8 Latency Monitor Start =1, bit4 BW Monitor Start=1, bit0 Event Monitor Clear=1, data = BW update period
+	writel(0x00000011 | (data << 12), &axi->axi_control);
 	//IP Monitor Enable = 1
+	writel(0x00000001, &axi_id->sub_ip_monitor);
+}
+
+void axi_mon_LATENCY_Monitor(void __iomem *axi_mon_regs, void __iomem *axi_id_regs, unsigned int data)
+{
+	regs_axi_t *axi = (regs_axi_t *)axi_mon_regs;
+	regs_submonitor_t *axi_id = (regs_submonitor_t *)axi_id_regs;
+
+	DBG_INFO("axi_mon_regs=0x%px\n", axi);
+	DBG_INFO("axi_id=0x%px\n", axi_id);
+
+	//bit8 Latency Monitor Start =1, bit0 Event Monitor Clear=1, data = latency monitor 0:disable 1:enable
+	writel(0x00000001 | (data << 8), &axi->axi_control);
+	//IP Monitor Enable
 	writel(0x00000001, &axi_id->sub_ip_monitor);
 }
 
@@ -650,13 +664,47 @@ static ssize_t bw_monitor_store(struct device *dev, struct device_attribute *att
 	return ret;
 }
 
+
+static ssize_t latency_monitor_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	DBG_INFO("[AXI] %s\n", __func__);
+	axi_mon_BW_Value(axi_monitor->current_id_regs);
+	return len;
+}
+
+
+static ssize_t latency_monitor_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned char ret = count;
+	unsigned int latency_enalbe;
+	long val;
+	ssize_t status;
+
+	DBG_INFO("[AXI] %s\n", __func__);
+	status = kstrtol(buf, 0, &val); //Get BW update period
+	if (status)
+		return status;
+	latency_enalbe = val;
+	DBG_INFO("AXI device_id=%d\n", AxiDeviceID);
+	DBG_INFO("latency_enalbe=0x%x\n", latency_enalbe);
+	if (Check_current_id(AxiDeviceID) == valid_id) {
+		Get_current_id(AxiDeviceID);
+		axi_mon_LATENCY_Monitor(axi_monitor->axi_mon_regs, axi_monitor->current_id_regs, latency_enalbe);
+	} else {
+		DBG_INFO("INVALID DEVICE ID\n");
+	}
+	return ret;
+}
+
 static DEVICE_ATTR_RW(device_id);
 static DEVICE_ATTR_RW(special_data);
 static DEVICE_ATTR_RW(unexpect_access);
 //static DEVICE_ATTR_RW(unexpect_access_eAddr);
 static DEVICE_ATTR_RW(time_out);
 static DEVICE_ATTR_RW(bw_monitor);
-
+static DEVICE_ATTR_RW(latency_monitor);
 /* ---------------------------------------------------------------------------------------------- */
 
 /**************************************************************************/
@@ -1010,6 +1058,7 @@ static int sp_axi_platform_driver_probe(struct platform_device *pdev)
 	//device_create_file(&pdev->dev, &dev_attr_unexpect_access_eAddr);
 	device_create_file(&pdev->dev, &dev_attr_time_out);
 	device_create_file(&pdev->dev, &dev_attr_bw_monitor);
+	device_create_file(&pdev->dev, &dev_attr_latency_monitor);
 
 fail_regdev:
 	mutex_destroy(&axi_monitor->write_lock);
