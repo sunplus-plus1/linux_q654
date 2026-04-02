@@ -85,6 +85,9 @@ struct nand_flash_dev sp_spinand_ids[] = {
 	/* FORESEE */
 	NAND_ID("FS35NF01G-S1F1",    0xcd, 0xb1, SZ_2K, SZ_64,  SZ_128K, SZ_128),
 	NAND_ID("FS35NF02G-S2F1",    0xcd, 0xa2, SZ_2K, SZ_64,  SZ_128K, SZ_256),
+
+	/* Zbit */
+	NAND_ID("ZB35Q04BYIG",       0x5e, 0xa3, SZ_2K, SZ_64,  SZ_256K, SZ_512),
 	{NULL},
 };
 
@@ -158,6 +161,9 @@ struct sp_drv_option sp_spinand_opt[] = {
 	/* FORESEE */
 	NAND_OPT("FS35NF01G-S1F1",   0xcd, 0xb1, SPINAND_OPT_ECCEN_IN_F90_4|SPINAND_OPT_HAS_QE_BIT),
 	NAND_OPT("FS35NF02G-S2F1",   0xcd, 0xa2, SPINAND_OPT_ECCEN_IN_F90_4|SPINAND_OPT_NO_4BIT_READ|SPINAND_OPT_NO_4BIT_PROGRAM),
+
+	/* Zbit */
+	NAND_OPT("ZB35Q04BYIG",      0x5e, 0xa3, SPINAND_OPT_HAS_QE_BIT),
 	{NULL},
 };
 
