@@ -874,10 +874,11 @@ static inline int __find_best_delay(u8 candidate_dly)
 		return 0;
 	f = ffs(candidate_dly) - 1;
 	w = hweight8(candidate_dly);
-	if (0xff == (bitfield_mask(f, w) & ~candidate_dly))
+
+	if ((bitfield_mask(f, w) & candidate_dly) == bitfield_mask(f, w))
 		return (f + w / 2);
 	else
-		return (f);
+		return f;	
 }
 
 static inline __maybe_unused void spmmc_txdummy(struct spmmc_host *host, int count)
