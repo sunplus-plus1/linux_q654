@@ -47,6 +47,11 @@ driver := v6.4.18.5
 VIP9000_NPU := $(CONFIG_VIP9000_NPU_DRIVERS)
 endif
 
+ifneq ($(CONFIG_v6_4_18_39),)
+driver := v6.4.18.39
+VIP9000_NPU := $(CONFIG_VIP9000_NPU_DRIVERS)
+endif
+
 ccflags-y += $(EXTRA_CCFLAGS)
 ccflags-y += -I$(src)/$(driver)/hal/kernel/inc
 ccflags-y += -I$(src)/$(driver)/hal/kernel
@@ -58,7 +63,7 @@ ccflags-y += -I$(src)/$(driver)/hal/os/linux/kernel/allocator/default/
 
 obj-$(VIP9000_NPU) += galcore.o
 
-ifneq ($(CONFIG_v6_4_18_5),)
+ifneq ($(CONFIG_v6_4_18_5)$(CONFIG_v6_4_18_39),)
 galcore-objs := $(driver)/hal/os/linux/kernel/gc_hal_kernel_device.o \
 				$(driver)/hal/os/linux/kernel/gc_hal_kernel_linux.o \
 				$(driver)/hal/os/linux/kernel/gc_hal_kernel_os.o \
