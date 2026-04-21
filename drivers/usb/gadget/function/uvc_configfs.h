@@ -49,7 +49,7 @@ container_of(group_ptr, struct uvcg_color_matching, group)
 enum uvcg_format_type {
 	UVCG_UNCOMPRESSED = 0,
 	UVCG_MJPEG,
-	UVCG_H264
+	UVCG_FRAMEBASED,
 };
 
 struct uvcg_format {
@@ -106,6 +106,7 @@ struct uvcg_frame {
 		u32	dw_max_video_frame_buffer_size;
 		u32	dw_default_frame_interval;
 		u8	b_frame_interval_type;
+		u32 dw_bytes_perline;
 	} __attribute__((packed)) frame;
 	u32 *dw_frame_interval;
 };
@@ -147,19 +148,14 @@ static inline struct uvcg_mjpeg *to_uvcg_mjpeg(struct config_item *item)
  * streaming/framebased/<NAME>
  */
 
-struct uvcg_h264 {
-	struct uvcg_format		fmt;
-	struct uvc_format_frame_based	desc;
+struct uvcg_framebased {
+	struct uvcg_format              fmt;
+	struct uvc_format_framebased    desc;
 };
 
-static inline struct uvcg_h264 *to_uvcg_h264(struct config_item *item)
+static inline struct uvcg_framebased *to_uvcg_framebased(struct config_item *item)
 {
-	return container_of(to_uvcg_format(item), struct uvcg_h264, fmt);
-}
-
-static inline struct uvc_frame_frame_based *to_uvc_frame_based(void* frame)
-{
-	return (struct uvc_frame_frame_based *)frame;
+	return container_of(to_uvcg_format(item), struct uvcg_framebased, fmt);
 }
 
 /* -----------------------------------------------------------------------------
