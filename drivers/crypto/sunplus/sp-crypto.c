@@ -13,10 +13,6 @@
 #include "sp-hash.h"
 #include "sp-rsa.h"
 
-#ifdef CONFIG_CRYPTO_DEV_SP_TEST
-#include "sp-crypto-test.c"
-#endif
-
 static struct sp_crypto_dev sp_dd_tb[1];
 
 #define OUT(fmt, args...) { p += sprintf(p, fmt, ##args); }

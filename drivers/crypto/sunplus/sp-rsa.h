@@ -25,20 +25,7 @@
 #define sp_rsabase_be_to_cpu __be64_to_cpu
 #endif
 
-struct rsa_para {
-	__u8	*crp_p;
-	__u32	crp_bytes;
-};
-
-#define BITS2BYTES(bits)	((bits) / (BITS_PER_BYTE))
-#define BITS2LONGS(bits)	((bits) / (BITS_PER_LONG))
-
-int sp_powm(struct rsa_para *res, struct rsa_para *base,
-	    struct rsa_para *exp, struct rsa_para *mod);
 void sp_rsa_finit(void);
 int sp_rsa_init(void);
 void sp_rsa_irq(void *devid, u32 flag);
-int mont_p2(struct rsa_para *mod,  struct rsa_para *p2);
-rsabase_t mont_w(struct rsa_para *mod);
-int sp_mpi_set_buffer(MPI a, const void *xbuffer, unsigned int nbytes, int sign);
 #endif //__SP_RSA_H__
